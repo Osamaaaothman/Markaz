@@ -1,0 +1,15 @@
+// Prisma schema for the ERP API.
+// Models are added starting with the Foundation phase (User/Role/Permission).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+// No `url` here by design: Prisma 7 connects via a driver adapter
+// (@prisma/adapter-pg) constructed with DATABASE_URL at runtime, not
+// through the schema file. prisma.config.ts still supplies the URL
+// for the CLI (migrate/studio).
+datasource db {
+  provider = "postgresql"
+}

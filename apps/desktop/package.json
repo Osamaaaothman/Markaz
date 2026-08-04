@@ -1,0 +1,52 @@
+{
+  "name": "@erp/desktop",
+  "private": true,
+  "version": "0.0.0",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "package": "electron-vite build && electron-builder",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@erp/shared": "workspace:*",
+    "@hookform/resolvers": "^5.7.1",
+    "@mantine/core": "^9.5.1",
+    "@mantine/hooks": "^9.5.1",
+    "@mantine/notifications": "^9.5.1",
+    "@tabler/icons-react": "^3.46.0",
+    "@tanstack/react-query": "^5.101.4",
+    "dayjs": "^1.11.21",
+    "i18next": "^26.3.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-hook-form": "^7.84.0",
+    "react-hotkeys-hook": "^5.3.3",
+    "react-i18next": "^17.0.11",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@erp/config": "workspace:*",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.9.0",
+    "jsdom": "^30.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
+  }
+}

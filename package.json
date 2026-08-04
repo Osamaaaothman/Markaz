@@ -1,0 +1,22 @@
+{
+  "name": "erp",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+  },
+  "devDependencies": {
+    "turbo": "^2.10.8",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3"
+  }
+}

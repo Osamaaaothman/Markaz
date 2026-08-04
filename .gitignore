@@ -1,0 +1,36 @@
+node_modules/
+dist/
+.vite/
+release/
+build/
+.turbo/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# os
+.DS_Store
+Thumbs.db
+
+# electron
+apps/desktop/out/
+
+# prisma
+apps/api/prisma/*.db
+apps/api/generated/
+
+# local sqlite (offline cache)
+*.sqlite
+*.sqlite3

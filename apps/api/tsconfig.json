@@ -1,0 +1,20 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "declaration": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": false,
+    "rootDir": "src"
+  },
+  "include": ["src/**/*"]
+}

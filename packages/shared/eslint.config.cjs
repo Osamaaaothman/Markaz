@@ -1,0 +1,14 @@
+// @ts-check
+const base = require("@erp/config/eslint.base.js");
+const globals = require("globals");
+
+module.exports = [
+  ...base,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+];
