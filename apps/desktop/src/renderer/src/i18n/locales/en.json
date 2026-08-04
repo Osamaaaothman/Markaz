@@ -1,8 +1,19 @@
 {
   "app": {
-    "name": "ERP"
+    "name": "Markaz",
+    "scaffoldNotice": "Foundation scaffold — desktop shell, theme, and i18n are wired up."
   },
   "common": {
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "retry": "Retry"
+  },
+  "connection": {
+    "connecting": "Connecting to server…",
+    "connected": "Connected to API",
+    "error": "Can't reach the API"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "The app hit an unexpected error and can't continue. Try again, and if it keeps happening, contact support."
   }
 }
