@@ -12,8 +12,8 @@ async function bootstrap() {
   // Swagger docs are generated from the same Zod DTOs used for request
   // validation, so they can't silently drift out of sync with the code.
   const config = new DocumentBuilder()
-    .setTitle("ERP API")
-    .setDescription("Internal REST API for the ERP desktop client")
+    .setTitle("Markaz API")
+    .setDescription("Internal REST API for the Markaz desktop client")
     .setVersion("0.0.0")
     .build();
   const document = cleanupOpenApiDoc(SwaggerModule.createDocument(app, config));

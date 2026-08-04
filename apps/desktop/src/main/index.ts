@@ -32,7 +32,7 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId("com.erp.desktop");
+  electronApp.setAppUserModelId("com.markaz.desktop");
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);

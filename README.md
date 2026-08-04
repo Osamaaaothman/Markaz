@@ -30,6 +30,23 @@ pnpm dev
 - Desktop app launches as an Electron window (first run downloads the
   Electron binary, which can take a while)
 
+### Easiest way to run it (Windows)
+
+After the one-time `pnpm install` above, double-click **`start.bat`** in the
+repo root. It starts Postgres (if Docker is running) and both the API and
+desktop app together — no terminal typing needed after that first setup.
+Close the window it opens to stop everything.
+
+### Packaged build
+
+`pnpm --filter @erp/desktop package` produces a real Windows installer at
+`apps/desktop/release/*.exe` — install it once and the app runs like any
+other desktop app (no `pnpm dev` needed to launch the UI). It still talks to
+the API over HTTP, so the API (and Postgres) need to be running somewhere
+reachable — for now that means running `start.bat` (or `pnpm dev` in
+`apps/api`) alongside it, same as the dev version. This changes once the app
+supports a configurable server address.
+
 ## Common commands
 
 | Command | What it does |
