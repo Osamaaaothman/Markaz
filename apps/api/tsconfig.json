@@ -4,7 +4,7 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "target": "ES2022",
-    "declaration": true,
+    "declaration": false,
     "outDir": "./dist",
     "baseUrl": "./",
     "skipLibCheck": true,
@@ -14,7 +14,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "isolatedModules": false,
-    "rootDir": "src"
+    "rootDir": "."
   },
   "include": ["src/**/*"]
 }

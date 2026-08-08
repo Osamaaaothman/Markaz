@@ -5,6 +5,9 @@ const globals = require("globals");
 module.exports = [
   ...base,
   {
+    ignores: ["generated/**"],
+  },
+  {
     languageOptions: {
       globals: {
         ...globals.node,
