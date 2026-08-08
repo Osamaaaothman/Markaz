@@ -15,5 +15,19 @@
   "error": {
     "title": "Something went wrong",
     "description": "The app hit an unexpected error and can't continue. Try again, and if it keeps happening, contact support."
+  },
+  "login": {
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "invalidCredentials": "Incorrect email or password",
+    "errors": {
+      "email": "Enter a valid email address",
+      "password": "Enter your password"
+    }
+  },
+  "nav": {
+    "welcome": "Welcome, {{name}}",
+    "logout": "Log out"
   }
 }

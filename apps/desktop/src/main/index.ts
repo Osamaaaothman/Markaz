@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow } from "electron";
 import { join } from "path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
+import { registerSecureStorageHandlers } from "./secure-storage";
 
 function createMainWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -37,6 +38,8 @@ app.whenReady().then(() => {
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });
+
+  registerSecureStorageHandlers();
 
   createMainWindow();
 
