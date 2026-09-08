@@ -34,6 +34,9 @@ jobs:
       - name: Test
         run: npm run test
 
+      # @nestjs/platform-express hard-pins a vulnerable multer (advisories
+      # GHSA-wc9g-mqfw-jrwm and siblings) — forced to a patched version via the
+      # root package.json "overrides" field rather than waiting on upstream.
       - name: Dependency audit
         run: npm audit --audit-level=high
 
