@@ -11,6 +11,10 @@
   "engines": {
     "node": ">=22"
   },
+  "overrides": {
+    "multer": "^2.3.0",
+    "deepmerge-ts": "^8.0.2"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

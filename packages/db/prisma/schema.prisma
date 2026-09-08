@@ -1,7 +1,6 @@
-// M0: tooling only — no tables yet.
-// Real models start in M1 (users/roles/permissions/audit_log) and M2 (chart of
-// accounts, journal entries, fiscal periods) per docs/14-MILESTONES.md.
-// Conventions when models are added: docs/04-DATA-MODEL-RULES.md.
+// M1: identity, permissions, audit, and license-check state.
+// Accounting models (chart of accounts, journal entries, fiscal periods) start M2 —
+// docs/14-MILESTONES.md. Conventions: docs/04-DATA-MODEL-RULES.md.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,4 +9,156 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// One row per customer-run legal entity within this single deployment (docs/00-PRODUCT-BRIEF.md
+// §4 note: "per tenant" here means per company/branch within one customer's own
+// deployment, not a cross-customer SaaS tenant).
+model Company {
+  id              String   @id
+  name            String
+  defaultCurrency String   @default("SAR") @map("default_currency")
+  timezone        String   @default("Asia/Riyadh")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdBy       String?  @map("created_by")
+  updatedBy       String?  @map("updated_by")
+  version         Int      @default(1)
+
+  users User[]
+  roles Role[]
+
+  @@map("companies")
+}
+
+model User {
+  id                  String    @id
+  companyId           String    @map("company_id")
+  email               String    @unique
+  passwordHash        String    @map("password_hash")
+  isActive            Boolean   @default(true) @map("is_active")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  createdBy           String?   @map("created_by")
+  updatedBy           String?   @map("updated_by")
+  version             Int       @default(1)
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+
+  @@index([companyId])
+  @@map("users")
+}
+
+// Roles are per-company configuration, not a fixed global list — docs/03-MULTI-TENANCY-RULES.md §7:
+// everything a customer can differ on is data, never a code branch.
+model Role {
+  id        String   @id
+  companyId String   @map("company_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  version   Int      @default(1)
+
+  company     Company          @relation(fields: [companyId], references: [id])
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([companyId, name])
+  @@map("roles")
+}
+
+// Permissions are a fixed catalog defined by the application (what actions exist),
+// not per-company data — which roles grant them (RolePermission) is what's configurable.
+model Permission {
+  id          String  @id
+  code        String  @unique
+  description String?
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// Refresh token rotation with reuse detection — docs/09-SECURITY-RULES.md §2.
+// Stored hashed, never the raw token.
+model RefreshToken {
+  id                String    @id
+  userId            String    @map("user_id")
+  tokenHash         String    @unique @map("token_hash")
+  expiresAt         DateTime  @map("expires_at")
+  revokedAt         DateTime? @map("revoked_at")
+  replacedByTokenId String?   @map("replaced_by_token_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  ipAddress         String?   @map("ip_address")
+  userAgent         String?   @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// Append-only — docs/02-ARCHITECTURE-RULES.md §3.4. No update path, no delete path
+// exists in application code, and the application DB role has no UPDATE/DELETE grant
+// on this table (docs/05-ACCOUNTING-INTEGRITY-RULES.md §9) — enforced in the M1
+// migration, not only by convention.
+model AuditLog {
+  id             String   @id
+  companyId      String?  @map("company_id")
+  actorId        String   @map("actor_id")
+  action         String
+  entityType     String   @map("entity_type")
+  entityId       String   @map("entity_id")
+  beforeJson     Json?    @map("before_json")
+  afterJson      Json?    @map("after_json")
+  correlationId  String   @map("correlation_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@map("audit_log")
+}
+
+// Single-row table: this deployment's own view of its license check-in status
+// against the central Activation Service. The master key itself is NOT stored here —
+// it stays in the environment/secret store (docs/09-SECURITY-RULES.md §1) and is
+// read fresh at check-in time. This table only tracks outcomes.
+model LicenseState {
+  id                      String   @id @default("singleton")
+  status                  String   @default("UNCONFIGURED")
+  lastSuccessfulCheckinAt DateTime? @map("last_successful_checkin_at")
+  lastAttemptAt           DateTime? @map("last_attempt_at")
+  seatsAllowed            Int?     @map("seats_allowed")
+  seatsUsed               Int?     @map("seats_used")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("license_state")
 }

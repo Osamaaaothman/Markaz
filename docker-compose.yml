@@ -2,8 +2,13 @@
 # `docker compose up -d` must produce a working, seeded system with no manual steps
 # beyond this file and the documented install runbook (M1) — that is the M0 gate.
 #
-# Migrations are an explicit step (`pnpm --filter @erp/db migrate:deploy`), never run
-# automatically on API startup — docs/12-OPS-AND-DEPLOYMENT.md §2.
+# All credentials below come from a real `.env` file (git-ignored, copy from
+# .env.example) via Compose's automatic .env substitution — never hard-coded here.
+# docs/09-SECURITY-RULES.md §1: "No secrets in source... Only .env.example with
+# placeholders is committed."
+#
+# Migrations are an explicit step (`npm run migrate:deploy --workspace=@erp/db`),
+# never run automatically on API startup — docs/12-OPS-AND-DEPLOYMENT.md §2.
 
 name: erp
 
@@ -12,15 +17,26 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: erp
-      POSTGRES_PASSWORD: erp
-      POSTGRES_DB: erp
+      # This is the MIGRATION-OWNER role only — it owns the schema and is used solely
+      # to run `prisma migrate deploy`. The running api/worker containers connect as
+      # the separate, restricted `erp_app` role instead (created by the first
+      # migration), which has no UPDATE/DELETE grant on audit_log — docs/04-DATA-MODEL-RULES.md
+      # §9 and CLAUDE.md §1 invariant #8 ("audit log is append-only, no exceptions").
+      # A single shared role cannot enforce this: a table owner always retains full
+      # DML rights regardless of REVOKE, so the roles must be genuinely separate.
+      POSTGRES_USER: ${MIGRATE_DB_USER:?set in .env}
+      POSTGRES_PASSWORD: ${MIGRATE_DB_PASSWORD:?set in .env}
+      POSTGRES_DB: ${DB_NAME:?set in .env}
+    ports:
+      # Host-exposed for local Prisma CLI / DB tooling convenience. Removing this for
+      # production hardening is an M10 item, same bucket as digest pinning.
+      - "5432:5432"
     volumes:
       # This volume holds this deployment's ENTIRE customer database — the one thing
       # that must be backed up. docs/12-OPS-AND-DEPLOYMENT.md §6.
       - erp_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      test: ["CMD-SHELL", "pg_isready -U ${MIGRATE_DB_USER:?set in .env} -d ${DB_NAME:?set in .env}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -42,8 +58,12 @@ services:
     environment:
       NODE_ENV: production
       API_PORT: 3000
-      DATABASE_URL: postgresql://erp:erp@db:5432/erp
+      # Restricted runtime role — NOT the migration owner. See the db service comment.
+      DATABASE_URL: ${DATABASE_URL:?set in .env}
       REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set in .env}
+      ACTIVATION_SERVICE_URL: ${ACTIVATION_SERVICE_URL:-}
+      LICENSE_MASTER_KEY: ${LICENSE_MASTER_KEY:-}
     depends_on:
       db:
         condition: service_healthy
@@ -65,8 +85,10 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://erp:erp@db:5432/erp
+      DATABASE_URL: ${DATABASE_URL:?set in .env}
       REDIS_URL: redis://redis:6379
+      ACTIVATION_SERVICE_URL: ${ACTIVATION_SERVICE_URL:-}
+      LICENSE_MASTER_KEY: ${LICENSE_MASTER_KEY:-}
     depends_on:
       db:
         condition: service_healthy
