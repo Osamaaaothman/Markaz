@@ -78,8 +78,13 @@ fixes a bug you introduced an hour earlier is good history.
 ```
 
 Types: `feat` `fix` `refactor` `test` `docs` `chore` `perf` `db` `i18n` `style`
-Scopes: `core` `inventory` `purchasing` `sales` `compliance` `tenancy` `auth` `web`
-`shared` `infra` `ci`
+Scopes: `core` `inventory` `purchasing` `sales` `compliance` `identity` `licensing`
+`print-agent` `web` `shared` `infra` `ci`
+
+(`identity` covers auth/permissions/audit; `licensing` covers the Activation Service
+and its client integration — renamed from `tenancy`/`auth`/`billing` after
+`docs/adr/0002-drop-saas-single-purchase-per-customer-deployment.md` dropped the
+multi-tenant platform.)
 
 Bad: `update`, `fix bug`, `wip`, `changes`
 Good: `fix(sales): apply line-level discount before VAT, matching ZATCA line semantics`

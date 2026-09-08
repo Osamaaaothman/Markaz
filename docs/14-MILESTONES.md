@@ -23,21 +23,27 @@ before features, because retrofitting them is a rewrite.
 
 ---
 
-## M1 — Tenancy + identity foundation
-**Branch:** `feat/tenancy-foundation`
+## M1 — Identity & licensing foundation
+**Branch:** `feat/identity-foundation`
 
-- ADR: tenant isolation strategy (**blocked on decision A1**)
-- `platform` schema: tenants, users, subscriptions, per-tenant migration state
-- TenantContext via AsyncLocalStorage; tenant-bound Prisma client
+> Simplified by `docs/adr/0002-drop-saas-single-purchase-per-customer-deployment.md`:
+> one deployment = one company, so no multi-tenant platform work belongs here anymore.
+
 - Authentication (tokens, refresh rotation, lockout), password hashing
 - Permissions as data: roles, permissions, `IPermissionService`
 - `IAuditLogger` with an append-only table and no UPDATE/DELETE grant
-- **Tenant isolation test suite** (`docs/03-MULTI-TENANCY-RULES.md` §4)
-- Tenant provisioning + deprovisioning pipeline, idempotent
-- Migration runner across tenant schemas
+- Company/branch model inside Core (a customer may run multiple legal entities on
+  their one deployment — ordinary data scoping, not a security boundary)
+- License/activation **client** integration: this deployment validates its master key
+  and reports seat usage against the central Activation Service, with the offline
+  grace-period behavior from `docs/01-OPEN-DECISIONS.md` A5
+- Install runbook: seed default chart of accounts, numbering series, fiscal calendar,
+  initial admin user
 
-**Gate:** two tenants provisioned; the full isolation suite green; a repository call
-with no tenant context throws.
+**Gate:** a fresh install runs end to end via the runbook with no manual steps beyond
+what it documents; the deployment keeps functioning correctly through a simulated
+Activation Service outage within the grace period, and behaves correctly once that
+period is exceeded.
 
 ---
 
@@ -70,9 +76,13 @@ and no duplicates.
 - Bilingual PDF rendering pipeline (server-side, RTL-correct)
 - i18n scaffolding, locale key parity check in CI
 - Observability: structured logging with redaction, metrics, health endpoints
+- **Local print/hardware agent** (small `localhost`-bound helper, installed only on
+  machines that need direct printer/device access — `docs/00-PRODUCT-BRIEF.md` §8):
+  first version covering whatever hardware the first real customer actually needs
 
 **Gate:** a job survives a worker crash and still completes exactly once; a PDF renders
-correctly in Arabic RTL and English LTR.
+correctly in Arabic RTL and English LTR; the web app successfully prints to a real
+local printer through the agent on at least one target OS.
 
 ---
 
@@ -145,16 +155,26 @@ submission.
 
 ---
 
-## M8 — Subscription & entitlements
-**Branch:** `feat/billing-entitlements`
+## M8 — Licensing & activation
+**Branch:** `feat/licensing-activation`
 
-- Plans, subscriptions, entitlements (blocked on decisions B1, B2)
-- Module and limit gating enforced server-side, never only in the UI
-- Suspension → read-only mode
-- Trial and lifecycle states
+> Replaces the old SaaS "subscription & entitlements" milestone —
+> `docs/adr/0002-drop-saas-single-purchase-per-customer-deployment.md`.
 
-**Gate:** a suspended tenant cannot write; a gated module returns a clean, translated
-error, not a crash.
+- **Activation Service** (separate small standalone service, Osama's own
+  infrastructure — not part of any customer deployment): issues a master key per
+  customer deployment and a sub-key per employee seat
+- Periodic check-in from each deployment, with the offline grace period and lockout
+  behavior finalised per `docs/01-OPEN-DECISIONS.md` A5
+- Seat management: add/revoke an employee seat against the license's seat limit,
+  kept deliberately separate from `IPermissionService` (licensing is not authentication)
+- Module/limit gating (if any packaging tiers exist — decisions B1, B2), enforced
+  server-side, never only in the UI
+
+**Gate:** a deployment activates, works normally, survives a simulated Activation
+Service outage through its full grace period, and degrades predictably (not silently,
+not catastrophically) if the outage outlasts it; a gated module returns a clean,
+translated error, not a crash.
 
 ---
 
