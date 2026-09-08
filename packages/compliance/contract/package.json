@@ -1,0 +1,14 @@
+{
+  "name": "@erp/compliance-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo \"no tests yet\""
+  },
+  "dependencies": {}
+}

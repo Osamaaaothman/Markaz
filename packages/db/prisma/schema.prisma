@@ -1,0 +1,13 @@
+// M0: tooling only — no tables yet.
+// Real models start in M1 (users/roles/permissions/audit_log) and M2 (chart of
+// accounts, journal entries, fiscal periods) per docs/14-MILESTONES.md.
+// Conventions when models are added: docs/04-DATA-MODEL-RULES.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
