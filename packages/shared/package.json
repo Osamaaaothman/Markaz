@@ -10,5 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "echo \"no tests yet\""
   },
-  "dependencies": {}
+  "dependencies": {
+    "uuidv7": "^1.0.2"
+  }
 }
