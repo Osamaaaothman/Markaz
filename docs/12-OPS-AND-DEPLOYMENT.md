@@ -1,25 +1,38 @@
 # 12 — Operations & Deployment
 
+> **Model:** every customer gets an isolated deployment (own database, own backend),
+> hosted either on the customer's own hardware or on a cloud account the customer pays
+> for and Osama operates. There is no shared SaaS production environment — see
+> `docs/adr/0002-drop-saas-single-purchase-per-customer-deployment.md`. **Docker
+> Compose is the primary and only deployment mechanism for the customer-facing
+> application**, not a dev-only convenience — it is what ships to every customer,
+> on either hosting path. Separately, the central **Activation Service**
+> (`docs/00-PRODUCT-BRIEF.md` §8) is Osama's own single piece of infrastructure and is
+> covered on its own in §11.
+
 ---
 
 ## 1. Environments
 
 | Env | Purpose | Data |
 |---|---|---|
-| local | Development | Docker Compose, seeded demo tenants |
+| local | Development | Docker Compose, seeded demo company |
 | ci | Automated tests | Ephemeral Postgres via Testcontainers |
-| staging | Pre-production, ZATCA **sandbox** | Synthetic tenants only |
-| production | Live customers | Real data — access strictly controlled |
+| staging | Pre-production, ZATCA **sandbox** | Synthetic data only |
+| customer deployment | One per customer, live | That customer's real data only — never shared with any other environment |
 
-**Never point staging at ZATCA production. Never copy production data into staging**
-without irreversible anonymisation — and prefer generated data over anonymised data.
+**Never point staging at ZATCA production. Never copy a customer's production data
+into staging or into another customer's deployment** without irreversible
+anonymisation — and prefer generated data over anonymised data.
 
 ---
 
-## 2. Docker Compose (local dev, and the single-tenant on-prem base)
+## 2. Docker Compose — the deployment unit for every customer
 
-Services: `api` (NestJS) · `db` (PostgreSQL) · `web` (Nginx serving the React build) ·
-`redis` (queue) · `worker` (job processor).
+This is not a dev-only artifact. **It is what gets installed at every customer**,
+whether that's their own server or a cloud account. Services: `api` (NestJS) · `db`
+(PostgreSQL) · `web` (Nginx serving the React build) · `redis` (queue) · `worker`
+(job processor).
 
 Rules:
 - **The worker is a separate process from the API**, even in Compose. Jobs must not run
@@ -38,34 +51,61 @@ Rules:
 
 ---
 
-## 3. Production deployment
+## 3. Production deployment — two hosting paths, same bundle
 
-Compose is a development and on-prem tool. Production SaaS needs:
-- Managed PostgreSQL with automated backups and **point-in-time recovery**
-- At least two API replicas behind a load balancer; rolling deploys with health gates
-- Separate worker deployment, independently scalable
-- Managed Redis
-- Object storage for documents and archived e-invoices
-- KMS for tenant key custody
-- Secret store
-- A defined region consistent with the **data residency decision**
-  (`docs/01-OPEN-DECISIONS.md` A2)
+There is no separate "SaaS production" tier with managed multi-replica
+infrastructure — that entire model was dropped (`docs/adr/0002-...md`). A single
+customer deployment is modest in scale (one company's data, one company's usage) and
+does not need it. Every customer gets the same Docker Compose bundle; only *where it
+runs* differs:
 
-Every deployment has a **rollback plan**. A deployment whose schema change cannot be
-rolled back must not ship.
+**Path A — customer's own hardware (true on-premise).**
+- Osama installs, hands over `docker compose up -d` and the runbook, then the
+  **customer owns** backups, patching, uptime, and physical security.
+- No data residency question — the data never leaves the customer's own building.
+- No KMS needed for ZATCA key custody — the customer's own deployment holds its own
+  keys locally, encrypted at rest per `docs/09-SECURITY-RULES.md` §5, same as any
+  other secret.
+
+**Path B — a cloud account the customer pays for, operated by Osama** (e.g. Railway).
+- The customer owns the bill and the account; **Osama holds admin access** to deploy
+  and maintain it. That access is logged, reasoned, and reviewable — the same
+  discipline `docs/09-SECURITY-RULES.md` §3 describes for platform-admin access, even
+  though there is no shared platform underneath it.
+- Data residency is a **per-customer question**: does this customer need in-Kingdom
+  hosting, and does the chosen provider offer it? Verify against the provider's
+  current documentation before committing a customer to this path
+  (`docs/01-OPEN-DECISIONS.md` A2).
+- Backups/PITR: whatever the provider offers for its managed Postgres, **verified by
+  Osama**, not assumed — this customer is trusting Osama with the operational half of
+  this choice even though they hold the account.
+
+Every deployment (either path) has a **rollback plan**. A schema change that cannot be
+rolled back must not ship to any customer.
 
 ---
 
 ## 4. Migrations
 
-- Platform schema and tenant schemas migrate separately.
-- Runner is idempotent, resumable, and records per-tenant version state.
-- **Expand/contract, always** (see `docs/03-MULTI-TENANCY-RULES.md` §6).
+There is no cross-tenant migration runner — each customer deployment has exactly one
+database, so a migration is a normal single-database Prisma migration. What still
+matters at this product's scale:
+
+- **Expand/contract, always.** Never a destructive migration in one step: add
+  nullable/new table → backfill → dual-write then switch reads → drop the old column
+  in a later release. This still matters because rollout happens **per customer, at
+  different times** — one customer may run an older version than another (see
+  `docs/01-OPEN-DECISIONS.md` B9), so a migration must never assume every deployment
+  updates in lockstep.
 - Long backfills are jobs, not migration steps holding a lock.
-- Every migration tested against a database seeded to realistic volume.
-- Migration runs are logged with duration per tenant; a slow one must be visible before
-  it becomes an outage.
-- A dry-run mode that reports what would change, per tenant.
+- Every migration tested against a database seeded to realistic volume before it ships
+  to any customer.
+- **Rollout is a per-customer operation, not a single push.** A documented,
+  repeatable runbook (which customer is on which version, how an update is applied to
+  their specific deployment, what the rollback step is) replaces the old cross-tenant
+  migration runner — see `docs/00-PRODUCT-BRIEF.md` §8 "per-deployment rollout
+  tooling." This does not exist yet and needs designing before more than a couple of
+  customers are live.
 
 ---
 
@@ -84,15 +124,21 @@ rolled back must not ship.
 
 ## 6. Backups and recovery
 
-- Automated daily backups plus PITR; **encrypted**; retention documented.
+- Automated daily backups plus PITR where the hosting path supports it; **encrypted**;
+  retention documented. **Who is responsible depends on the hosting path** (§3): the
+  customer on Path A (own hardware), Osama on Path B (operated cloud account) — but
+  either way, Osama should hand over working backup tooling as part of the Compose
+  bundle, not leave Path-A customers to figure it out themselves.
 - **Restore is tested on a schedule by actually restoring** — an untested backup is a
-  hope, not a backup.
-- Per-tenant restore capability (a customer will corrupt their own data and ask for
-  last Tuesday). Schema-per-tenant makes this far easier — a real argument for that
-  isolation choice.
-- RPO and RTO are **committed numbers** (open decision B8), not vibes.
-- Backups are access-controlled as tightly as production — a backup dump is a full
-  copy of every customer's ledger.
+  hope, not a backup. This applies on Path B regardless of who pays the cloud bill.
+- Each customer's backup is already physically isolated from every other customer's —
+  a real, simpler benefit of dropping shared infrastructure entirely, not just an
+  argument for a particular isolation strategy.
+- RPO and RTO are **committed numbers per hosting path** (open decision B8), not
+  vibes — Path A's numbers depend on the customer's own infrastructure and may be
+  weaker than what Osama commits to on Path B.
+- A backup dump is that one customer's complete financial ledger — access-controlled
+  as tightly as their production data, on whichever path holds it.
 
 ---
 
@@ -112,16 +158,25 @@ rolled back must not ship.
 
 ---
 
-## 8. Tenant lifecycle operations
+## 8. Customer deployment lifecycle operations
 
-Runbooks (written, tested, not improvised):
-- Provision a new tenant
-- Suspend a tenant (read-only) for non-payment
-- Export all data for a tenant
-- Delete a tenant, reconciled against the 10-year tax retention obligation
-- Restore one tenant to a point in time
-- Rotate or reissue a tenant's ZATCA credentials
-- Support access to a tenant's data — with reason, time bound, and audit
+No provisioning pipeline across schemas — a "new customer" is a one-time install
+event on whichever hosting path they chose. Runbooks still needed (written, tested,
+not improvised):
+- Install a new customer deployment (seed CoA, numbering series, fiscal calendar,
+  admin user, ZATCA onboarding, license activation)
+- Update/roll out a new version to an existing customer deployment (§4)
+- Export all data for a customer, on request
+- Decommission a customer's deployment, reconciled against the 10-year tax retention
+  obligation — this looks different per hosting path: on Path A it means handing the
+  customer their final export; on Path B it means Osama's own teardown of the account
+  (with the export already delivered first)
+- Restore one customer's deployment to a point in time
+- Rotate or reissue a customer's ZATCA credentials — a customer-initiated action they
+  perform themselves against their own onboarding, since they hold their own keys
+- Osama's support access to a customer's deployment (mainly relevant on Path B, where
+  Osama already holds admin access) — with reason, time bound, and audit, same as
+  before, just scoped to one customer's box instead of one platform
 
 ---
 
@@ -130,25 +185,55 @@ Runbooks (written, tested, not improvised):
 - Environment-based. Validated at startup with a schema; the process **fails fast** with
   a clear message if a required variable is missing — never on the first request that
   needs it.
-- `DEPLOYMENT_MODE=saas | single_tenant` is the only switch between the two delivery
-  models. It changes wiring at the composition root, not logic scattered through the code.
+- No `DEPLOYMENT_MODE` switch is needed anymore — every deployment is the same
+  single-company shape regardless of hosting path (§3). The only thing that varies by
+  environment is ordinary config: database connection, ZATCA sandbox vs. production
+  endpoint, Activation Service URL and this deployment's master key.
 - `.env.example` documents every variable: purpose, required or optional, default, and
-  where the value comes from.
+  where the value comes from. The master license key belongs here like any other
+  secret — never committed, never logged (`docs/09-SECURITY-RULES.md` §1).
 
 ---
 
 ## 10. Pre-first-customer checklist
 
 ```
-[ ] Backups configured AND a restore actually performed successfully
-[ ] Tenant isolation test suite green, covering every endpoint
+[ ] Backups configured AND a restore actually performed successfully, for whichever
+    hosting path this first customer is on
 [ ] Ledger integrity suite green against the performance fixture
 [ ] ZATCA sandbox end-to-end verified, including failure and retry paths
-[ ] Key custody implemented, reviewed, and documented
+[ ] Local key custody (this deployment's own ZATCA keys) implemented, reviewed, and
+    documented — not centrally custodied, see docs/09-SECURITY-RULES.md §5
+[ ] Activation Service check-in, offline grace period, and lockout behavior tested
+    end to end, including "Activation Service is unreachable" (§11)
+[ ] Local print/hardware agent installed and tested against the actual hardware this
+    customer uses, if they need it
 [ ] Alerting live and verified by triggering a real alert
 [ ] Rollback procedure tested on staging
-[ ] Tenant provisioning and deprovisioning runbooks executed end to end
+[ ] Install runbook executed end to end (§8)
 [ ] docs/SECURITY.md threat model written
 [ ] Both locales complete on every Tier-1 screen, RTL verified
-[ ] Support access path built and audited
+[ ] If this customer is on Path B (operated cloud account): Osama's admin access is
+    documented and logged per docs/09-SECURITY-RULES.md §3
 ```
+
+---
+
+## 11. Activation Service operations
+
+This is Osama's own standing infrastructure, not part of any customer deployment
+(`docs/00-PRODUCT-BRIEF.md` §8). Its own operational bar:
+
+- It is a **small, simple service** — resist the temptation to make it as elaborate as
+  the main product. It issues/validates license keys and nothing else.
+- **Its own downtime must degrade every customer's deployment gracefully, never
+  abruptly.** This is the whole point of the offline grace period
+  (`docs/01-OPEN-DECISIONS.md` A5) — treat any design that makes a customer's
+  accounting software stop working the moment this service is unreachable as a defect
+  in the Activation Service, not an acceptable tradeoff.
+- Still needs its own backups (it is the only record of who has a valid license) and
+  its own access logging, at a scale proportional to what it actually holds (§2 of
+  `docs/03-MULTI-TENANCY-RULES.md`).
+- Alerting: check-in failure spikes across many deployments at once likely means the
+  Activation Service itself is down, not that many customers went offline
+  simultaneously — alert on that pattern specifically.

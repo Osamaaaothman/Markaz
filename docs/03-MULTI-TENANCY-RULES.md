@@ -1,156 +1,104 @@
 # 03 — Multi-Tenancy Rules
 
-**A cross-tenant data leak in an accounting system is a company-ending event.** Treat
-every rule here as load-bearing.
+> **Superseded premise.** This file was originally written for a SaaS multi-tenant
+> platform (schema-per-tenant, shared instance). That decision was reversed the same
+> day it was made — see `docs/adr/0002-drop-saas-single-purchase-per-customer-deployment.md`.
+> **Every customer now gets a fully isolated deployment: own database, own backend.**
+> Most of the rules that used to live in this file are moot for the customer-facing
+> application. They are kept below, marked historical, because the one real
+> multi-tenant system left in this product — the central **Activation Service** — has
+> to get the isolation question right too, and the same discipline applies at a
+> smaller scale.
 
 ---
 
-## 1. The single boundary rule
+## 1. The customer-facing application: single company per deployment
 
-There is **exactly one place** in the codebase that resolves the tenant and binds the
-database connection to it. Nothing else decides what tenant it is operating on.
+Each customer's deployment has **exactly one** database, serving that one customer.
+There is no tenant resolution step, no shared instance, no `platform` schema, and no
+risk of a query crossing into another customer's data — because another customer's
+data does not exist anywhere in that deployment's reach.
 
-```
-Request → Auth guard resolves tenant from the authenticated principal
-        → TenantContext (AsyncLocalStorage) holds { tenantId, schema, actor, correlationId }
-        → Prisma client is bound to that tenant for the whole request
-        → Every repository call inherits it automatically
-```
+What this means concretely:
+- No `TenantContext` / `AsyncLocalStorage` tenant-binding layer is needed for the
+  customer-facing API. A "company" or "branch" concept still exists inside Core
+  (`docs/00-PRODUCT-BRIEF.md` §4) for customers running multiple legal entities or
+  branches on their one deployment — but that is ordinary application data scoping,
+  not a security boundary between strangers, and does not need the isolation-test
+  rigor of §4 below.
+- No cross-customer isolation test suite is needed for the customer-facing API, since
+  there is no cross-customer data path to test.
+- Backups, migrations, and upgrades happen **per deployment**, not across a fleet in
+  one operation — see `docs/12-OPS-AND-DEPLOYMENT.md`.
 
-Rules:
-- **`tenantId` is never taken from a request body, query string, path parameter, or
-  header supplied by the client.** It comes from the verified session/token only.
-  A user who can name their own tenant is a full data breach.
-- Background jobs establish the same context explicitly from the job payload before
-  doing any work.
-- Any code path that can run without a tenant context (platform admin, migrations,
-  provisioning) is **explicitly marked** and lives in a dedicated, separately
-  permissioned area.
-
----
-
-## 2. Isolation strategy
-
-Default until decided otherwise (`docs/01-OPEN-DECISIONS.md` A1):
-**schema-per-tenant on a shared PostgreSQL instance.**
-
-- Tenant registry lives in a shared `platform` schema: tenants, subscriptions, users →
-  tenant mapping, provisioning state, migration state per tenant.
-- Each tenant gets its own schema containing all business tables.
-- The connection sets `search_path` to the tenant schema for the request lifetime.
-- Connection pooling must not leak `search_path` between requests — verify this
-  explicitly and write a test for it.
-
-**If the decision changes to shared-schema + RLS:** then every table gets `tenant_id`,
-every table gets an RLS policy, the application role must **not** have `BYPASSRLS`, and
-there must be a test that proves a query without tenant context returns zero rows. Do
-not adopt RLS without all three.
+**What is *not* dropped:** ordinary tenant-shaped discipline that was always good
+practice regardless of SaaS — no secrets in code, parameterised queries, pagination,
+rate limits, audit logging — stays exactly as specified in
+`docs/09-SECURITY-RULES.md` and `docs/07-API-RULES.md`.
 
 ---
 
-## 3. Hard prohibitions
+## 2. The one real multi-tenant system: the Activation Service
 
-| Never | Why |
-|---|---|
-| A raw SQL query without tenant scoping | The most common leak path |
-| A Prisma query built outside the tenant-bound client | Same |
-| Caching keyed without `tenantId` | Cache-crossing is a leak |
-| A global in-memory cache holding tenant data | Leaks across requests in the same process |
-| Sequential/guessable tenant identifiers in public surfaces | Enumeration |
-| `tenantId` accepted from client input | Impersonation |
-| A "just for admin" query that skips the boundary | It will be reused |
-| Logging another tenant's data in an error message | Leak through observability |
+The central Activation Service (`docs/00-PRODUCT-BRIEF.md` §8, ADR-0002) is
+deliberately **not part of any customer's deployment** — it is Osama's own
+infrastructure, and it is the one place in this product that legitimately holds
+records for many customers in one place: license records, not business or financial
+data.
 
----
+Rules for it, adapted from the same reasoning that applied to the old SaaS platform,
+scaled to what it actually holds:
 
-## 4. Testing the boundary (mandatory, not optional)
-
-These tests exist from Milestone 1 and run in CI on every push:
-
-1. **Two-tenant isolation test** — seed tenant A and tenant B with similar data; for
-   **every** read endpoint, authenticate as A and assert B's records are unreachable
-   (not "filtered out" — unreachable, including by direct id).
-2. **Direct-id access test** — as tenant A, request tenant B's invoice by its exact id.
-   Must return 404 (**not** 403 — 403 confirms the resource exists).
-3. **No-context test** — a repository call with no tenant context must throw, never
-   return everything.
-4. **Search-path leak test** — run requests for A and B in sequence on the same pooled
-   connection and assert no bleed.
-5. **Job context test** — a job with tenant A's payload cannot touch tenant B.
-
-If a new endpoint is added, it is added to test 1. This is part of the definition of
-done, not a nice-to-have.
-
----
-
-## 5. Tenant provisioning
-
-Provisioning is a **first-class, idempotent, reproducible pipeline** — not a manual
-runbook. Steps:
-
-1. Create tenant record in `platform` (state: `PROVISIONING`)
-2. Create schema, run all migrations to the current version
-3. Seed: default chart of accounts template, tax treatment codes, document numbering
-   series, fiscal calendar, base currency, default roles and permissions
-4. Create the initial admin user and issue an invitation
-5. Register subscription / entitlements
-6. State → `ACTIVE`
-
-Rules:
-- Idempotent: re-running must not duplicate anything.
-- Transactional or compensating: a failure halfway leaves a clean, retryable state —
-  never a half-built tenant that looks active.
-- **Deprovisioning is designed at the same time as provisioning**: suspend (read-only),
-  export (full tenant data dump), and hard delete (schema drop + object storage purge),
-  with a documented retention window. Customers will ask for this in procurement.
+- **It never stores customer business or financial data** — only what's needed to
+  identify a deployment and validate its license: a deployment identifier, the master
+  key, issued sub-keys (seat count and identifiers, not employee personal data beyond
+  what's needed to label a seat), and check-in history.
+- **A leak here is a licensing/business problem, not a "another company's ledger is
+  exposed" problem** — it is real and must be taken seriously, but the blast radius is
+  categorically smaller than what this file used to guard against. Do not
+  over-engineer it to the same isolation bar as a shared financial database; do not
+  under-engineer it either — it is still one company's confidential purchase relationship.
+- **A deployment authenticates to the Activation Service using its master key** —
+  never a customer-supplied identifier that could be guessed or spoofed to answer for
+  another customer's license.
+- **Every write is scoped to the deployment/master key making the request.** The same
+  category of bug this file used to warn about — "a query built without the scoping
+  key applied" — is still possible here at a smaller scale, and still needs a test:
+  one deployment must not be able to read or affect another deployment's license
+  record via the Activation Service's API.
+- **Rate-limit and log every check-in and every activation attempt**, per deployment.
+  Repeated failures from one deployment (a cracked/shared master key, a
+  misconfigured customer) should be visible, not silent.
 
 ---
 
-## 6. Migrations across tenants
+## 3. Historical reference — the original SaaS multi-tenancy design
 
-- The `platform` schema and tenant schemas migrate separately.
-- A migration runner iterates tenants, records per-tenant migration state, is resumable,
-  and reports which tenants are on which version.
-- **Expand/contract only.** Never a destructive migration in one step:
-  1. add the new nullable column / new table
-  2. backfill
-  3. dual-write, then switch reads
-  4. drop the old column in a **later release**
-- Every migration must be tested against a database seeded with realistic volume, not
-  an empty one.
-- Long-running backfills run as jobs, not as migration steps that lock a table.
-- **Never** hand-edit a generated migration to do something the schema does not
-  describe, without an explicit comment saying why.
+Kept only because a future reversal or a hosted-offering reconsideration
+(`docs/adr/0002-...md` "will regret at scale") might need to revisit it. **None of
+this applies to the current customer-facing application.**
 
----
+<details>
+<summary>Original schema-per-tenant SaaS design (superseded)</summary>
 
-## 7. Per-tenant configuration
+The single boundary rule was: exactly one place in the codebase resolves the tenant
+and binds the database connection to it —
+`Request → Auth guard resolves tenant → TenantContext (AsyncLocalStorage) →
+tenant-bound Prisma client → every repository call inherits it`. Isolation strategy
+was schema-per-tenant on a shared PostgreSQL instance, with a shared `platform` schema
+for the tenant registry. Hard prohibitions included: `tenantId` never taken from
+client input, no raw SQL without tenant scoping, no global in-memory cache holding
+tenant data, no sequential/guessable tenant identifiers. The mandatory test suite was:
+two-tenant isolation test per read endpoint, direct-id cross-tenant access must 404
+(never 403), a repository call with no tenant context must throw, a search-path leak
+test across pooled connections, and a job-context test. Provisioning was a first-class
+idempotent pipeline (create tenant row → create schema → migrate → seed → create admin
+→ activate), with deprovisioning (suspend/export/hard-delete) designed at the same
+time. Migrations ran per-tenant-schema via a resumable runner, expand/contract only.
+Per-tenant configuration covered currency, fiscal year, numbering formats, tax
+defaults, approval thresholds, valuation method, enabled modules, compliance pack —
+all data, never a code branch. Noisy-neighbour concerns (per-tenant rate limits, job
+queue fairness, query timeouts, mandatory pagination) applied because many customers
+shared infrastructure.
 
-Everything a customer can differ on is **data**, never a code branch:
-base currency · fiscal year start · timezone · default language · chart of accounts ·
-numbering formats · tax treatment defaults · approval thresholds · inventory valuation
-method · enabled modules · compliance pack.
-
-`if (tenant.name === ...)` or any tenant-specific branch in code is a defect. If a
-customer needs something the configuration model cannot express, the configuration
-model is what changes.
-
----
-
-## 8. Noisy-neighbour and fairness
-
-- Per-tenant rate limits on the API.
-- Job queue fairness so one tenant's month-end cannot starve everyone else.
-- Query timeouts; no unbounded report can run forever.
-- Pagination is mandatory on every list endpoint — no unbounded `findMany`.
-- Track per-tenant resource usage from the start; you will need it for pricing and for
-  incident diagnosis.
-
----
-
-## 9. Observability
-
-Every log line, metric, trace, and error carries `tenantId` and `correlationId`.
-Support must be able to answer "what happened for customer X at 14:20" without
-guessing — but log **identifiers, never financial or personal values**
-(see `docs/09-SECURITY-RULES.md`).
+</details>

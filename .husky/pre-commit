@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+# Secret scan before every commit — docs/11-GIT-WORKFLOW.md §5.
+# Uses gitleaks if installed (preferred, real entropy/pattern detection);
+# always also runs a plain-pattern fallback so this hook still catches the obvious
+# cases on a machine without gitleaks installed.
+
+set -e
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --verbose
+else
+  echo "gitleaks not found on PATH — running fallback pattern check only."
+  echo "Install gitleaks for real secret-scanning: https://github.com/gitleaks/gitleaks"
+fi
+
+# Fallback only looks for an actual value-shaped assignment, not a bare mention of
+# the word — this repo's own docs legitimately discuss "secret", "password", etc.
+# as policy constantly (docs/09-SECURITY-RULES.md and friends), and .env.example is
+# explicitly meant to hold placeholder values (docs/09 §1) so it is excluded here.
+STAGED_DIFF=$(git diff --cached -- . ':!.env.example' ':!docs/**/*.md')
+
+if echo "$STAGED_DIFF" | grep -iE "(password|secret|api[_-]?key)[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9+/_-]{8,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|postgres(ql)?://[^ ]*:[^ @]{4,}@" >/dev/null; then
+  echo ""
+  echo "Possible secret detected in staged changes. Review before committing."
+  echo "If this is a false positive, adjust the pattern in .husky/pre-commit — never skip with --no-verify."
+  exit 1
+fi

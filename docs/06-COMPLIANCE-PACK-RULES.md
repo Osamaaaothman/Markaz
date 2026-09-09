@@ -103,11 +103,17 @@ Document the full state machine in an ADR:
 
 ## 5. Cryptographic material — highest-sensitivity data in the system
 
-In SaaS, **we hold our customers' tax stamp private keys.** Treat accordingly.
+> Each customer's isolated deployment holds and onboards **its own** ZATCA keys —
+> there is no central custody across customers
+> (`docs/adr/0002-drop-saas-single-purchase-per-customer-deployment.md`). This section
+> still applies in full **inside every deployment**, and on a cloud-hosted deployment
+> Osama operates for a customer, Osama's own admin access to that key material is
+> exactly the kind of access `docs/09-SECURITY-RULES.md` §3 requires logging.
 
-- Private keys and CSIDs are **encrypted at rest with envelope encryption**
-  (KMS-managed data keys, per tenant). Never plaintext in the database, never in an
-  environment variable, never in a file on the API container.
+- Private keys and CSIDs are **encrypted at rest** (envelope encryption with a KMS
+  where the hosting environment provides one; otherwise a strong local encryption
+  scheme with the decryption key held outside the database). Never plaintext in the
+  database, never in an environment variable, never in a file on the API container.
 - **Never logged. Never returned by any API. Never included in an export, a backup
   dump the support team can read, or an error message.**
 - CSR generation, compliance CSID, and production CSID have a lifecycle: issuance,

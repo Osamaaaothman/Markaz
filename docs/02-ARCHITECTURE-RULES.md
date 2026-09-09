@@ -1,5 +1,14 @@
 # 02 — Architecture Rules
 
+> **Delivery model note:** every customer runs one fully isolated deployment
+> (`docs/adr/0002-drop-saas-single-purchase-per-customer-deployment.md`). The rules
+> below describe that one deployment. Two things live outside it entirely and are not
+> part of this repo's module graph: the **local print/hardware agent**
+> (`apps/print-agent`, a small `localhost`-bound helper, only on machines that need
+> it) and the **Activation Service** (a wholly separate repo — Osama's own
+> infrastructure, never a dependency any module or Core contract talks to directly;
+> only one narrow license-check integration point in Core calls out to it).
+
 ---
 
 ## 1. Modular Monolith — the boundary rules
