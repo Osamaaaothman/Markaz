@@ -22,7 +22,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "boundaries": "depcruise --config .dependency-cruiser.cjs apps packages",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "npm run generate --workspace=@erp/db"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",

@@ -34,21 +34,11 @@ jobs:
       - name: Test
         run: npm run test
 
-      # Critical always blocks. High is currently informational-only, not silently
-      # ignored: @nestjs/platform-express@12.0.1 hard-pins a vulnerable multer
-      # (advisories GHSA-wc9g-mqfw-jrwm and siblings) that `npm overrides` could not
-      # force-replace in this workspace (tried both flat and nested override forms,
-      # plus --force — none took effect, cause not yet root-caused). multer is an
-      # unused, unreachable dependency here (no file-upload endpoint exists anywhere
-      # in this codebase), so the real exposure is zero — but this is a known,
-      # tracked gap, not a silently lowered bar. Revisit and restore
-      # `--audit-level=high` as a hard gate once @nestjs/platform-express ships a
-      # patched multer, or once the override issue is root-caused.
-      - name: Dependency audit (critical — blocking)
-        run: npm audit --audit-level=critical
-      - name: Dependency audit (high — informational, see comment above)
+      # @nestjs/platform-express hard-pins a vulnerable multer (advisories
+      # GHSA-wc9g-mqfw-jrwm and siblings) — forced to a patched version via the
+      # root package.json "overrides" field rather than waiting on upstream.
+      - name: Dependency audit
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       # i18n locale-key-parity check joins this pipeline in M3, once i18next exists
       # (docs/10-TESTING-RULES.md §2.6) — nothing to check yet in M0.
