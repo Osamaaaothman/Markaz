@@ -10,6 +10,15 @@
       "persistent": true
     },
     "lint": {
+      // Without this, a genuinely fresh checkout (CI's `npm ci` + immediately
+      // `npm run lint`, nothing built yet) lints a package before its @erp/*
+      // dependencies have a dist/ to resolve types against — ESLint's type-aware
+      // rules then silently degrade to `any` instead of erroring, and everything
+      // downstream of that `any` gets flagged as unsafe. `typecheck` already had
+      // this; `lint` didn't, and a local run always had a stale dist/ around from
+      // an earlier manual build, which is exactly how this stayed invisible until
+      // a real CI run on a clean checkout caught it.
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "typecheck": {
