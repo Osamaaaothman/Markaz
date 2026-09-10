@@ -1,7 +1,6 @@
 export * from "./id.js";
 export * from "./clock.js";
+export * from "./money.js";
 
-// The Money value object, date/timezone helpers, and the shared Result/error types
-// land here starting M2 (docs/14-MILESTONES.md) — not before, since Money in
-// particular needs the FIFO/weighted-average decision (docs/01-OPEN-DECISIONS.md A3)
-// settled first for anything beyond the type itself.
+// Date/timezone helpers and shared Result/error types land alongside the code that
+// first needs them (M2+) — not before.

@@ -70,7 +70,10 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      # Host port is overridable — a dev machine running several projects at once
+      # may already have something else on 3000. The container's own port stays
+      # 3000 regardless (healthcheck below runs inside the container).
+      - "${API_HOST_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s

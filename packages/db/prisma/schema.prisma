@@ -1,6 +1,6 @@
 // M1: identity, permissions, audit, and license-check state.
-// Accounting models (chart of accounts, journal entries, fiscal periods) start M2 —
-// docs/14-MILESTONES.md. Conventions: docs/04-DATA-MODEL-RULES.md.
+// M2: currencies, chart of accounts, fiscal years/periods, journal entries, numbering.
+// Conventions: docs/04-DATA-MODEL-RULES.md. Ledger integrity: docs/05-ACCOUNTING-INTEGRITY-RULES.md.
 
 generator client {
   provider = "prisma-client-js"
@@ -27,6 +27,12 @@ model Company {
 
   users User[]
   roles Role[]
+
+  fiscalYears    FiscalYear[]
+  fiscalPeriods  FiscalPeriod[]
+  accounts       Account[]
+  journalEntries JournalEntry[]
+  exchangeRates  ExchangeRate[]
 
   @@map("companies")
 }
@@ -161,4 +167,202 @@ model LicenseState {
   updatedAt               DateTime @updatedAt @map("updated_at")
 
   @@map("license_state")
+}
+
+// ============================================================================
+// M2 — Accounting core
+// ============================================================================
+
+// Fixed catalog, not per-company data — which currencies a company actually USES
+// is a company-level concern expressed via Company.defaultCurrency and whichever
+// currencies appear on its ExchangeRate/JournalEntry rows, not by restricting this
+// table itself.
+model Currency {
+  code            String   @id // ISO 4217, e.g. "SAR"
+  name            String
+  minorUnitDigits Int      @default(2) @map("minor_unit_digits")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  exchangeRates ExchangeRate[]
+
+  @@map("currencies")
+}
+
+// A snapshot of a rate on a given date — never mutated once written. A journal
+// entry in a foreign currency stores the rate it actually used (JournalEntry.exchangeRate),
+// not a live reference to this table, per docs/04-DATA-MODEL-RULES.md §2: "The base
+// amount is stored, not recomputed later — historical rates must not shift because a
+// rate table was updated."
+model ExchangeRate {
+  id        String   @id
+  companyId String   @map("company_id")
+  currency  String
+  rateDate  DateTime @map("rate_date") @db.Date
+  rate      Decimal  @db.Decimal(19, 6) // units of base currency per 1 unit of `currency`
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by")
+
+  company      Company  @relation(fields: [companyId], references: [id])
+  currencyInfo Currency @relation(fields: [currency], references: [code])
+
+  @@unique([companyId, currency, rateDate])
+  @@map("exchange_rates")
+}
+
+model FiscalYear {
+  id        String   @id
+  companyId String   @map("company_id")
+  name      String // e.g. "FY2026"
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  status    String   @default("OPEN") // OPEN | CLOSED
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company        @relation(fields: [companyId], references: [id])
+  periods FiscalPeriod[]
+
+  @@unique([companyId, name])
+  @@map("fiscal_years")
+}
+
+// docs/05-ACCOUNTING-INTEGRITY-RULES.md §3: "Periods have states: OPEN → CLOSED →
+// (optionally) LOCKED. No posting into a closed period. Enforced at the database
+// level, not only in a service." See the closed-period trigger in the M2 migration.
+model FiscalPeriod {
+  id           String   @id
+  companyId    String   @map("company_id")
+  fiscalYearId String   @map("fiscal_year_id")
+  periodNumber Int      @map("period_number") // 1-12, Tier 1 assumes monthly periods (docs/01-OPEN-DECISIONS.md B7)
+  startDate    DateTime @map("start_date") @db.Date
+  endDate      DateTime @map("end_date") @db.Date
+  status       String   @default("OPEN") // OPEN | CLOSED | LOCKED
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company        Company        @relation(fields: [companyId], references: [id])
+  fiscalYear     FiscalYear     @relation(fields: [fiscalYearId], references: [id])
+  journalEntries JournalEntry[]
+
+  @@unique([companyId, fiscalYearId, periodNumber])
+  @@index([companyId, startDate, endDate])
+  @@map("fiscal_periods")
+}
+
+// Tree-structured chart of accounts — docs/05-ACCOUNTING-INTEGRITY-RULES.md §4.
+// Only leaf accounts are postable (isPostable); an account with postings is
+// deactivated, never deleted or retyped — enforced by application code (no delete
+// method exists) since "has this account ever been posted to" is a runtime fact a
+// CHECK constraint cannot express.
+model Account {
+  id            String   @id
+  companyId     String   @map("company_id")
+  code          String
+  name          String
+  type          String // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
+  normalBalance String   @map("normal_balance") // DEBIT | CREDIT
+  parentId      String?  @map("parent_id")
+  isPostable    Boolean  @default(true) @map("is_postable")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdBy     String?  @map("created_by")
+  updatedBy     String?  @map("updated_by")
+  version       Int      @default(1)
+
+  company           Company            @relation(fields: [companyId], references: [id])
+  parent            Account?           @relation("AccountTree", fields: [parentId], references: [id])
+  children          Account[]          @relation("AccountTree")
+  journalEntryLines JournalEntryLine[]
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@map("accounts")
+}
+
+// Gapless, transactional numbering — docs/02-ARCHITECTURE-RULES.md §3.3. Allocation
+// happens inside the caller's transaction via a row lock (SELECT ... FOR UPDATE) on
+// this row, so a rollback never burns a number and two concurrent requests can't
+// collide. One row per (company, document type, fiscal year).
+model DocumentNumberSeries {
+  id           String   @id
+  companyId    String   @map("company_id")
+  documentType String   @map("document_type")
+  fiscalYear   String   @map("fiscal_year")
+  prefix       String   @default("")
+  padding      Int      @default(6)
+  lastNumber   Int      @default(0) @map("last_number")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, documentType, fiscalYear])
+  @@map("document_number_series")
+}
+
+// Posted entries are immutable — docs/05-ACCOUNTING-INTEGRITY-RULES.md §2: "A posted
+// journal entry is never updated and never deleted. If you find yourself writing an
+// UPDATE against journal_entries or journal_entry_lines, stop." Corrections are
+// reversing entries (reversalOfEntryId points backward on the NEW entry — the
+// original is never touched). Enforced at the database role level too (no
+// UPDATE/DELETE grant for erp_app — see the M2 migration), the same pattern already
+// proven for audit_log in M1.
+model JournalEntry {
+  id                 String   @id
+  companyId          String   @map("company_id")
+  fiscalPeriodId     String   @map("fiscal_period_id")
+  number             String // allocated via INumberingService, in the same transaction
+  entryDate          DateTime @map("entry_date") @db.Date
+  postingDate        DateTime @map("posting_date") @db.Date
+  currency           String
+  exchangeRate       Decimal? @map("exchange_rate") @db.Decimal(19, 6) // null/omitted when currency == company base currency
+  sourceModule       String   @map("source_module")
+  sourceDocumentType String   @map("source_document_type")
+  sourceDocumentId   String   @map("source_document_id")
+  actorId            String   @map("actor_id")
+  correlationId      String   @map("correlation_id")
+  idempotencyKey     String   @map("idempotency_key")
+  reversalOfEntryId  String?  @map("reversal_of_entry_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  company      Company            @relation(fields: [companyId], references: [id])
+  fiscalPeriod FiscalPeriod       @relation(fields: [fiscalPeriodId], references: [id])
+  lines        JournalEntryLine[]
+  reversalOf   JournalEntry?      @relation("Reversal", fields: [reversalOfEntryId], references: [id])
+  reversedBy   JournalEntry[]     @relation("Reversal")
+
+  // The idempotencyKey unique constraint below IS the duplicate-posting guard
+  // (docs/04-DATA-MODEL-RULES.md §6/§9) — a separate uniqueness constraint on the
+  // source-document columns was considered and dropped: Postgres treats NULL as
+  // distinct in unique constraints, so it would not have actually blocked duplicate
+  // original postings (reversalOfEntryId is NULL for all of them). Idempotency-Key
+  // is the correct, working mechanism for this.
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, fiscalPeriodId])
+  @@index([companyId, number])
+  @@index([companyId, sourceModule, sourceDocumentType, sourceDocumentId])
+  @@map("journal_entries")
+}
+
+// docs/04-DATA-MODEL-RULES.md §9: exactly one of debit/credit populated, both
+// non-negative — enforced by a CHECK constraint (M2 migration), not just this
+// field shape. baseDebit/baseCredit are the company-base-currency equivalents,
+// computed once at posting time from the entry's exchangeRate and stored — never
+// recomputed later (docs/04 §2).
+model JournalEntryLine {
+  id             String   @id
+  journalEntryId String   @map("journal_entry_id")
+  accountId      String   @map("account_id")
+  debit          Decimal  @default(0) @db.Decimal(19, 4)
+  credit         Decimal  @default(0) @db.Decimal(19, 4)
+  baseDebit      Decimal  @default(0) @map("base_debit") @db.Decimal(19, 4)
+  baseCredit     Decimal  @default(0) @map("base_credit") @db.Decimal(19, 4)
+  description    String?
+  lineNumber     Int      @map("line_number")
+
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+  account      Account      @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@map("journal_entry_lines")
 }
