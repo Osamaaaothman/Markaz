@@ -6,6 +6,10 @@ import { PrismaClient } from "@erp/db";
 import { SystemClock } from "@erp/shared";
 import { ActivationServiceClient, LicenseCheckinService, DEFAULT_CHECKIN_INTERVAL_MS } from "@erp/core";
 
+// docs/04-DATA-MODEL-RULES.md §3: see the matching comment in main.ts — same
+// UTC-consistency fallback for the worker process.
+process.env.TZ = process.env.TZ ?? "UTC";
+
 const prisma = new PrismaClient();
 const client = new ActivationServiceClient({
   serviceUrl: process.env.ACTIVATION_SERVICE_URL,

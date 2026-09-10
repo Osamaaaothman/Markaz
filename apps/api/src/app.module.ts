@@ -6,6 +6,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
 import { CommonModule } from "./common/common.module.js";
 import { IdentityModule } from "./identity/identity.module.js";
 import { AuthModule } from "./auth/auth.module.js";
+import { AccountingModule } from "./accounting/accounting.module.js";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { PermissionGuard } from "./identity/permission.guard.js";
 import { HttpExceptionFilter } from "./common/http-exception.filter.js";
@@ -28,6 +29,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
     CommonModule,
     IdentityModule,
     AuthModule,
+    AccountingModule,
   ],
   controllers: [HealthController],
   providers: [

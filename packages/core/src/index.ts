@@ -4,3 +4,6 @@ export * from "./identity/permission.service.js";
 export * from "./licensing/grace-period.js";
 export * from "./licensing/activation-client.js";
 export * from "./licensing/license-checkin.service.js";
+export * from "./accounting/numbering.service.js";
+export * from "./accounting/accounting-engine.service.js";
+export * from "./accounting/trial-balance.service.js";

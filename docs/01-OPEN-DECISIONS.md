@@ -55,7 +55,8 @@ Customers who require in-Kingdom hosting and whose chosen provider can't offer i
 routed to the on-premise path instead.
 
 ### A3. Inventory valuation method
-**Blocks:** Milestone 3 (Inventory) posting logic
+**Blocks:** Milestone 4 (Inventory) posting logic — does **not** block Milestone 2
+(the accounting core engine is generic; it has no inventory-specific logic).
 **Options:** FIFO / weighted average / support both per tenant
 **Rule for now:** design the schema so both are possible (cost layers preserved,
 valuation method as tenant configuration). **Do not implement the posting logic until
