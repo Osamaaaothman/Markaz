@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "ERP-Lite"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete"
+  },
+  "status": {
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "empty": "Nothing here yet."
+  }
+}

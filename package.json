@@ -22,6 +22,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "boundaries": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "i18n:parity": "node scripts/check-i18n-parity.mjs",
     "prepare": "husky",
     "postinstall": "npm run generate --workspace=@erp/db"
   },

@@ -34,11 +34,13 @@ jobs:
       - name: Test
         run: npm run test
 
+      # docs/10-TESTING-RULES.md §2.6: "every key exists in both ar and en — CI
+      # fails otherwise."
+      - name: i18n locale key parity
+        run: npm run i18n:parity
+
       # @nestjs/platform-express hard-pins a vulnerable multer (advisories
       # GHSA-wc9g-mqfw-jrwm and siblings) — forced to a patched version via the
       # root package.json "overrides" field rather than waiting on upstream.
       - name: Dependency audit
         run: npm audit --audit-level=high
-
-      # i18n locale-key-parity check joins this pipeline in M3, once i18next exists
-      # (docs/10-TESTING-RULES.md §2.6) — nothing to check yet in M0.

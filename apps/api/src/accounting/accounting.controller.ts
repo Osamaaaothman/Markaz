@@ -4,6 +4,7 @@ import { TrialBalanceService, type TrialBalanceResult } from "@erp/core";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
+import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { ACCOUNTING_ENGINE } from "./accounting.tokens.js";
 import { PostJournalEntryDto } from "./dto/post-journal-entry.dto.js";
 import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
@@ -29,6 +30,7 @@ export class AccountingController {
     @Body() dto: PostJournalEntryDto,
     @CurrentUser() actor: CurrentUserPayload,
     @CorrelationId() correlationId: string,
+    @IdempotencyKey() idempotencyKey: string,
   ): Promise<PostingResult> {
     return this.engine.postEntry({
       companyId: actor.companyId,
@@ -43,7 +45,7 @@ export class AccountingController {
       sourceDocumentId: dto.sourceDocumentId,
       actorId: actor.id,
       correlationId,
-      idempotencyKey: dto.idempotencyKey,
+      idempotencyKey,
     });
   }
 
