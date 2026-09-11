@@ -33,6 +33,9 @@ model Company {
   accounts       Account[]
   journalEntries JournalEntry[]
   exchangeRates  ExchangeRate[]
+  outboxMessages OutboxMessage[]
+  approvalPolicies ApprovalPolicy[]
+  approvalRequests ApprovalRequest[]
 
   @@map("companies")
 }
@@ -365,4 +368,87 @@ model JournalEntryLine {
   @@index([journalEntryId])
   @@index([accountId])
   @@map("journal_entry_lines")
+}
+
+// M3: the transactional outbox (docs/06-COMPLIANCE-PACK-RULES.md §4,
+// docs/02-ARCHITECTURE-RULES.md §6-7, docs/04-DATA-MODEL-RULES.md §10). A row is
+// written in the SAME database transaction as the business change it announces —
+// never after it. A separate relay job polls PENDING rows and enqueues the matching
+// BullMQ job; this is what guarantees the announcement survives a crash between
+// commit and dispatch. The outbox never stores retry/failure state for the work
+// itself — once dispatched, BullMQ's own attempts/backoff/dead-letter handling
+// (apps/api/src/jobs) takes over.
+model OutboxMessage {
+  id            String    @id
+  companyId     String    @map("company_id")
+  // Logical event name, past tense (docs/02 §7), e.g. "invoice.issued" — maps to a
+  // BullMQ queue name at relay time. Never a whole entity as the payload.
+  topic         String
+  payload       Json
+  correlationId String    @map("correlation_id")
+  dispatchedAt  DateTime? @map("dispatched_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  // Relay polls WHERE dispatchedAt IS NULL ORDER BY createdAt — this index serves
+  // exactly that query, not one-index-per-column.
+  @@index([dispatchedAt, createdAt])
+  @@index([companyId])
+  @@map("outbox_messages")
+}
+
+// M3: the approval workflow engine — docs/01-OPEN-DECISIONS.md B6: "Tier 1 assumes
+// the simpler version" (single-step amount threshold, not a multi-step configurable
+// engine). One row per (company, subject type) the company has opted into requiring
+// approval for; no row means that document type never requires approval.
+model ApprovalPolicy {
+  id              String   @id
+  companyId       String   @map("company_id")
+  // A future module's document type, e.g. "purchase_order" — never enforced by an
+  // enum here, since Core does not know which modules exist (docs/02-ARCHITECTURE-RULES.md).
+  subjectType     String   @map("subject_type")
+  thresholdAmount Decimal  @map("threshold_amount") @db.Decimal(19, 4)
+  currency        String
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, subjectType])
+  @@map("approval_policies")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// One row per document that actually crossed its policy's threshold. Terminal once
+// decided (docs/02 §... same immutability spirit as journal entries: a decision is
+// not re-editable — a changed mind means a new request, e.g. after the underlying
+// document itself changes and is resubmitted).
+model ApprovalRequest {
+  id            String         @id
+  companyId     String         @map("company_id")
+  subjectType   String         @map("subject_type")
+  subjectId     String         @map("subject_id")
+  amount        Decimal        @db.Decimal(19, 4)
+  currency      String
+  status        ApprovalStatus @default(PENDING)
+  requestedBy   String         @map("requested_by")
+  decidedBy     String?        @map("decided_by")
+  decidedAt     DateTime?      @map("decided_at")
+  reason        String?
+  correlationId String         @map("correlation_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  // One live approval request per document — re-requesting for the same subject
+  // returns the existing row instead of creating a duplicate (approval.service.ts).
+  @@unique([companyId, subjectType, subjectId])
+  @@index([companyId, status])
+  @@map("approval_requests")
 }
