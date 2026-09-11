@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "ERP-Lite"
+  },
+  "actions": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": "حذف"
+  },
+  "status": {
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ ما.",
+    "empty": "لا يوجد شيء هنا بعد."
+  }
+}
