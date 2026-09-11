@@ -1,0 +1,10 @@
+{
+  "generic": {
+    "greeting": "مرحباً {{name}}،",
+    "footer": "هذه رسالة آلية من {{companyName}}. الرجاء عدم الرد مباشرة على هذا البريد."
+  },
+  "notice": {
+    "subject": "إشعار من {{companyName}}",
+    "body": "{{message}}"
+  }
+}

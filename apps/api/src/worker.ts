@@ -1,17 +1,21 @@
 // Worker process — docs/02-ARCHITECTURE-RULES.md §6: "The worker is a separate
 // process from the API, even in Compose." Hosts every background job as a BullMQ
 // queue + worker pair (docs/12-OPS-AND-DEPLOYMENT.md §5): the license check-in
-// (docs/01-OPEN-DECISIONS.md A5) and the outbox relay (docs/06-COMPLIANCE-PACK-RULES.md
-// §4). Business-specific consumer jobs (email, PDF, ZATCA submission) register here
-// as they land in later milestones.
+// (docs/01-OPEN-DECISIONS.md A5), the outbox relay (docs/06-COMPLIANCE-PACK-RULES.md
+// §4), and the notifications consumer (apps/api/src/notifications — always
+// triggered via the outbox, never enqueued directly). Further business-specific
+// consumer jobs (PDF, ZATCA submission) register here as they land in later
+// milestones.
 import { PrismaClient } from "@erp/db";
 import { SystemClock } from "@erp/shared";
 import { ActivationServiceClient, LicenseCheckinService, DEFAULT_CHECKIN_INTERVAL_MS } from "@erp/core";
 import { createRedisConnection } from "./jobs/redis-connection.js";
 import { createMonitoredWorker, createQueue } from "./jobs/create-monitored-worker.js";
 import { DEFAULT_JOB_OPTIONS, type JobData } from "./jobs/job-conventions.js";
-import { relayOutboxOnce } from "./jobs/outbox-relay.js";
+import { relayOutboxOnce, type OutboxJobData } from "./jobs/outbox-relay.js";
 import { workerLogger } from "./jobs/worker-logger.js";
+import { createEmailTransport, readSmtpConfigFromEnv } from "./notifications/email-transport.js";
+import { createNotificationProcessor, NOTIFICATIONS_QUEUE } from "./notifications/notification.job.js";
 
 // docs/04-DATA-MODEL-RULES.md §3: see the matching comment in main.ts — same
 // UTC-consistency fallback for the worker process.
@@ -52,6 +56,13 @@ const { worker: outboxRelayWorker, close: closeOutboxRelayWorker } = createMonit
   },
 );
 
+const emailTransport = createEmailTransport(readSmtpConfigFromEnv(process.env), workerLogger);
+const { close: closeNotificationsWorker } = createMonitoredWorker<OutboxJobData>(
+  NOTIFICATIONS_QUEUE,
+  connection,
+  createNotificationProcessor(emailTransport),
+);
+
 // BullMQ v6 Job Schedulers (docs.bullmq.io/guide/job-schedulers) — the current,
 // non-deprecated replacement for the old `repeat` job option. `upsertJobScheduler`
 // is idempotent on the scheduler id, so calling this on every worker restart never
@@ -78,6 +89,7 @@ async function shutdown(): Promise<void> {
   workerLogger.info("worker shutting down");
   await closeLicenseCheckinWorker();
   await closeOutboxRelayWorker();
+  await closeNotificationsWorker();
   await licenseCheckinQueue.close();
   await outboxRelayQueue.close();
   await connection.quit();

@@ -1,0 +1,10 @@
+{
+  "generic": {
+    "greeting": "Hello {{name}},",
+    "footer": "This is an automated message from {{companyName}}. Please do not reply directly to this email."
+  },
+  "notice": {
+    "subject": "Notice from {{companyName}}",
+    "body": "{{message}}"
+  }
+}
