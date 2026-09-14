@@ -1,0 +1,97 @@
+{
+  "app": {
+    "name": "ERP-Lite",
+    "tagline": "محاسبة، كما ينبغي"
+  },
+  "nav": {
+    "dashboard": "الرئيسية",
+    "trialBalance": "ميزان المراجعة",
+    "journalEntries": "القيود المحاسبية"
+  },
+  "actions": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": "حذف",
+    "logout": "تسجيل الخروج",
+    "login": "تسجيل الدخول",
+    "retry": "إعادة المحاولة",
+    "post": "ترحيل القيد",
+    "reverse": "عكس القيد",
+    "addLine": "إضافة سطر",
+    "removeLine": "حذف السطر",
+    "new": "جديد",
+    "loadMore": "تحميل المزيد"
+  },
+  "status": {
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ ما.",
+    "empty": "لا يوجد شيء هنا بعد."
+  },
+  "theme": {
+    "switchToLight": "التبديل إلى الوضع الفاتح",
+    "switchToDark": "التبديل إلى الوضع الداكن"
+  },
+  "language": {
+    "switch": "English"
+  },
+  "auth": {
+    "login": {
+      "title": "مرحباً بعودتك",
+      "subtitle": "سجّل الدخول إلى مساحة عمل شركتك",
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "submit": "تسجيل الدخول",
+      "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      "genericError": "تعذّر تسجيل الدخول. حاول مرة أخرى."
+    }
+  },
+  "dashboard": {
+    "welcome": "مرحباً، {{email}}",
+    "subtitle": "نظرة سريعة على {{companyName}}.",
+    "companyLabel": "الشركة"
+  },
+  "accounting": {
+    "trialBalance": {
+      "title": "ميزان المراجعة",
+      "subtitle": "رصيد كل حساب مرحّل، حتى الآن.",
+      "account": "الحساب",
+      "debit": "مدين",
+      "credit": "دائن",
+      "totalDebit": "إجمالي المدين",
+      "totalCredit": "إجمالي الدائن",
+      "balanced": "متوازن",
+      "outOfBalance": "غير متوازن",
+      "empty": "لا يوجد نشاط مرحّل بعد."
+    },
+    "journalEntries": {
+      "title": "القيود المحاسبية",
+      "subtitle": "ترحيل ومراجعة القيود المحاسبية اليدوية.",
+      "new": "قيد محاسبي جديد",
+      "entryDate": "تاريخ القيد",
+      "postingDate": "تاريخ الترحيل",
+      "currency": "العملة",
+      "fiscalPeriod": "الفترة المالية",
+      "sourceDocumentType": "نوع المستند المصدر",
+      "sourceDocumentId": "رقم المستند المصدر",
+      "lines": "السطور",
+      "account": "الحساب",
+      "debit": "مدين",
+      "credit": "دائن",
+      "description": "الوصف",
+      "totalDebit": "إجمالي المدين",
+      "totalCredit": "إجمالي الدائن",
+      "submit": "ترحيل القيد",
+      "postedSuccess": "تم ترحيل القيد المحاسبي.",
+      "postError": "تعذّر ترحيل هذا القيد."
+    }
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب.",
+    "invalidEmail": "أدخل بريداً إلكترونياً صحيحاً.",
+    "mustBalance": "يجب أن يساوي إجمالي المدين إجمالي الدائن.",
+    "minLines": "مطلوب سطران على الأقل.",
+    "positiveAmount": "أدخل مبلغاً أكبر من صفر.",
+    "exactlyOneAmount": "أدخل إما مدين أو دائن، وليس كلاهما."
+  }
+}

@@ -7,3 +7,6 @@ export * from "./licensing/license-checkin.service.js";
 export * from "./accounting/numbering.service.js";
 export * from "./accounting/accounting-engine.service.js";
 export * from "./accounting/trial-balance.service.js";
+export * from "./outbox/outbox-writer.js";
+export * from "./approvals/approval-policy.js";
+export * from "./approvals/approval.service.js";

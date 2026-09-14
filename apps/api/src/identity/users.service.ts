@@ -12,6 +12,19 @@ export interface SafeUser {
   readonly isActive: boolean;
 }
 
+export interface CurrentUserProfile {
+  readonly id: string;
+  readonly email: string;
+  readonly companyId: string;
+  readonly companyName: string;
+  readonly companyDefaultCurrency: string;
+  // Permission codes ("<resource>:<action>") this user currently holds — the
+  // frontend uses these ONLY to show/hide UI (docs/09-SECURITY-RULES.md §3:
+  // authorization itself is always re-checked server-side by PermissionGuard,
+  // never trusted from this list alone).
+  readonly permissions: string[];
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -57,5 +70,40 @@ export class UsersService {
     });
 
     return { id, email: dto.email, isActive: true };
+  }
+
+  async getCurrentUserProfile(userId: string): Promise<CurrentUserProfile> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        companyId: true,
+        company: { select: { name: true, defaultCurrency: true } },
+        roles: {
+          select: {
+            role: {
+              select: { permissions: { select: { permission: { select: { code: true } } } } },
+            },
+          },
+        },
+      },
+    });
+
+    const permissions = new Set<string>();
+    for (const userRole of user.roles) {
+      for (const rolePermission of userRole.role.permissions) {
+        permissions.add(rolePermission.permission.code);
+      }
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      companyId: user.companyId,
+      companyName: user.company.name,
+      companyDefaultCurrency: user.company.defaultCurrency,
+      permissions: [...permissions].sort(),
+    };
   }
 }
