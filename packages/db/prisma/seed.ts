@@ -28,8 +28,11 @@ const PERMISSION_CATALOG = [
   { code: "role:create", description: "Create a new role" },
   { code: "role:assign", description: "Assign a role to a user" },
   { code: "journal_entry:create", description: "Post a manual journal entry" },
+  { code: "journal_entry:read", description: "View journal entries" },
   { code: "journal_entry:reverse", description: "Reverse a posted journal entry" },
   { code: "trial_balance:read", description: "View the trial balance" },
+  { code: "account:read", description: "View the chart of accounts" },
+  { code: "fiscal_period:read", description: "View fiscal periods" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

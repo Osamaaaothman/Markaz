@@ -1,4 +1,5 @@
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
+import { escapeHtml } from "../common/html-escape.js";
 import type { EmailMessage } from "./email-transport.js";
 
 export interface GenericNoticeParams {
@@ -7,18 +8,6 @@ export interface GenericNoticeParams {
   readonly recipientName: string;
   readonly companyName: string;
   readonly message: string;
-}
-
-// docs/09-SECURITY-RULES.md §4 spirit applied to email HTML: escape everything
-// interpolated into it, even though it originates from our own translated
-// strings — recipientName/companyName/message are caller-supplied.
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 // docs/08-FRONTEND-I18N-RULES.md §4: "email templates need RTL treatment too —
