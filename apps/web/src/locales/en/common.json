@@ -1,16 +1,97 @@
 {
   "app": {
-    "name": "ERP-Lite"
+    "name": "ERP-Lite",
+    "tagline": "Accounting, done right"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "trialBalance": "Trial balance",
+    "journalEntries": "Journal entries"
   },
   "actions": {
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "delete": "Delete"
+    "delete": "Delete",
+    "logout": "Log out",
+    "login": "Log in",
+    "retry": "Retry",
+    "post": "Post entry",
+    "reverse": "Reverse",
+    "addLine": "Add line",
+    "removeLine": "Remove line",
+    "new": "New",
+    "loadMore": "Load more"
   },
   "status": {
     "loading": "Loading…",
     "error": "Something went wrong.",
     "empty": "Nothing here yet."
+  },
+  "theme": {
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
+  "language": {
+    "switch": "العربية"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to your company workspace",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Log in",
+      "invalidCredentials": "That email or password isn't right.",
+      "genericError": "Couldn't sign in. Try again."
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{email}}",
+    "subtitle": "Here's a quick look at {{companyName}}.",
+    "companyLabel": "Company"
+  },
+  "accounting": {
+    "trialBalance": {
+      "title": "Trial balance",
+      "subtitle": "Every posted account balance, as of now.",
+      "account": "Account",
+      "debit": "Debit",
+      "credit": "Credit",
+      "totalDebit": "Total debit",
+      "totalCredit": "Total credit",
+      "balanced": "Balanced",
+      "outOfBalance": "Out of balance",
+      "empty": "No posted activity yet."
+    },
+    "journalEntries": {
+      "title": "Journal entries",
+      "subtitle": "Post and review manual journal entries.",
+      "new": "New journal entry",
+      "entryDate": "Entry date",
+      "postingDate": "Posting date",
+      "currency": "Currency",
+      "fiscalPeriod": "Fiscal period",
+      "sourceDocumentType": "Source document type",
+      "sourceDocumentId": "Source document ID",
+      "lines": "Lines",
+      "account": "Account",
+      "debit": "Debit",
+      "credit": "Credit",
+      "description": "Description",
+      "totalDebit": "Total debit",
+      "totalCredit": "Total credit",
+      "submit": "Post entry",
+      "postedSuccess": "Journal entry posted.",
+      "postError": "Couldn't post this entry."
+    }
+  },
+  "validation": {
+    "required": "This field is required.",
+    "invalidEmail": "Enter a valid email address.",
+    "mustBalance": "Total debit must equal total credit.",
+    "minLines": "At least two lines are required.",
+    "positiveAmount": "Enter an amount greater than zero.",
+    "exactlyOneAmount": "Enter either a debit or a credit, not both."
   }
 }
