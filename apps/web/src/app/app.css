@@ -2,6 +2,16 @@
    file must read correctly whether html[dir] is "ltr" or "rtl", with zero
    direction-specific overrides. */
 
+/* Every width/flex-basis/min-width in this file assumes border-box — without
+   this, an element's border+padding add ON TOP of a computed flex width
+   instead of being absorbed by it, which is the single most common cause of
+   "this input is a few pixels wider than its container" overflow. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 :root {
   --erp-brand: #4f46e5;
   --erp-brand-hover: #4338ca;
@@ -21,6 +31,11 @@
 body {
   background: var(--erp-page-bg);
   color: var(--erp-text);
+  /* A safety net, not the fix itself — genuinely wide content (the journal
+     entries table on a narrow screen) gets its own overflow-x:auto wrapper
+     (.erp-table, below) instead of ever forcing the page itself to scroll
+     sideways. */
+  overflow-x: hidden;
 }
 
 /* ---------- shell layout ---------- */
@@ -200,6 +215,10 @@ body {
   justify-content: center;
   width: 38px;
   height: 38px;
+  /* Every topbar button is a flex item of .erp-topbar — without this, the
+     default flex-shrink:1 lets a narrow viewport compress these below 38px,
+     which turns the circular avatar into an oval. */
+  flex-shrink: 0;
   border-radius: 50%;
   color: var(--erp-text-muted);
   transition: background-color 0.12s ease;
@@ -213,6 +232,10 @@ body {
 .erp-topbar__avatar {
   background: var(--erp-brand) !important;
   color: #fff !important;
+  /* Same reasoning as the button: PrimeReact's Avatar is itself a flex item
+     here and needs its own shrink guard, not just its wrapping button's. */
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
 }
 
 /* ---------- page scaffolding ---------- */
@@ -396,6 +419,26 @@ body {
   flex-direction: column;
   gap: 0.35rem;
   flex: 1;
+  /* A flex column's default align-items:stretch only fills the cross axis for
+     children with no intrinsic size of their own — PrimeReact's inputs (and
+     Password's wrapping <span>) have one (the HTML `size` attribute default),
+     so without this they render at that intrinsic width instead of the
+     field's full width and can overflow a narrow container. min-width:0 lets
+     a flex/grid item shrink below its content's natural width in the first
+     place — without it a long unbroken value (an email, a long account name)
+     can force the whole row wider than its container instead of wrapping. */
+  min-width: 0;
+}
+
+.erp-field > input,
+.erp-field > .p-inputtext,
+.erp-field > .p-password,
+.erp-field > .p-password input,
+.erp-field > .p-dropdown,
+.erp-field > .p-calendar,
+.erp-field > .p-calendar input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .erp-field label {
