@@ -5,8 +5,8 @@ import { Label } from "./Label";
 export interface FieldProps {
   htmlFor?: string;
   label: ReactNode;
-  error?: string;
-  hint?: string;
+  error?: string | undefined;
+  hint?: string | undefined;
   children: ReactNode;
   className?: string;
 }
