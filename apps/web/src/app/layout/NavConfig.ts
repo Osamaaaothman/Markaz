@@ -13,4 +13,5 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/accounting/balance-sheet", labelKey: "nav.balanceSheet", icon: "pi pi-wallet" },
   { to: "/accounting/income-statement", labelKey: "nav.incomeStatement", icon: "pi pi-chart-line" },
   { to: "/accounting/journal-entries", labelKey: "nav.journalEntries", icon: "pi pi-book" },
+  { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users" },
 ];

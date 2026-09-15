@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import * as argon2 from "@node-rs/argon2";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "@erp/core";
@@ -10,6 +10,13 @@ export interface SafeUser {
   readonly id: string;
   readonly email: string;
   readonly isActive: boolean;
+}
+
+export interface UserSummary {
+  readonly id: string;
+  readonly email: string;
+  readonly isActive: boolean;
+  readonly roles: ReadonlyArray<{ readonly id: string; readonly name: string }>;
 }
 
 export interface CurrentUserProfile {
@@ -70,6 +77,52 @@ export class UsersService {
     });
 
     return { id, email: dto.email, isActive: true };
+  }
+
+  async listUsers(companyId: string): Promise<UserSummary[]> {
+    const users = await this.prisma.user.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        roles: { select: { role: { select: { id: true, name: true } } } },
+      },
+      orderBy: { email: "asc" },
+    });
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      isActive: u.isActive,
+      roles: u.roles.map((r) => ({ id: r.role.id, name: r.role.name })),
+    }));
+  }
+
+  async assignUserRoles(
+    userId: string,
+    roleIds: string[],
+    actorId: string,
+    companyId: string,
+    correlationId: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId, companyId } });
+    if (!user) throw new NotFoundException("User not found");
+
+    await this.prisma.$transaction([
+      this.prisma.userRole.deleteMany({ where: { userId } }),
+      ...(roleIds.length > 0
+        ? [this.prisma.userRole.createMany({ data: roleIds.map((roleId) => ({ userId, roleId })) })]
+        : []),
+    ]);
+
+    await this.audit.log({
+      actorId,
+      action: "user.roles_assigned",
+      entityType: "User",
+      entityId: userId,
+      after: { roleIds },
+      correlationId,
+    });
   }
 
   async getCurrentUserProfile(userId: string): Promise<CurrentUserProfile> {

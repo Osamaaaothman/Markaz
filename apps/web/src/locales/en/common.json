@@ -9,7 +9,8 @@
     "trialBalance": "Trial balance",
     "balanceSheet": "Balance sheet",
     "incomeStatement": "Income statement",
-    "journalEntries": "Journal entries"
+    "journalEntries": "Journal entries",
+    "usersRoles": "Users & roles"
   },
   "actions": {
     "save": "Save",
@@ -129,6 +130,33 @@
       "submit": "Post entry",
       "postedSuccess": "Journal entry posted.",
       "postError": "Couldn't post this entry."
+    }
+  },
+  "settings": {
+    "usersRoles": {
+      "title": "Users & roles",
+      "subtitle": "Manage who has access and what they can do.",
+      "usersTab": "Users",
+      "rolesTab": "Roles",
+      "email": "Email",
+      "roles": "Roles",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "noRoles": "No roles",
+      "addUser": "Add user",
+      "addRole": "Add role",
+      "password": "Initial password",
+      "assignRoles": "Assign roles",
+      "roleName": "Role name",
+      "permissions": "Permissions",
+      "permissionsCount": "{{count}} permissions",
+      "createUserSuccess": "User created.",
+      "createUserError": "Couldn't create user.",
+      "createRoleSuccess": "Role created.",
+      "createRoleError": "Couldn't create role.",
+      "assignRolesSuccess": "Roles updated.",
+      "assignRolesError": "Couldn't update roles."
     }
   },
   "validation": {

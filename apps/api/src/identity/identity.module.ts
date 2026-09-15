@@ -4,10 +4,12 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { AUDIT_LOGGER, PERMISSION_SERVICE } from "./identity.tokens.js";
 import { UsersController } from "./users.controller.js";
 import { UsersService } from "./users.service.js";
+import { RolesController } from "./roles.controller.js";
+import { RolesService } from "./roles.service.js";
 
 @Global()
 @Module({
-  controllers: [UsersController],
+  controllers: [UsersController, RolesController],
   providers: [
     {
       provide: PERMISSION_SERVICE,
@@ -20,6 +22,7 @@ import { UsersService } from "./users.service.js";
       inject: [PrismaService],
     },
     UsersService,
+    RolesService,
   ],
   exports: [PERMISSION_SERVICE, AUDIT_LOGGER],
 })

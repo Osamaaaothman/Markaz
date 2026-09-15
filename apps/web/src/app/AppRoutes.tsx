@@ -6,6 +6,7 @@ import { TrialBalancePage } from "../features/accounting/TrialBalancePage";
 import { BalanceSheetPage } from "../features/accounting/BalanceSheetPage";
 import { IncomeStatementPage } from "../features/accounting/IncomeStatementPage";
 import { JournalEntriesPage } from "../features/accounting/JournalEntriesPage";
+import { UsersPage } from "../features/settings/UsersPage";
 import { AppShell } from "./layout/AppShell";
 import { ProtectedRoute } from "./ProtectedRoute";
 
@@ -21,6 +22,7 @@ export function AppRoutes(): React.JSX.Element {
           <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
           <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />
           <Route path="/accounting/journal-entries" element={<JournalEntriesPage />} />
+          <Route path="/settings/users" element={<UsersPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

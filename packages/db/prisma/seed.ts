@@ -26,6 +26,7 @@ const PERMISSION_CATALOG = [
   { code: "user:create", description: "Create a new user in this company" },
   { code: "user:read", description: "View users in this company" },
   { code: "role:create", description: "Create a new role" },
+  { code: "role:read", description: "View roles in this company" },
   { code: "role:assign", description: "Assign a role to a user" },
   { code: "journal_entry:create", description: "Post a manual journal entry" },
   { code: "journal_entry:read", description: "View journal entries" },

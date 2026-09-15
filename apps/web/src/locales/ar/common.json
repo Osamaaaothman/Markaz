@@ -9,7 +9,8 @@
     "trialBalance": "ميزان المراجعة",
     "balanceSheet": "الميزانية العمومية",
     "incomeStatement": "قائمة الدخل",
-    "journalEntries": "القيود المحاسبية"
+    "journalEntries": "القيود المحاسبية",
+    "usersRoles": "المستخدمون والأدوار"
   },
   "actions": {
     "save": "حفظ",
@@ -129,6 +130,33 @@
       "submit": "ترحيل القيد",
       "postedSuccess": "تم ترحيل القيد المحاسبي.",
       "postError": "تعذّر ترحيل هذا القيد."
+    }
+  },
+  "settings": {
+    "usersRoles": {
+      "title": "المستخدمون والأدوار",
+      "subtitle": "إدارة من لديه صلاحية الوصول وما يمكنهم فعله.",
+      "usersTab": "المستخدمون",
+      "rolesTab": "الأدوار",
+      "email": "البريد الإلكتروني",
+      "roles": "الأدوار",
+      "status": "الحالة",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "noRoles": "لا توجد أدوار",
+      "addUser": "إضافة مستخدم",
+      "addRole": "إضافة دور",
+      "password": "كلمة المرور الأولية",
+      "assignRoles": "تعيين الأدوار",
+      "roleName": "اسم الدور",
+      "permissions": "الصلاحيات",
+      "permissionsCount": "{{count}} صلاحية",
+      "createUserSuccess": "تم إنشاء المستخدم.",
+      "createUserError": "تعذّر إنشاء المستخدم.",
+      "createRoleSuccess": "تم إنشاء الدور.",
+      "createRoleError": "تعذّر إنشاء الدور.",
+      "assignRolesSuccess": "تم تحديث الأدوار.",
+      "assignRolesError": "تعذّر تحديث الأدوار."
     }
   },
   "validation": {
