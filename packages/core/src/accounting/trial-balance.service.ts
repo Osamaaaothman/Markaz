@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@erp/db";
+import { fromScaledBigInt, toScaledBigInt } from "./decimal-sum.util.js";
 
 export interface TrialBalanceLine {
   readonly accountId: string;
@@ -19,6 +20,14 @@ export interface TrialBalanceResult {
 // docs/05-ACCOUNTING-INTEGRITY-RULES.md §7: "Trial balance — must always be zero.
 // Expose it in development as a health check." This is the cheapest, highest-value
 // reconciliation report in the system — build it early, use it constantly.
+//
+// REVIEW: this sums transaction-currency debit/credit (l.debit / l.credit), not
+// base-currency amounts (l.base_debit / l.base_credit, added later for the balance
+// sheet/income statement — see revenue-expense.util.ts). Fine today because every
+// posted entry is SAR-only in practice, but if a company ever posts a journal entry
+// in a foreign currency, this report silently sums mismatched currencies into one
+// number. Left as-is rather than changed opportunistically in an unrelated feature
+// branch — flagging for a deliberate fix.
 export class TrialBalanceService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -74,18 +83,4 @@ export class TrialBalanceService {
       isBalanced: totalDebit === totalCredit,
     };
   }
-}
-
-function toScaledBigInt(decimalString: string): bigint {
-  const [whole = "0", fraction = ""] = decimalString.split(".");
-  const paddedFraction = fraction.padEnd(4, "0").slice(0, 4);
-  return BigInt(whole) * 10000n + BigInt(paddedFraction || "0") * (whole.startsWith("-") ? -1n : 1n);
-}
-
-function fromScaledBigInt(scaled: bigint): string {
-  const negative = scaled < 0n;
-  const abs = negative ? -scaled : scaled;
-  const whole = abs / 10000n;
-  const fraction = (abs % 10000n).toString().padStart(4, "0");
-  return `${negative ? "-" : ""}${whole}.${fraction}`;
 }
