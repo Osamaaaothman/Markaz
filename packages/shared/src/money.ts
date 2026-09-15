@@ -19,6 +19,11 @@ const KNOWN_MINOR_UNITS: Record<string, number> = {
   OMR: 3,
 };
 
+// Exposed so the UI can offer a constrained choice (dropdown) instead of free
+// text — same reasoning as above, this is the fallback list until a
+// tenant-scoped `currencies` table exists.
+export const KNOWN_CURRENCY_CODES: readonly string[] = Object.keys(KNOWN_MINOR_UNITS);
+
 export class CurrencyMismatchError extends Error {
   constructor(a: string, b: string) {
     super(`Cannot operate on Money with different currencies: ${a} vs ${b}`);

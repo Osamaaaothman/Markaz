@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Money } from "@erp/shared";
+import { KNOWN_CURRENCY_CODES, Money } from "@erp/shared";
 import { useEffect } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -170,7 +170,19 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
           </div>
           <div className="erp-field">
             <label htmlFor="currency">{t("accounting.journalEntries.currency")}</label>
-            <InputText id="currency" {...register("currency")} />
+            <Controller
+              control={control}
+              name="currency"
+              render={({ field }) => (
+                <Dropdown
+                  inputId="currency"
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.value)}
+                  options={KNOWN_CURRENCY_CODES.map((code) => ({ label: code, value: code }))}
+                  className={errors.currency ? "p-invalid" : ""}
+                />
+              )}
+            />
           </div>
         </div>
 

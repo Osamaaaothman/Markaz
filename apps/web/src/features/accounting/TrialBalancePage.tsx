@@ -45,9 +45,17 @@ export function TrialBalancePage(): React.JSX.Element {
       {data.lines.length === 0 ? (
         <p className="erp-page__empty">{t("accounting.trialBalance.empty")}</p>
       ) : (
-        <DataTable value={[...data.lines]} className="erp-table" stripedRows size="small">
-          <Column field="accountCode" header={t("accounting.trialBalance.account")} style={{ width: "8rem" }} />
-          <Column field="accountName" header="" />
+        <DataTable value={[...data.lines]} className="erp-table" stripedRows showGridlines size="small">
+          <Column
+            field="accountName"
+            header={t("accounting.trialBalance.account")}
+            body={(line: TrialBalanceLine) => (
+              <span className="erp-table__account">
+                <span className="erp-table__account-code">{line.accountCode}</span>
+                <span className="erp-table__account-name">{line.accountName}</span>
+              </span>
+            )}
+          />
           <Column
             field="debitTotal"
             header={t("accounting.trialBalance.debit")}

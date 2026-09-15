@@ -35,7 +35,7 @@ export function JournalEntriesPage(): React.JSX.Element {
         <p className="erp-page__empty">{t("status.empty")}</p>
       ) : (
         <>
-          <DataTable value={entries} className="erp-table" stripedRows size="small">
+          <DataTable value={entries} className="erp-table" stripedRows showGridlines size="small">
             <Column field="number" header="#" style={{ width: "8rem" }} />
             <Column
               field="entryDate"
