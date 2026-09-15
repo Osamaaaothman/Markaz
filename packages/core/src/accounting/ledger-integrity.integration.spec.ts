@@ -3,6 +3,8 @@ import { newId } from "@erp/shared";
 import { PrismaAccountingEngine } from "./accounting-engine.service.js";
 import { PrismaNumberingService } from "./numbering.service.js";
 import { TrialBalanceService } from "./trial-balance.service.js";
+import { BalanceSheetService } from "./balance-sheet.service.js";
+import { IncomeStatementService } from "./income-statement.service.js";
 
 // docs/05-ACCOUNTING-INTEGRITY-RULES.md §1: "Add a test that generates random valid
 // business operations and asserts the trial balance is zero after each one. This
@@ -19,6 +21,8 @@ describeIfDb("ledger integrity — property-based", () => {
   const prisma = new PrismaClient();
   const engine = new PrismaAccountingEngine(prisma, new PrismaNumberingService());
   const trialBalance = new TrialBalanceService(prisma);
+  const balanceSheet = new BalanceSheetService(prisma);
+  const incomeStatement = new IncomeStatementService(prisma);
 
   let companyId: string;
   let periodId: string;
@@ -138,8 +142,65 @@ describeIfDb("ledger integrity — property-based", () => {
       const balance = await trialBalance.compute(companyId);
       expect(balance.isBalanced).toBe(true);
       expect(balance.totalDebit).toBe(balance.totalCredit);
+
+      // docs/14-MILESTONES.md M2: the balance sheet must satisfy the accounting
+      // equation (assets == liabilities + equity, current-year earnings included)
+      // after every operation — the same invariant as the trial balance, expressed
+      // a different way.
+      const sheet = await balanceSheet.compute(companyId);
+      expect(sheet.isBalanced).toBe(true);
+      expect(sheet.assets.total).toBe(sheet.totalLiabilitiesAndEquity);
     }
   }, 60_000);
+
+  it("income statement net income matches the balance sheet's current-year earnings", async () => {
+    const [sheet, income] = await Promise.all([
+      balanceSheet.compute(companyId),
+      incomeStatement.compute(companyId, new Date(Date.UTC(2000, 0, 1)), new Date(Date.UTC(2100, 0, 1))),
+    ]);
+    expect(income.netIncome).toBe(sheet.currentYearEarnings);
+  });
+
+  it("income statement excludes entries outside the requested date range", async () => {
+    const revenueAccountId = accountIds[4]!; // Sales Revenue
+    const expenseAccountId = accountIds[5]!; // Operating Expense
+    const backdatedEntryDate = new Date(Date.UTC(2000, 5, 15));
+
+    await engine.postEntry({
+      companyId,
+      fiscalPeriodId: periodId,
+      entryDate: backdatedEntryDate,
+      postingDate: new Date(),
+      currency: "SAR",
+      lines: [
+        { accountId: revenueAccountId, credit: "77.00" },
+        { accountId: expenseAccountId, debit: "77.00" },
+      ],
+      sourceModule: "test",
+      sourceDocumentType: "property_test",
+      sourceDocumentId: newId(),
+      actorId: "test-actor",
+      correlationId: newId(),
+      idempotencyKey: newId(),
+    });
+
+    const excludingRange = await incomeStatement.compute(
+      companyId,
+      new Date(Date.UTC(2001, 0, 1)),
+      new Date(Date.UTC(2100, 0, 1)),
+    );
+    expect(excludingRange.revenue.lines.some((line) => line.accountId === revenueAccountId && line.amount === "77.0000")).toBe(
+      false,
+    );
+
+    const includingRange = await incomeStatement.compute(
+      companyId,
+      new Date(Date.UTC(2000, 0, 1)),
+      new Date(Date.UTC(2000, 11, 31)),
+    );
+    const revenueLine = includingRange.revenue.lines.find((line) => line.accountId === revenueAccountId);
+    expect(revenueLine?.amount).toBe("77.0000");
+  });
 
   it("rejects posting into a closed fiscal period — enforced by the database", async () => {
     const closedPeriod = await prisma.fiscalPeriod.create({
