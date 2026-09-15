@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
+import { Calendar } from "primereact/calendar";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
-import { formatCalendarDate } from "../../shared/lib/format-date";
+import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { JournalEntryForm } from "./JournalEntryForm";
@@ -12,7 +13,12 @@ import { useJournalEntries, type JournalEntrySummary } from "./use-journal-entri
 
 export function JournalEntriesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useJournalEntries();
+  const [filterRange, setFilterRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
+  const filter = {
+    ...(filterRange.from ? { from: toDateOnlyIsoString(filterRange.from) } : {}),
+    ...(filterRange.to ? { to: toDateOnlyIsoString(filterRange.to) } : {}),
+  };
+  const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useJournalEntries(filter);
   const [formVisible, setFormVisible] = useState(false);
 
   const entries = data?.pages.flatMap((page) => page.data) ?? [];
@@ -27,10 +33,38 @@ export function JournalEntriesPage(): React.JSX.Element {
         <Button label={t("accounting.journalEntries.new")} icon="pi pi-plus" onClick={() => setFormVisible(true)} />
       </div>
 
+      <div className="erp-form__row">
+        <div className="erp-field">
+          <label htmlFor="journalEntriesFrom">{t("accounting.journalEntries.filterFrom")}</label>
+          <Calendar
+            inputId="journalEntriesFrom"
+            value={filterRange.from}
+            onChange={(e) => setFilterRange((prev) => ({ ...prev, from: e.value ?? null }))}
+            dateFormat="yy-mm-dd"
+            showButtonBar
+          />
+        </div>
+        <div className="erp-field">
+          <label htmlFor="journalEntriesTo">{t("accounting.journalEntries.filterTo")}</label>
+          <Calendar
+            inputId="journalEntriesTo"
+            value={filterRange.to}
+            onChange={(e) => setFilterRange((prev) => ({ ...prev, to: e.value ?? null }))}
+            dateFormat="yy-mm-dd"
+            showButtonBar
+          />
+        </div>
+      </div>
+
       {isPending ? (
         <PageSkeleton />
       ) : isError ? (
-        <p className="erp-page__error">{t("status.error")}</p>
+        <div className="erp-page">
+          <p className="erp-page__error">{t("status.error")}</p>
+          <button type="button" className="erp-button-link" onClick={() => void refetch()}>
+            {t("actions.retry")}
+          </button>
+        </div>
       ) : entries.length === 0 ? (
         <p className="erp-page__empty">{t("status.empty")}</p>
       ) : (

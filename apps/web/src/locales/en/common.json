@@ -111,6 +111,8 @@
       "title": "Journal entries",
       "subtitle": "Post and review manual journal entries.",
       "new": "New journal entry",
+      "filterFrom": "From date",
+      "filterTo": "To date",
       "entryDate": "Entry date",
       "postingDate": "Posting date",
       "currency": "Currency",

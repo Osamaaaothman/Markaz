@@ -17,11 +17,20 @@ interface JournalEntryListPage {
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
 }
 
-export function useJournalEntries() {
+export interface JournalEntriesFilter {
+  readonly from?: string;
+  readonly to?: string;
+}
+
+export function useJournalEntries(filter: JournalEntriesFilter = {}) {
   return useInfiniteQuery({
-    queryKey: ["journalEntries"],
+    queryKey: ["journalEntries", filter.from ?? "", filter.to ?? ""],
     queryFn: async ({ pageParam }: { pageParam: string | null }) => {
-      const params = pageParam !== null ? { cursor: pageParam } : {};
+      const params = {
+        ...(pageParam !== null ? { cursor: pageParam } : {}),
+        ...(filter.from ? { from: filter.from } : {}),
+        ...(filter.to ? { to: filter.to } : {}),
+      };
       return (await apiClient.get<JournalEntryListPage>("/v1/journal-entries", { params })).data;
     },
     initialPageParam: null as string | null,

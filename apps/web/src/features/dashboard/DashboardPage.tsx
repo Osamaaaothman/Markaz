@@ -4,14 +4,21 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 
 export function DashboardPage(): React.JSX.Element {
   const { t } = useTranslation();
-  const { data: currentUser, isPending, isError } = useCurrentUser();
+  const { data: currentUser, isPending, isError, refetch } = useCurrentUser();
 
   if (isPending) {
     return <PageSkeleton />;
   }
 
   if (isError || !currentUser) {
-    return <p className="erp-page__error">{t("status.error")}</p>;
+    return (
+      <div className="erp-page">
+        <p className="erp-page__error">{t("status.error")}</p>
+        <button type="button" className="erp-button-link" onClick={() => void refetch()}>
+          {t("actions.retry")}
+        </button>
+      </div>
+    );
   }
 
   return (

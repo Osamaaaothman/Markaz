@@ -22,6 +22,7 @@ import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
 import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
 import { ExportQueryDto } from "./dto/export-query.dto.js";
 import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-query.dto.js";
+import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
 import type {
   AccountSummary,
   ChartOfAccountEntry,
@@ -86,17 +87,29 @@ export class AccountingController {
 
   // Cursor-based (docs/07-API-RULES.md §6: "Cursor-based for large or growing
   // sets") — journal entries accumulate for the life of the deployment, unlike
-  // accounts/fiscal-periods above.
+  // accounts/fiscal-periods above. `from`/`to` are the one whitelisted filter
+  // (entryDate range) — combining a where-clause filter with cursor pagination is
+  // standard Prisma and works correctly: the cursor just anchors position within
+  // whatever the filtered, ordered set is.
   @Get("journal-entries")
   @RequirePermission("journal_entry", "read")
   async listJournalEntries(
     @CurrentUser() actor: CurrentUserPayload,
-    @Query("cursor") cursor?: string,
-    @Query("limit") limitParam?: string,
+    @Query() query: JournalEntriesQueryDto,
   ): Promise<JournalEntryListPage> {
-    const limit = Math.min(Math.max(Number.parseInt(limitParam ?? "20", 10) || 20, 1), 100);
+    const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "20", 10) || 20, 1), 100);
     const entries = await this.prisma.journalEntry.findMany({
-      where: { companyId: actor.companyId },
+      where: {
+        companyId: actor.companyId,
+        ...(query.from || query.to
+          ? {
+              entryDate: {
+                ...(query.from ? { gte: new Date(query.from) } : {}),
+                ...(query.to ? { lte: new Date(query.to) } : {}),
+              },
+            }
+          : {}),
+      },
       select: {
         id: true,
         number: true,
@@ -109,7 +122,7 @@ export class AccountingController {
       },
       orderBy: { createdAt: "desc" },
       take: limit + 1,
-      ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
+      ...(query.cursor !== undefined ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
 
     const hasMore = entries.length > limit;
