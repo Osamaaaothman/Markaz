@@ -31,6 +31,8 @@ const PERMISSION_CATALOG = [
   { code: "journal_entry:read", description: "View journal entries" },
   { code: "journal_entry:reverse", description: "Reverse a posted journal entry" },
   { code: "trial_balance:read", description: "View the trial balance" },
+  { code: "balance_sheet:read", description: "View the balance sheet" },
+  { code: "income_statement:read", description: "View the income statement" },
   { code: "account:read", description: "View the chart of accounts" },
   { code: "fiscal_period:read", description: "View fiscal periods" },
 ] as const;

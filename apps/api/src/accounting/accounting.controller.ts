@@ -1,6 +1,13 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
 import type { IAccountingEngine, PostingResult } from "@erp/core";
-import { TrialBalanceService, type TrialBalanceResult } from "@erp/core";
+import {
+  BalanceSheetService,
+  IncomeStatementService,
+  TrialBalanceService,
+  type BalanceSheetResult,
+  type IncomeStatementResult,
+  type TrialBalanceResult,
+} from "@erp/core";
 import { Money } from "@erp/shared";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
@@ -10,6 +17,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { ACCOUNTING_ENGINE } from "./accounting.tokens.js";
 import { PostJournalEntryDto } from "./dto/post-journal-entry.dto.js";
 import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
+import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
 import type { AccountSummary, FiscalPeriodSummary, JournalEntryListPage } from "./accounting-reads.types.js";
 
 @Controller("v1")
@@ -17,6 +25,8 @@ export class AccountingController {
   constructor(
     @Inject(ACCOUNTING_ENGINE) private readonly engine: IAccountingEngine,
     private readonly trialBalanceService: TrialBalanceService,
+    private readonly balanceSheetService: BalanceSheetService,
+    private readonly incomeStatementService: IncomeStatementService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -110,6 +120,21 @@ export class AccountingController {
   @RequirePermission("trial_balance", "read")
   trialBalance(@CurrentUser() actor: CurrentUserPayload): Promise<TrialBalanceResult> {
     return this.trialBalanceService.compute(actor.companyId);
+  }
+
+  @Get("balance-sheet")
+  @RequirePermission("balance_sheet", "read")
+  balanceSheet(@CurrentUser() actor: CurrentUserPayload): Promise<BalanceSheetResult> {
+    return this.balanceSheetService.compute(actor.companyId);
+  }
+
+  @Get("income-statement")
+  @RequirePermission("income_statement", "read")
+  incomeStatement(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: IncomeStatementQueryDto,
+  ): Promise<IncomeStatementResult> {
+    return this.incomeStatementService.compute(actor.companyId, new Date(query.from), new Date(query.to));
   }
 
   @Post("journal-entries")
