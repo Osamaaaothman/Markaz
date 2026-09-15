@@ -5,12 +5,17 @@ import { Tag } from "primereact/tag";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { ExportButtons } from "../../shared/ui/ExportButtons";
+import { exportReport, type ExportFormat } from "./export-report";
 import { useBalanceSheet, type BalanceSheetLine } from "./use-balance-sheet";
 
 export function BalanceSheetPage(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: currentUser } = useCurrentUser();
   const { data, isPending, isError, refetch } = useBalanceSheet();
+
+  const handleExport = (format: ExportFormat) =>
+    exportReport("/v1/balance-sheet/export", { lang: i18n.language }, "balance-sheet", format);
 
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
 
@@ -38,10 +43,13 @@ export function BalanceSheetPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("accounting.balanceSheet.title")}</h1>
           <p className="erp-page__subtitle">{t("accounting.balanceSheet.subtitle")}</p>
         </div>
-        <Tag
-          value={data.isBalanced ? t("accounting.balanceSheet.balanced") : t("accounting.balanceSheet.outOfBalance")}
-          severity={data.isBalanced ? "success" : "danger"}
-        />
+        <div className="erp-page__header-actions">
+          <Tag
+            value={data.isBalanced ? t("accounting.balanceSheet.balanced") : t("accounting.balanceSheet.outOfBalance")}
+            severity={data.isBalanced ? "success" : "danger"}
+          />
+          <ExportButtons onExport={handleExport} />
+        </div>
       </div>
 
       {!hasActivity ? (

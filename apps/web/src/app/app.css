@@ -254,6 +254,13 @@ body {
   flex-wrap: wrap;
 }
 
+.erp-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .erp-page__title {
   font-size: 1.4rem;
   font-weight: 600;
@@ -333,6 +340,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+}
+
+.erp-export-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .erp-table-footer {

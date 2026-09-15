@@ -24,7 +24,9 @@
     "addLine": "إضافة سطر",
     "removeLine": "حذف السطر",
     "new": "جديد",
-    "loadMore": "تحميل المزيد"
+    "loadMore": "تحميل المزيد",
+    "exportPdf": "تصدير PDF",
+    "exportCsv": "تصدير CSV"
   },
   "status": {
     "loading": "جارٍ التحميل…",

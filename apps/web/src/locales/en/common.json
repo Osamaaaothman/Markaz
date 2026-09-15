@@ -24,7 +24,9 @@
     "addLine": "Add line",
     "removeLine": "Remove line",
     "new": "New",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "exportPdf": "Export PDF",
+    "exportCsv": "Export CSV"
   },
   "status": {
     "loading": "Loading…",

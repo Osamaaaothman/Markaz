@@ -7,11 +7,13 @@ import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { formatMoney } from "../../shared/lib/money";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { ExportButtons } from "../../shared/ui/ExportButtons";
+import { exportReport, type ExportFormat } from "./export-report";
 import { useFiscalPeriods } from "./use-fiscal-periods";
 import { useIncomeStatement, type IncomeStatementLine } from "./use-income-statement";
 
 export function IncomeStatementPage(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: currentUser } = useCurrentUser();
   const { data: fiscalPeriods } = useFiscalPeriods();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
@@ -34,6 +36,9 @@ export function IncomeStatementPage(): React.JSX.Element {
 
   const { data, isPending, isError, refetch } = useIncomeStatement(from, to);
 
+  const handleExport = (format: ExportFormat) =>
+    exportReport("/v1/income-statement/export", { lang: i18n.language, from, to }, "income-statement", format);
+
   return (
     <div className="erp-page">
       <div className="erp-page__header">
@@ -41,6 +46,11 @@ export function IncomeStatementPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("accounting.incomeStatement.title")}</h1>
           <p className="erp-page__subtitle">{t("accounting.incomeStatement.subtitle")}</p>
         </div>
+        {from && to ? (
+          <div className="erp-page__header-actions">
+            <ExportButtons onExport={handleExport} />
+          </div>
+        ) : null}
       </div>
 
       <div className="erp-form__row">
