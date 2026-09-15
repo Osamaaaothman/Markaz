@@ -8,6 +8,7 @@ import {
 } from "@erp/core";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AccountingController } from "./accounting.controller.js";
+import { AccountingExportService } from "./accounting-export.service.js";
 import { ACCOUNTING_ENGINE, NUMBERING_SERVICE } from "./accounting.tokens.js";
 
 @Module({
@@ -35,6 +36,7 @@ import { ACCOUNTING_ENGINE, NUMBERING_SERVICE } from "./accounting.tokens.js";
       useFactory: (prisma: PrismaService) => new IncomeStatementService(prisma),
       inject: [PrismaService],
     },
+    AccountingExportService,
   ],
 })
 export class AccountingModule {}

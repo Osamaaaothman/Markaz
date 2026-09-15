@@ -6,5 +6,40 @@
   "notice": {
     "subject": "Notice from {{companyName}}",
     "body": "{{message}}"
+  },
+  "trialBalance": {
+    "title": "Trial Balance",
+    "subtitle": "Every posted account balance, as of {{asOf}}.",
+    "account": "Account",
+    "debit": "Debit",
+    "credit": "Credit",
+    "totalDebit": "Total Debit",
+    "totalCredit": "Total Credit"
+  },
+  "balanceSheet": {
+    "title": "Balance Sheet",
+    "subtitle": "As of {{asOf}}.",
+    "assets": "Assets",
+    "liabilities": "Liabilities",
+    "equity": "Equity",
+    "currentYearEarnings": "Current Year Earnings",
+    "totalAssets": "Total Assets",
+    "totalLiabilities": "Total Liabilities",
+    "totalEquity": "Total Equity",
+    "totalLiabilitiesAndEquity": "Total Liabilities and Equity",
+    "account": "Account",
+    "balance": "Balance"
+  },
+  "incomeStatement": {
+    "title": "Income Statement",
+    "subtitle": "For the period {{from}} to {{to}}.",
+    "revenue": "Revenue",
+    "expense": "Expenses",
+    "totalRevenue": "Total Revenue",
+    "totalExpense": "Total Expenses",
+    "netIncome": "Net Income",
+    "netLoss": "Net Loss",
+    "account": "Account",
+    "amount": "Amount"
   }
 }

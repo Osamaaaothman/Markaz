@@ -6,5 +6,40 @@
   "notice": {
     "subject": "إشعار من {{companyName}}",
     "body": "{{message}}"
+  },
+  "trialBalance": {
+    "title": "ميزان المراجعة",
+    "subtitle": "رصيد كل حساب مرحّل، حتى {{asOf}}.",
+    "account": "الحساب",
+    "debit": "مدين",
+    "credit": "دائن",
+    "totalDebit": "إجمالي المدين",
+    "totalCredit": "إجمالي الدائن"
+  },
+  "balanceSheet": {
+    "title": "الميزانية العمومية",
+    "subtitle": "حتى {{asOf}}.",
+    "assets": "الأصول",
+    "liabilities": "الخصوم",
+    "equity": "حقوق الملكية",
+    "currentYearEarnings": "أرباح السنة الحالية",
+    "totalAssets": "إجمالي الأصول",
+    "totalLiabilities": "إجمالي الخصوم",
+    "totalEquity": "إجمالي حقوق الملكية",
+    "totalLiabilitiesAndEquity": "إجمالي الخصوم وحقوق الملكية",
+    "account": "الحساب",
+    "balance": "الرصيد"
+  },
+  "incomeStatement": {
+    "title": "قائمة الدخل",
+    "subtitle": "للفترة من {{from}} إلى {{to}}.",
+    "revenue": "الإيرادات",
+    "expense": "المصروفات",
+    "totalRevenue": "إجمالي الإيرادات",
+    "totalExpense": "إجمالي المصروفات",
+    "netIncome": "صافي الربح",
+    "netLoss": "صافي الخسارة",
+    "account": "الحساب",
+    "amount": "المبلغ"
   }
 }

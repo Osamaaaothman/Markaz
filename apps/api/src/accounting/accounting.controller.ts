@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Post, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import type { IAccountingEngine, PostingResult } from "@erp/core";
 import {
   BalanceSheetService,
@@ -14,10 +15,13 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { AccountingExportService, type ExportedFile } from "./accounting-export.service.js";
 import { ACCOUNTING_ENGINE } from "./accounting.tokens.js";
 import { PostJournalEntryDto } from "./dto/post-journal-entry.dto.js";
 import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
 import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
+import { ExportQueryDto } from "./dto/export-query.dto.js";
+import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-query.dto.js";
 import type {
   AccountSummary,
   ChartOfAccountEntry,
@@ -32,6 +36,7 @@ export class AccountingController {
     private readonly trialBalanceService: TrialBalanceService,
     private readonly balanceSheetService: BalanceSheetService,
     private readonly incomeStatementService: IncomeStatementService,
+    private readonly exportService: AccountingExportService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -141,10 +146,35 @@ export class AccountingController {
     return this.trialBalanceService.compute(actor.companyId);
   }
 
+  // docs/07-API-RULES.md §9: a single company's bounded report — not a batch or a
+  // paginated export — so a synchronous response is fine; nothing here approaches
+  // the "may exceed a few seconds" threshold that requires the 202+job-id pattern.
+  @Get("trial-balance/export")
+  @RequirePermission("trial_balance", "read")
+  async exportTrialBalance(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: ExportQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const file = await this.exportService.exportTrialBalance(actor.companyId, query.format, query.lang ?? "en");
+    this.sendFile(res, file);
+  }
+
   @Get("balance-sheet")
   @RequirePermission("balance_sheet", "read")
   balanceSheet(@CurrentUser() actor: CurrentUserPayload): Promise<BalanceSheetResult> {
     return this.balanceSheetService.compute(actor.companyId);
+  }
+
+  @Get("balance-sheet/export")
+  @RequirePermission("balance_sheet", "read")
+  async exportBalanceSheet(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: ExportQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const file = await this.exportService.exportBalanceSheet(actor.companyId, query.format, query.lang ?? "en");
+    this.sendFile(res, file);
   }
 
   @Get("income-statement")
@@ -154,6 +184,23 @@ export class AccountingController {
     @Query() query: IncomeStatementQueryDto,
   ): Promise<IncomeStatementResult> {
     return this.incomeStatementService.compute(actor.companyId, new Date(query.from), new Date(query.to));
+  }
+
+  @Get("income-statement/export")
+  @RequirePermission("income_statement", "read")
+  async exportIncomeStatement(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: IncomeStatementExportQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const file = await this.exportService.exportIncomeStatement(
+      actor.companyId,
+      query.format,
+      query.lang ?? "en",
+      new Date(query.from),
+      new Date(query.to),
+    );
+    this.sendFile(res, file);
   }
 
   @Post("journal-entries")
@@ -190,5 +237,18 @@ export class AccountingController {
     @CorrelationId() correlationId: string,
   ): Promise<PostingResult> {
     return this.engine.reverseEntry(id, dto.reason, actor.id, correlationId);
+  }
+
+  // Sends the body directly via `res.send()` rather than returning it from the
+  // handler — Nest's default response pipeline runs a non-string return value
+  // (a Buffer included) through `res.json()`, which serializes a Buffer as
+  // `{"type":"Buffer","data":[...]}` instead of writing raw bytes. Discovered by
+  // actually downloading a PDF and checking its first bytes, not by reading Nest's
+  // docs — the JSON output still reported `Content-Type: application/pdf`, which
+  // made it look correct until the payload itself was inspected.
+  private sendFile(res: Response, file: ExportedFile): void {
+    res.header("Content-Type", file.contentType);
+    res.header("Content-Disposition", `attachment; filename="${file.filename}"`);
+    res.send(file.content);
   }
 }
