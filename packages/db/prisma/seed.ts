@@ -35,6 +35,7 @@ const PERMISSION_CATALOG = [
   { code: "balance_sheet:read", description: "View the balance sheet" },
   { code: "income_statement:read", description: "View the income statement" },
   { code: "account:read", description: "View the chart of accounts" },
+  { code: "account:create", description: "Add an account to the chart of accounts" },
   { code: "fiscal_period:read", description: "View fiscal periods" },
 ] as const;
 

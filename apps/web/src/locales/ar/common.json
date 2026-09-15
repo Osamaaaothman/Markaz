@@ -65,7 +65,20 @@
       "name": "الاسم",
       "kind": "النوع",
       "postable": "قابل للترحيل",
-      "group": "مجموعة"
+      "group": "مجموعة",
+      "addAccount": "إضافة حساب",
+      "type": "النوع",
+      "typeAsset": "أصول",
+      "typeLiability": "التزامات",
+      "typeEquity": "حقوق الملكية",
+      "typeRevenue": "إيرادات",
+      "typeExpense": "مصروفات",
+      "isPostable": "السماح بالترحيل إلى هذا الحساب؟",
+      "parentAccount": "الحساب الأب (اختياري)",
+      "noParent": "— بدون أب (مستوى أول) —",
+      "createSuccess": "تم إنشاء الحساب.",
+      "createError": "تعذّر إنشاء الحساب.",
+      "duplicateCode": "يوجد حساب بهذا الرمز مسبقاً."
     },
     "trialBalance": {
       "title": "ميزان المراجعة",

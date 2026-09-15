@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query, Res } from "@nestjs/common";
+import { Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import type { IAccountingEngine, PostingResult } from "@erp/core";
 import {
@@ -9,7 +9,7 @@ import {
   type IncomeStatementResult,
   type TrialBalanceResult,
 } from "@erp/core";
-import { Money } from "@erp/shared";
+import { Money, newId } from "@erp/shared";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
@@ -23,6 +23,7 @@ import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
 import { ExportQueryDto } from "./dto/export-query.dto.js";
 import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-query.dto.js";
 import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
+import { CreateAccountDto, normalBalanceFor } from "./dto/create-account.dto.js";
 import type {
   AccountSummary,
   ChartOfAccountEntry,
@@ -67,6 +68,42 @@ export class AccountingController {
       orderBy: { code: "asc" },
     });
     return accounts;
+  }
+
+  @Post("accounts")
+  @RequirePermission("account", "create")
+  async createAccount(
+    @Body() dto: CreateAccountDto,
+    @CurrentUser() actor: CurrentUserPayload,
+  ): Promise<ChartOfAccountEntry> {
+    const duplicate = await this.prisma.account.findUnique({
+      where: { companyId_code: { companyId: actor.companyId, code: dto.code } },
+    });
+    if (duplicate) throw new ConflictException("An account with this code already exists");
+
+    if (dto.parentId) {
+      const parent = await this.prisma.account.findUnique({ where: { id: dto.parentId } });
+      if (!parent || parent.companyId !== actor.companyId) {
+        throw new NotFoundException("Parent account not found");
+      }
+    }
+
+    const id = newId();
+    const account = await this.prisma.account.create({
+      data: {
+        id,
+        companyId: actor.companyId,
+        code: dto.code,
+        name: dto.name,
+        type: dto.type,
+        normalBalance: normalBalanceFor(dto.type),
+        isPostable: dto.isPostable,
+        parentId: dto.parentId ?? null,
+        createdBy: actor.id,
+      },
+      select: { id: true, code: true, name: true, type: true, isPostable: true, parentId: true },
+    });
+    return account;
   }
 
   @Get("fiscal-periods")

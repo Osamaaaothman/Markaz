@@ -65,7 +65,20 @@
       "name": "Name",
       "kind": "Kind",
       "postable": "Postable",
-      "group": "Group"
+      "group": "Group",
+      "addAccount": "Add account",
+      "type": "Type",
+      "typeAsset": "Asset",
+      "typeLiability": "Liability",
+      "typeEquity": "Equity",
+      "typeRevenue": "Revenue",
+      "typeExpense": "Expense",
+      "isPostable": "Allow posting to this account?",
+      "parentAccount": "Parent account (optional)",
+      "noParent": "— None (top-level) —",
+      "createSuccess": "Account created.",
+      "createError": "Could not create the account.",
+      "duplicateCode": "An account with this code already exists."
     },
     "trialBalance": {
       "title": "Trial balance",
