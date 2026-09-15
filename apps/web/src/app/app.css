@@ -22,8 +22,6 @@
   --erp-text-muted: var(--text-color-secondary, #6b7094);
   --erp-radius: 12px;
   --erp-radius-sm: 8px;
-  --erp-shell-sidebar-width: 260px;
-  --erp-topbar-height: 64px;
   --erp-shadow-sm: 0 1px 2px rgba(20, 22, 46, 0.06);
   --erp-shadow-md: 0 8px 24px rgba(20, 22, 46, 0.08);
 }
@@ -38,205 +36,9 @@ body {
   overflow-x: hidden;
 }
 
-/* ---------- shell layout ---------- */
-
-.erp-shell {
-  display: grid;
-  grid-template-columns: var(--erp-shell-sidebar-width) 1fr;
-  min-height: 100vh;
-}
-
-.erp-shell__desktop-sidebar {
-  display: none;
-  border-inline-end: 1px solid var(--erp-border);
-  background: var(--erp-surface);
-}
-
-.erp-shell__main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  grid-column: 1 / -1;
-}
-
-.erp-shell__content {
-  flex: 1;
-  padding: 1.5rem;
-  max-width: 1200px;
-  width: 100%;
-  margin-inline: auto;
-}
-
-@media (min-width: 900px) {
-  .erp-shell__desktop-sidebar {
-    display: block;
-    grid-column: 1;
-  }
-  .erp-shell__main {
-    grid-column: 2;
-  }
-  .erp-topbar__menu-toggle {
-    display: none;
-  }
-}
-
-.erp-shell__mobile-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 17, 34, 0.45);
-  z-index: 40;
-  display: flex;
-}
-
-.erp-shell__mobile-drawer {
-  width: var(--erp-shell-sidebar-width);
-  max-width: 82vw;
-  background: var(--erp-surface);
-  height: 100%;
-  box-shadow: var(--erp-shadow-md);
-  animation: erp-drawer-in 0.18s ease-out;
-}
-
-@keyframes erp-drawer-in {
-  from {
-    transform: translateX(-12px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* ---------- sidebar ---------- */
-
-.erp-sidebar {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 1.25rem 1rem;
-}
-
-.erp-sidebar__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding-inline: 0.5rem;
-  margin-block-end: 1.5rem;
-}
-
-.erp-sidebar__brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--erp-radius-sm);
-  background: var(--erp-brand);
-  color: #fff;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.erp-sidebar__brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.erp-sidebar__brand-name {
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.erp-sidebar__brand-tagline {
-  font-size: 0.75rem;
-  color: var(--erp-text-muted);
-}
-
-.erp-sidebar__nav {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.erp-sidebar__link {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: var(--erp-radius-sm);
-  color: var(--erp-text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: background-color 0.12s ease, color 0.12s ease;
-}
-
-.erp-sidebar__link:hover {
-  background: color-mix(in srgb, var(--erp-brand) 8%, transparent);
-  color: var(--erp-text);
-}
-
-.erp-sidebar__link--active {
-  background: color-mix(in srgb, var(--erp-brand) 12%, transparent);
-  color: var(--erp-brand);
-  font-weight: 600;
-}
-
-/* ---------- topbar ---------- */
-
-.erp-topbar {
-  height: var(--erp-topbar-height);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-inline: 1rem;
-  border-block-end: 1px solid var(--erp-border);
-  background: var(--erp-surface);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.erp-topbar__spacer {
-  flex: 1;
-}
-
-.erp-topbar__icon-button,
-.erp-topbar__avatar-button {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  /* Every topbar button is a flex item of .erp-topbar — without this, the
-     default flex-shrink:1 lets a narrow viewport compress these below 38px,
-     which turns the circular avatar into an oval. */
-  flex-shrink: 0;
-  border-radius: 50%;
-  color: var(--erp-text-muted);
-  transition: background-color 0.12s ease;
-}
-
-.erp-topbar__icon-button:hover,
-.erp-topbar__avatar-button:hover {
-  background: var(--erp-page-bg);
-}
-
-.erp-topbar__avatar {
-  background: var(--erp-brand) !important;
-  color: #fff !important;
-  /* Same reasoning as the button: PrimeReact's Avatar is itself a flex item
-     here and needs its own shrink guard, not just its wrapping button's. */
-  flex-shrink: 0;
-  aspect-ratio: 1 / 1;
-}
+/* Shell/sidebar/topbar layout has moved to Tailwind utility classes directly
+   in AppShell.tsx/Sidebar.tsx/Topbar.tsx (frontend design-system migration) —
+   see tokens.css for the color tokens those utilities read. */
 
 /* ---------- page scaffolding ---------- */
 
@@ -318,6 +120,10 @@ body {
 
 .erp-table .p-datatable-tbody > tr:hover {
   background: color-mix(in srgb, var(--erp-brand) 5%, transparent);
+}
+
+.erp-table--clickable-rows .p-datatable-tbody > tr {
+  cursor: pointer;
 }
 
 .erp-table__account {
@@ -487,6 +293,7 @@ body {
 .erp-field > input,
 .erp-field > .p-inputtext,
 .erp-field > .p-password,
+.erp-field > .p-password .p-icon-field,
 .erp-field > .p-password input,
 .erp-field > .p-dropdown,
 .erp-field > .p-calendar,
@@ -575,4 +382,19 @@ body {
 .erp-dialog {
   width: 90vw;
   max-width: 760px;
+}
+
+.erp-dialog--wide {
+  max-width: 960px;
+}
+
+/* PrimeReact's Dropdown/MultiSelect filter input ships with a -28px right
+   margin (meant to let its search icon overlap the input's own reserved
+   right padding) — but it renders past its container's right edge instead of
+   into that padding, overflowing the dialog. The icon already sits at
+   `right: 12px` inside the input's 28px padding-right, so dropping the
+   negative margin fixes the overflow without covering the icon. */
+.p-dropdown-filter-container .p-dropdown-filter,
+.p-multiselect-filter-container .p-multiselect-filter {
+  margin-inline-end: 0;
 }
