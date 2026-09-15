@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../shared/api/client";
 
 export interface JournalEntrySummary {
@@ -20,6 +20,40 @@ interface JournalEntryListPage {
 export interface JournalEntriesFilter {
   readonly from?: string;
   readonly to?: string;
+}
+
+export interface JournalEntryLineDetail {
+  readonly id: string;
+  readonly accountId: string;
+  readonly accountCode: string;
+  readonly accountName: string;
+  readonly debit: string;
+  readonly credit: string;
+  readonly description: string | null;
+}
+
+export interface JournalEntryDetail {
+  readonly id: string;
+  readonly number: string;
+  readonly entryDate: string;
+  readonly postingDate: string;
+  readonly currency: string;
+  readonly exchangeRate: string | null;
+  readonly sourceDocumentType: string;
+  readonly sourceDocumentId: string;
+  readonly isReversal: boolean;
+  readonly reversalOfEntryNumber: string | null;
+  readonly totalDebit: string;
+  readonly totalCredit: string;
+  readonly lines: readonly JournalEntryLineDetail[];
+}
+
+export function useJournalEntry(id: string | null) {
+  return useQuery({
+    queryKey: ["journalEntry", id],
+    queryFn: async () => (await apiClient.get<JournalEntryDetail>(`/v1/journal-entries/${id}`)).data,
+    enabled: id !== null,
+  });
 }
 
 export function useJournalEntries(filter: JournalEntriesFilter = {}) {

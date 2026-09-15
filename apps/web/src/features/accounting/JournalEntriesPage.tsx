@@ -8,6 +8,7 @@ import { Tag } from "primereact/tag";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { JournalEntryDetailDialog } from "./JournalEntryDetailDialog";
 import { JournalEntryForm } from "./JournalEntryForm";
 import { useJournalEntries, type JournalEntrySummary } from "./use-journal-entries";
 
@@ -20,6 +21,7 @@ export function JournalEntriesPage(): React.JSX.Element {
   };
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useJournalEntries(filter);
   const [formVisible, setFormVisible] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
   const entries = data?.pages.flatMap((page) => page.data) ?? [];
 
@@ -69,7 +71,14 @@ export function JournalEntriesPage(): React.JSX.Element {
         <p className="erp-page__empty">{t("status.empty")}</p>
       ) : (
         <>
-          <DataTable value={entries} className="erp-table" stripedRows showGridlines size="small">
+          <DataTable
+            value={entries}
+            className="erp-table erp-table--clickable-rows"
+            stripedRows
+            showGridlines
+            size="small"
+            onRowClick={(e) => setSelectedEntryId((e.data as JournalEntrySummary).id)}
+          >
             <Column field="number" header="#" style={{ width: "8rem" }} />
             <Column
               field="entryDate"
@@ -108,6 +117,7 @@ export function JournalEntriesPage(): React.JSX.Element {
       )}
 
       <JournalEntryForm visible={formVisible} onHide={() => setFormVisible(false)} />
+      <JournalEntryDetailDialog entryId={selectedEntryId} onHide={() => setSelectedEntryId(null)} />
     </div>
   );
 }

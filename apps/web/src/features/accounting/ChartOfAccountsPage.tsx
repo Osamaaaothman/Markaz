@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -50,6 +50,7 @@ function AddAccountDialog({
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<AddAccountValues>({
     resolver: zodResolver(addAccountSchema),
@@ -80,9 +81,15 @@ function AddAccountDialog({
     value: t_,
   }));
 
+  const selectedType = useWatch({ control, name: "type" });
+
+  // A parent must be the same account type as the child (an Asset can't hang off
+  // a Liability, etc.) — docs/04-DATA-MODEL-RULES.md account hierarchy rule.
   const parentOptions = [
     { label: t("accounting.chartOfAccounts.noParent"), value: null },
-    ...accounts.map((a) => ({ label: `${a.code} — ${a.name}`, value: a.id })),
+    ...accounts
+      .filter((a) => a.type === selectedType)
+      .map((a) => ({ label: `${a.code} — ${a.name}`, value: a.id })),
   ];
 
   const isConflict =
@@ -135,7 +142,10 @@ function AddAccountDialog({
               <Dropdown
                 inputId="acctType"
                 value={field.value}
-                onChange={(e) => field.onChange(e.value)}
+                onChange={(e) => {
+                  field.onChange(e.value);
+                  setValue("parentId", null);
+                }}
                 options={typeOptions}
               />
             )}

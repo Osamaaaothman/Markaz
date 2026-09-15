@@ -14,6 +14,7 @@ import { Tag } from "primereact/tag";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { useUsers, useCreateUser, useAssignUserRoles, type UserSummary } from "./use-users";
 import { useRoles, usePermissionCatalog, useCreateRole } from "./use-roles";
+import { groupPermissionsByResource, splitPermissionCode } from "./permission-labels";
 
 // ─── Add-user dialog ────────────────────────────────────────────────────────
 
@@ -241,11 +242,13 @@ function AddRoleDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
                 inputId="rolePermissions"
                 value={field.value}
                 onChange={(e) => field.onChange(e.value)}
-                options={(catalog ?? []).map((p) => ({
-                  label: p.code,
-                  value: p.code,
-                  title: p.description ?? undefined,
-                }))}
+                options={(catalog ?? []).map((p) => {
+                  const { resource, action } = splitPermissionCode(p.code);
+                  return {
+                    label: `${t(`settings.usersRoles.resources.${resource}`, resource)} — ${t(`settings.usersRoles.actions.${action}`, action)}`,
+                    value: p.code,
+                  };
+                })}
                 display="chip"
                 filter
                 className={errors.permissionCodes ? "p-invalid" : ""}
@@ -273,7 +276,8 @@ function AddRoleDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function UsersPage(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const listFormat = new Intl.ListFormat(i18n.language, { style: "narrow", type: "conjunction" });
   const { data: users, isPending: usersPending, isError: usersError, refetch: refetchUsers } = useUsers();
   const { data: roles, isPending: rolesPending, isError: rolesError, refetch: refetchRoles } = useRoles();
 
@@ -389,13 +393,19 @@ export function UsersPage(): React.JSX.Element {
               size="small"
               emptyMessage={t("status.empty")}
             >
-              <Column field="name" header={t("settings.usersRoles.roleName")} sortable />
+              <Column field="name" header={t("settings.usersRoles.roleName")} sortable style={{ width: "12rem" }} />
               <Column
                 header={t("settings.usersRoles.permissions")}
                 body={(row: { permissions: readonly string[] }) => (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
-                    {row.permissions.map((p) => (
-                      <Tag key={p} value={p} severity="info" />
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                    {groupPermissionsByResource(row.permissions).map((group) => (
+                      <Tag
+                        key={group.resource}
+                        severity="info"
+                        value={`${t(`settings.usersRoles.resources.${group.resource}`, group.resource)}: ${listFormat.format(
+                          group.actions.map((a) => t(`settings.usersRoles.actions.${a}`, a)),
+                        )}`}
+                      />
                     ))}
                   </div>
                 )}

@@ -142,7 +142,11 @@
       "totalCredit": "Total credit",
       "submit": "Post entry",
       "postedSuccess": "Journal entry posted.",
-      "postError": "Couldn't post this entry."
+      "postError": "Couldn't post this entry.",
+      "details": "Journal entry details",
+      "exchangeRate": "Exchange rate",
+      "reversalOf": "Reverses entry {{number}}",
+      "loadError": "Couldn't load this entry."
     }
   },
   "settings": {
@@ -164,6 +168,22 @@
       "roleName": "Role name",
       "permissions": "Permissions",
       "permissionsCount": "{{count}} permissions",
+      "resources": {
+        "journal_entry": "Journal entries",
+        "account": "Chart of accounts",
+        "trial_balance": "Trial balance",
+        "balance_sheet": "Balance sheet",
+        "income_statement": "Income statement",
+        "fiscal_period": "Fiscal periods",
+        "user": "Users",
+        "role": "Roles"
+      },
+      "actions": {
+        "create": "Create",
+        "read": "View",
+        "reverse": "Reverse",
+        "assign": "Assign"
+      },
       "createUserSuccess": "User created.",
       "createUserError": "Couldn't create user.",
       "createRoleSuccess": "Role created.",

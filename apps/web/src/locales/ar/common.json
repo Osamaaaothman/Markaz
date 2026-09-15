@@ -142,7 +142,11 @@
       "totalCredit": "إجمالي الدائن",
       "submit": "ترحيل القيد",
       "postedSuccess": "تم ترحيل القيد المحاسبي.",
-      "postError": "تعذّر ترحيل هذا القيد."
+      "postError": "تعذّر ترحيل هذا القيد.",
+      "details": "تفاصيل القيد المحاسبي",
+      "exchangeRate": "سعر الصرف",
+      "reversalOf": "قيد عكسي للقيد رقم {{number}}",
+      "loadError": "تعذّر تحميل هذا القيد."
     }
   },
   "settings": {
@@ -164,6 +168,22 @@
       "roleName": "اسم الدور",
       "permissions": "الصلاحيات",
       "permissionsCount": "{{count}} صلاحية",
+      "resources": {
+        "journal_entry": "القيود المحاسبية",
+        "account": "دليل الحسابات",
+        "trial_balance": "ميزان المراجعة",
+        "balance_sheet": "الميزانية العمومية",
+        "income_statement": "قائمة الدخل",
+        "fiscal_period": "الفترات المالية",
+        "user": "المستخدمون",
+        "role": "الأدوار"
+      },
+      "actions": {
+        "create": "إنشاء",
+        "read": "عرض",
+        "reverse": "عكس",
+        "assign": "إسناد"
+      },
       "createUserSuccess": "تم إنشاء المستخدم.",
       "createUserError": "تعذّر إنشاء المستخدم.",
       "createRoleSuccess": "تم إنشاء الدور.",

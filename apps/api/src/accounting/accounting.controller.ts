@@ -28,6 +28,7 @@ import type {
   AccountSummary,
   ChartOfAccountEntry,
   FiscalPeriodSummary,
+  JournalEntryDetail,
   JournalEntryListPage,
 } from "./accounting-reads.types.js";
 
@@ -185,6 +186,72 @@ export class AccountingController {
         hasMore,
         nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
       },
+    };
+  }
+
+  @Get("journal-entries/:id")
+  @RequirePermission("journal_entry", "read")
+  async getJournalEntry(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+  ): Promise<JournalEntryDetail> {
+    const entry = await this.prisma.journalEntry.findFirst({
+      where: { id, companyId: actor.companyId },
+      select: {
+        id: true,
+        number: true,
+        entryDate: true,
+        postingDate: true,
+        currency: true,
+        exchangeRate: true,
+        sourceDocumentType: true,
+        sourceDocumentId: true,
+        reversalOf: { select: { number: true } },
+        lines: {
+          select: {
+            id: true,
+            debit: true,
+            credit: true,
+            description: true,
+            account: { select: { id: true, code: true, name: true } },
+          },
+          orderBy: { lineNumber: "asc" },
+        },
+      },
+    });
+    if (!entry) throw new NotFoundException("Journal entry not found");
+
+    const totalDebit = entry.lines.reduce(
+      (sum, line) => sum.add(Money.of(line.debit.toString(), entry.currency)),
+      Money.zero(entry.currency),
+    );
+    const totalCredit = entry.lines.reduce(
+      (sum, line) => sum.add(Money.of(line.credit.toString(), entry.currency)),
+      Money.zero(entry.currency),
+    );
+
+    return {
+      id: entry.id,
+      number: entry.number,
+      entryDate: entry.entryDate.toISOString(),
+      postingDate: entry.postingDate.toISOString(),
+      currency: entry.currency,
+      exchangeRate: entry.exchangeRate?.toString() ?? null,
+      sourceDocumentType: entry.sourceDocumentType,
+      sourceDocumentId: entry.sourceDocumentId,
+      isReversal: entry.reversalOf !== null,
+      reversalOfEntryNumber: entry.reversalOf?.number ?? null,
+      totalDebit: totalDebit.toDecimalString(),
+      totalCredit: totalCredit.toDecimalString(),
+      lines: entry.lines.map((line) => ({
+        id: line.id,
+        accountId: line.account.id,
+        accountCode: line.account.code,
+        accountName: line.account.name,
+        debit: Money.of(line.debit.toString(), entry.currency).toDecimalString(),
+        credit: Money.of(line.credit.toString(), entry.currency).toDecimalString(),
+        description: line.description,
+      })),
     };
   }
 

@@ -43,3 +43,29 @@ export interface JournalEntryListPage {
     readonly nextCursor: string | null;
   };
 }
+
+export interface JournalEntryLineDetail {
+  readonly id: string;
+  readonly accountId: string;
+  readonly accountCode: string;
+  readonly accountName: string;
+  readonly debit: string;
+  readonly credit: string;
+  readonly description: string | null;
+}
+
+export interface JournalEntryDetail {
+  readonly id: string;
+  readonly number: string;
+  readonly entryDate: string;
+  readonly postingDate: string;
+  readonly currency: string;
+  readonly exchangeRate: string | null;
+  readonly sourceDocumentType: string;
+  readonly sourceDocumentId: string;
+  readonly isReversal: boolean;
+  readonly reversalOfEntryNumber: string | null;
+  readonly totalDebit: string;
+  readonly totalCredit: string;
+  readonly lines: readonly JournalEntryLineDetail[];
+}
