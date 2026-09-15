@@ -329,6 +329,12 @@ body {
   font-weight: 500;
 }
 
+.erp-statement-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 .erp-table-footer {
   display: flex;
   justify-content: space-between;

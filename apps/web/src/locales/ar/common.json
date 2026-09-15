@@ -6,6 +6,8 @@
   "nav": {
     "dashboard": "الرئيسية",
     "trialBalance": "ميزان المراجعة",
+    "balanceSheet": "الميزانية العمومية",
+    "incomeStatement": "قائمة الدخل",
     "journalEntries": "القيود المحاسبية"
   },
   "actions": {
@@ -63,6 +65,35 @@
       "balanced": "متوازن",
       "outOfBalance": "غير متوازن",
       "empty": "لا يوجد نشاط مرحّل بعد."
+    },
+    "balanceSheet": {
+      "title": "الميزانية العمومية",
+      "subtitle": "الأصول والخصوم وحقوق الملكية، حتى الآن.",
+      "assets": "الأصول",
+      "balance": "الرصيد",
+      "totalAssets": "إجمالي الأصول",
+      "liabilities": "الخصوم",
+      "totalLiabilities": "إجمالي الخصوم",
+      "equity": "حقوق الملكية",
+      "currentYearEarnings": "أرباح السنة الحالية",
+      "totalEquity": "إجمالي حقوق الملكية",
+      "totalLiabilitiesAndEquity": "إجمالي الخصوم وحقوق الملكية",
+      "balanced": "متوازنة",
+      "outOfBalance": "غير متوازنة",
+      "empty": "لا يوجد نشاط مرحّل بعد."
+    },
+    "incomeStatement": {
+      "title": "قائمة الدخل",
+      "subtitle": "الإيرادات والمصروفات للفترة المحددة.",
+      "from": "من",
+      "to": "إلى",
+      "revenue": "الإيرادات",
+      "totalRevenue": "إجمالي الإيرادات",
+      "expense": "المصروفات",
+      "totalExpense": "إجمالي المصروفات",
+      "netIncome": "صافي الربح",
+      "netLoss": "صافي الخسارة",
+      "empty": "لا يوجد نشاط في هذه الفترة."
     },
     "journalEntries": {
       "title": "القيود المحاسبية",

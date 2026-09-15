@@ -6,6 +6,8 @@
   "nav": {
     "dashboard": "Dashboard",
     "trialBalance": "Trial balance",
+    "balanceSheet": "Balance sheet",
+    "incomeStatement": "Income statement",
     "journalEntries": "Journal entries"
   },
   "actions": {
@@ -63,6 +65,35 @@
       "balanced": "Balanced",
       "outOfBalance": "Out of balance",
       "empty": "No posted activity yet."
+    },
+    "balanceSheet": {
+      "title": "Balance sheet",
+      "subtitle": "Assets, liabilities, and equity, as of now.",
+      "assets": "Assets",
+      "balance": "Balance",
+      "totalAssets": "Total assets",
+      "liabilities": "Liabilities",
+      "totalLiabilities": "Total liabilities",
+      "equity": "Equity",
+      "currentYearEarnings": "Current year earnings",
+      "totalEquity": "Total equity",
+      "totalLiabilitiesAndEquity": "Total liabilities and equity",
+      "balanced": "Balanced",
+      "outOfBalance": "Out of balance",
+      "empty": "No posted activity yet."
+    },
+    "incomeStatement": {
+      "title": "Income statement",
+      "subtitle": "Revenue and expense for the selected period.",
+      "from": "From",
+      "to": "To",
+      "revenue": "Revenue",
+      "totalRevenue": "Total revenue",
+      "expense": "Expenses",
+      "totalExpense": "Total expenses",
+      "netIncome": "Net income",
+      "netLoss": "Net loss",
+      "empty": "No activity in this period."
     },
     "journalEntries": {
       "title": "Journal entries",
