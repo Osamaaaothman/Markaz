@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "chartOfAccounts": "Chart of accounts",
     "trialBalance": "Trial balance",
     "balanceSheet": "Balance sheet",
     "incomeStatement": "Income statement",
@@ -54,6 +55,15 @@
     "companyLabel": "Company"
   },
   "accounting": {
+    "chartOfAccounts": {
+      "title": "Chart of accounts",
+      "subtitle": "The full account hierarchy for this company.",
+      "code": "Code",
+      "name": "Name",
+      "kind": "Kind",
+      "postable": "Postable",
+      "group": "Group"
+    },
     "trialBalance": {
       "title": "Trial balance",
       "subtitle": "Every posted account balance, as of now.",

@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "الرئيسية",
+    "chartOfAccounts": "دليل الحسابات",
     "trialBalance": "ميزان المراجعة",
     "balanceSheet": "الميزانية العمومية",
     "incomeStatement": "قائمة الدخل",
@@ -54,6 +55,15 @@
     "companyLabel": "الشركة"
   },
   "accounting": {
+    "chartOfAccounts": {
+      "title": "دليل الحسابات",
+      "subtitle": "شجرة الحسابات الكاملة لهذه الشركة.",
+      "code": "الرمز",
+      "name": "الاسم",
+      "kind": "النوع",
+      "postable": "قابل للترحيل",
+      "group": "مجموعة"
+    },
     "trialBalance": {
       "title": "ميزان المراجعة",
       "subtitle": "رصيد كل حساب مرحّل، حتى الآن.",

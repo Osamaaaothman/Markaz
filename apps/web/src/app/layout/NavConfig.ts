@@ -8,6 +8,7 @@ export interface NavItem {
 // §1 "one folder per domain area." Every label is a translation key, never literal text.
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: "pi pi-home" },
+  { to: "/accounting/chart-of-accounts", labelKey: "nav.chartOfAccounts", icon: "pi pi-sitemap" },
   { to: "/accounting/trial-balance", labelKey: "nav.trialBalance", icon: "pi pi-chart-bar" },
   { to: "/accounting/balance-sheet", labelKey: "nav.balanceSheet", icon: "pi pi-wallet" },
   { to: "/accounting/income-statement", labelKey: "nav.incomeStatement", icon: "pi pi-chart-line" },

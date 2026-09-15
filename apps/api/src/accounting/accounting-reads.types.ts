@@ -5,6 +5,19 @@ export interface AccountSummary {
   readonly type: string;
 }
 
+// Unlike AccountSummary (postable leaves only, for the journal entry account
+// picker), this includes non-postable group/header accounts and each
+// account's parent — everything the chart of accounts tree needs to render
+// the hierarchy, not just what a posting line is allowed to target.
+export interface ChartOfAccountEntry {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly type: string;
+  readonly isPostable: boolean;
+  readonly parentId: string | null;
+}
+
 export interface FiscalPeriodSummary {
   readonly id: string;
   readonly periodNumber: number;

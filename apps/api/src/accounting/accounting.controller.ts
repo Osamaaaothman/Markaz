@@ -18,7 +18,12 @@ import { ACCOUNTING_ENGINE } from "./accounting.tokens.js";
 import { PostJournalEntryDto } from "./dto/post-journal-entry.dto.js";
 import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
 import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
-import type { AccountSummary, FiscalPeriodSummary, JournalEntryListPage } from "./accounting-reads.types.js";
+import type {
+  AccountSummary,
+  ChartOfAccountEntry,
+  FiscalPeriodSummary,
+  JournalEntryListPage,
+} from "./accounting-reads.types.js";
 
 @Controller("v1")
 export class AccountingController {
@@ -39,6 +44,20 @@ export class AccountingController {
     const accounts = await this.prisma.account.findMany({
       where: { companyId: actor.companyId, isPostable: true, isActive: true },
       select: { id: true, code: true, name: true, type: true },
+      orderBy: { code: "asc" },
+    });
+    return accounts;
+  }
+
+  // Same underlying table and permission as `accounts` above, but the full tree
+  // (including non-postable group accounts) instead of postable leaves only —
+  // this one is for the chart of accounts screen, not the journal entry picker.
+  @Get("chart-of-accounts")
+  @RequirePermission("account", "read")
+  async listChartOfAccounts(@CurrentUser() actor: CurrentUserPayload): Promise<ChartOfAccountEntry[]> {
+    const accounts = await this.prisma.account.findMany({
+      where: { companyId: actor.companyId, isActive: true },
+      select: { id: true, code: true, name: true, type: true, isPostable: true, parentId: true },
       orderBy: { code: "asc" },
     });
     return accounts;
