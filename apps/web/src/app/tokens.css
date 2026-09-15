@@ -1,0 +1,177 @@
+/* Design tokens — re-hued from GWEB-UI-DESIGN-SYSTEM.md's "private bank" palette
+   (warm ivory + royal indigo + champagne gold) to an ERP tool identity: a cool
+   neutral surface, a slate-blue primary, and a muted teal accent used only for
+   sparing highlight/emphasis. Structure (one ink primary + one reserved accent +
+   serif/sans pairing + independent dark sidebar rail) is unchanged from the
+   source system — only the hues moved. See docs/08-FRONTEND-I18N-RULES.md §4:
+   every rule in this file (and everything built on these tokens) must read
+   correctly under both html[dir=ltr] and html[dir=rtl] with zero
+   direction-specific overrides, so Tailwind's logical utilities (ps-/pe-/ms-/me-
+   etc.) are used everywhere instead of left/right-specific ones. */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.6rem;
+
+  --background: oklch(0.9800 0.0020 250);
+  --foreground: oklch(0.2000 0.0200 250);
+
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.2000 0.0200 250);
+
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.2000 0.0200 250);
+
+  --primary: oklch(0.4200 0.1500 248);
+  --primary-foreground: oklch(0.9800 0.0080 250);
+
+  --secondary: oklch(0.9500 0.0080 250);
+  --secondary-foreground: oklch(0.2600 0.0250 250);
+
+  --muted: oklch(0.9550 0.0060 250);
+  --muted-foreground: oklch(0.4800 0.0220 250);
+
+  --accent: oklch(0.6200 0.1000 185);
+  --accent-foreground: oklch(0.9800 0.0100 185);
+
+  --destructive: oklch(0.5600 0.1900 25);
+  --destructive-foreground: oklch(0.9850 0.0100 90);
+
+  --success: oklch(0.5800 0.1300 155);
+  --success-foreground: oklch(0.9850 0.0100 150);
+
+  --warning: oklch(0.7400 0.1450 75);
+  --warning-foreground: oklch(0.2300 0.0400 80);
+
+  --border: oklch(0.9000 0.0100 250);
+  --input: oklch(0.9000 0.0100 250);
+  --ring: oklch(0.4200 0.1500 248 / 0.45);
+
+  --chart-1: oklch(0.4200 0.1500 248);
+  --chart-2: oklch(0.6200 0.1000 185);
+  --chart-3: oklch(0.5800 0.1300 155);
+  --chart-4: oklch(0.7400 0.1450 75);
+  --chart-5: oklch(0.5600 0.1900 25);
+
+  /* Independent dark "rail" palette for the sidebar — always dark regardless of
+     the app's own light/dark mode, for persistent visual anchoring. */
+  --sidebar: oklch(0.2200 0.0300 250);
+  --sidebar-foreground: oklch(0.9300 0.0120 250);
+  --sidebar-primary: oklch(0.6200 0.1000 185);
+  --sidebar-primary-foreground: oklch(0.1600 0.0250 250);
+  --sidebar-accent: oklch(0.2900 0.0350 250);
+  --sidebar-accent-foreground: oklch(0.9300 0.0120 250);
+  --sidebar-border: oklch(0.3200 0.0350 250);
+  --sidebar-ring: oklch(0.6200 0.1000 185 / 0.45);
+}
+
+.dark {
+  --background: oklch(0.1700 0.0220 250);
+  --foreground: oklch(0.9400 0.0120 250);
+
+  --card: oklch(0.2100 0.0260 250);
+  --card-foreground: oklch(0.9400 0.0120 250);
+
+  --popover: oklch(0.2100 0.0260 250);
+  --popover-foreground: oklch(0.9400 0.0120 250);
+
+  --primary: oklch(0.7400 0.1050 248);
+  --primary-foreground: oklch(0.1700 0.0220 250);
+
+  --secondary: oklch(0.2700 0.0280 250);
+  --secondary-foreground: oklch(0.9200 0.0120 250);
+
+  --muted: oklch(0.2500 0.0260 250);
+  --muted-foreground: oklch(0.6800 0.0200 250);
+
+  --accent: oklch(0.6800 0.1100 185);
+  --accent-foreground: oklch(0.1500 0.0250 185);
+
+  --destructive: oklch(0.6400 0.1900 25);
+  --destructive-foreground: oklch(0.1600 0.0250 275);
+
+  --success: oklch(0.6800 0.1350 155);
+  --success-foreground: oklch(0.1600 0.0250 275);
+
+  --warning: oklch(0.7800 0.1450 75);
+  --warning-foreground: oklch(0.1900 0.0300 80);
+
+  --border: oklch(0.3200 0.0300 250);
+  --input: oklch(0.3200 0.0300 250);
+  --ring: oklch(0.7400 0.1050 248 / 0.5);
+
+  --chart-1: oklch(0.7400 0.1050 248);
+  --chart-2: oklch(0.6800 0.1100 185);
+  --chart-3: oklch(0.6800 0.1350 155);
+  --chart-4: oklch(0.7800 0.1450 75);
+  --chart-5: oklch(0.6400 0.1900 25);
+
+  --sidebar: oklch(0.1400 0.0250 250);
+  --sidebar-foreground: oklch(0.9300 0.0120 250);
+  --sidebar-primary: oklch(0.6800 0.1100 185);
+  --sidebar-primary-foreground: oklch(0.1400 0.0250 250);
+  --sidebar-accent: oklch(0.2300 0.0300 250);
+  --sidebar-accent-foreground: oklch(0.9300 0.0120 250);
+  --sidebar-border: oklch(0.2700 0.0300 250);
+  --sidebar-ring: oklch(0.6800 0.1100 185 / 0.45);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", ui-serif, Georgia, serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply font-sans;
+  }
+}

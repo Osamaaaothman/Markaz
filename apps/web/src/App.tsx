@@ -1,4 +1,5 @@
 import "./shared/i18n/config";
+import "./app/tokens.css";
 import "./app/app.css";
 import { useDocumentDirection } from "./shared/i18n/use-document-direction";
 import { usePrimeTheme } from "./shared/theme/use-prime-theme";
