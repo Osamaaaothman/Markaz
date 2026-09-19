@@ -1,4 +1,16 @@
-import { Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  ConflictException,
+  Controller,
+  Get,
+  Inject,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  Res,
+} from "@nestjs/common";
 import type { Response } from "express";
 import type { IAccountingEngine, PostingResult } from "@erp/core";
 import {
@@ -86,6 +98,11 @@ export class AccountingController {
       const parent = await this.prisma.account.findUnique({ where: { id: dto.parentId } });
       if (!parent || parent.companyId !== actor.companyId) {
         throw new NotFoundException("Parent account not found");
+      }
+      // docs/05-ACCOUNTING-INTEGRITY-RULES.md §4: only leaf accounts are postable, so a
+      // postable account can never become a parent.
+      if (parent.isPostable) {
+        throw new BadRequestException("Parent must be a group account, not a postable one");
       }
     }
 

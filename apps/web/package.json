@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"no tests yet\""
+    "test": "node --experimental-strip-types --test src/features/accounting/account-tree.test.mjs"
   },
   "dependencies": {
     "@erp/shared": "*",

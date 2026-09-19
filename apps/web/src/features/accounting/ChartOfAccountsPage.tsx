@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
@@ -9,12 +9,20 @@ import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
+import { SelectButton } from "primereact/selectbutton";
 import { Tag } from "primereact/tag";
 import { TreeTable } from "primereact/treetable";
 import type { TreeNode } from "primereact/treenode";
 import { localizedName } from "../../shared/lib/localized-name";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
-import { buildAccountTree } from "./build-account-tree";
+import {
+  buildAccountTree,
+  expandedKeysForLevel,
+  filterAccountTree,
+  type AccountNodeData,
+  type ExpandedKeys,
+  type LevelChoice,
+} from "./account-tree";
 import {
   useChartOfAccounts,
   useCreateAccount,
@@ -89,11 +97,13 @@ function AddAccountDialog({
   const selectedType = useWatch({ control, name: "type" });
 
   // A parent must be the same account type as the child (an Asset can't hang off
-  // a Liability, etc.) — docs/04-DATA-MODEL-RULES.md account hierarchy rule.
+  // a Liability, etc.) — docs/04-DATA-MODEL-RULES.md account hierarchy rule — and a
+  // group, not a postable account: only leaf accounts are postable
+  // (docs/05-ACCOUNTING-INTEGRITY-RULES.md §4).
   const parentOptions = [
     { label: t("accounting.chartOfAccounts.noParent"), value: null },
     ...accounts
-      .filter((a) => a.type === selectedType)
+      .filter((a) => a.type === selectedType && !a.isPostable)
       .map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
   ];
 
@@ -217,12 +227,54 @@ function AddAccountDialog({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+const TYPE_SEVERITY = {
+  ASSET: "info",
+  LIABILITY: "warning",
+  EQUITY: "secondary",
+  REVENUE: "success",
+  EXPENSE: "danger",
+} as const;
+
+const LEVEL_CHOICES: readonly LevelChoice[] = [1, 2, 3, 4, "all"];
+const DEFAULT_LEVEL: LevelChoice = 2;
+
+function typeLabelKey(type: string): string {
+  return `accounting.chartOfAccounts.type${type.charAt(0)}${type.slice(1).toLowerCase()}`;
+}
+
 export function ChartOfAccountsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data, isPending, isError, refetch } = useChartOfAccounts();
   const [addVisible, setAddVisible] = useState(false);
+  const [query, setQuery] = useState("");
+  const [level, setLevel] = useState<LevelChoice | null>(DEFAULT_LEVEL);
+  // Set once the user opens/closes a single row by hand; null means "follow the level
+  // buttons or the search".
+  const [manualKeys, setManualKeys] = useState<ExpandedKeys | null>(null);
 
-  const tree = data ? buildAccountTree(data) : [];
+  // All hooks stay above the early returns below.
+  const tree = useMemo(() => (data ? buildAccountTree(data) : []), [data]);
+  const filtered = useMemo(() => (query.trim() ? filterAccountTree(tree, query) : null), [tree, query]);
+  const visibleTree = filtered ? filtered.tree : tree;
+  const expandedKeys: ExpandedKeys =
+    manualKeys ?? (filtered ? filtered.expandedKeys : level ? expandedKeysForLevel(tree, level) : {});
+
+  const toggleNode = (key: string): void => {
+    setManualKeys({ ...expandedKeys, [key]: !expandedKeys[key] });
+    setLevel(null);
+  };
+  const changeQuery = (value: string): void => {
+    setQuery(value);
+    setManualKeys(null);
+  };
+  const changeLevel = (value: LevelChoice | null): void => {
+    if (value === null) return;
+    setLevel(value);
+    setManualKeys(null);
+    setQuery("");
+  };
+  // A collapsed chevron points toward the reading direction: right in LTR, left in RTL.
+  const closedChevron = i18n.dir() === "rtl" ? "pi-chevron-left" : "pi-chevron-right";
 
   if (isPending) {
     return <PageSkeleton />;
@@ -256,33 +308,126 @@ export function ChartOfAccountsPage(): React.JSX.Element {
       {data.length === 0 ? (
         <p className="erp-page__empty">{t("status.empty")}</p>
       ) : (
-        <TreeTable value={tree} className="erp-table" showGridlines emptyMessage={t("status.empty")}>
-          <Column
-            field="code"
-            header={t("accounting.chartOfAccounts.code")}
-            expander
-            style={{ width: "10rem" }}
-            body={(node: TreeNode) => (node.data as ChartOfAccountEntry).code}
-          />
-          <Column
-            field="name"
-            header={t("accounting.chartOfAccounts.name")}
-            body={(node: TreeNode) => localizedName(node.data as ChartOfAccountEntry, i18n.language)}
-          />
-          <Column
-            field="isPostable"
-            header={t("accounting.chartOfAccounts.kind")}
-            style={{ width: "10rem" }}
-            body={(node: TreeNode) => {
-              const account = node.data as ChartOfAccountEntry;
-              return account.isPostable ? (
-                <Tag value={t("accounting.chartOfAccounts.postable")} severity="info" />
-              ) : (
-                <Tag value={t("accounting.chartOfAccounts.group")} severity="secondary" />
-              );
+        <>
+          <div className="coa-toolbar">
+            <div className="coa-search">
+              <InputText
+                value={query}
+                onChange={(e) => changeQuery(e.target.value)}
+                placeholder={t("accounting.chartOfAccounts.searchPlaceholder")}
+                aria-label={t("accounting.chartOfAccounts.searchPlaceholder")}
+              />
+              {query ? (
+                <Button
+                  type="button"
+                  icon="pi pi-times"
+                  rounded
+                  text
+                  severity="secondary"
+                  aria-label={t("accounting.chartOfAccounts.clearSearch")}
+                  onClick={() => changeQuery("")}
+                />
+              ) : null}
+            </div>
+            <div className="coa-levels">
+              <span className="coa-levels__label">{t("accounting.chartOfAccounts.level")}</span>
+              <SelectButton
+                value={level}
+                onChange={(e) => changeLevel(e.value as LevelChoice | null)}
+                options={LEVEL_CHOICES.map((choice) => ({
+                  label: choice === "all" ? t("accounting.chartOfAccounts.levelAll") : String(choice),
+                  value: choice,
+                }))}
+                allowEmpty={false}
+              />
+            </div>
+          </div>
+
+          <TreeTable
+            value={visibleTree}
+            className="erp-table erp-coa"
+            showGridlines
+            expandedKeys={expandedKeys}
+            onToggle={(e) => {
+              setManualKeys(e.value);
+              setLevel(null);
             }}
-          />
-        </TreeTable>
+            rowClassName={(node: TreeNode) => {
+              const account = node.data as AccountNodeData;
+              return {
+                [`coa-row--d${Math.min(account.depth, 3)}`]: true,
+                [`coa-row--${account.type.toLowerCase()}`]: true,
+              };
+            }}
+            emptyMessage={query.trim() ? t("accounting.chartOfAccounts.noResults") : t("status.empty")}
+          >
+            <Column
+              header={t("accounting.chartOfAccounts.code")}
+              style={{ width: "9rem" }}
+              body={(node: TreeNode) => <span className="coa-code">{(node.data as AccountNodeData).code}</span>}
+            />
+            <Column
+              header={t("accounting.chartOfAccounts.name")}
+              body={(node: TreeNode) => {
+                const account = node.data as AccountNodeData;
+                const key = node.key as string;
+                const isGroup = (node.children?.length ?? 0) > 0;
+                const isOpen = Boolean(expandedKeys[key]);
+                return (
+                  // Indented with a logical padding driven by --depth, so it nests toward the
+                  // correct side under both html[dir=ltr] and html[dir=rtl].
+                  <div className="coa-cell" style={{ "--depth": account.depth } as CSSProperties}>
+                    {isGroup ? (
+                      <button
+                        type="button"
+                        className="coa-toggle"
+                        aria-expanded={isOpen}
+                        aria-label={
+                          isOpen ? t("accounting.chartOfAccounts.collapse") : t("accounting.chartOfAccounts.expand")
+                        }
+                        onClick={() => toggleNode(key)}
+                      >
+                        <i className={`pi ${isOpen ? "pi-chevron-down" : closedChevron}`} aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <span className="coa-toggle coa-toggle--spacer" aria-hidden="true" />
+                    )}
+                    <i
+                      className={`pi coa-icon ${isGroup ? (isOpen ? "pi-folder-open" : "pi-folder") : "pi-file"}`}
+                      aria-hidden="true"
+                    />
+                    <span className="coa-name">{localizedName(account, i18n.language)}</span>
+                    {account.childCount > 0 ? <span className="coa-count">{account.childCount}</span> : null}
+                  </div>
+                );
+              }}
+            />
+            <Column
+              header={t("accounting.chartOfAccounts.type")}
+              style={{ width: "9rem" }}
+              body={(node: TreeNode) => {
+                const account = node.data as AccountNodeData;
+                return (
+                  <Tag
+                    value={t(typeLabelKey(account.type))}
+                    severity={TYPE_SEVERITY[account.type as keyof typeof TYPE_SEVERITY] ?? "secondary"}
+                  />
+                );
+              }}
+            />
+            <Column
+              header={t("accounting.chartOfAccounts.postable")}
+              style={{ width: "9rem" }}
+              headerClassName="coa-col-hide-sm"
+              bodyClassName="coa-col-hide-sm"
+              body={(node: TreeNode) =>
+                (node.data as AccountNodeData).isPostable ? (
+                  <Tag value={t("accounting.chartOfAccounts.postable")} severity="success" />
+                ) : null
+              }
+            />
+          </TreeTable>
+        </>
       )}
 
       <AddAccountDialog

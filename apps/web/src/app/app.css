@@ -311,7 +311,8 @@ body {
   box-shadow: var(--erp-shadow-sm);
 }
 
-.erp-table .p-datatable-thead > tr > th {
+.erp-table .p-datatable-thead > tr > th,
+.erp-table .p-treetable-thead > tr > th {
   background: var(--erp-page-bg);
   color: var(--erp-text);
   font-size: 0.82rem;
@@ -320,13 +321,150 @@ body {
   border-block-end: 2px solid var(--erp-border);
 }
 
-.erp-table .p-datatable-tbody > tr > td {
+.erp-table .p-datatable-tbody > tr > td,
+.erp-table .p-treetable-tbody > tr > td {
   font-size: 0.92rem;
   border-color: var(--erp-border);
 }
 
-.erp-table .p-datatable-tbody > tr:hover {
+.erp-table .p-datatable-tbody > tr:hover,
+.erp-table .p-treetable-tbody > tr:hover {
   background: color-mix(in srgb, var(--erp-brand) 5%, transparent);
+}
+
+/* ---------- chart of accounts tree ---------- */
+
+.coa-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.coa-search {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1 1 16rem;
+  max-width: 26rem;
+}
+
+.coa-search .p-inputtext {
+  flex: 1;
+  min-width: 0;
+}
+
+.coa-levels {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.coa-levels__label {
+  font-size: 0.85rem;
+  color: var(--erp-text-muted);
+}
+
+/* The tree cell is indented by a logical padding driven by --depth (set inline from the
+   row's depth). PrimeReact's own toggler indents with a physical margin-left, which does
+   not nest toward the reading side under RTL — so its toggler is not used on this table. */
+.coa-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding-inline-start: calc(var(--depth, 0) * 1.6rem);
+}
+
+.coa-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--erp-text-muted);
+  cursor: pointer;
+}
+
+.coa-toggle:hover {
+  background: color-mix(in srgb, var(--erp-brand) 12%, transparent);
+  color: var(--erp-text);
+}
+
+.coa-toggle--spacer {
+  cursor: default;
+  pointer-events: none;
+}
+
+.coa-icon {
+  color: var(--erp-text-muted);
+  font-size: 0.95rem;
+}
+
+.coa-name {
+  overflow-wrap: anywhere;
+}
+
+.coa-count {
+  margin-inline-start: 0.15rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--erp-page-bg);
+  color: var(--erp-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Codes read left-to-right even inside an RTL row (digits and Latin letters). */
+.coa-code {
+  display: inline-block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: var(--erp-text-muted);
+}
+
+/* One colour per account type, used as the accent bar on top-level rows. */
+.erp-coa .coa-row--asset { --coa-type-color: var(--blue-500, #3b82f6); }
+.erp-coa .coa-row--liability { --coa-type-color: var(--orange-500, #f59e0b); }
+.erp-coa .coa-row--equity { --coa-type-color: var(--purple-500, #8b5cf6); }
+.erp-coa .coa-row--revenue { --coa-type-color: var(--green-500, #22c55e); }
+.erp-coa .coa-row--expense { --coa-type-color: var(--red-500, #ef4444); }
+
+.erp-coa .p-treetable-tbody > tr.coa-row--d0 > td {
+  background: color-mix(in srgb, var(--coa-type-color, var(--erp-brand)) 10%, transparent);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--d0 > td:first-child {
+  border-inline-start: 5px solid var(--coa-type-color, var(--erp-brand));
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--d1 > td {
+  font-weight: 600;
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--d2 > td {
+  font-weight: 500;
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--d3 .coa-name {
+  font-weight: 400;
+}
+
+@media (max-width: 640px) {
+  .erp-coa .coa-col-hide-sm {
+    display: none;
+  }
 }
 
 .erp-table--clickable-rows .p-datatable-tbody > tr {
