@@ -37,6 +37,7 @@ model Company {
   fiscalYears    FiscalYear[]
   fiscalPeriods  FiscalPeriod[]
   accounts       Account[]
+  parties        Party[]
   journalEntries JournalEntry[]
   exchangeRates  ExchangeRate[]
   outboxMessages OutboxMessage[]
@@ -275,6 +276,11 @@ model Account {
   parentId      String?  @map("parent_id")
   isPostable    Boolean  @default(true) @map("is_postable")
   isActive      Boolean  @default(true) @map("is_active")
+  // The party (person, company, employee...) this account is kept for, if any. Many accounts
+  // may point at one party — a subcontractor has several in the chart.
+  partyId       String?  @map("party_id")
+  // #RRGGBB, chosen for a top-level account only; its whole branch is drawn in this colour.
+  color         String?
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   createdBy     String?  @map("created_by")
@@ -284,11 +290,38 @@ model Account {
   company           Company            @relation(fields: [companyId], references: [id])
   parent            Account?           @relation("AccountTree", fields: [parentId], references: [id])
   children          Account[]          @relation("AccountTree")
+  party             Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
   journalEntryLines JournalEntryLine[]
 
   @@unique([companyId, code])
   @@index([companyId, parentId])
+  @@index([companyId, partyId])
   @@map("accounts")
+}
+
+// A person, company or employee an account can be kept for (custodian, supplier, customer...).
+// Master data, deactivated rather than deleted once referenced.
+model Party {
+  id        String   @id
+  companyId String   @map("company_id")
+  name      String
+  nameAr    String?  @map("name_ar")
+  kind      String // COMPANY | PERSON | EMPLOYEE | OTHER
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+  version   Int      @default(1)
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  accounts Account[]
+
+  @@index([companyId, kind])
+  @@index([companyId, name])
+  @@map("parties")
 }
 
 // Gapless, transactional numbering — docs/02-ARCHITECTURE-RULES.md §3.3. Allocation
