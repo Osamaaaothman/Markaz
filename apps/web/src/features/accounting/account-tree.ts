@@ -9,6 +9,8 @@ export interface AccountLike {
   readonly type: string;
   readonly isPostable: boolean;
   readonly parentId: string | null;
+  // #RRGGBB chosen for a top-level account; its whole branch is drawn in it.
+  readonly color?: string | null;
 }
 
 // PrimeReact's TreeTable does not hand a row's depth to a column template, so depth and the
@@ -16,12 +18,18 @@ export interface AccountLike {
 export type AccountNodeData<A extends AccountLike = AccountLike> = A & {
   readonly depth: number;
   readonly childCount: number;
+  // The colour of the top-level account this row hangs under (its own colour for a root), or
+  // null when that root has none — rows then fall back to the account-type colour.
+  readonly branchColor: string | null;
 };
 
 export interface AccountTreeNode<A extends AccountLike = AccountLike> {
   readonly key: string;
   readonly data: AccountNodeData<A>;
   readonly children: AccountTreeNode<A>[];
+  // PrimeReact applies a node's `style` to its <tr>; this carries the branch colour as a CSS
+  // variable so the stylesheet can draw the accent without knowing the colour.
+  readonly style?: Readonly<Record<string, string>>;
 }
 
 export type ExpandedKeys = Record<string, boolean>;
@@ -41,15 +49,17 @@ export function buildAccountTree<A extends AccountLike>(accounts: readonly A[]):
     else rootIds.push(account.id);
   }
 
-  const build = (id: string, depth: number): AccountTreeNode<A> => {
+  const build = (id: string, depth: number, inheritedColor: string | null): AccountTreeNode<A> => {
     const entry = byId.get(id)!;
+    const branchColor = depth === 0 ? (entry.account.color ?? null) : inheritedColor;
     return {
       key: id,
-      data: { ...entry.account, depth, childCount: entry.children.length },
-      children: entry.children.map((childId) => build(childId, depth + 1)),
+      data: { ...entry.account, depth, childCount: entry.children.length, branchColor },
+      children: entry.children.map((childId) => build(childId, depth + 1, branchColor)),
+      ...(branchColor ? { style: { "--coa-branch-color": branchColor } } : {}),
     };
   };
-  return rootIds.map((id) => build(id, 0));
+  return rootIds.map((id) => build(id, 0, null));
 }
 
 // Opens a closed row and closes an open one. PrimeReact's TreeTable treats a row as expanded

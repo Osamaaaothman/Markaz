@@ -6,6 +6,7 @@ import { TrialBalancePage } from "../features/accounting/TrialBalancePage";
 import { BalanceSheetPage } from "../features/accounting/BalanceSheetPage";
 import { IncomeStatementPage } from "../features/accounting/IncomeStatementPage";
 import { JournalEntriesPage } from "../features/accounting/JournalEntriesPage";
+import { PartiesPage } from "../features/parties/PartiesPage";
 import { UsersPage } from "../features/settings/UsersPage";
 import { AppShell } from "./layout/AppShell";
 import { NAV_ITEMS } from "./layout/NavConfig";
@@ -27,6 +28,9 @@ export function AppRoutes(): React.JSX.Element {
           <Route index element={<DashboardPage />} />
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/chart-of-accounts")} />}>
             <Route path="/accounting/chart-of-accounts" element={<ChartOfAccountsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/parties")} />}>
+            <Route path="/parties" element={<PartiesPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/trial-balance")} />}>
             <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />

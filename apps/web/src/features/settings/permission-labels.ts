@@ -5,6 +5,7 @@
 const RESOURCE_ORDER = [
   "journal_entry",
   "account",
+  "party",
   "trial_balance",
   "balance_sheet",
   "income_statement",

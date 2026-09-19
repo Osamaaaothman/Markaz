@@ -10,7 +10,8 @@
     "balanceSheet": "الميزانية العمومية",
     "incomeStatement": "قائمة الدخل",
     "journalEntries": "القيود المحاسبية",
-    "usersRoles": "المستخدمون والأدوار"
+    "usersRoles": "المستخدمون والأدوار",
+    "parties": "الجهات"
   },
   "actions": {
     "save": "حفظ",
@@ -88,7 +89,17 @@
       "noParent": "— بدون أب (مستوى أول) —",
       "createSuccess": "تم إنشاء الحساب.",
       "createError": "تعذّر إنشاء الحساب.",
-      "duplicateCode": "يوجد حساب بهذا الرمز مسبقاً."
+      "duplicateCode": "يوجد حساب بهذا الرمز مسبقاً.",
+      "party": "الجهة المرتبطة (اختياري)",
+      "noParty": "— بدون —",
+      "partySearch": "ابحث عن جهة",
+      "color": "اللون",
+      "colorHint": "للحسابات الرئيسية فقط — يتلوّن الفرع كاملاً بهذا اللون.",
+      "noColor": "افتراضي",
+      "colorOption": "اللون {{value}}",
+      "editAccount": "تعديل الحساب",
+      "edit": "تعديل",
+      "updateError": "تعذّر حفظ الحساب."
     },
     "trialBalance": {
       "title": "ميزان المراجعة",
@@ -159,6 +170,33 @@
       "loadError": "تعذّر تحميل هذا القيد."
     }
   },
+  "parties": {
+    "title": "الجهات",
+    "subtitle": "الأشخاص والشركات والموظفون الذين يمكن فتح حسابات لهم.",
+    "add": "إضافة جهة",
+    "edit": "تعديل",
+    "editTitle": "تعديل الجهة",
+    "name": "الاسم (بالإنجليزية)",
+    "nameAr": "الاسم (بالعربية، اختياري)",
+    "kind": "النوع",
+    "allKinds": "كل الأنواع",
+    "kinds": {
+      "COMPANY": "شركة",
+      "PERSON": "شخص",
+      "EMPLOYEE": "موظف",
+      "OTHER": "أخرى"
+    },
+    "phone": "الهاتف",
+    "email": "البريد الإلكتروني",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "showInactive": "إظهار غير النشطة",
+    "searchPlaceholder": "ابحث بالاسم أو الهاتف أو البريد",
+    "noResults": "لا توجد جهات مطابقة.",
+    "createError": "تعذّر إضافة هذه الجهة.",
+    "updateError": "تعذّر حفظ هذه الجهة."
+  },
   "settings": {
     "usersRoles": {
       "title": "المستخدمون والأدوار",
@@ -181,6 +219,7 @@
       "resources": {
         "journal_entry": "القيود المحاسبية",
         "account": "دليل الحسابات",
+        "party": "الجهات",
         "trial_balance": "ميزان المراجعة",
         "balance_sheet": "الميزانية العمومية",
         "income_statement": "قائمة الدخل",
@@ -192,7 +231,8 @@
         "create": "إنشاء",
         "read": "عرض",
         "reverse": "عكس",
-        "assign": "إسناد"
+        "assign": "إسناد",
+        "update": "تعديل"
       },
       "createUserSuccess": "تم إنشاء المستخدم.",
       "createUserError": "تعذّر إنشاء المستخدم.",

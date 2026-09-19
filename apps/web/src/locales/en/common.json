@@ -10,7 +10,8 @@
     "balanceSheet": "Balance sheet",
     "incomeStatement": "Income statement",
     "journalEntries": "Journal entries",
-    "usersRoles": "Users & roles"
+    "usersRoles": "Users & roles",
+    "parties": "Parties"
   },
   "actions": {
     "save": "Save",
@@ -88,7 +89,17 @@
       "noParent": "— None (top-level) —",
       "createSuccess": "Account created.",
       "createError": "Could not create the account.",
-      "duplicateCode": "An account with this code already exists."
+      "duplicateCode": "An account with this code already exists.",
+      "party": "Linked party (optional)",
+      "noParty": "— None —",
+      "partySearch": "Search parties",
+      "color": "Colour",
+      "colorHint": "Top-level accounts only — the whole branch is drawn in this colour.",
+      "noColor": "Default",
+      "colorOption": "Colour {{value}}",
+      "editAccount": "Edit account",
+      "edit": "Edit",
+      "updateError": "Could not save the account."
     },
     "trialBalance": {
       "title": "Trial balance",
@@ -159,6 +170,33 @@
       "loadError": "Couldn't load this entry."
     }
   },
+  "parties": {
+    "title": "Parties",
+    "subtitle": "The people, companies and employees your accounts can be kept for.",
+    "add": "Add party",
+    "edit": "Edit",
+    "editTitle": "Edit party",
+    "name": "Name (English)",
+    "nameAr": "Name (Arabic, optional)",
+    "kind": "Kind",
+    "allKinds": "All kinds",
+    "kinds": {
+      "COMPANY": "Company",
+      "PERSON": "Person",
+      "EMPLOYEE": "Employee",
+      "OTHER": "Other"
+    },
+    "phone": "Phone",
+    "email": "Email",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "showInactive": "Show inactive",
+    "searchPlaceholder": "Search by name, phone or email",
+    "noResults": "No parties match.",
+    "createError": "Could not add this party.",
+    "updateError": "Could not save this party."
+  },
   "settings": {
     "usersRoles": {
       "title": "Users & roles",
@@ -181,6 +219,7 @@
       "resources": {
         "journal_entry": "Journal entries",
         "account": "Chart of accounts",
+        "party": "Parties",
         "trial_balance": "Trial balance",
         "balance_sheet": "Balance sheet",
         "income_statement": "Income statement",
@@ -192,7 +231,8 @@
         "create": "Create",
         "read": "View",
         "reverse": "Reverse",
-        "assign": "Assign"
+        "assign": "Assign",
+        "update": "Update"
       },
       "createUserSuccess": "User created.",
       "createUserError": "Couldn't create user.",

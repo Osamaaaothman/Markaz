@@ -13,6 +13,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: "pi pi-home" },
   { to: "/accounting/chart-of-accounts", labelKey: "nav.chartOfAccounts", icon: "pi pi-sitemap", permissions: ["account:read"] },
+  { to: "/parties", labelKey: "nav.parties", icon: "pi pi-address-book", permissions: ["party:read"] },
   { to: "/accounting/trial-balance", labelKey: "nav.trialBalance", icon: "pi pi-chart-bar", permissions: ["trial_balance:read"] },
   { to: "/accounting/balance-sheet", labelKey: "nav.balanceSheet", icon: "pi pi-wallet", permissions: ["balance_sheet:read"] },
   { to: "/accounting/income-statement", labelKey: "nav.incomeStatement", icon: "pi pi-chart-line", permissions: ["income_statement:read"] },

@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
@@ -19,6 +19,7 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { partyKindIcon } from "../parties/party-kind";
 import {
   buildAccountTree,
   expandedKeysForLevel,
@@ -28,12 +29,17 @@ import {
   type ExpandedKeys,
   type LevelChoice,
 } from "./account-tree";
+import { ColorSwatches } from "./ColorSwatches";
+import { PartyPicker } from "./PartyPicker";
 import { useAccountBalances, type AccountBalance } from "./use-account-balances";
 import {
   useChartOfAccounts,
   useCreateAccount,
+  useUpdateAccount,
   type ChartOfAccountEntry,
 } from "./use-chart-of-accounts";
+
+type ChartNodeData = AccountNodeData<ChartOfAccountEntry>;
 
 // ─── Add-account dialog ───────────────────────────────────────────────────────
 
@@ -48,6 +54,8 @@ const addAccountSchema = z.object({
   type: z.enum(ACCOUNT_TYPES),
   isPostable: z.boolean(),
   parentId: z.string().nullable(),
+  partyId: z.string().nullable(),
+  color: z.string().nullable(),
 });
 type AddAccountValues = z.infer<typeof addAccountSchema>;
 
@@ -61,6 +69,7 @@ function AddAccountDialog({
   accounts: ChartOfAccountEntry[];
 }) {
   const { t, i18n } = useTranslation();
+  const { can } = usePermissions();
   const createAccount = useCreateAccount();
 
   const {
@@ -69,10 +78,20 @@ function AddAccountDialog({
     handleSubmit,
     reset,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<AddAccountValues>({
     resolver: zodResolver(addAccountSchema),
-    defaultValues: { code: "", name: "", nameAr: "", type: "ASSET", isPostable: true, parentId: null },
+    defaultValues: {
+      code: "",
+      name: "",
+      nameAr: "",
+      type: "ASSET",
+      isPostable: true,
+      parentId: null,
+      partyId: null,
+      color: null,
+    },
   });
 
   const onHideAndReset = () => {
@@ -90,6 +109,9 @@ function AddAccountDialog({
         type: values.type,
         isPostable: values.isPostable,
         parentId: values.parentId,
+        ...(values.partyId ? { partyId: values.partyId } : {}),
+        // Only a top-level account has a colour (its branch is drawn in it).
+        ...(values.parentId === null && values.color ? { color: values.color } : {}),
       },
       { onSuccess: onHideAndReset },
     );
@@ -101,6 +123,7 @@ function AddAccountDialog({
   }));
 
   const selectedType = useWatch({ control, name: "type" });
+  const selectedParentId = useWatch({ control, name: "parentId" });
 
   // A parent must be the same account type as the child (an Asset can't hang off
   // a Liability, etc.) — docs/04-DATA-MODEL-RULES.md account hierarchy rule — and a
@@ -189,7 +212,10 @@ function AddAccountDialog({
               <Dropdown
                 inputId="acctParent"
                 value={field.value}
-                onChange={(e) => field.onChange(e.value as string | null)}
+                onChange={(e) => {
+                  field.onChange(e.value as string | null);
+                  if (e.value !== null) setValue("color", null);
+                }}
                 options={parentOptions}
                 filter
               />
@@ -215,6 +241,46 @@ function AddAccountDialog({
           </label>
         </div>
 
+        {/* Linked party — offered only to users who may read parties. */}
+        {can("party:read") ? (
+          <div className="erp-field">
+            <label htmlFor="acctParty">{t("accounting.chartOfAccounts.party")}</label>
+            <Controller
+              control={control}
+              name="partyId"
+              render={({ field }) => (
+                <PartyPicker
+                  inputId="acctParty"
+                  value={field.value}
+                  onChange={(party) => {
+                    field.onChange(party?.id ?? null);
+                    // Saves retyping: a party fills in the names that are still empty.
+                    if (party) {
+                      if (!getValues("name").trim()) setValue("name", party.name);
+                      if (!getValues("nameAr").trim() && party.nameAr) setValue("nameAr", party.nameAr);
+                    }
+                  }}
+                />
+              )}
+            />
+          </div>
+        ) : null}
+
+        {/* Colour — only for a top-level account (no parent); its whole branch is drawn in it. */}
+        {selectedParentId === null ? (
+          <div className="erp-field">
+            <label id="acctColorLabel">{t("accounting.chartOfAccounts.color")}</label>
+            <Controller
+              control={control}
+              name="color"
+              render={({ field }) => (
+                <ColorSwatches value={field.value} onChange={field.onChange} labelledBy="acctColorLabel" />
+              )}
+            />
+            <small className="erp-field__hint">{t("accounting.chartOfAccounts.colorHint")}</small>
+          </div>
+        ) : null}
+
         {/* Error messages */}
         {isConflict ? (
           <p className="erp-auth-card__error">{t("accounting.chartOfAccounts.duplicateCode")}</p>
@@ -225,6 +291,125 @@ function AddAccountDialog({
         <div className="erp-form__actions">
           <Button label={t("actions.cancel")} type="button" text onClick={onHideAndReset} />
           <Button label={t("actions.save")} type="submit" loading={createAccount.isPending} />
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+// ─── Edit-account dialog ──────────────────────────────────────────────────────
+
+// Only names, the linked party and (for a top-level account) the colour can change; the code,
+// type, parent and postable flag are fixed once an account exists.
+const editAccountSchema = z.object({
+  name: z.string().trim().min(1, "required"),
+  nameAr: z.string(),
+  partyId: z.string().nullable(),
+  color: z.string().nullable(),
+});
+type EditAccountValues = z.infer<typeof editAccountSchema>;
+
+function EditAccountDialog({
+  account,
+  onHide,
+}: {
+  account: ChartOfAccountEntry | null;
+  onHide: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const { can } = usePermissions();
+  const updateAccount = useUpdateAccount(account?.id ?? "");
+  const isTopLevel = account?.parentId === null;
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditAccountValues>({
+    resolver: zodResolver(editAccountSchema),
+    defaultValues: { name: "", nameAr: "", partyId: null, color: null },
+  });
+
+  useEffect(() => {
+    if (!account) return;
+    updateAccount.reset();
+    reset({ name: account.name, nameAr: account.nameAr ?? "", partyId: account.partyId, color: account.color });
+    // Reload the form only when another account is opened, not on every re-render.
+  }, [account?.id]);
+
+  const onSubmit = handleSubmit((values) => {
+    updateAccount.mutate(
+      {
+        name: values.name,
+        nameAr: values.nameAr.trim() || null,
+        partyId: values.partyId,
+        ...(isTopLevel ? { color: values.color } : {}),
+      },
+      { onSuccess: onHide },
+    );
+  });
+
+  return (
+    <Dialog
+      header={account ? `${t("accounting.chartOfAccounts.editAccount")} — ${account.code}` : ""}
+      visible={account !== null}
+      onHide={onHide}
+      className="erp-dialog"
+      modal
+    >
+      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+        <div className="erp-field">
+          <label htmlFor="editAcctName">{t("accounting.chartOfAccounts.nameEn")}</label>
+          <InputText id="editAcctName" {...register("name")} className={errors.name ? "p-invalid" : ""} />
+          {errors.name ? <small className="erp-field__error">{t("validation.required")}</small> : null}
+        </div>
+
+        <div className="erp-field">
+          <label htmlFor="editAcctNameAr">{t("accounting.chartOfAccounts.nameAr")}</label>
+          <InputText id="editAcctNameAr" dir="rtl" {...register("nameAr")} />
+        </div>
+
+        {can("party:read") ? (
+          <div className="erp-field">
+            <label htmlFor="editAcctParty">{t("accounting.chartOfAccounts.party")}</label>
+            <Controller
+              control={control}
+              name="partyId"
+              render={({ field }) => (
+                <PartyPicker
+                  inputId="editAcctParty"
+                  value={field.value}
+                  current={account?.party ?? null}
+                  onChange={(party) => field.onChange(party?.id ?? null)}
+                />
+              )}
+            />
+          </div>
+        ) : null}
+
+        {isTopLevel ? (
+          <div className="erp-field">
+            <label id="editAcctColorLabel">{t("accounting.chartOfAccounts.color")}</label>
+            <Controller
+              control={control}
+              name="color"
+              render={({ field }) => (
+                <ColorSwatches value={field.value} onChange={field.onChange} labelledBy="editAcctColorLabel" />
+              )}
+            />
+            <small className="erp-field__hint">{t("accounting.chartOfAccounts.colorHint")}</small>
+          </div>
+        ) : null}
+
+        {updateAccount.isError ? (
+          <p className="erp-auth-card__error">{t("accounting.chartOfAccounts.updateError")}</p>
+        ) : null}
+
+        <div className="erp-form__actions">
+          <Button label={t("actions.cancel")} type="button" text onClick={onHide} />
+          <Button label={t("actions.save")} type="submit" loading={updateAccount.isPending} />
         </div>
       </form>
     </Dialog>
@@ -272,6 +457,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
     [balanceRows],
   );
   const [addVisible, setAddVisible] = useState(false);
+  const [editAccount, setEditAccount] = useState<ChartOfAccountEntry | null>(null);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<LevelChoice | null>(DEFAULT_LEVEL);
   // Set once the user opens/closes a single row by hand; null means "follow the level
@@ -380,10 +566,12 @@ export function ChartOfAccountsPage(): React.JSX.Element {
               setLevel(null);
             }}
             rowClassName={(node: TreeNode) => {
-              const account = node.data as AccountNodeData;
+              const account = node.data as ChartNodeData;
               return {
                 [`coa-row--d${Math.min(account.depth, 3)}`]: true,
                 [`coa-row--${account.type.toLowerCase()}`]: true,
+                // The branch's colour (from its top-level account) arrives as a CSS variable on the row.
+                "coa-row--colored": account.branchColor !== null,
               };
             }}
             emptyMessage={query.trim() ? t("accounting.chartOfAccounts.noResults") : t("status.empty")}
@@ -391,12 +579,12 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             <Column
               header={t("accounting.chartOfAccounts.code")}
               style={{ width: "9rem" }}
-              body={(node: TreeNode) => <span className="coa-code">{(node.data as AccountNodeData).code}</span>}
+              body={(node: TreeNode) => <span className="coa-code">{(node.data as ChartNodeData).code}</span>}
             />
             <Column
               header={t("accounting.chartOfAccounts.name")}
               body={(node: TreeNode) => {
-                const account = node.data as AccountNodeData;
+                const account = node.data as ChartNodeData;
                 const key = node.key as string;
                 const isGroup = (node.children?.length ?? 0) > 0;
                 const isOpen = Boolean(expandedKeys[key]);
@@ -425,6 +613,12 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     />
                     <span className="coa-name">{localizedName(account, i18n.language)}</span>
                     {account.childCount > 0 ? <span className="coa-count">{account.childCount}</span> : null}
+                    {account.party ? (
+                      <span className="coa-party" title={t(`parties.kinds.${account.party.kind}`, account.party.kind)}>
+                        <i className={partyKindIcon(account.party.kind)} aria-hidden="true" />
+                        {localizedName(account.party, i18n.language)}
+                      </span>
+                    ) : null}
                   </div>
                 );
               }}
@@ -477,7 +671,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
               header={t("accounting.chartOfAccounts.type")}
               style={{ width: "9rem" }}
               body={(node: TreeNode) => {
-                const account = node.data as AccountNodeData;
+                const account = node.data as ChartNodeData;
                 return (
                   <Tag
                     value={t(typeLabelKey(account.type))}
@@ -492,10 +686,27 @@ export function ChartOfAccountsPage(): React.JSX.Element {
               headerClassName="coa-col-hide-sm"
               bodyClassName="coa-col-hide-sm"
               body={(node: TreeNode) =>
-                (node.data as AccountNodeData).isPostable ? (
+                (node.data as ChartNodeData).isPostable ? (
                   <Tag value={t("accounting.chartOfAccounts.postable")} severity="success" />
                 ) : null
               }
+            />
+            {/* Edit stays visible but disabled (with the reason on hover) for a user without
+                account:update, like the other action buttons. */}
+            <Column
+              header=""
+              style={{ width: "4rem" }}
+              body={(node: TreeNode) => (
+                <PermissionButton
+                  allowed={can("account:update")}
+                  icon="pi pi-pencil"
+                  rounded
+                  text
+                  severity="secondary"
+                  aria-label={t("accounting.chartOfAccounts.edit")}
+                  onClick={() => setEditAccount(node.data as ChartNodeData)}
+                />
+              )}
             />
           </TreeTable>
         </>
@@ -506,6 +717,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
         onHide={() => setAddVisible(false)}
         accounts={data}
       />
+      <EditAccountDialog account={editAccount} onHide={() => setEditAccount(null)} />
     </div>
   );
 }

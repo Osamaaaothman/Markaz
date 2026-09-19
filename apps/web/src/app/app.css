@@ -485,6 +485,76 @@ body {
   font-weight: 400;
 }
 
+/* A top-level account's chosen colour (set inline on each row of its branch as
+   --coa-branch-color): a strong bar and tint on the root, a lighter bar on everything under it.
+   The extra .coa-row--colored class outranks the per-type root styling above. */
+.erp-coa .p-treetable-tbody > tr.coa-row--colored.coa-row--d0 > td {
+  background: color-mix(in srgb, var(--coa-branch-color) 12%, transparent);
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--colored.coa-row--d0 > td:first-child {
+  border-inline-start: 5px solid var(--coa-branch-color);
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--colored:not(.coa-row--d0) > td:first-child {
+  border-inline-start: 3px solid color-mix(in srgb, var(--coa-branch-color) 55%, transparent);
+}
+
+/* The party an account is kept for, shown beside its name. */
+.coa-party {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-inline-start: 0.4rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: var(--erp-page-bg);
+  color: var(--erp-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Colour picker in the account forms. */
+.erp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.erp-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  color: var(--erp-text-muted);
+  cursor: pointer;
+}
+
+.erp-swatch--none {
+  background: var(--erp-page-bg);
+  border-color: var(--erp-border);
+}
+
+.erp-swatch--selected {
+  border-color: var(--erp-text);
+  box-shadow: inset 0 0 0 2px var(--erp-surface);
+}
+
+.erp-swatch:focus-visible {
+  outline: 2px solid var(--erp-brand);
+  outline-offset: 2px;
+}
+
+.erp-field__hint {
+  color: var(--erp-text-muted);
+  font-size: 0.78rem;
+}
+
 @media (max-width: 640px) {
   .erp-coa .coa-col-hide-sm {
     display: none;

@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildAccountTree, expandedKeysForLevel, filterAccountTree, toggleExpandedKey } from "./account-tree.ts";
 
-function account(id, code, name, nameAr, parentId, isPostable = false) {
-  return { id, code, name, nameAr, type: "ASSET", isPostable, parentId };
+function account(id, code, name, nameAr, parentId, isPostable = false, color = null) {
+  return { id, code, name, nameAr, type: "ASSET", isPostable, parentId, color };
 }
 
 // 1 > 11 > 11101 > (1110101 Petty Cash, 1110102 Cash on hand), 11102 Bank Accounts ; 2 Liabilities
@@ -106,4 +106,39 @@ test("toggling does not mutate the keys it was given", () => {
   toggleExpandedKey(start, "a1");
   toggleExpandedKey(start, "a11101");
   assert.deepEqual(start, { a1: true, a11: true });
+});
+
+test("a top-level account's colour is inherited by every row of its branch", () => {
+  const coloured = buildAccountTree([
+    account("r", "1", "Assets", null, null, false, "#3B82F6"),
+    account("c", "11", "Current", null, "r"),
+    account("l", "1101", "Cash", null, "c", true),
+    account("o", "2", "Liabilities", null, null),
+  ]);
+
+  const root = coloured[0];
+  assert.equal(root.data.branchColor, "#3B82F6");
+  assert.equal(root.children[0].data.branchColor, "#3B82F6");
+  assert.equal(root.children[0].children[0].data.branchColor, "#3B82F6");
+  assert.deepEqual(root.children[0].children[0].style, { "--coa-branch-color": "#3B82F6" });
+});
+
+test("a branch whose root has no colour has none, and carries no style", () => {
+  const uncoloured = buildAccountTree([account("r", "1", "Assets", null, null), account("c", "11", "Current", null, "r")]);
+
+  assert.equal(uncoloured[0].data.branchColor, null);
+  assert.equal(uncoloured[0].children[0].data.branchColor, null);
+  assert.equal(uncoloured[0].style, undefined);
+});
+
+test("branches keep their own colours independently", () => {
+  const two = buildAccountTree([
+    account("a", "1", "A", null, null, false, "#22C55E"),
+    account("a1", "11", "A1", null, "a"),
+    account("b", "2", "B", null, null, false, "#EF4444"),
+    account("b1", "21", "B1", null, "b"),
+  ]);
+
+  assert.equal(two[0].children[0].data.branchColor, "#22C55E");
+  assert.equal(two[1].children[0].data.branchColor, "#EF4444");
 });
