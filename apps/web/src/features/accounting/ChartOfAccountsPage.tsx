@@ -13,8 +13,10 @@ import { SelectButton } from "primereact/selectbutton";
 import { Tag } from "primereact/tag";
 import { TreeTable } from "primereact/treetable";
 import type { TreeNode } from "primereact/treenode";
+import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
+import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import {
@@ -26,6 +28,7 @@ import {
   type ExpandedKeys,
   type LevelChoice,
 } from "./account-tree";
+import { useAccountBalances, type AccountBalance } from "./use-account-balances";
 import {
   useChartOfAccounts,
   useCreateAccount,
@@ -238,6 +241,17 @@ const TYPE_SEVERITY = {
   EXPENSE: "danger",
 } as const;
 
+// Zero (or no activity) shows a dash so a long chart is not a wall of "0.0000".
+function amountCell(
+  row: AccountBalance | undefined,
+  field: "debitTotal" | "creditTotal",
+  currency: string,
+): React.JSX.Element {
+  const value = row?.[field];
+  if (value === undefined || value === "0.0000") return <span className="coa-amount coa-amount--zero">—</span>;
+  return <span className="coa-amount">{formatMoney(value, currency)}</span>;
+}
+
 const LEVEL_CHOICES: readonly LevelChoice[] = [1, 2, 3, 4, "all"];
 const DEFAULT_LEVEL: LevelChoice = 2;
 
@@ -249,6 +263,14 @@ export function ChartOfAccountsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data, isPending, isError, refetch } = useChartOfAccounts();
   const { can } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const { data: balanceRows } = useAccountBalances();
+  const canSeeTotals = can("trial_balance:read");
+  const currency = currentUser?.companyDefaultCurrency ?? "SAR";
+  const balances = useMemo(
+    () => new Map((balanceRows ?? []).map((row) => [row.accountId, row])),
+    [balanceRows],
+  );
   const [addVisible, setAddVisible] = useState(false);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<LevelChoice | null>(DEFAULT_LEVEL);
@@ -407,6 +429,50 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 );
               }}
             />
+            {/* Totals come from the server, already rolled up: a parent is the sum of its
+                children. Only for users allowed to read the trial balance. */}
+            {canSeeTotals
+              ? [
+                  <Column
+                    key="debit"
+                    header={t("accounting.trialBalance.debit")}
+                    align="right"
+                    alignHeader="right"
+                    style={{ width: "9.5rem" }}
+                    headerClassName="coa-col-hide-sm"
+                    bodyClassName="coa-col-hide-sm"
+                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
+                  />,
+                  <Column
+                    key="credit"
+                    header={t("accounting.trialBalance.credit")}
+                    align="right"
+                    alignHeader="right"
+                    style={{ width: "9.5rem" }}
+                    headerClassName="coa-col-hide-sm"
+                    bodyClassName="coa-col-hide-sm"
+                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
+                  />,
+                  <Column
+                    key="balance"
+                    header={t("accounting.balanceSheet.balance")}
+                    align="right"
+                    alignHeader="right"
+                    style={{ width: "11rem" }}
+                    body={(node: TreeNode) => {
+                      const row = balances.get(node.key as string);
+                      if (!row || row.balanceSide === null) return <span className="coa-amount coa-amount--zero">—</span>;
+                      const side =
+                        row.balanceSide === "DEBIT" ? t("accounting.trialBalance.debit") : t("accounting.trialBalance.credit");
+                      return (
+                        <span className="coa-amount">
+                          {formatMoney(row.balance, currency)} <small className="coa-side">{side}</small>
+                        </span>
+                      );
+                    }}
+                  />,
+                ]
+              : null}
             <Column
               header={t("accounting.chartOfAccounts.type")}
               style={{ width: "9rem" }}

@@ -426,6 +426,25 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Amounts: digits and currency read left-to-right inside an RTL row, aligned on the numbers. */
+.coa-amount {
+  display: inline-block;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.coa-amount--zero {
+  color: var(--erp-text-muted);
+}
+
+.coa-side {
+  color: var(--erp-text-muted);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
 /* Codes read left-to-right even inside an RTL row (digits and Latin letters). */
 .coa-code {
   display: inline-block;

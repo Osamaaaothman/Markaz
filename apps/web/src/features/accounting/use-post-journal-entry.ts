@@ -41,6 +41,7 @@ export function usePostJournalEntry() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
       void queryClient.invalidateQueries({ queryKey: ["trialBalance"] });
+      void queryClient.invalidateQueries({ queryKey: ["accountBalances"] });
     },
   });
 }
