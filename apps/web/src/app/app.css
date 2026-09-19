@@ -379,7 +379,7 @@ body {
   align-items: center;
   gap: 0.4rem;
   min-width: 0;
-  padding-inline-start: calc(var(--depth, 0) * 1.6rem);
+  padding-inline-start: calc(var(--depth, 0) * 1.2rem);
 }
 
 .coa-toggle {
@@ -412,8 +412,11 @@ body {
   font-size: 0.95rem;
 }
 
+/* break-word (not anywhere): a long word still wraps, but the cell keeps a sensible
+   minimum width instead of collapsing to one letter per line. */
 .coa-name {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .coa-count {
@@ -559,6 +562,85 @@ body {
   .erp-coa .coa-col-hide-sm {
     display: none;
   }
+}
+
+/* The table uses a fixed layout, so the name column is simply what is left of the table's
+   width: the table's minimum width is the fixed columns plus room for a readable name, and the
+   wrapper scrolls sideways below that. Less important columns drop out on narrower screens
+   (debit and credit first, then the id, then the type) and the minimum shrinks with them. */
+.erp-coa .p-treetable-table {
+  min-width: 70rem;
+}
+
+.erp-coa .p-treetable-thead > tr > th,
+.erp-coa .p-treetable-tbody > tr > td {
+  padding: 0.55rem 0.85rem;
+}
+
+@media (max-width: 1500px) {
+  .erp-coa .coa-col-hide-lg {
+    display: none;
+  }
+
+  .erp-coa .p-treetable-table {
+    min-width: 54rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .erp-coa .coa-col-hide-md {
+    display: none;
+  }
+
+  .erp-coa .p-treetable-table {
+    min-width: 46rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .erp-coa .p-treetable-table {
+    min-width: 40rem;
+  }
+}
+
+/* A record id that copies itself on click. */
+.erp-copy-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--erp-border);
+  border-radius: 6px;
+  background: var(--erp-page-bg);
+  color: var(--erp-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  direction: ltr;
+  cursor: pointer;
+}
+
+.erp-copy-id:hover,
+.erp-copy-id:focus-visible {
+  border-color: var(--erp-brand);
+  color: var(--erp-brand);
+}
+
+.erp-copy-id--done,
+.erp-copy-id--done:hover {
+  border-color: var(--green-500, #22c55e);
+  color: var(--green-600, #16a34a);
+}
+
+.erp-copy-id__text {
+  white-space: nowrap;
+  user-select: all;
+}
+
+/* The full id (in the edit dialog) may wrap on a narrow screen instead of overflowing. */
+.erp-copy-id--full .erp-copy-id__text {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .erp-table--clickable-rows .p-datatable-tbody > tr {

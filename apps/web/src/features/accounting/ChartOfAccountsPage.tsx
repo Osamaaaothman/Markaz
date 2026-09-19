@@ -18,6 +18,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { CopyId } from "../../shared/ui/CopyId";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { partyKindIcon } from "../parties/party-kind";
 import {
@@ -44,6 +45,10 @@ type ChartNodeData = AccountNodeData<ChartOfAccountEntry>;
 // ─── Add-account dialog ───────────────────────────────────────────────────────
 
 const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"] as const;
+
+// PrimeReact's Dropdown returns the whole option object when an option's value is null,
+// so "no parent" is a sentinel string that is mapped back to null at the form boundary.
+const NO_PARENT = "__none__";
 
 // Messages are translation-key suffixes under `validation.` (see LoginPage's schema).
 // Letters and digits: real-world codes such as supplier accounts look like "2110601A0001".
@@ -130,7 +135,7 @@ function AddAccountDialog({
   // group, not a postable account: only leaf accounts are postable
   // (docs/05-ACCOUNTING-INTEGRITY-RULES.md §4).
   const parentOptions = [
-    { label: t("accounting.chartOfAccounts.noParent"), value: null },
+    { label: t("accounting.chartOfAccounts.noParent"), value: NO_PARENT },
     ...accounts
       .filter((a) => a.type === selectedType && !a.isPostable)
       .map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
@@ -211,10 +216,11 @@ function AddAccountDialog({
             render={({ field }) => (
               <Dropdown
                 inputId="acctParent"
-                value={field.value}
+                value={field.value ?? NO_PARENT}
                 onChange={(e) => {
-                  field.onChange(e.value as string | null);
-                  if (e.value !== null) setValue("color", null);
+                  const parentId = e.value === NO_PARENT ? null : (e.value as string);
+                  field.onChange(parentId);
+                  if (parentId !== null) setValue("color", null);
                 }}
                 options={parentOptions}
                 filter
@@ -360,6 +366,13 @@ function EditAccountDialog({
       modal
     >
       <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+        {account ? (
+          <div className="erp-field">
+            <label>{t("accounting.chartOfAccounts.id")}</label>
+            <CopyId id={account.id} full />
+          </div>
+        ) : null}
+
         <div className="erp-field">
           <label htmlFor="editAcctName">{t("accounting.chartOfAccounts.nameEn")}</label>
           <InputText id="editAcctName" {...register("name")} className={errors.name ? "p-invalid" : ""} />
@@ -578,11 +591,14 @@ export function ChartOfAccountsPage(): React.JSX.Element {
           >
             <Column
               header={t("accounting.chartOfAccounts.code")}
-              style={{ width: "9rem" }}
+              style={{ width: "7rem" }}
               body={(node: TreeNode) => <span className="coa-code">{(node.data as ChartNodeData).code}</span>}
             />
+            {/* The name gets whatever is left, but never less than this: without a floor the
+                fixed-width columns squeeze it until every letter wraps onto its own line. */}
             <Column
               header={t("accounting.chartOfAccounts.name")}
+              style={{ minWidth: "14rem" }}
               body={(node: TreeNode) => {
                 const account = node.data as ChartNodeData;
                 const key = node.key as string;
@@ -607,8 +623,9 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     ) : (
                       <span className="coa-toggle coa-toggle--spacer" aria-hidden="true" />
                     )}
+                    {/* A folder is a group; a file is an account that takes postings. */}
                     <i
-                      className={`pi coa-icon ${isGroup ? (isOpen ? "pi-folder-open" : "pi-folder") : "pi-file"}`}
+                      className={`pi coa-icon ${account.isPostable ? "pi-file" : isOpen ? "pi-folder-open" : "pi-folder"}`}
                       aria-hidden="true"
                     />
                     <span className="coa-name">{localizedName(account, i18n.language)}</span>
@@ -623,6 +640,13 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 );
               }}
             />
+            <Column
+              header={t("accounting.chartOfAccounts.id")}
+              style={{ width: "8rem" }}
+              headerClassName="coa-col-hide-md"
+              bodyClassName="coa-col-hide-md"
+              body={(node: TreeNode) => <CopyId id={(node.data as ChartNodeData).id} />}
+            />
             {/* Totals come from the server, already rolled up: a parent is the sum of its
                 children. Only for users allowed to read the trial balance. */}
             {canSeeTotals
@@ -632,9 +656,9 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     header={t("accounting.trialBalance.debit")}
                     align="right"
                     alignHeader="right"
-                    style={{ width: "9.5rem" }}
-                    headerClassName="coa-col-hide-sm"
-                    bodyClassName="coa-col-hide-sm"
+                    style={{ width: "8rem" }}
+                    headerClassName="coa-col-hide-lg"
+                    bodyClassName="coa-col-hide-lg"
                     body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
                   />,
                   <Column
@@ -642,9 +666,9 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     header={t("accounting.trialBalance.credit")}
                     align="right"
                     alignHeader="right"
-                    style={{ width: "9.5rem" }}
-                    headerClassName="coa-col-hide-sm"
-                    bodyClassName="coa-col-hide-sm"
+                    style={{ width: "8rem" }}
+                    headerClassName="coa-col-hide-lg"
+                    bodyClassName="coa-col-hide-lg"
                     body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
                   />,
                   <Column
@@ -652,7 +676,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     header={t("accounting.balanceSheet.balance")}
                     align="right"
                     alignHeader="right"
-                    style={{ width: "11rem" }}
+                    style={{ width: "9.5rem" }}
                     body={(node: TreeNode) => {
                       const row = balances.get(node.key as string);
                       if (!row || row.balanceSide === null) return <span className="coa-amount coa-amount--zero">—</span>;
@@ -669,7 +693,9 @@ export function ChartOfAccountsPage(): React.JSX.Element {
               : null}
             <Column
               header={t("accounting.chartOfAccounts.type")}
-              style={{ width: "9rem" }}
+              style={{ width: "6rem" }}
+              headerClassName="coa-col-hide-sm"
+              bodyClassName="coa-col-hide-sm"
               body={(node: TreeNode) => {
                 const account = node.data as ChartNodeData;
                 return (
@@ -680,22 +706,11 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 );
               }}
             />
-            <Column
-              header={t("accounting.chartOfAccounts.postable")}
-              style={{ width: "9rem" }}
-              headerClassName="coa-col-hide-sm"
-              bodyClassName="coa-col-hide-sm"
-              body={(node: TreeNode) =>
-                (node.data as ChartNodeData).isPostable ? (
-                  <Tag value={t("accounting.chartOfAccounts.postable")} severity="success" />
-                ) : null
-              }
-            />
             {/* Edit stays visible but disabled (with the reason on hover) for a user without
                 account:update, like the other action buttons. */}
             <Column
               header=""
-              style={{ width: "4rem" }}
+              style={{ width: "3.5rem" }}
               body={(node: TreeNode) => (
                 <PermissionButton
                   allowed={can("account:update")}

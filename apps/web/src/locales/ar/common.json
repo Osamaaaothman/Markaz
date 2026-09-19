@@ -28,7 +28,9 @@
     "new": "جديد",
     "loadMore": "تحميل المزيد",
     "exportPdf": "تصدير PDF",
-    "exportCsv": "تصدير CSV"
+    "exportCsv": "تصدير CSV",
+    "copyId": "نسخ المعرّف",
+    "copied": "تم النسخ"
   },
   "status": {
     "loading": "جارٍ التحميل…",
@@ -99,7 +101,8 @@
       "colorOption": "اللون {{value}}",
       "editAccount": "تعديل الحساب",
       "edit": "تعديل",
-      "updateError": "تعذّر حفظ الحساب."
+      "updateError": "تعذّر حفظ الحساب.",
+      "id": "المعرّف"
     },
     "trialBalance": {
       "title": "ميزان المراجعة",

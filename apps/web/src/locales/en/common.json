@@ -28,7 +28,9 @@
     "new": "New",
     "loadMore": "Load more",
     "exportPdf": "Export PDF",
-    "exportCsv": "Export CSV"
+    "exportCsv": "Export CSV",
+    "copyId": "Copy ID",
+    "copied": "Copied"
   },
   "status": {
     "loading": "Loading…",
@@ -99,7 +101,8 @@
       "colorOption": "Colour {{value}}",
       "editAccount": "Edit account",
       "edit": "Edit",
-      "updateError": "Could not save the account."
+      "updateError": "Could not save the account.",
+      "id": "ID"
     },
     "trialBalance": {
       "title": "Trial balance",
