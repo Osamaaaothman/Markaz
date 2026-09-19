@@ -21,6 +21,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { CopyId } from "../../shared/ui/CopyId";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { partyKindIcon } from "../parties/party-kind";
+import { inferFromCode, suggestNextCode } from "./account-code";
 import {
   buildAccountTree,
   expandedKeysForLevel,
@@ -76,6 +77,8 @@ function AddAccountDialog({
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const createAccount = useCreateAccount();
+  // The code and the parent/type keep each other in step: choosing a parent (or the suggest
+  // button) fills the code in; typing a code sets the parent and type from it.
 
   const {
     register,
@@ -105,6 +108,24 @@ function AddAccountDialog({
     onHide();
   };
 
+  // Fill the code from the parent and type (clears it when nothing can be suggested).
+  const fillSuggestedCode = (parentId: string | null, type: string): void => {
+    setValue("code", suggestNextCode(accounts, parentId, type) ?? "", { shouldValidate: false });
+  };
+
+  // The code was typed: let it decide the parent and type.
+  const followTypedCode = (code: string): void => {
+    const inferred = inferFromCode(accounts, code);
+    if (inferred.kind === "parent") {
+      setValue("parentId", inferred.parent.id);
+      setValue("type", inferred.parent.type as AddAccountValues["type"]);
+      setValue("color", null);
+    } else if (inferred.kind === "root") {
+      setValue("parentId", null);
+      if (inferred.type) setValue("type", inferred.type as AddAccountValues["type"]);
+    }
+  };
+
   const onSubmit = handleSubmit((values) => {
     createAccount.mutate(
       {
@@ -129,15 +150,18 @@ function AddAccountDialog({
 
   const selectedType = useWatch({ control, name: "type" });
   const selectedParentId = useWatch({ control, name: "parentId" });
+  const typedCode = useWatch({ control, name: "code" });
+  const codeHint = useMemo(() => inferFromCode(accounts, typedCode), [accounts, typedCode]);
+  const noRoomForCode =
+    !typedCode.trim() && selectedParentId !== null && suggestNextCode(accounts, selectedParentId, selectedType) === null;
 
-  // A parent must be the same account type as the child (an Asset can't hang off
-  // a Liability, etc.) — docs/04-DATA-MODEL-RULES.md account hierarchy rule — and a
-  // group, not a postable account: only leaf accounts are postable
-  // (docs/05-ACCOUNTING-INTEGRITY-RULES.md §4).
+  // A parent is a group, not a postable account: only leaf accounts are postable
+  // (docs/05-ACCOUNTING-INTEGRITY-RULES.md §4). Picking one sets the type to the parent's
+  // (a child has its parent's type — docs/04-DATA-MODEL-RULES.md account hierarchy rule).
   const parentOptions = [
     { label: t("accounting.chartOfAccounts.noParent"), value: NO_PARENT },
     ...accounts
-      .filter((a) => a.type === selectedType && !a.isPostable)
+      .filter((a) => !a.isPostable)
       .map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
   ];
 
@@ -157,15 +181,57 @@ function AddAccountDialog({
         {/* Code */}
         <div className="erp-field">
           <label htmlFor="acctCode">{t("accounting.chartOfAccounts.code")}</label>
-          <InputText
-            id="acctCode"
-            {...register("code")}
-            className={errors.code ? "p-invalid" : ""}
-            placeholder={t("accounting.chartOfAccounts.codePlaceholder")}
-          />
+          <div className="erp-code-input">
+            <InputText
+              id="acctCode"
+              dir="ltr"
+              {...register("code", {
+                onChange: (e: React.ChangeEvent<HTMLInputElement>) => followTypedCode(e.target.value),
+              })}
+              className={errors.code || codeHint.kind === "duplicate" ? "p-invalid" : ""}
+              placeholder={t("accounting.chartOfAccounts.codePlaceholder")}
+              autoComplete="off"
+            />
+            <Button
+              type="button"
+              icon="pi pi-sync"
+              rounded
+              text
+              severity="secondary"
+              title={t("accounting.chartOfAccounts.suggestCode")}
+              aria-label={t("accounting.chartOfAccounts.suggestCode")}
+              onClick={() => fillSuggestedCode(getValues("parentId"), getValues("type"))}
+            />
+          </div>
           {errors.code ? (
             <small className="erp-field__error">{t(`validation.${errors.code.message}`)}</small>
-          ) : null}
+          ) : codeHint.kind === "duplicate" ? (
+            <small className="erp-field__error">
+              {t("accounting.chartOfAccounts.codeHint.duplicate", {
+                code: codeHint.account.code,
+                name: localizedName(codeHint.account, i18n.language),
+              })}
+            </small>
+          ) : codeHint.kind === "postableParent" ? (
+            <small className="erp-field__error">
+              {t("accounting.chartOfAccounts.codeHint.postableParent", { code: codeHint.parent.code })}
+            </small>
+          ) : codeHint.kind === "noParent" ? (
+            <small className="erp-field__error">{t("accounting.chartOfAccounts.codeHint.noParent")}</small>
+          ) : codeHint.kind === "parent" ? (
+            <small className="erp-field__hint">
+              {t("accounting.chartOfAccounts.codeHint.parent", {
+                code: codeHint.parent.code,
+                name: localizedName(codeHint.parent, i18n.language),
+              })}
+            </small>
+          ) : codeHint.kind === "root" ? (
+            <small className="erp-field__hint">{t("accounting.chartOfAccounts.codeHint.root")}</small>
+          ) : (
+            <small className={noRoomForCode ? "erp-field__error" : "erp-field__hint"}>
+              {t(noRoomForCode ? "accounting.chartOfAccounts.codeHint.full" : "accounting.chartOfAccounts.codeHint.empty")}
+            </small>
+          )}
         </div>
 
         {/* Name (English) */}
@@ -197,9 +263,12 @@ function AddAccountDialog({
               <Dropdown
                 inputId="acctType"
                 value={field.value}
+                // A child has its parent's type, so the type is only chosen for a top-level account.
+                disabled={selectedParentId !== null}
                 onChange={(e) => {
                   field.onChange(e.value);
                   setValue("parentId", null);
+                  setValue("code", "");
                 }}
                 options={typeOptions}
               />
@@ -219,8 +288,13 @@ function AddAccountDialog({
                 value={field.value ?? NO_PARENT}
                 onChange={(e) => {
                   const parentId = e.value === NO_PARENT ? null : (e.value as string);
+                  const parent = parentId === null ? null : accounts.find((a) => a.id === parentId);
                   field.onChange(parentId);
-                  if (parentId !== null) setValue("color", null);
+                  if (parent) {
+                    setValue("type", parent.type as AddAccountValues["type"]);
+                    setValue("color", null);
+                  }
+                  fillSuggestedCode(parentId, parent?.type ?? getValues("type"));
                 }}
                 options={parentOptions}
                 filter
@@ -517,7 +591,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
   }
 
   return (
-    <div className="erp-page">
+    <div className="erp-page erp-page--wide">
       <div className="erp-page__header">
         <div>
           <h1 className="erp-page__title">{t("accounting.chartOfAccounts.title")}</h1>
@@ -590,6 +664,11 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             emptyMessage={query.trim() ? t("accounting.chartOfAccounts.noResults") : t("status.empty")}
           >
             <Column
+              header={t("accounting.chartOfAccounts.id")}
+              style={{ width: "8rem" }}
+              body={(node: TreeNode) => <CopyId id={(node.data as ChartNodeData).id} />}
+            />
+            <Column
               header={t("accounting.chartOfAccounts.code")}
               style={{ width: "7rem" }}
               body={(node: TreeNode) => <span className="coa-code">{(node.data as ChartNodeData).code}</span>}
@@ -640,13 +719,6 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 );
               }}
             />
-            <Column
-              header={t("accounting.chartOfAccounts.id")}
-              style={{ width: "8rem" }}
-              headerClassName="coa-col-hide-md"
-              bodyClassName="coa-col-hide-md"
-              body={(node: TreeNode) => <CopyId id={(node.data as ChartNodeData).id} />}
-            />
             {/* Totals come from the server, already rolled up: a parent is the sum of its
                 children. Only for users allowed to read the trial balance. */}
             {canSeeTotals
@@ -657,9 +729,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     align="right"
                     alignHeader="right"
                     style={{ width: "8rem" }}
-                    headerClassName="coa-col-hide-lg"
-                    bodyClassName="coa-col-hide-lg"
-                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
+                                        body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
                   />,
                   <Column
                     key="credit"
@@ -667,9 +737,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     align="right"
                     alignHeader="right"
                     style={{ width: "8rem" }}
-                    headerClassName="coa-col-hide-lg"
-                    bodyClassName="coa-col-hide-lg"
-                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
+                                        body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
                   />,
                   <Column
                     key="balance"
@@ -694,8 +762,6 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             <Column
               header={t("accounting.chartOfAccounts.type")}
               style={{ width: "6rem" }}
-              headerClassName="coa-col-hide-sm"
-              bodyClassName="coa-col-hide-sm"
               body={(node: TreeNode) => {
                 const account = node.data as ChartNodeData;
                 return (

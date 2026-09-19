@@ -67,6 +67,11 @@ body {
   margin-inline: auto;
 }
 
+/* A page holding a wide table (chart of accounts, stock) opts out of the 1200px cap. */
+.erp-shell__content:has(.erp-page--wide) {
+  max-width: none;
+}
+
 @media (min-width: 900px) {
   .erp-shell__desktop-sidebar {
     display: block;
@@ -553,6 +558,19 @@ body {
   outline-offset: 2px;
 }
 
+/* The account code field with its "suggest a code" button beside it. */
+.erp-code-input {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.erp-code-input .p-inputtext {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 .erp-field__hint {
   color: var(--erp-text-muted);
   font-size: 0.78rem;
@@ -565,42 +583,15 @@ body {
 }
 
 /* The table uses a fixed layout, so the name column is simply what is left of the table's
-   width: the table's minimum width is the fixed columns plus room for a readable name, and the
-   wrapper scrolls sideways below that. Less important columns drop out on narrower screens
-   (debit and credit first, then the id, then the type) and the minimum shrinks with them. */
+   width. The table never gets narrower than this: every column stays visible and the wrapper
+   scrolls sideways on a smaller screen instead of squeezing the name. */
 .erp-coa .p-treetable-table {
-  min-width: 70rem;
+  min-width: 80rem;
 }
 
 .erp-coa .p-treetable-thead > tr > th,
 .erp-coa .p-treetable-tbody > tr > td {
   padding: 0.55rem 0.85rem;
-}
-
-@media (max-width: 1500px) {
-  .erp-coa .coa-col-hide-lg {
-    display: none;
-  }
-
-  .erp-coa .p-treetable-table {
-    min-width: 54rem;
-  }
-}
-
-@media (max-width: 900px) {
-  .erp-coa .coa-col-hide-md {
-    display: none;
-  }
-
-  .erp-coa .p-treetable-table {
-    min-width: 46rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .erp-coa .p-treetable-table {
-    min-width: 40rem;
-  }
 }
 
 /* A record id that copies itself on click. */

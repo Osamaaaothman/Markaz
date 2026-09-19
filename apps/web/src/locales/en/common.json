@@ -102,7 +102,17 @@
       "editAccount": "Edit account",
       "edit": "Edit",
       "updateError": "Could not save the account.",
-      "id": "ID"
+      "id": "ID",
+      "suggestCode": "Suggest a code",
+      "codeHint": {
+        "empty": "Pick a parent and the code fills in by itself, or type your own.",
+        "parent": "Under {{code}} — {{name}}",
+        "root": "A top-level account.",
+        "duplicate": "Already used by {{code}} — {{name}}.",
+        "postableParent": "{{code}} takes postings, so accounts cannot go under it.",
+        "noParent": "No existing group starts this code.",
+        "full": "No more automatic codes under this parent — type one."
+      }
     },
     "trialBalance": {
       "title": "Trial balance",
