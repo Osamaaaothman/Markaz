@@ -14,9 +14,11 @@ import {
 import type { Response } from "express";
 import type { IAccountingEngine, PostingResult } from "@erp/core";
 import {
+  AccountBalancesService,
   BalanceSheetService,
   IncomeStatementService,
   TrialBalanceService,
+  type AccountBalance,
   type BalanceSheetResult,
   type IncomeStatementResult,
   type TrialBalanceResult,
@@ -48,6 +50,7 @@ import type {
 export class AccountingController {
   constructor(
     @Inject(ACCOUNTING_ENGINE) private readonly engine: IAccountingEngine,
+    private readonly accountBalancesService: AccountBalancesService,
     private readonly trialBalanceService: TrialBalanceService,
     private readonly balanceSheetService: BalanceSheetService,
     private readonly incomeStatementService: IncomeStatementService,
@@ -81,6 +84,15 @@ export class AccountingController {
       orderBy: { code: "asc" },
     });
     return accounts;
+  }
+
+  // Posted debit/credit per account with every parent rolled up as the sum of its children.
+  // Needs trial_balance:read, not account:read: these are ledger totals, and a user who may
+  // only see the chart's structure must not be able to read balances from it.
+  @Get("chart-of-accounts/balances")
+  @RequirePermission("trial_balance", "read")
+  listAccountBalances(@CurrentUser() actor: CurrentUserPayload): Promise<AccountBalance[]> {
+    return this.accountBalancesService.compute(actor.companyId);
   }
 
   @Post("accounts")
