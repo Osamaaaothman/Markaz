@@ -21,6 +21,7 @@ import {
   buildAccountTree,
   expandedKeysForLevel,
   filterAccountTree,
+  toggleExpandedKey,
   type AccountNodeData,
   type ExpandedKeys,
   type LevelChoice,
@@ -263,7 +264,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
     manualKeys ?? (filtered ? filtered.expandedKeys : level ? expandedKeysForLevel(tree, level) : {});
 
   const toggleNode = (key: string): void => {
-    setManualKeys({ ...expandedKeys, [key]: !expandedKeys[key] });
+    setManualKeys(toggleExpandedKey(expandedKeys, key));
     setLevel(null);
   };
   const changeQuery = (value: string): void => {

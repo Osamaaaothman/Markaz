@@ -2,7 +2,7 @@
 // packages/db/scripts/coa-template.test.mjs — no test framework dependency for pure logic.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAccountTree, expandedKeysForLevel, filterAccountTree } from "./account-tree.ts";
+import { buildAccountTree, expandedKeysForLevel, filterAccountTree, toggleExpandedKey } from "./account-tree.ts";
 
 function account(id, code, name, nameAr, parentId, isPostable = false) {
   return { id, code, name, nameAr, type: "ASSET", isPostable, parentId };
@@ -79,4 +79,31 @@ test("a matching group that also has matching descendants shows only the matchin
 test("search is case-insensitive and returns nothing for no match", () => {
   assert.equal(keysOf(filterAccountTree(tree, "LIABILITIES").tree).join(), "2");
   assert.deepEqual(filterAccountTree(tree, "zzz").tree, []);
+});
+
+// PrimeReact's TreeTable treats a row as expanded when its key is PRESENT in expandedKeys
+// (expandedKeys[key] !== undefined), so a key stored as `false` still renders the children —
+// the bug that made opened rows impossible to close.
+test("toggleExpandedKey opens, closes and reopens a row", () => {
+  const opened = toggleExpandedKey({}, "a1");
+  assert.deepEqual(opened, { a1: true });
+  const closed = toggleExpandedKey(opened, "a1");
+  assert.deepEqual(closed, {});
+  assert.deepEqual(toggleExpandedKey(closed, "a1"), { a1: true });
+});
+
+test("a closed row is absent from the keys, never stored as false (regression)", () => {
+  const start = expandedKeysForLevel(tree, 3);
+  const closed = toggleExpandedKey(start, "a11");
+  assert.equal(closed["a11"], undefined);
+  assert.equal("a11" in closed, false);
+  assert.equal(Object.values(closed).includes(false), false);
+  assert.equal(closed["a1"], true);
+});
+
+test("toggling does not mutate the keys it was given", () => {
+  const start = { a1: true, a11: true };
+  toggleExpandedKey(start, "a1");
+  toggleExpandedKey(start, "a11101");
+  assert.deepEqual(start, { a1: true, a11: true });
 });

@@ -52,6 +52,17 @@ export function buildAccountTree<A extends AccountLike>(accounts: readonly A[]):
   return rootIds.map((id) => build(id, 0));
 }
 
+// Opens a closed row and closes an open one. PrimeReact's TreeTable treats a row as expanded
+// when its key is PRESENT in `expandedKeys` (`expandedKeys[key] !== undefined`), not when the
+// value is truthy — so closing must delete the key. Storing `false` leaves the row open while
+// any chevron computed from the value shows it closed.
+export function toggleExpandedKey(keys: ExpandedKeys, key: string): ExpandedKeys {
+  if (keys[key] !== undefined) {
+    return Object.fromEntries(Object.entries(keys).filter(([openKey]) => openKey !== key));
+  }
+  return { ...keys, [key]: true };
+}
+
 // Every node that has children, down to `level` (1 = roots only, 2 = roots opened, ...).
 export function expandedKeysForLevel<A extends AccountLike>(
   tree: readonly AccountTreeNode<A>[],
