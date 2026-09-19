@@ -269,6 +269,7 @@ model Account {
   companyId     String   @map("company_id")
   code          String
   name          String
+  nameAr        String?  @map("name_ar") // Arabic display name; the English `name` stays the fallback
   type          String // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
   normalBalance String   @map("normal_balance") // DEBIT | CREDIT
   parentId      String?  @map("parent_id")
