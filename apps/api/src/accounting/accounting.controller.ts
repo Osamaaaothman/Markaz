@@ -7,6 +7,7 @@ import {
   Inject,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -16,6 +17,9 @@ import type { IAccountingEngine, PostingResult } from "@erp/core";
 import {
   AccountBalancesService,
   BalanceSheetService,
+  CHART_ENTRY_SELECT,
+  ChartOfAccountsError,
+  ChartOfAccountsService,
   IncomeStatementService,
   TrialBalanceService,
   type AccountBalance,
@@ -23,7 +27,7 @@ import {
   type IncomeStatementResult,
   type TrialBalanceResult,
 } from "@erp/core";
-import { Money, newId } from "@erp/shared";
+import { Money } from "@erp/shared";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
@@ -37,7 +41,8 @@ import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
 import { ExportQueryDto } from "./dto/export-query.dto.js";
 import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-query.dto.js";
 import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
-import { CreateAccountDto, normalBalanceFor } from "./dto/create-account.dto.js";
+import { CreateAccountDto } from "./dto/create-account.dto.js";
+import { UpdateAccountDto } from "./dto/update-account.dto.js";
 import type {
   AccountSummary,
   ChartOfAccountEntry,
@@ -56,6 +61,7 @@ export class AccountingController {
     private readonly incomeStatementService: IncomeStatementService,
     private readonly exportService: AccountingExportService,
     private readonly prisma: PrismaService,
+    private readonly chartOfAccounts: ChartOfAccountsService,
   ) {}
 
   // docs/07-API-RULES.md §6: every list endpoint paginates — these are small,
@@ -80,7 +86,7 @@ export class AccountingController {
   async listChartOfAccounts(@CurrentUser() actor: CurrentUserPayload): Promise<ChartOfAccountEntry[]> {
     const accounts = await this.prisma.account.findMany({
       where: { companyId: actor.companyId, isActive: true },
-      select: { id: true, code: true, name: true, nameAr: true, type: true, isPostable: true, parentId: true },
+      select: CHART_ENTRY_SELECT,
       orderBy: { code: "asc" },
     });
     return accounts;
@@ -97,44 +103,45 @@ export class AccountingController {
 
   @Post("accounts")
   @RequirePermission("account", "create")
-  async createAccount(
+  createAccount(
     @Body() dto: CreateAccountDto,
     @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
   ): Promise<ChartOfAccountEntry> {
-    const duplicate = await this.prisma.account.findUnique({
-      where: { companyId_code: { companyId: actor.companyId, code: dto.code } },
-    });
-    if (duplicate) throw new ConflictException("An account with this code already exists");
+    return this.mapChartErrors(this.chartOfAccounts.create(dto, actor, correlationId));
+  }
 
-    if (dto.parentId) {
-      const parent = await this.prisma.account.findUnique({ where: { id: dto.parentId } });
-      if (!parent || parent.companyId !== actor.companyId) {
-        throw new NotFoundException("Parent account not found");
-      }
-      // docs/05-ACCOUNTING-INTEGRITY-RULES.md §4: only leaf accounts are postable, so a
-      // postable account can never become a parent.
-      if (parent.isPostable) {
-        throw new BadRequestException("Parent must be a group account, not a postable one");
+  // Only names, the linked party and the colour can change here — never the code, type, parent
+  // or postable flag (see ChartOfAccountsService).
+  @Patch("accounts/:id")
+  @RequirePermission("account", "update")
+  updateAccount(
+    @Param("id") id: string,
+    @Body() dto: UpdateAccountDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<ChartOfAccountEntry> {
+    return this.mapChartErrors(this.chartOfAccounts.update(id, dto, actor, correlationId));
+  }
+
+  // The core service throws typed business-rule errors; without this they would surface as 500.
+  private async mapChartErrors<T>(work: Promise<T>): Promise<T> {
+    try {
+      return await work;
+    } catch (error) {
+      if (!(error instanceof ChartOfAccountsError)) throw error;
+      switch (error.code) {
+        case "DUPLICATE_CODE":
+          throw new ConflictException(error.message);
+        case "ACCOUNT_NOT_FOUND":
+        case "PARENT_NOT_FOUND":
+        case "PARTY_NOT_FOUND":
+          throw new NotFoundException(error.message);
+        case "PARENT_NOT_GROUP":
+        case "COLOR_ON_CHILD":
+          throw new BadRequestException(error.message);
       }
     }
-
-    const id = newId();
-    const account = await this.prisma.account.create({
-      data: {
-        id,
-        companyId: actor.companyId,
-        code: dto.code,
-        name: dto.name,
-        nameAr: dto.nameAr ?? null,
-        type: dto.type,
-        normalBalance: normalBalanceFor(dto.type),
-        isPostable: dto.isPostable,
-        parentId: dto.parentId ?? null,
-        createdBy: actor.id,
-      },
-      select: { id: true, code: true, name: true, nameAr: true, type: true, isPostable: true, parentId: true },
-    });
-    return account;
   }
 
   @Get("fiscal-periods")

@@ -1,4 +1,5 @@
 import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from "class-validator";
+import { ACCOUNT_COLORS, type AccountColor } from "@erp/shared";
 
 const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"] as const;
 type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -30,8 +31,13 @@ export class CreateAccountDto {
   @IsOptional()
   @IsString()
   parentId?: string;
-}
 
-export function normalBalanceFor(type: AccountType): "DEBIT" | "CREDIT" {
-  return type === "ASSET" || type === "EXPENSE" ? "DEBIT" : "CREDIT";
+  @IsOptional()
+  @IsString()
+  partyId?: string;
+
+  // Only for a top-level account (no parent); ChartOfAccountsService enforces that.
+  @IsOptional()
+  @IsIn(ACCOUNT_COLORS)
+  color?: AccountColor;
 }

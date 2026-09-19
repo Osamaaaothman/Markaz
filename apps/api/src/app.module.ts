@@ -7,6 +7,7 @@ import { CommonModule } from "./common/common.module.js";
 import { IdentityModule } from "./identity/identity.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { AccountingModule } from "./accounting/accounting.module.js";
+import { PartiesModule } from "./parties/parties.module.js";
 import { JobsModule } from "./jobs/jobs.module.js";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { PermissionGuard } from "./identity/permission.guard.js";
@@ -32,6 +33,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
     IdentityModule,
     AuthModule,
     AccountingModule,
+    PartiesModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -10,15 +10,8 @@ export interface AccountSummary {
 // picker), this includes non-postable group/header accounts and each
 // account's parent — everything the chart of accounts tree needs to render
 // the hierarchy, not just what a posting line is allowed to target.
-export interface ChartOfAccountEntry {
-  readonly id: string;
-  readonly code: string;
-  readonly name: string;
-  readonly nameAr: string | null;
-  readonly type: string;
-  readonly isPostable: boolean;
-  readonly parentId: string | null;
-}
+// Defined next to the service that produces it, in @erp/core.
+export type { AccountPartyRef, ChartOfAccountEntry } from "@erp/core";
 
 export interface FiscalPeriodSummary {
   readonly id: string;

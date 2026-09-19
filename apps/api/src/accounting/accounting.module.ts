@@ -2,11 +2,14 @@ import { Module } from "@nestjs/common";
 import {
   AccountBalancesService,
   BalanceSheetService,
+  ChartOfAccountsService,
   IncomeStatementService,
   PrismaAccountingEngine,
   PrismaNumberingService,
   TrialBalanceService,
+  type IAuditLogger,
 } from "@erp/core";
+import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AccountingController } from "./accounting.controller.js";
 import { AccountingExportService } from "./accounting-export.service.js";
@@ -26,6 +29,11 @@ import { ACCOUNTING_ENGINE, NUMBERING_SERVICE } from "./accounting.tokens.js";
       provide: TrialBalanceService,
       useFactory: (prisma: PrismaService) => new TrialBalanceService(prisma),
       inject: [PrismaService],
+    },
+    {
+      provide: ChartOfAccountsService,
+      useFactory: (prisma: PrismaService, audit: IAuditLogger) => new ChartOfAccountsService(prisma, audit),
+      inject: [PrismaService, AUDIT_LOGGER],
     },
     {
       provide: AccountBalancesService,
