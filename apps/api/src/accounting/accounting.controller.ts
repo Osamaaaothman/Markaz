@@ -51,7 +51,7 @@ export class AccountingController {
   async listAccounts(@CurrentUser() actor: CurrentUserPayload): Promise<AccountSummary[]> {
     const accounts = await this.prisma.account.findMany({
       where: { companyId: actor.companyId, isPostable: true, isActive: true },
-      select: { id: true, code: true, name: true, type: true },
+      select: { id: true, code: true, name: true, nameAr: true, type: true },
       orderBy: { code: "asc" },
     });
     return accounts;
@@ -65,7 +65,7 @@ export class AccountingController {
   async listChartOfAccounts(@CurrentUser() actor: CurrentUserPayload): Promise<ChartOfAccountEntry[]> {
     const accounts = await this.prisma.account.findMany({
       where: { companyId: actor.companyId, isActive: true },
-      select: { id: true, code: true, name: true, type: true, isPostable: true, parentId: true },
+      select: { id: true, code: true, name: true, nameAr: true, type: true, isPostable: true, parentId: true },
       orderBy: { code: "asc" },
     });
     return accounts;
@@ -96,13 +96,14 @@ export class AccountingController {
         companyId: actor.companyId,
         code: dto.code,
         name: dto.name,
+        nameAr: dto.nameAr ?? null,
         type: dto.type,
         normalBalance: normalBalanceFor(dto.type),
         isPostable: dto.isPostable,
         parentId: dto.parentId ?? null,
         createdBy: actor.id,
       },
-      select: { id: true, code: true, name: true, type: true, isPostable: true, parentId: true },
+      select: { id: true, code: true, name: true, nameAr: true, type: true, isPostable: true, parentId: true },
     });
     return account;
   }

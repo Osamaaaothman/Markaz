@@ -5,6 +5,7 @@ export interface ChartOfAccountEntry {
   readonly id: string;
   readonly code: string;
   readonly name: string;
+  readonly nameAr: string | null;
   readonly type: string;
   readonly isPostable: boolean;
   readonly parentId: string | null;
@@ -13,6 +14,7 @@ export interface ChartOfAccountEntry {
 export interface CreateAccountPayload {
   readonly code: string;
   readonly name: string;
+  readonly nameAr?: string;
   readonly type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
   readonly isPostable: boolean;
   readonly parentId: string | null;

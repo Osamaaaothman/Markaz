@@ -7,6 +7,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { exportReport, type ExportFormat } from "./export-report";
+import { useAccountLabel } from "./use-account-label";
 import { useBalanceSheet, type BalanceSheetLine } from "./use-balance-sheet";
 
 export function BalanceSheetPage(): React.JSX.Element {
@@ -117,6 +118,7 @@ function BalanceSheetTable({
   readonly currency: string;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const accountLabel = useAccountLabel();
   return (
     <DataTable
       value={[...lines]}
@@ -132,7 +134,7 @@ function BalanceSheetTable({
         body={(line: BalanceSheetLine) => (
           <span className="erp-table__account">
             {line.accountCode ? <span className="erp-table__account-code">{line.accountCode}</span> : null}
-            <span className="erp-table__account-name">{line.accountName}</span>
+            <span className="erp-table__account-name">{accountLabel(line.accountId, line.accountName)}</span>
           </span>
         )}
       />

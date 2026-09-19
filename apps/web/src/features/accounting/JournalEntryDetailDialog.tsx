@@ -6,6 +6,7 @@ import { Tag } from "primereact/tag";
 import { formatCalendarDate } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { useAccountLabel } from "./use-account-label";
 import { useJournalEntry, type JournalEntryLineDetail } from "./use-journal-entries";
 
 export function JournalEntryDetailDialog({
@@ -16,6 +17,7 @@ export function JournalEntryDetailDialog({
   onHide: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  const accountLabel = useAccountLabel();
   const { data: entry, isPending, isError } = useJournalEntry(entryId);
 
   return (
@@ -74,7 +76,7 @@ export function JournalEntryDetailDialog({
           <DataTable value={[...entry.lines]} className="erp-table" size="small" showGridlines>
             <Column
               header={t("accounting.journalEntries.account")}
-              body={(row: JournalEntryLineDetail) => `${row.accountCode} — ${row.accountName}`}
+              body={(row: JournalEntryLineDetail) => `${row.accountCode} — ${accountLabel(row.accountId, row.accountName)}`}
             />
             <Column header={t("accounting.journalEntries.description")} field="description" />
             <Column

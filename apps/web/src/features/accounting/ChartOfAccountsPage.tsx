@@ -12,6 +12,7 @@ import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
 import { TreeTable } from "primereact/treetable";
 import type { TreeNode } from "primereact/treenode";
+import { localizedName } from "../../shared/lib/localized-name";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { buildAccountTree } from "./build-account-tree";
 import {
@@ -24,9 +25,12 @@ import {
 
 const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"] as const;
 
+// Messages are translation-key suffixes under `validation.` (see LoginPage's schema).
+// Letters and digits: real-world codes such as supplier accounts look like "2110601A0001".
 const addAccountSchema = z.object({
-  code: z.string().regex(/^\d+$/, "digits only").min(1),
-  name: z.string().min(1),
+  code: z.string().min(1, "required").max(20, "codeFormat").regex(/^[A-Za-z0-9]+$/, "codeFormat"),
+  name: z.string().min(1, "required"),
+  nameAr: z.string(),
   type: z.enum(ACCOUNT_TYPES),
   isPostable: z.boolean(),
   parentId: z.string().nullable(),
@@ -42,7 +46,7 @@ function AddAccountDialog({
   onHide: () => void;
   accounts: ChartOfAccountEntry[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const createAccount = useCreateAccount();
 
   const {
@@ -54,7 +58,7 @@ function AddAccountDialog({
     formState: { errors },
   } = useForm<AddAccountValues>({
     resolver: zodResolver(addAccountSchema),
-    defaultValues: { code: "", name: "", type: "ASSET", isPostable: true, parentId: null },
+    defaultValues: { code: "", name: "", nameAr: "", type: "ASSET", isPostable: true, parentId: null },
   });
 
   const onHideAndReset = () => {
@@ -68,6 +72,7 @@ function AddAccountDialog({
       {
         code: values.code,
         name: values.name,
+        ...(values.nameAr.trim() ? { nameAr: values.nameAr.trim() } : {}),
         type: values.type,
         isPostable: values.isPostable,
         parentId: values.parentId,
@@ -89,7 +94,7 @@ function AddAccountDialog({
     { label: t("accounting.chartOfAccounts.noParent"), value: null },
     ...accounts
       .filter((a) => a.type === selectedType)
-      .map((a) => ({ label: `${a.code} — ${a.name}`, value: a.id })),
+      .map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
   ];
 
   const isConflict =
@@ -112,16 +117,16 @@ function AddAccountDialog({
             id="acctCode"
             {...register("code")}
             className={errors.code ? "p-invalid" : ""}
-            placeholder="e.g. 1150"
+            placeholder={t("accounting.chartOfAccounts.codePlaceholder")}
           />
           {errors.code ? (
-            <small className="erp-field__error">{t("validation.required")}</small>
+            <small className="erp-field__error">{t(`validation.${errors.code.message}`)}</small>
           ) : null}
         </div>
 
-        {/* Name */}
+        {/* Name (English) */}
         <div className="erp-field">
-          <label htmlFor="acctName">{t("accounting.chartOfAccounts.name")}</label>
+          <label htmlFor="acctName">{t("accounting.chartOfAccounts.nameEn")}</label>
           <InputText
             id="acctName"
             {...register("name")}
@@ -130,6 +135,12 @@ function AddAccountDialog({
           {errors.name ? (
             <small className="erp-field__error">{t("validation.required")}</small>
           ) : null}
+        </div>
+
+        {/* Name (Arabic) — optional; the English name is shown wherever it is empty. */}
+        <div className="erp-field">
+          <label htmlFor="acctNameAr">{t("accounting.chartOfAccounts.nameAr")}</label>
+          <InputText id="acctNameAr" dir="rtl" {...register("nameAr")} />
         </div>
 
         {/* Type */}
@@ -207,7 +218,7 @@ function AddAccountDialog({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ChartOfAccountsPage(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data, isPending, isError, refetch } = useChartOfAccounts();
   const [addVisible, setAddVisible] = useState(false);
 
@@ -256,7 +267,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
           <Column
             field="name"
             header={t("accounting.chartOfAccounts.name")}
-            body={(node: TreeNode) => (node.data as ChartOfAccountEntry).name}
+            body={(node: TreeNode) => localizedName(node.data as ChartOfAccountEntry, i18n.language)}
           />
           <Column
             field="isPostable"

@@ -9,6 +9,7 @@ import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { z } from "zod";
+import { localizedName } from "../../shared/lib/localized-name";
 import { useAccounts } from "./use-accounts";
 import { useFiscalPeriods } from "./use-fiscal-periods";
 import { usePostJournalEntry, type PostJournalEntryInput } from "./use-post-journal-entry";
@@ -68,7 +69,7 @@ export interface JournalEntryFormProps {
 }
 
 export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: accounts } = useAccounts();
   const { data: fiscalPeriods } = useFiscalPeriods();
   const postEntry = usePostJournalEntry();
@@ -231,7 +232,10 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
                   <Dropdown
                     value={f.value}
                     onChange={(e) => f.onChange(e.value)}
-                    options={(accounts ?? []).map((a) => ({ label: `${a.code} — ${a.name}`, value: a.id }))}
+                    options={(accounts ?? []).map((a) => ({
+                      label: `${a.code} — ${localizedName(a, i18n.language)}`,
+                      value: a.id,
+                    }))}
                     filter
                     placeholder={t("accounting.journalEntries.account")}
                     className={errors.lines?.[index]?.accountId ? "p-invalid erp-lines__account" : "erp-lines__account"}

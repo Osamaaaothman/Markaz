@@ -2,6 +2,7 @@ export interface AccountSummary {
   readonly id: string;
   readonly code: string;
   readonly name: string;
+  readonly nameAr: string | null;
   readonly type: string;
 }
 
@@ -13,6 +14,7 @@ export interface ChartOfAccountEntry {
   readonly id: string;
   readonly code: string;
   readonly name: string;
+  readonly nameAr: string | null;
   readonly type: string;
   readonly isPostable: boolean;
   readonly parentId: string | null;

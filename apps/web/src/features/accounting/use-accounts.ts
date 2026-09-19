@@ -5,6 +5,7 @@ export interface AccountSummary {
   readonly id: string;
   readonly code: string;
   readonly name: string;
+  readonly nameAr: string | null;
   readonly type: string;
 }
 

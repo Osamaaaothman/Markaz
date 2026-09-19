@@ -67,6 +67,9 @@
       "postable": "Postable",
       "group": "Group",
       "addAccount": "Add account",
+      "nameEn": "Name (English)",
+      "nameAr": "Name (Arabic, optional)",
+      "codePlaceholder": "e.g. 1110101",
       "type": "Type",
       "typeAsset": "Asset",
       "typeLiability": "Liability",
@@ -194,6 +197,7 @@
   },
   "validation": {
     "required": "This field is required.",
+    "codeFormat": "Use letters and digits only, up to 20 characters.",
     "invalidEmail": "Enter a valid email address.",
     "mustBalance": "Total debit must equal total credit.",
     "minLines": "At least two lines are required.",

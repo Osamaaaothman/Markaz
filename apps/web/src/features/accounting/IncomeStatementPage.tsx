@@ -10,6 +10,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { exportReport, type ExportFormat } from "./export-report";
 import { useFiscalPeriods } from "./use-fiscal-periods";
+import { useAccountLabel } from "./use-account-label";
 import { useIncomeStatement, type IncomeStatementLine } from "./use-income-statement";
 
 export function IncomeStatementPage(): React.JSX.Element {
@@ -127,6 +128,7 @@ function IncomeStatementTable({
   readonly currency: string;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const accountLabel = useAccountLabel();
   return (
     <DataTable
       value={[...lines]}
@@ -142,7 +144,7 @@ function IncomeStatementTable({
         body={(line: IncomeStatementLine) => (
           <span className="erp-table__account">
             <span className="erp-table__account-code">{line.accountCode}</span>
-            <span className="erp-table__account-name">{line.accountName}</span>
+            <span className="erp-table__account-name">{accountLabel(line.accountId, line.accountName)}</span>
           </span>
         )}
       />

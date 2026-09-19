@@ -7,10 +7,12 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { exportReport, type ExportFormat } from "./export-report";
+import { useAccountLabel } from "./use-account-label";
 import { useTrialBalance, type TrialBalanceLine } from "./use-trial-balance";
 
 export function TrialBalancePage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const accountLabel = useAccountLabel();
   const { data: currentUser } = useCurrentUser();
   const { data, isPending, isError, refetch } = useTrialBalance();
 
@@ -60,7 +62,7 @@ export function TrialBalancePage(): React.JSX.Element {
             body={(line: TrialBalanceLine) => (
               <span className="erp-table__account">
                 <span className="erp-table__account-code">{line.accountCode}</span>
-                <span className="erp-table__account-name">{line.accountName}</span>
+                <span className="erp-table__account-name">{accountLabel(line.accountId, line.accountName)}</span>
               </span>
             )}
           />
