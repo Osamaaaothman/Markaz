@@ -11,7 +11,12 @@
     "incomeStatement": "قائمة الدخل",
     "journalEntries": "القيود المحاسبية",
     "usersRoles": "المستخدمون والأدوار",
-    "parties": "الجهات"
+    "parties": "الجهات",
+    "groups": {
+      "accounting": "المحاسبة",
+      "masterData": "البيانات الأساسية",
+      "settings": "الإعدادات"
+    }
   },
   "actions": {
     "save": "حفظ",

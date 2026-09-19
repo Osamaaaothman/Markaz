@@ -50,6 +50,14 @@ body {
   display: none;
   border-inline-end: 1px solid var(--erp-border);
   background: var(--erp-surface);
+  /* Stays put while the page scrolls: pinned to the top, exactly one screen tall, and it
+     scrolls by itself if the menu is longer than the screen. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
 }
 
 .erp-shell__main {
@@ -186,6 +194,16 @@ body {
   background: color-mix(in srgb, var(--erp-brand) 12%, transparent);
   color: var(--erp-brand);
   font-weight: 600;
+}
+
+.erp-sidebar__group {
+  display: block;
+  margin: 1rem 0.75rem 0.35rem;
+  color: var(--erp-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 /* ---------- topbar ---------- */

@@ -11,7 +11,12 @@
     "incomeStatement": "Income statement",
     "journalEntries": "Journal entries",
     "usersRoles": "Users & roles",
-    "parties": "Parties"
+    "parties": "Parties",
+    "groups": {
+      "accounting": "Accounting",
+      "masterData": "Master data",
+      "settings": "Settings"
+    }
   },
   "actions": {
     "save": "Save",

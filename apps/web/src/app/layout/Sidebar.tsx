@@ -26,8 +26,12 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
         </div>
       </div>
       <ul className="erp-sidebar__nav">
-        {visibleItems.map((item) => (
-          <li key={item.to}>
+        {visibleItems.map((item, index) => (
+          <li key={item.to} className="erp-sidebar__item">
+            {/* A heading appears where the group changes, so an empty group never shows one. */}
+            {item.groupKey && item.groupKey !== visibleItems[index - 1]?.groupKey ? (
+              <span className="erp-sidebar__group">{t(item.groupKey)}</span>
+            ) : null}
             <NavLink
               to={item.to}
               end={item.to === "/"}
