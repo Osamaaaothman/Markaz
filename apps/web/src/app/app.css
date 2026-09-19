@@ -600,8 +600,11 @@ body {
    right padding) — but it renders past its container's right edge instead of
    into that padding, overflowing the dialog. The icon already sits at
    `right: 12px` inside the input's 28px padding-right, so dropping the
-   negative margin fixes the overflow without covering the icon. */
-.p-dropdown-filter-container .p-dropdown-filter,
-.p-multiselect-filter-container .p-multiselect-filter {
-  margin-inline-end: 0;
+   negative margin fixes the overflow without covering the icon. Physical
+   `margin-right` on purpose (not the logical property): PrimeReact's own rule is
+   physical in both directions, so a logical override would zero the wrong side
+   under RTL and leave the overflow in place. */
+.p-dropdown-panel .p-dropdown-filter-container .p-dropdown-filter,
+.p-multiselect-panel .p-multiselect-filter-container .p-multiselect-filter {
+  margin-right: 0;
 }
