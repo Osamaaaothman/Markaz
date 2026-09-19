@@ -3,12 +3,10 @@ import { AxiosError } from "axios";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { Button } from "primereact/button";
+import { Password } from "primereact/password";
+import { InputText } from "primereact/inputtext";
 import { z } from "zod";
-import { Button } from "../../shared/ui/Button";
-import { Card, CardContent, CardHeader } from "../../shared/ui/Card";
-import { Field } from "../../shared/ui/Field";
-import { Input } from "../../shared/ui/Input";
-import { PasswordInput } from "../../shared/ui/PasswordInput";
 import { useLogin } from "./use-login";
 
 // Messages are translation-key suffixes, not literal text (looked up via
@@ -40,65 +38,58 @@ export function LoginPage(): React.JSX.Element {
   const isInvalidCredentials = login.error instanceof AxiosError && login.error.response?.status === 401;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center gap-3 text-center">
-          <span className="flex size-11 items-center justify-center rounded-lg bg-primary font-serif text-lg font-medium text-primary-foreground">
-            م
-          </span>
-          <div>
-            <h1 className="font-serif text-2xl font-medium tracking-tight text-foreground">{t("auth.login.title")}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{t("auth.login.subtitle")}</p>
-          </div>
-        </CardHeader>
-        <CardContent className="pb-6">
-          <form className="flex flex-col gap-4" onSubmit={(e) => void onSubmit(e)} noValidate>
-            <Field
-              htmlFor="email"
-              label={t("auth.login.email")}
-              error={errors.email ? t(`validation.${errors.email.message}`) : undefined}
-            >
-              <Input
-                id="email"
-                autoComplete="username"
-                aria-invalid={Boolean(errors.email)}
-                {...register("email")}
+    <div className="erp-auth-page">
+      <form className="erp-auth-card" onSubmit={(e) => void onSubmit(e)} noValidate>
+        <div className="erp-auth-card__brand">
+          <span className="erp-sidebar__brand-mark">م</span>
+        </div>
+        <h1 className="erp-auth-card__title">{t("auth.login.title")}</h1>
+        <p className="erp-auth-card__subtitle">{t("auth.login.subtitle")}</p>
+
+        <div className="erp-field">
+          <label htmlFor="email">{t("auth.login.email")}</label>
+          <InputText id="email" autoComplete="username" invalid={Boolean(errors.email)} {...register("email")} />
+          {errors.email ? (
+            <span className="erp-field__error">{t(`validation.${errors.email.message}`)}</span>
+          ) : null}
+        </div>
+
+        <div className="erp-field">
+          <label htmlFor="password">{t("auth.login.password")}</label>
+          <Controller
+            control={control}
+            name="password"
+            render={({ field }) => (
+              <Password
+                inputId="password"
+                feedback={false}
+                toggleMask
+                autoComplete="current-password"
+                invalid={Boolean(errors.password)}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
               />
-            </Field>
+            )}
+          />
+          {errors.password ? (
+            <span className="erp-field__error">{t(`validation.${errors.password.message}`)}</span>
+          ) : null}
+        </div>
 
-            <Field
-              htmlFor="password"
-              label={t("auth.login.password")}
-              error={errors.password ? t(`validation.${errors.password.message}`) : undefined}
-            >
-              <Controller
-                control={control}
-                name="password"
-                render={({ field }) => (
-                  <PasswordInput
-                    id="password"
-                    autoComplete="current-password"
-                    aria-invalid={Boolean(errors.password)}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                  />
-                )}
-              />
-            </Field>
+        {login.isError ? (
+          <p className="erp-auth-card__error" role="alert">
+            {isInvalidCredentials ? t("auth.login.invalidCredentials") : t("auth.login.genericError")}
+          </p>
+        ) : null}
 
-            {login.isError ? (
-              <p className="text-center text-sm font-medium text-destructive" role="alert">
-                {isInvalidCredentials ? t("auth.login.invalidCredentials") : t("auth.login.genericError")}
-              </p>
-            ) : null}
-
-            <Button type="submit" size="lg" loading={login.isPending} className="mt-1 w-full">
-              {t("auth.login.submit")}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+        <Button
+          type="submit"
+          label={t("auth.login.submit")}
+          loading={login.isPending}
+          className="erp-auth-card__submit"
+        />
+      </form>
     </div>
   );
 }

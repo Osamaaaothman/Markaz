@@ -5,15 +5,13 @@ import { useThemeStore } from "./theme-store";
 
 const LINK_ID = "prime-theme-link";
 
-// TRANSITIONAL (frontend design-system migration, see
-// GWEB-UI-DESIGN-SYSTEM.md-driven redesign): pages not yet migrated off
-// PrimeReact's default styling still need the Lara stylesheet swap below to
-// get any dark-mode support at all, so this keeps swapping it for now. Pages
-// already migrated read the new Tailwind `.dark` class this hook now also
-// toggles on <html>, which is the token system's actual switch (see
-// tokens.css's `@custom-variant dark`). Once every PrimeReact usage is either
-// migrated or moved to `unstyled`+`pt` styling (redesign's final cleanup
-// phase), the Lara `<link>` swap goes away and only the `.dark` class remains.
+// PrimeReact's classic theme system ships one complete stylesheet per
+// light/dark variant (not CSS-variable-driven light/dark within one file), so
+// switching is a matter of pointing one <link> at a different built asset URL —
+// the standard, documented technique for a runtime theme switch on this
+// (still-current) styling API. `?url` gives the real hashed build output path
+// (Vite feature) rather than inlining the CSS, so this stays one stylesheet
+// swap, not two bundled copies fighting for specificity.
 export function usePrimeTheme(): void {
   const mode = useThemeStore((state) => state.mode);
 
@@ -27,6 +25,5 @@ export function usePrimeTheme(): void {
     }
     link.href = mode === "dark" ? darkThemeUrl : lightThemeUrl;
     document.documentElement.dataset.themeMode = mode;
-    document.documentElement.classList.toggle("dark", mode === "dark");
   }, [mode]);
 }

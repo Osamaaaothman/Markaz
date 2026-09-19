@@ -27,8 +27,7 @@
     "new": "جديد",
     "loadMore": "تحميل المزيد",
     "exportPdf": "تصدير PDF",
-    "exportCsv": "تصدير CSV",
-    "openMenu": "فتح القائمة"
+    "exportCsv": "تصدير CSV"
   },
   "status": {
     "loading": "جارٍ التحميل…",

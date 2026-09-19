@@ -27,8 +27,7 @@
     "new": "New",
     "loadMore": "Load more",
     "exportPdf": "Export PDF",
-    "exportCsv": "Export CSV",
-    "openMenu": "Open menu"
+    "exportCsv": "Export CSV"
   },
   "status": {
     "loading": "Loading…",
