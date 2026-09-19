@@ -9,6 +9,8 @@ export * from "./accounting/accounting-engine.service.js";
 export * from "./accounting/trial-balance.service.js";
 export * from "./accounting/account-balances.util.js";
 export * from "./accounting/account-balances.service.js";
+export * from "./accounting/chart-of-accounts.service.js";
+export * from "./parties/party.service.js";
 export * from "./accounting/balance-sheet.service.js";
 export * from "./accounting/income-statement.service.js";
 export * from "./outbox/outbox-writer.js";
