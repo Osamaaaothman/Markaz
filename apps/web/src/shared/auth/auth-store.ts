@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { queryClient } from "../api/query-client";
 
 // docs/08-FRONTEND-I18N-RULES.md §2: "Server data never goes into Zustand" — this
 // store deliberately holds ONLY the token pair and login/logout actions, never
@@ -22,7 +23,13 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       setTokens: ({ accessToken, refreshToken }) => set({ accessToken, refreshToken }),
-      clear: () => set({ accessToken: null, refreshToken: null }),
+      // Logging out (or losing the session) must also drop every cached server response:
+      // the profile and permissions of the previous user would otherwise still be served
+      // to whoever signs in next, until the cache happened to expire.
+      clear: () => {
+        set({ accessToken: null, refreshToken: null });
+        queryClient.clear();
+      },
     }),
     { name: "erp-auth" },
   ),
