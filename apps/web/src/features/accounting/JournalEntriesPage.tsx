@@ -5,15 +5,18 @@ import { Calendar } from "primereact/calendar";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
+import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryDetailDialog } from "./JournalEntryDetailDialog";
 import { JournalEntryForm } from "./JournalEntryForm";
 import { useJournalEntries, type JournalEntrySummary } from "./use-journal-entries";
 
 export function JournalEntriesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const { canAll } = usePermissions();
   const [filterRange, setFilterRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
   const filter = {
     ...(filterRange.from ? { from: toDateOnlyIsoString(filterRange.from) } : {}),
@@ -32,7 +35,14 @@ export function JournalEntriesPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("accounting.journalEntries.title")}</h1>
           <p className="erp-page__subtitle">{t("accounting.journalEntries.subtitle")}</p>
         </div>
-        <Button label={t("accounting.journalEntries.new")} icon="pi pi-plus" onClick={() => setFormVisible(true)} />
+        {/* The entry form loads the account list and the fiscal periods, so creating one
+            also needs those two read permissions — not just journal_entry:create. */}
+        <PermissionButton
+          allowed={canAll(["journal_entry:create", "account:read", "fiscal_period:read"])}
+          label={t("accounting.journalEntries.new")}
+          icon="pi pi-plus"
+          onClick={() => setFormVisible(true)}
+        />
       </div>
 
       <div className="erp-form__row">

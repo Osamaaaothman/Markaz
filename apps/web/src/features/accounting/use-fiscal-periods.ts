@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../shared/api/client";
+import { usePermissions } from "../../shared/auth/use-permissions";
 
 export interface FiscalPeriodSummary {
   readonly id: string;
@@ -9,9 +10,11 @@ export interface FiscalPeriodSummary {
 }
 
 export function useFiscalPeriods() {
+  const { can } = usePermissions();
   return useQuery({
     queryKey: ["fiscalPeriods"],
     queryFn: async () => (await apiClient.get<FiscalPeriodSummary[]>("/v1/fiscal-periods")).data,
     staleTime: 5 * 60_000,
+    enabled: can("fiscal_period:read"),
   });
 }

@@ -13,8 +13,10 @@ import { SelectButton } from "primereact/selectbutton";
 import { Tag } from "primereact/tag";
 import { TreeTable } from "primereact/treetable";
 import type { TreeNode } from "primereact/treenode";
+import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { PermissionButton } from "../../shared/ui/PermissionButton";
 import {
   buildAccountTree,
   expandedKeysForLevel,
@@ -245,6 +247,7 @@ function typeLabelKey(type: string): string {
 export function ChartOfAccountsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data, isPending, isError, refetch } = useChartOfAccounts();
+  const { can } = usePermissions();
   const [addVisible, setAddVisible] = useState(false);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<LevelChoice | null>(DEFAULT_LEVEL);
@@ -298,7 +301,8 @@ export function ChartOfAccountsPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("accounting.chartOfAccounts.title")}</h1>
           <p className="erp-page__subtitle">{t("accounting.chartOfAccounts.subtitle")}</p>
         </div>
-        <Button
+        <PermissionButton
+          allowed={can("account:create")}
           label={t("accounting.chartOfAccounts.addAccount")}
           icon="pi pi-plus"
           onClick={() => setAddVisible(true)}

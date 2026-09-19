@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../shared/api/client";
+import { usePermissions } from "../../shared/auth/use-permissions";
 
 export interface UserRoleSummary {
   readonly id: string;
@@ -20,10 +21,12 @@ export interface CreateUserPayload {
 }
 
 export function useUsers() {
+  const { can } = usePermissions();
   return useQuery({
     queryKey: ["users"],
     queryFn: async () => (await apiClient.get<UserSummary[]>("/v1/users")).data,
     staleTime: 30_000,
+    enabled: can("user:read"),
   });
 }
 

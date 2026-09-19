@@ -292,6 +292,11 @@ body {
   text-align: center;
 }
 
+.erp-no-permission {
+  display: inline-flex;
+  cursor: not-allowed;
+}
+
 .erp-button-link {
   background: none;
   border: none;

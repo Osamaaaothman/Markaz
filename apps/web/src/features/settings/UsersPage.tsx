@@ -11,7 +11,9 @@ import { InputText } from "primereact/inputtext";
 import { MultiSelect } from "primereact/multiselect";
 import { TabPanel, TabView } from "primereact/tabview";
 import { Tag } from "primereact/tag";
+import { usePermissions } from "../../shared/auth/use-permissions";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useUsers, useCreateUser, useAssignUserRoles, type UserSummary } from "./use-users";
 import { useRoles, usePermissionCatalog, useCreateRole } from "./use-roles";
 import { groupPermissionsByResource, splitPermissionCode } from "./permission-labels";
@@ -71,7 +73,9 @@ function AddUserDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
             {...register("email")}
             className={errors.email ? "p-invalid" : ""}
           />
-          {errors.email ? <small className="erp-field__error">{t("validation.invalidEmail")}</small> : null}
+          {errors.email ? (
+            <small className="erp-field__error">{t("validation.invalidEmail")}</small>
+          ) : null}
         </div>
 
         <div className="erp-field">
@@ -82,7 +86,9 @@ function AddUserDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
             {...register("password")}
             className={errors.password ? "p-invalid" : ""}
           />
-          {errors.password ? <small className="erp-field__error">{t("validation.required")}</small> : null}
+          {errors.password ? (
+            <small className="erp-field__error">{t("validation.required")}</small>
+          ) : null}
         </div>
 
         <div className="erp-field">
@@ -118,13 +124,7 @@ function AddUserDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
 
 // ─── Assign-roles dialog ─────────────────────────────────────────────────────
 
-function AssignRolesDialog({
-  user,
-  onHide,
-}: {
-  user: UserSummary | null;
-  onHide: () => void;
-}) {
+function AssignRolesDialog({ user, onHide }: { user: UserSummary | null; onHide: () => void }) {
   const { t } = useTranslation();
   const { data: roles } = useRoles();
   const assignRoles = useAssignUserRoles(user?.id ?? "");
@@ -169,7 +169,12 @@ function AssignRolesDialog({
 
         <div className="erp-form__actions">
           <Button label={t("actions.cancel")} type="button" text onClick={onHide} />
-          <Button label={t("actions.save")} type="button" loading={assignRoles.isPending} onClick={onSave} />
+          <Button
+            label={t("actions.save")}
+            type="button"
+            loading={assignRoles.isPending}
+            onClick={onSave}
+          />
         </div>
       </div>
     </Dialog>
@@ -229,7 +234,9 @@ function AddRoleDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
             {...register("name")}
             className={errors.name ? "p-invalid" : ""}
           />
-          {errors.name ? <small className="erp-field__error">{t("validation.required")}</small> : null}
+          {errors.name ? (
+            <small className="erp-field__error">{t("validation.required")}</small>
+          ) : null}
         </div>
 
         <div className="erp-field">
@@ -278,8 +285,21 @@ function AddRoleDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
 export function UsersPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const listFormat = new Intl.ListFormat(i18n.language, { style: "narrow", type: "conjunction" });
-  const { data: users, isPending: usersPending, isError: usersError, refetch: refetchUsers } = useUsers();
-  const { data: roles, isPending: rolesPending, isError: rolesError, refetch: refetchRoles } = useRoles();
+  const {
+    data: users,
+    isPending: usersPending,
+    isError: usersError,
+    refetch: refetchUsers,
+  } = useUsers();
+  const {
+    data: roles,
+    isPending: rolesPending,
+    isError: rolesError,
+    refetch: refetchRoles,
+  } = useRoles();
+  const { can } = usePermissions();
+  const canReadUsers = can("user:read");
+  const canReadRoles = can("role:read");
 
   const [addUserVisible, setAddUserVisible] = useState(false);
   const [addRoleVisible, setAddRoleVisible] = useState(false);
@@ -295,132 +315,156 @@ export function UsersPage(): React.JSX.Element {
       </div>
 
       <TabView>
-        {/* ── Users tab ── */}
-        <TabPanel header={t("settings.usersRoles.usersTab")}>
-          <div className="erp-page__header-actions">
-            <Button
-              label={t("settings.usersRoles.addUser")}
-              icon="pi pi-plus"
-              onClick={() => setAddUserVisible(true)}
-            />
-          </div>
-
-          {usersPending ? (
-            <PageSkeleton />
-          ) : usersError ? (
-            <div className="erp-page">
-              <p className="erp-page__error">{t("status.error")}</p>
-              <button type="button" className="erp-button-link" onClick={() => void refetchUsers()}>
-                {t("actions.retry")}
-              </button>
+        {/* ── Users tab ── (only for users who may read users) */}
+        {canReadUsers ? (
+          <TabPanel header={t("settings.usersRoles.usersTab")}>
+            <div className="erp-page__header-actions">
+              <PermissionButton
+                allowed={can("user:create")}
+                label={t("settings.usersRoles.addUser")}
+                icon="pi pi-plus"
+                onClick={() => setAddUserVisible(true)}
+              />
             </div>
-          ) : (
-            <DataTable
-              value={users}
-              className="erp-table"
-              stripedRows
-              showGridlines
-              size="small"
-              emptyMessage={t("status.empty")}
-            >
-              <Column field="email" header={t("settings.usersRoles.email")} sortable />
-              <Column
-                header={t("settings.usersRoles.roles")}
-                body={(row: UserSummary) =>
-                  row.roles.length === 0 ? (
-                    <span style={{ color: "var(--erp-text-muted)" }}>{t("settings.usersRoles.noRoles")}</span>
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
-                      {row.roles.map((r) => (
-                        <Tag key={r.id} value={r.name} severity="secondary" />
+
+            {usersPending ? (
+              <PageSkeleton />
+            ) : usersError ? (
+              <div className="erp-page">
+                <p className="erp-page__error">{t("status.error")}</p>
+                <button
+                  type="button"
+                  className="erp-button-link"
+                  onClick={() => void refetchUsers()}
+                >
+                  {t("actions.retry")}
+                </button>
+              </div>
+            ) : (
+              <DataTable
+                value={users}
+                className="erp-table"
+                stripedRows
+                showGridlines
+                size="small"
+                emptyMessage={t("status.empty")}
+              >
+                <Column field="email" header={t("settings.usersRoles.email")} sortable />
+                <Column
+                  header={t("settings.usersRoles.roles")}
+                  body={(row: UserSummary) =>
+                    row.roles.length === 0 ? (
+                      <span style={{ color: "var(--erp-text-muted)" }}>
+                        {t("settings.usersRoles.noRoles")}
+                      </span>
+                    ) : (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                        {row.roles.map((r) => (
+                          <Tag key={r.id} value={r.name} severity="secondary" />
+                        ))}
+                      </div>
+                    )
+                  }
+                />
+                <Column
+                  header={t("settings.usersRoles.status")}
+                  body={(row: UserSummary) => (
+                    <Tag
+                      value={
+                        row.isActive
+                          ? t("settings.usersRoles.active")
+                          : t("settings.usersRoles.inactive")
+                      }
+                      severity={row.isActive ? "success" : "warning"}
+                    />
+                  )}
+                  style={{ width: "8rem" }}
+                />
+                <Column
+                  header=""
+                  body={(row: UserSummary) => (
+                    // The dialog lists the roles to pick from, so it needs role:read as well.
+                    <PermissionButton
+                      allowed={can("role:assign") && can("role:read")}
+                      label={t("settings.usersRoles.assignRoles")}
+                      icon="pi pi-users"
+                      text
+                      size="small"
+                      onClick={() => setAssignTarget(row)}
+                    />
+                  )}
+                  style={{ width: "10rem" }}
+                />
+              </DataTable>
+            )}
+          </TabPanel>
+        ) : null}
+
+        {/* ── Roles tab ── (only for users who may read roles) */}
+        {canReadRoles ? (
+          <TabPanel header={t("settings.usersRoles.rolesTab")}>
+            <div className="erp-page__header-actions">
+              <PermissionButton
+                allowed={can("role:create")}
+                label={t("settings.usersRoles.addRole")}
+                icon="pi pi-plus"
+                onClick={() => setAddRoleVisible(true)}
+              />
+            </div>
+
+            {rolesPending ? (
+              <PageSkeleton />
+            ) : rolesError ? (
+              <div className="erp-page">
+                <p className="erp-page__error">{t("status.error")}</p>
+                <button
+                  type="button"
+                  className="erp-button-link"
+                  onClick={() => void refetchRoles()}
+                >
+                  {t("actions.retry")}
+                </button>
+              </div>
+            ) : (
+              <DataTable
+                value={roles}
+                className="erp-table"
+                stripedRows
+                showGridlines
+                size="small"
+                emptyMessage={t("status.empty")}
+              >
+                <Column
+                  field="name"
+                  header={t("settings.usersRoles.roleName")}
+                  sortable
+                  style={{ width: "12rem" }}
+                />
+                <Column
+                  header={t("settings.usersRoles.permissions")}
+                  body={(row: { permissions: readonly string[] }) => (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
+                      {groupPermissionsByResource(row.permissions).map((group) => (
+                        <Tag
+                          key={group.resource}
+                          severity="info"
+                          value={`${t(`settings.usersRoles.resources.${group.resource}`, group.resource)}: ${listFormat.format(
+                            group.actions.map((a) => t(`settings.usersRoles.actions.${a}`, a)),
+                          )}`}
+                        />
                       ))}
                     </div>
-                  )
-                }
-              />
-              <Column
-                header={t("settings.usersRoles.status")}
-                body={(row: UserSummary) => (
-                  <Tag
-                    value={row.isActive ? t("settings.usersRoles.active") : t("settings.usersRoles.inactive")}
-                    severity={row.isActive ? "success" : "warning"}
-                  />
-                )}
-                style={{ width: "8rem" }}
-              />
-              <Column
-                header=""
-                body={(row: UserSummary) => (
-                  <Button
-                    label={t("settings.usersRoles.assignRoles")}
-                    icon="pi pi-users"
-                    text
-                    size="small"
-                    onClick={() => setAssignTarget(row)}
-                  />
-                )}
-                style={{ width: "10rem" }}
-              />
-            </DataTable>
-          )}
-        </TabPanel>
-
-        {/* ── Roles tab ── */}
-        <TabPanel header={t("settings.usersRoles.rolesTab")}>
-          <div className="erp-page__header-actions">
-            <Button
-              label={t("settings.usersRoles.addRole")}
-              icon="pi pi-plus"
-              onClick={() => setAddRoleVisible(true)}
-            />
-          </div>
-
-          {rolesPending ? (
-            <PageSkeleton />
-          ) : rolesError ? (
-            <div className="erp-page">
-              <p className="erp-page__error">{t("status.error")}</p>
-              <button type="button" className="erp-button-link" onClick={() => void refetchRoles()}>
-                {t("actions.retry")}
-              </button>
-            </div>
-          ) : (
-            <DataTable
-              value={roles}
-              className="erp-table"
-              stripedRows
-              showGridlines
-              size="small"
-              emptyMessage={t("status.empty")}
-            >
-              <Column field="name" header={t("settings.usersRoles.roleName")} sortable style={{ width: "12rem" }} />
-              <Column
-                header={t("settings.usersRoles.permissions")}
-                body={(row: { permissions: readonly string[] }) => (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                    {groupPermissionsByResource(row.permissions).map((group) => (
-                      <Tag
-                        key={group.resource}
-                        severity="info"
-                        value={`${t(`settings.usersRoles.resources.${group.resource}`, group.resource)}: ${listFormat.format(
-                          group.actions.map((a) => t(`settings.usersRoles.actions.${a}`, a)),
-                        )}`}
-                      />
-                    ))}
-                  </div>
-                )}
-              />
-            </DataTable>
-          )}
-        </TabPanel>
+                  )}
+                />
+              </DataTable>
+            )}
+          </TabPanel>
+        ) : null}
       </TabView>
 
       <AddUserDialog visible={addUserVisible} onHide={() => setAddUserVisible(false)} />
       <AddRoleDialog visible={addRoleVisible} onHide={() => setAddRoleVisible(false)} />
-      <AssignRolesDialog
-        user={assignTarget}
-        onHide={() => setAssignTarget(null)}
-      />
+      <AssignRolesDialog user={assignTarget} onHide={() => setAssignTarget(null)} />
     </div>
   );
 }

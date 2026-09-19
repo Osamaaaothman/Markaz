@@ -32,7 +32,9 @@
   "status": {
     "loading": "Loading…",
     "error": "Something went wrong.",
-    "empty": "Nothing here yet."
+    "empty": "Nothing here yet.",
+    "noAccess": "You don't have access to this page.",
+    "noPermission": "You don't have permission for this action."
   },
   "theme": {
     "switchToLight": "Switch to light mode",
