@@ -443,7 +443,7 @@ function EditAccountDialog({
         {account ? (
           <div className="erp-field">
             <label>{t("accounting.chartOfAccounts.id")}</label>
-            <CopyId id={account.id} full />
+            <CopyId value={account.ref} uuid={account.id} />
           </div>
         ) : null}
 
@@ -666,7 +666,10 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             <Column
               header={t("accounting.chartOfAccounts.id")}
               style={{ width: "8rem" }}
-              body={(node: TreeNode) => <CopyId id={(node.data as ChartNodeData).id} />}
+              body={(node: TreeNode) => {
+                const account = node.data as ChartNodeData;
+                return <CopyId value={account.ref} uuid={account.id} />;
+              }}
             />
             <Column
               header={t("accounting.chartOfAccounts.code")}

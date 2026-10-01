@@ -213,7 +213,8 @@
     "searchPlaceholder": "ابحث بالاسم أو الهاتف أو البريد",
     "noResults": "لا توجد جهات مطابقة.",
     "createError": "تعذّر إضافة هذه الجهة.",
-    "updateError": "تعذّر حفظ هذه الجهة."
+    "updateError": "تعذّر حفظ هذه الجهة.",
+    "id": "المعرّف"
   },
   "settings": {
     "usersRoles": {
@@ -257,7 +258,8 @@
       "createRoleSuccess": "تم إنشاء الدور.",
       "createRoleError": "تعذّر إنشاء الدور.",
       "assignRolesSuccess": "تم تحديث الأدوار.",
-      "assignRolesError": "تعذّر تحديث الأدوار."
+      "assignRolesError": "تعذّر تحديث الأدوار.",
+      "id": "المعرّف"
     }
   },
   "validation": {

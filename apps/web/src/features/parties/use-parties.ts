@@ -7,6 +7,7 @@ export type PartyKind = (typeof PARTY_KINDS)[number];
 
 export interface PartySummary {
   readonly id: string;
+  readonly ref: string;
   readonly name: string;
   readonly nameAr: string | null;
   readonly kind: string;

@@ -12,6 +12,7 @@ import { MultiSelect } from "primereact/multiselect";
 import { TabPanel, TabView } from "primereact/tabview";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
+import { CopyId } from "../../shared/ui/CopyId";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useUsers, useCreateUser, useAssignUserRoles, type UserSummary } from "./use-users";
@@ -351,6 +352,11 @@ export function UsersPage(): React.JSX.Element {
               >
                 <Column field="email" header={t("settings.usersRoles.email")} sortable />
                 <Column
+                  header={t("settings.usersRoles.id")}
+                  style={{ width: "8rem" }}
+                  body={(row: UserSummary) => <CopyId value={row.ref} uuid={row.id} />}
+                />
+                <Column
                   header={t("settings.usersRoles.roles")}
                   body={(row: UserSummary) =>
                     row.roles.length === 0 ? (
@@ -439,6 +445,11 @@ export function UsersPage(): React.JSX.Element {
                   header={t("settings.usersRoles.roleName")}
                   sortable
                   style={{ width: "12rem" }}
+                />
+                <Column
+                  header={t("settings.usersRoles.id")}
+                  style={{ width: "8rem" }}
+                  body={(row: { id: string; ref: string }) => <CopyId value={row.ref} uuid={row.id} />}
                 />
                 <Column
                   header={t("settings.usersRoles.permissions")}

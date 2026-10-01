@@ -213,7 +213,8 @@
     "searchPlaceholder": "Search by name, phone or email",
     "noResults": "No parties match.",
     "createError": "Could not add this party.",
-    "updateError": "Could not save this party."
+    "updateError": "Could not save this party.",
+    "id": "ID"
   },
   "settings": {
     "usersRoles": {
@@ -257,7 +258,8 @@
       "createRoleSuccess": "Role created.",
       "createRoleError": "Couldn't create role.",
       "assignRolesSuccess": "Roles updated.",
-      "assignRolesError": "Couldn't update roles."
+      "assignRolesError": "Couldn't update roles.",
+      "id": "ID"
     }
   },
   "validation": {
