@@ -7,6 +7,7 @@ import type {
   PostingResult,
   TransactionClient,
 } from "../contracts.js";
+import { findOpenFiscalPeriod } from "./fiscal-period.util.js";
 
 export class InvalidPostingCommandError extends Error {}
 export class AccountNotPostableError extends Error {}
@@ -142,7 +143,7 @@ export class PrismaAccountingEngine implements IAccountingEngine {
       // a new, dated entry; it does not require the original period to still be
       // open (it usually is not, or there would be no need to reverse via a new
       // entry rather than just fixing the draft).
-      const targetPeriod = await this.findOpenPeriodContaining(tx, original.companyId, new Date());
+      const targetPeriod = await findOpenFiscalPeriod(tx, original.companyId, new Date());
       if (!targetPeriod) {
         throw new InvalidPostingCommandError(
           `No open fiscal period found to post the reversal of ${entryId}`,
@@ -194,13 +195,6 @@ export class PrismaAccountingEngine implements IAccountingEngine {
       });
 
       return { journalEntryId: reversalId, number };
-    });
-  }
-
-  private async findOpenPeriodContaining(tx: TransactionClient, companyId: string, date: Date) {
-    return tx.fiscalPeriod.findFirst({
-      where: { companyId, status: "OPEN", startDate: { lte: date }, endDate: { gte: date } },
-      include: { fiscalYear: true },
     });
   }
 
