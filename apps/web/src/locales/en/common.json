@@ -15,8 +15,16 @@
     "groups": {
       "accounting": "Accounting",
       "masterData": "Master data",
-      "settings": "Settings"
-    }
+      "settings": "Settings",
+      "inventory": "Inventory"
+    },
+    "warehouses": "Warehouses",
+    "items": "Items",
+    "stockLevels": "Stock levels",
+    "goodsReceipt": "Goods receipt",
+    "stockIssue": "Stock issue",
+    "stockCount": "Stock count",
+    "accountMapping": "Account mapping"
   },
   "actions": {
     "save": "Save",
@@ -277,6 +285,123 @@
     "mustBalance": "Total debit must equal total credit.",
     "minLines": "At least two lines are required.",
     "positiveAmount": "Enter an amount greater than zero.",
-    "exactlyOneAmount": "Enter either a debit or a credit, not both."
+    "exactlyOneAmount": "Enter either a debit or a credit, not both.",
+    "atLeastOneLine": "At least one line is required."
+  },
+  "inventory": {
+    "id": "ID",
+    "warehouses": {
+      "title": "Warehouses",
+      "subtitle": "Every location that holds stock.",
+      "add": "Add warehouse",
+      "editTitle": "Edit warehouse",
+      "code": "Code",
+      "name": "Name (English)",
+      "nameAr": "Name (Arabic, optional)",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "showInactive": "Show inactive",
+      "searchPlaceholder": "Search by code or name",
+      "edit": "Edit",
+      "createError": "Could not add this warehouse.",
+      "updateError": "Could not save this warehouse.",
+      "duplicateCode": "A warehouse with this code already exists."
+    },
+    "items": {
+      "title": "Items",
+      "subtitle": "Everything the company keeps in stock.",
+      "add": "Add item",
+      "editTitle": "Edit item",
+      "code": "Code",
+      "name": "Name (English)",
+      "nameAr": "Name (Arabic, optional)",
+      "unit": "Unit",
+      "unitPlaceholder": "e.g. EA, KG, M",
+      "reorderPoint": "Reorder point",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "showInactive": "Show inactive",
+      "searchPlaceholder": "Search by code or name",
+      "edit": "Edit",
+      "createError": "Could not add this item.",
+      "updateError": "Could not save this item.",
+      "duplicateCode": "An item with this code already exists."
+    },
+    "stockLevels": {
+      "title": "Stock levels",
+      "subtitle": "On-hand quantity and value, by item and warehouse.",
+      "warehouse": "Warehouse",
+      "allWarehouses": "All warehouses",
+      "belowReorderOnly": "Below reorder point only",
+      "quantity": "Quantity",
+      "averageUnitCost": "Average cost",
+      "value": "Value",
+      "reorderPoint": "Reorder point",
+      "belowReorder": "Below reorder point"
+    },
+    "goodsReceipt": {
+      "title": "Goods receipt",
+      "subtitle": "Record stock received, not yet invoiced by the supplier.",
+      "documentDate": "Document date",
+      "supplier": "Supplier (optional)",
+      "reference": "Reference (optional)",
+      "lines": "Lines",
+      "quantity": "Quantity",
+      "unitCost": "Unit cost",
+      "total": "Total",
+      "submit": "Post receipt",
+      "postError": "Could not post this receipt.",
+      "postedSuccess": "Receipt {{number}} posted."
+    },
+    "stockIssue": {
+      "title": "Stock issue",
+      "subtitle": "Issue stock to a project at its current average cost.",
+      "costCenterRef": "Project / cost centre",
+      "costCenterPlaceholder": "e.g. Project A — Villa 12",
+      "submit": "Post issue",
+      "postError": "Could not post this issue.",
+      "postedSuccess": "Issue {{number}} posted."
+    },
+    "stockCount": {
+      "title": "Stock count",
+      "subtitle": "Compare the physical count to the books, then post the difference.",
+      "recordNew": "Record a new count",
+      "lines": "Lines",
+      "unitCostHint": "The unit cost column is only needed when an item has nothing on hand to average from.",
+      "countedQuantity": "Counted quantity",
+      "unitCostIfNoStock": "Unit cost (if nothing on hand)",
+      "record": "Record count",
+      "recordError": "Could not record this count.",
+      "recordedSuccess": "Count {{number}} recorded — post it below once you're ready.",
+      "recent": "Recent counts",
+      "number": "Number",
+      "lineCount": "Lines",
+      "status": "Status",
+      "posted": "Posted",
+      "draft": "Draft",
+      "post": "Post"
+    },
+    "accountMapping": {
+      "title": "Inventory account mapping",
+      "subtitle": "Which account each inventory posting lands in.",
+      "unset": "Not set",
+      "updateError": "Could not save this mapping.",
+      "keys": {
+        "INVENTORY": "Inventory",
+        "GRNI": "Goods received, not invoiced (GRNI)",
+        "PROJECT_ISSUE_EXPENSE": "Project issue expense",
+        "COUNT_LOSS": "Stock count loss",
+        "COUNT_GAIN": "Stock count gain"
+      },
+      "keyHints": {
+        "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
+        "GRNI": "Credited on receipt — stock received but not yet invoiced by the supplier.",
+        "PROJECT_ISSUE_EXPENSE": "Debited when stock is issued to a project.",
+        "COUNT_LOSS": "Debited when a count finds less stock than the books.",
+        "COUNT_GAIN": "Credited when a count finds more stock than the books."
+      }
+    }
   }
 }

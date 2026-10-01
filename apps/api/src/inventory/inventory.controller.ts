@@ -21,6 +21,7 @@ import {
   type ItemSummary,
   type StockCountPostResult,
   type StockCountRecordResult,
+  type StockCountSummary,
   type StockIssueResult,
   type StockLevelEntry,
   type WarehouseListPage,
@@ -37,6 +38,7 @@ import { CreateWarehouseDto } from "./dto/create-warehouse.dto.js";
 import { ItemsQueryDto } from "./dto/items-query.dto.js";
 import { RecordStockCountDto } from "./dto/record-stock-count.dto.js";
 import { SetAccountMappingDto } from "./dto/set-account-mapping.dto.js";
+import { StockCountsQueryDto } from "./dto/stock-counts-query.dto.js";
 import { StockLevelsQueryDto } from "./dto/stock-levels-query.dto.js";
 import { UpdateItemDto } from "./dto/update-item.dto.js";
 import { UpdateWarehouseDto } from "./dto/update-warehouse.dto.js";
@@ -266,6 +268,12 @@ export class InventoryController {
   }
 
   // ── Stock counts (recorded as a draft, posted as a separate step) ──────────
+
+  @Get("stock-counts")
+  @RequirePermission("stock_count", "read")
+  listStockCounts(@CurrentUser() actor: CurrentUserPayload, @Query() query: StockCountsQueryDto): Promise<StockCountSummary[]> {
+    return this.stockCounts.list(actor.companyId, query);
+  }
 
   @Post("stock-counts")
   @RequirePermission("stock_count", "create")

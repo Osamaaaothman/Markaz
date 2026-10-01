@@ -53,6 +53,21 @@ export interface StockCountPostResult {
   readonly journalEntryId: string | null;
 }
 
+export interface StockCountSummary {
+  readonly id: string;
+  readonly number: string;
+  readonly warehouseId: string;
+  readonly warehouseName: string;
+  readonly documentDate: string;
+  readonly isPosted: boolean;
+  readonly lineCount: number;
+}
+
+export interface StockCountListQuery {
+  readonly warehouseId?: string | undefined;
+  readonly unpostedOnly?: "true" | "false" | undefined;
+}
+
 // A physical count entered as a draft (this is the one M4 document that is not posted at the
 // moment it is created — docs/14 M4), then posted as a separate step once every line has been
 // counted. `unitCost` is captured once, at record time, and reused unchanged at posting
@@ -70,6 +85,28 @@ export class StockCountService {
     private readonly accountMappings: AccountMappingService,
     private readonly audit: IAuditLogger,
   ) {}
+
+  async list(companyId: string, query: StockCountListQuery): Promise<StockCountSummary[]> {
+    const counts = await this.prisma.stockCount.findMany({
+      where: {
+        companyId,
+        ...(query.warehouseId ? { warehouseId: query.warehouseId } : {}),
+        ...(query.unpostedOnly === "true" ? { postedAt: null } : {}),
+      },
+      include: { warehouse: { select: { name: true } }, _count: { select: { lines: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    return counts.map((c) => ({
+      id: c.id,
+      number: c.number,
+      warehouseId: c.warehouseId,
+      warehouseName: c.warehouse.name,
+      documentDate: c.documentDate.toISOString(),
+      isPosted: c.postedAt !== null,
+      lineCount: c._count.lines,
+    }));
+  }
 
   async record(input: RecordStockCountInput, actor: StockCountActor, correlationId: string): Promise<StockCountRecordResult> {
     if (input.lines.length === 0) {
