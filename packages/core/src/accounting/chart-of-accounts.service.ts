@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
+import { allocateRef } from "../reference.js";
 
 export interface AccountPartyRef {
   readonly id: string;
@@ -11,6 +12,7 @@ export interface AccountPartyRef {
 
 export interface ChartOfAccountEntry {
   readonly id: string;
+  readonly ref: string;
   readonly code: string;
   readonly name: string;
   readonly nameAr: string | null;
@@ -75,6 +77,7 @@ export class ChartOfAccountsError extends Error {
 // kept for (name and kind only — enough for a label, no contact details).
 export const CHART_ENTRY_SELECT = {
   id: true,
+  ref: true,
   code: true,
   name: true,
   nameAr: true,
@@ -122,22 +125,26 @@ export class ChartOfAccountsService {
     if (input.partyId) await this.assertActiveParty(actor.companyId, input.partyId);
 
     const id = newId();
-    const account = await this.prisma.account.create({
-      data: {
-        id,
-        companyId: actor.companyId,
-        code: input.code,
-        name: input.name,
-        nameAr: input.nameAr ?? null,
-        type: input.type,
-        normalBalance: normalBalanceFor(input.type),
-        isPostable: input.isPostable,
-        parentId: input.parentId ?? null,
-        partyId: input.partyId ?? null,
-        color: input.color ?? null,
-        createdBy: actor.id,
-      },
-      select: CHART_ENTRY_SELECT,
+    const account = await this.prisma.$transaction(async (tx) => {
+      const ref = await allocateRef(tx, actor.companyId, "account");
+      return tx.account.create({
+        data: {
+          id,
+          ref,
+          companyId: actor.companyId,
+          code: input.code,
+          name: input.name,
+          nameAr: input.nameAr ?? null,
+          type: input.type,
+          normalBalance: normalBalanceFor(input.type),
+          isPostable: input.isPostable,
+          parentId: input.parentId ?? null,
+          partyId: input.partyId ?? null,
+          color: input.color ?? null,
+          createdBy: actor.id,
+        },
+        select: CHART_ENTRY_SELECT,
+      });
     });
 
     await this.audit.log({ actorId: actor.id, action: "account.created", entityType: "Account", entityId: id, after: account, correlationId });

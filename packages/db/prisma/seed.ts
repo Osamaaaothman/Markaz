@@ -22,6 +22,32 @@ process.env.TZ = process.env.TZ ?? "UTC";
 
 const prisma = new PrismaClient();
 
+// Human-readable references (ACC-000217, USR-000001, ROL-000001) — kept in step with
+// packages/core/src/reference.ts (the one every API service goes through), but duplicated
+// here in its own minimal form: packages/db must not depend on @erp/core (core depends on
+// db, and a seed script is not worth the layering that pulling in the full numbering
+// service would add). One table (document_number_series, document type REF_<PREFIX>,
+// fiscal year "ALL") and padding stay identical between the two, so a ref allocated by
+// either one slots into the same sequence.
+const REF_PREFIXES = { account: "ACC", user: "USR", role: "ROL", party: "PRT" } as const;
+
+async function allocateSeedRef(companyId: string, kind: keyof typeof REF_PREFIXES): Promise<string> {
+  const prefix = REF_PREFIXES[kind];
+  const documentType = `REF_${prefix}`;
+  const fiscalYear = "ALL";
+
+  await prisma.documentNumberSeries.upsert({
+    where: { companyId_documentType_fiscalYear: { companyId, documentType, fiscalYear } },
+    create: { id: uuidv7(), companyId, documentType, fiscalYear, prefix: `${prefix}-`, padding: 6, lastNumber: 0 },
+    update: {},
+  });
+  const row = await prisma.documentNumberSeries.update({
+    where: { companyId_documentType_fiscalYear: { companyId, documentType, fiscalYear } },
+    data: { lastNumber: { increment: 1 } },
+  });
+  return `${row.prefix}${String(row.lastNumber).padStart(row.padding, "0")}`;
+}
+
 const PERMISSION_CATALOG = [
   { code: "user:create", description: "Create a new user in this company" },
   { code: "user:read", description: "View users in this company" },
@@ -76,6 +102,7 @@ async function seedChartOfAccounts(companyId: string): Promise<void> {
       where: { companyId_code: { companyId, code: entry.code } },
       create: {
         id: uuidv7(),
+        ref: await allocateSeedRef(companyId, "account"),
         companyId,
         code: entry.code,
         name: entry.name,
@@ -156,7 +183,7 @@ async function main(): Promise<void> {
 
   const adminRole = await prisma.role.upsert({
     where: { companyId_name: { companyId: company.id, name: "Admin" } },
-    create: { id: uuidv7(), companyId: company.id, name: "Admin" },
+    create: { id: uuidv7(), ref: await allocateSeedRef(company.id, "role"), companyId: company.id, name: "Admin" },
     update: {},
   });
 
@@ -183,6 +210,7 @@ async function main(): Promise<void> {
   const admin = await prisma.user.create({
     data: {
       id: uuidv7(),
+      ref: await allocateSeedRef(company.id, "user"),
       companyId: company.id,
       email: adminEmail,
       passwordHash,

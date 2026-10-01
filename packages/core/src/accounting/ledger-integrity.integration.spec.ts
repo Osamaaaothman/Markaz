@@ -73,7 +73,8 @@ describeIfDb("ledger integrity — property-based", () => {
     const created = await Promise.all(
       accountSpecs.map((spec) =>
         prisma.account.create({
-          data: { id: newId(), companyId, code: spec.code, name: spec.name, type: spec.type, normalBalance: spec.normalBalance },
+          // ref: a synthetic, test-only label — only the migration's uniqueness constraint cares.
+          data: { id: newId(), ref: `TEST-${spec.code}`, companyId, code: spec.code, name: spec.name, type: spec.type, normalBalance: spec.normalBalance },
         }),
       ),
     );

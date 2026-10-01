@@ -1,9 +1,11 @@
 import type { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
+import { allocateRef } from "../reference.js";
 
 export interface PartySummary {
   readonly id: string;
+  readonly ref: string;
   readonly name: string;
   readonly nameAr: string | null;
   readonly kind: string;
@@ -51,6 +53,7 @@ export interface PartyActor {
 
 const PARTY_SELECT = {
   id: true,
+  ref: true,
   name: true,
   nameAr: true,
   kind: true,
@@ -108,19 +111,25 @@ export class PartyService {
 
   async create(input: CreatePartyInput, actor: PartyActor, correlationId: string): Promise<PartySummary> {
     const id = newId();
-    const party = await this.prisma.party.create({
-      data: {
-        id,
-        companyId: actor.companyId,
-        name: input.name.trim(),
-        nameAr: blankToNull(input.nameAr),
-        kind: input.kind,
-        phone: blankToNull(input.phone),
-        email: blankToNull(input.email),
-        createdBy: actor.id,
-        updatedBy: actor.id,
-      },
-      select: PARTY_SELECT,
+    // The reference is allocated in the same transaction as the insert, so a failed insert
+    // never burns a number.
+    const party = await this.prisma.$transaction(async (tx) => {
+      const ref = await allocateRef(tx, actor.companyId, "party");
+      return tx.party.create({
+        data: {
+          id,
+          ref,
+          companyId: actor.companyId,
+          name: input.name.trim(),
+          nameAr: blankToNull(input.nameAr),
+          kind: input.kind,
+          phone: blankToNull(input.phone),
+          email: blankToNull(input.email),
+          createdBy: actor.id,
+          updatedBy: actor.id,
+        },
+        select: PARTY_SELECT,
+      });
     });
 
     await this.audit.log({ actorId: actor.id, action: "party.created", entityType: "Party", entityId: id, after: party, correlationId });

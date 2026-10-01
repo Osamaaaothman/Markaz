@@ -1,4 +1,5 @@
 export * from "./contracts.js";
+export * from "./reference.js";
 export * from "./audit/audit-logger.js";
 export * from "./identity/permission.service.js";
 export * from "./licensing/grace-period.js";

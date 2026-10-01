@@ -50,6 +50,8 @@ model Company {
 model User {
   id                  String    @id
   companyId           String    @map("company_id")
+  // Human-readable label (USR-000012), unique per company; the UUID `id` stays the key.
+  ref                 String
   email               String    @unique
   passwordHash        String    @map("password_hash")
   isActive            Boolean   @default(true) @map("is_active")
@@ -65,6 +67,7 @@ model User {
   roles         UserRole[]
   refreshTokens RefreshToken[]
 
+  @@unique([companyId, ref])
   @@index([companyId])
   @@map("users")
 }
@@ -74,6 +77,8 @@ model User {
 model Role {
   id        String   @id
   companyId String   @map("company_id")
+  // Human-readable label (ROL-000003), unique per company; the UUID `id` stays the key.
+  ref       String
   name      String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -84,6 +89,7 @@ model Role {
   users       UserRole[]
 
   @@unique([companyId, name])
+  @@unique([companyId, ref])
   @@map("roles")
 }
 
@@ -268,6 +274,8 @@ model FiscalPeriod {
 model Account {
   id            String   @id
   companyId     String   @map("company_id")
+  // Human-readable label (ACC-000217), unique per company; `code` stays the accounting identifier.
+  ref           String
   code          String
   name          String
   nameAr        String?  @map("name_ar") // Arabic display name; the English `name` stays the fallback
@@ -294,6 +302,7 @@ model Account {
   journalEntryLines JournalEntryLine[]
 
   @@unique([companyId, code])
+  @@unique([companyId, ref])
   @@index([companyId, parentId])
   @@index([companyId, partyId])
   @@map("accounts")
@@ -304,6 +313,8 @@ model Account {
 model Party {
   id        String   @id
   companyId String   @map("company_id")
+  // Human-readable label (PRT-000041), unique per company; the UUID `id` stays the key.
+  ref       String
   name      String
   nameAr    String?  @map("name_ar")
   kind      String // COMPANY | PERSON | EMPLOYEE | OTHER
@@ -319,6 +330,7 @@ model Party {
   company  Company   @relation(fields: [companyId], references: [id])
   accounts Account[]
 
+  @@unique([companyId, ref])
   @@index([companyId, kind])
   @@index([companyId, name])
   @@map("parties")

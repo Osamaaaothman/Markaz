@@ -76,7 +76,8 @@ describeIfDb("account balances roll-up — real database", () => {
     ): Promise<string> =>
       (
         await prisma.account.create({
-          data: { id: newId(), companyId, code, name: code, type, normalBalance, ...extra },
+          // ref: a synthetic, test-only label — only the migration's uniqueness constraint cares.
+          data: { id: newId(), ref: `TEST-${code}`, companyId, code, name: code, type, normalBalance, ...extra },
         })
       ).id;
 

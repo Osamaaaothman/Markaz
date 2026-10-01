@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable } from "@nestjs/common";
 import { newId } from "@erp/shared";
-import type { IAuditLogger } from "@erp/core";
+import { allocateRef, type IAuditLogger } from "@erp/core";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AUDIT_LOGGER } from "./identity.tokens.js";
 import type { CreateRoleDto } from "./dto/create-role.dto.js";
@@ -12,6 +12,7 @@ export interface PermissionEntry {
 
 export interface RoleSummary {
   readonly id: string;
+  readonly ref: string;
   readonly name: string;
   readonly permissions: readonly string[];
 }
@@ -31,11 +32,12 @@ export class RolesService {
   async listRoles(companyId: string): Promise<RoleSummary[]> {
     const roles = await this.prisma.role.findMany({
       where: { companyId },
-      select: { id: true, name: true, permissions: { select: { permission: { select: { code: true } } } } },
+      select: { id: true, ref: true, name: true, permissions: { select: { permission: { select: { code: true } } } } },
       orderBy: { name: "asc" },
     });
     return roles.map((r) => ({
       id: r.id,
+      ref: r.ref,
       name: r.name,
       permissions: r.permissions.map((p) => p.permission.code),
     }));
@@ -50,13 +52,18 @@ export class RolesService {
     });
 
     const id = newId();
-    await this.prisma.role.create({
-      data: {
-        id,
-        companyId,
-        name: dto.name,
-        permissions: { create: permissions.map((p) => ({ permissionId: p.id })) },
-      },
+    const ref = await this.prisma.$transaction(async (tx) => {
+      const allocated = await allocateRef(tx, companyId, "role");
+      await tx.role.create({
+        data: {
+          id,
+          ref: allocated,
+          companyId,
+          name: dto.name,
+          permissions: { create: permissions.map((p) => ({ permissionId: p.id })) },
+        },
+      });
+      return allocated;
     });
 
     await this.audit.log({
@@ -68,6 +75,6 @@ export class RolesService {
       correlationId,
     });
 
-    return { id, name: dto.name, permissions: permissions.map((p) => p.code) };
+    return { id, ref, name: dto.name, permissions: permissions.map((p) => p.code) };
   }
 }
