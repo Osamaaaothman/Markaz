@@ -244,14 +244,22 @@
         "income_statement": "Income statement",
         "fiscal_period": "Fiscal periods",
         "user": "Users",
-        "role": "Roles"
+        "role": "Roles",
+        "warehouse": "Warehouses",
+        "item": "Items",
+        "stock": "Stock levels",
+        "account_mapping": "Inventory account mapping",
+        "goods_receipt": "Goods receipts",
+        "stock_issue": "Stock issues",
+        "stock_count": "Stock counts"
       },
       "actions": {
         "create": "Create",
         "read": "View",
         "reverse": "Reverse",
         "assign": "Assign",
-        "update": "Update"
+        "update": "Update",
+        "post": "Post"
       },
       "createUserSuccess": "User created.",
       "createUserError": "Couldn't create user.",

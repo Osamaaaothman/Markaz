@@ -67,6 +67,23 @@ const PERMISSION_CATALOG = [
   { code: "party:create", description: "Add a party" },
   { code: "party:update", description: "Edit a party" },
   { code: "fiscal_period:read", description: "View fiscal periods" },
+  // M4 — inventory
+  { code: "warehouse:read", description: "View warehouses" },
+  { code: "warehouse:create", description: "Add a warehouse" },
+  { code: "warehouse:update", description: "Edit a warehouse" },
+  { code: "item:read", description: "View items" },
+  { code: "item:create", description: "Add an item" },
+  { code: "item:update", description: "Edit an item" },
+  { code: "stock:read", description: "View stock levels and the reorder list" },
+  { code: "account_mapping:read", description: "View the inventory account mapping" },
+  { code: "account_mapping:update", description: "Change the inventory account mapping" },
+  { code: "goods_receipt:create", description: "Post a goods receipt" },
+  { code: "goods_receipt:read", description: "View goods receipts" },
+  { code: "stock_issue:create", description: "Post a stock issue" },
+  { code: "stock_issue:read", description: "View stock issues" },
+  { code: "stock_count:create", description: "Record a stock count" },
+  { code: "stock_count:read", description: "View stock counts" },
+  { code: "stock_count:post", description: "Post a recorded stock count" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

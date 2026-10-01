@@ -244,14 +244,22 @@
         "income_statement": "قائمة الدخل",
         "fiscal_period": "الفترات المالية",
         "user": "المستخدمون",
-        "role": "الأدوار"
+        "role": "الأدوار",
+        "warehouse": "المستودعات",
+        "item": "الأصناف",
+        "stock": "أرصدة المخزون",
+        "account_mapping": "ربط حسابات المخزون",
+        "goods_receipt": "إيصالات الاستلام",
+        "stock_issue": "إيصالات الصرف",
+        "stock_count": "الجرد"
       },
       "actions": {
         "create": "إنشاء",
         "read": "عرض",
         "reverse": "عكس",
         "assign": "إسناد",
-        "update": "تعديل"
+        "update": "تعديل",
+        "post": "ترحيل"
       },
       "createUserSuccess": "تم إنشاء المستخدم.",
       "createUserError": "تعذّر إنشاء المستخدم.",
