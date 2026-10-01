@@ -17,7 +17,12 @@ fi
 # the word — this repo's own docs legitimately discuss "secret", "password", etc.
 # as policy constantly (docs/09-SECURITY-RULES.md and friends), and .env.example is
 # explicitly meant to hold placeholder values (docs/09 §1) so it is excluded here.
-STAGED_DIFF=$(git diff --cached -- . ':!.env.example' ':!docs/**/*.md')
+# *.spec.ts is excluded too: a redaction test (docs/09 §7 — "write a test that
+# asserts... produces logs containing none of its sensitive values") necessarily
+# assigns dummy values to fields literally named password/secret/apiKey to prove
+# they get stripped — never a real credential, but shaped exactly like this
+# pattern is looking for.
+STAGED_DIFF=$(git diff --cached -- . ':!.env.example' ':!docs/**/*.md' ':!**/*.spec.ts')
 
 if echo "$STAGED_DIFF" | grep -iE "(password|secret|api[_-]?key)[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9+/_-]{8,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|postgres(ql)?://[^ ]*:[^ @]{4,}@" >/dev/null; then
   echo ""

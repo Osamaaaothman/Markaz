@@ -16,7 +16,7 @@
     "seed": "node --env-file=../../.env --experimental-strip-types prisma/seed.ts",
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"no tests yet\""
+    "test": "node --test scripts/coa-template.test.mjs"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",

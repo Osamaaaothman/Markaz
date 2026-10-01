@@ -55,7 +55,4 @@ export class PostJournalEntryDto {
 
   @IsString()
   sourceDocumentId!: string;
-
-  @IsString()
-  idempotencyKey!: string;
 }

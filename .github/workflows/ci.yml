@@ -19,6 +19,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # `npm ci` installs the playwright package but never downloads the actual
+      # Chromium binary — apps/api/src/documents/generic-document.spec.ts needs a
+      # real browser to render a PDF (docs/10-TESTING-RULES.md §1: no mocking the
+      # thing under test). Chromium only (not the full --with-deps set of every
+      # browser) since that's the only engine this repo uses.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Lint
         run: npm run lint
 
@@ -34,11 +42,13 @@ jobs:
       - name: Test
         run: npm run test
 
+      # docs/10-TESTING-RULES.md §2.6: "every key exists in both ar and en — CI
+      # fails otherwise."
+      - name: i18n locale key parity
+        run: npm run i18n:parity
+
       # @nestjs/platform-express hard-pins a vulnerable multer (advisories
       # GHSA-wc9g-mqfw-jrwm and siblings) — forced to a patched version via the
       # root package.json "overrides" field rather than waiting on upstream.
       - name: Dependency audit
         run: npm audit --audit-level=high
-
-      # i18n locale-key-parity check joins this pipeline in M3, once i18next exists
-      # (docs/10-TESTING-RULES.md §2.6) — nothing to check yet in M0.

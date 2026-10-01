@@ -5,14 +5,14 @@
 // Never invents a credential (CLAUDE.md §4) — refuses to run without a real admin
 // email/password supplied via environment, and refuses obvious placeholder values.
 //
-// The chart of accounts below is a generic, uncontroversial starting template
-// (standard 1000s/2000s/3000s/4000s/5000s numbering) — docs/05-ACCOUNTING-INTEGRITY-RULES.md
-// §4: "Each tenant starts from a seeded template and may customise it. The template
-// is data, not code." It is NOT a specific accounting treatment decision; a company
+// The chart of accounts comes from coa-template.json (the accountant-supplied guide,
+// levels 1-4) — docs/05-ACCOUNTING-INTEGRITY-RULES.md §4: "Each tenant starts from a
+// seeded template and may customise it. The template is data, not code." A company
 // customises it after install. Fiscal year defaults to the Gregorian calendar year
 // with 12 monthly periods per docs/01-OPEN-DECISIONS.md assumption C4 — B7 (whether
 // 13-period/adjustment periods are ever needed) is still open and does not block this
 // default.
+import { readFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import { hash } from "@node-rs/argon2";
 import { uuidv7 } from "uuidv7";
@@ -22,14 +22,51 @@ process.env.TZ = process.env.TZ ?? "UTC";
 
 const prisma = new PrismaClient();
 
+// Human-readable references (ACC-000217, USR-000001, ROL-000001) — kept in step with
+// packages/core/src/reference.ts (the one every API service goes through), but duplicated
+// here in its own minimal form: packages/db must not depend on @erp/core (core depends on
+// db, and a seed script is not worth the layering that pulling in the full numbering
+// service would add). One table (document_number_series, document type REF_<PREFIX>,
+// fiscal year "ALL") and padding stay identical between the two, so a ref allocated by
+// either one slots into the same sequence.
+const REF_PREFIXES = { account: "ACC", user: "USR", role: "ROL", party: "PRT" } as const;
+
+async function allocateSeedRef(companyId: string, kind: keyof typeof REF_PREFIXES): Promise<string> {
+  const prefix = REF_PREFIXES[kind];
+  const documentType = `REF_${prefix}`;
+  const fiscalYear = "ALL";
+
+  await prisma.documentNumberSeries.upsert({
+    where: { companyId_documentType_fiscalYear: { companyId, documentType, fiscalYear } },
+    create: { id: uuidv7(), companyId, documentType, fiscalYear, prefix: `${prefix}-`, padding: 6, lastNumber: 0 },
+    update: {},
+  });
+  const row = await prisma.documentNumberSeries.update({
+    where: { companyId_documentType_fiscalYear: { companyId, documentType, fiscalYear } },
+    data: { lastNumber: { increment: 1 } },
+  });
+  return `${row.prefix}${String(row.lastNumber).padStart(row.padding, "0")}`;
+}
+
 const PERMISSION_CATALOG = [
   { code: "user:create", description: "Create a new user in this company" },
   { code: "user:read", description: "View users in this company" },
   { code: "role:create", description: "Create a new role" },
+  { code: "role:read", description: "View roles in this company" },
   { code: "role:assign", description: "Assign a role to a user" },
   { code: "journal_entry:create", description: "Post a manual journal entry" },
+  { code: "journal_entry:read", description: "View journal entries" },
   { code: "journal_entry:reverse", description: "Reverse a posted journal entry" },
   { code: "trial_balance:read", description: "View the trial balance" },
+  { code: "balance_sheet:read", description: "View the balance sheet" },
+  { code: "income_statement:read", description: "View the income statement" },
+  { code: "account:read", description: "View the chart of accounts" },
+  { code: "account:create", description: "Add an account to the chart of accounts" },
+  { code: "account:update", description: "Edit an account's names, linked party and colour" },
+  { code: "party:read", description: "View parties (people, companies, employees)" },
+  { code: "party:create", description: "Add a party" },
+  { code: "party:update", description: "Edit a party" },
+  { code: "fiscal_period:read", description: "View fiscal periods" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);
@@ -37,48 +74,39 @@ const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]
 interface AccountTemplateEntry {
   readonly code: string;
   readonly name: string;
+  readonly nameAr: string;
   readonly type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
   readonly normalBalance: "DEBIT" | "CREDIT";
   readonly isPostable: boolean;
   readonly parentCode?: string;
 }
 
-const CHART_OF_ACCOUNTS_TEMPLATE: readonly AccountTemplateEntry[] = [
-  { code: "1000", name: "Assets", type: "ASSET", normalBalance: "DEBIT", isPostable: false },
-  { code: "1100", name: "Cash", type: "ASSET", normalBalance: "DEBIT", isPostable: true, parentCode: "1000" },
-  { code: "1200", name: "Bank", type: "ASSET", normalBalance: "DEBIT", isPostable: true, parentCode: "1000" },
-  { code: "1300", name: "Accounts Receivable", type: "ASSET", normalBalance: "DEBIT", isPostable: true, parentCode: "1000" },
-  { code: "1400", name: "Inventory", type: "ASSET", normalBalance: "DEBIT", isPostable: true, parentCode: "1000" },
-
-  { code: "2000", name: "Liabilities", type: "LIABILITY", normalBalance: "CREDIT", isPostable: false },
-  { code: "2100", name: "Accounts Payable", type: "LIABILITY", normalBalance: "CREDIT", isPostable: true, parentCode: "2000" },
-  { code: "2200", name: "VAT Payable", type: "LIABILITY", normalBalance: "CREDIT", isPostable: true, parentCode: "2000" },
-
-  { code: "3000", name: "Equity", type: "EQUITY", normalBalance: "CREDIT", isPostable: false },
-  { code: "3100", name: "Owner's Equity", type: "EQUITY", normalBalance: "CREDIT", isPostable: true, parentCode: "3000" },
-  { code: "3200", name: "Retained Earnings", type: "EQUITY", normalBalance: "CREDIT", isPostable: true, parentCode: "3000" },
-
-  { code: "4000", name: "Revenue", type: "REVENUE", normalBalance: "CREDIT", isPostable: false },
-  { code: "4100", name: "Sales Revenue", type: "REVENUE", normalBalance: "CREDIT", isPostable: true, parentCode: "4000" },
-
-  { code: "5000", name: "Expenses", type: "EXPENSE", normalBalance: "DEBIT", isPostable: false },
-  { code: "5100", name: "Cost of Goods Sold", type: "EXPENSE", normalBalance: "DEBIT", isPostable: true, parentCode: "5000" },
-  { code: "5200", name: "Operating Expenses", type: "EXPENSE", normalBalance: "DEBIT", isPostable: true, parentCode: "5000" },
-];
+// The template is data, not code (docs/05-ACCOUNTING-INTEGRITY-RULES.md §4) — it lives
+// in coa-template.json, generated from the accountant-supplied guide (levels 1-4 only;
+// per-party level-5 accounts are per-company data). Entries are ordered parents-first.
+const CHART_OF_ACCOUNTS_TEMPLATE = (
+  JSON.parse(readFileSync(new URL("./coa-template.json", import.meta.url), "utf8")) as {
+    accounts: readonly AccountTemplateEntry[];
+  }
+).accounts;
 
 async function seedChartOfAccounts(companyId: string): Promise<void> {
   const codeToId = new Map<string, string>();
-  // Parents first (isPostable: false rows have no parentCode), then children —
-  // the template array is already ordered that way.
+  // Parents first (the template is ordered that way), then children.
   for (const entry of CHART_OF_ACCOUNTS_TEMPLATE) {
     const parentId = entry.parentCode ? codeToId.get(entry.parentCode) : undefined;
+    if (entry.parentCode && !parentId) {
+      throw new Error(`Template account ${entry.code}: parent ${entry.parentCode} not seeded before it`);
+    }
     const account = await prisma.account.upsert({
       where: { companyId_code: { companyId, code: entry.code } },
       create: {
         id: uuidv7(),
+        ref: await allocateSeedRef(companyId, "account"),
         companyId,
         code: entry.code,
         name: entry.name,
+        nameAr: entry.nameAr,
         type: entry.type,
         normalBalance: entry.normalBalance,
         isPostable: entry.isPostable,
@@ -155,7 +183,7 @@ async function main(): Promise<void> {
 
   const adminRole = await prisma.role.upsert({
     where: { companyId_name: { companyId: company.id, name: "Admin" } },
-    create: { id: uuidv7(), companyId: company.id, name: "Admin" },
+    create: { id: uuidv7(), ref: await allocateSeedRef(company.id, "role"), companyId: company.id, name: "Admin" },
     update: {},
   });
 
@@ -182,6 +210,7 @@ async function main(): Promise<void> {
   const admin = await prisma.user.create({
     data: {
       id: uuidv7(),
+      ref: await allocateSeedRef(company.id, "user"),
       companyId: company.id,
       email: adminEmail,
       passwordHash,

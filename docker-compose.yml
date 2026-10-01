@@ -44,6 +44,12 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    ports:
+      # Host-exposed for local BullMQ/job tooling convenience (M3), same reasoning
+      # as db's port above — an M10 hardening item to remove for production.
+      # Configurable like API_HOST_PORT: a machine may already have something else
+      # bound to 6379 (this repo hit the identical problem with port 3000 in M0).
+      - "${REDIS_HOST_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

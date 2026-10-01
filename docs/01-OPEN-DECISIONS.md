@@ -133,6 +133,21 @@ plan and the backup design.
 Do all tenants sit on the same version? Is there a maintenance window? Can a tenant
 defer an upgrade? Affects migration design significantly.
 
+### B10. Cash flow statement method
+**Blocks:** the fourth M2 report (trial balance, balance sheet, and income statement
+are built; cash flow is not — `docs/14-MILESTONES.md` M2).
+**Question:** direct or indirect method? This is an accounting-treatment choice, not a
+code decision (CLAUDE.md §4: "Osama is not an accountant — guessing here produces
+confidently wrong software").
+**Action required:** confirm the method (with an accountant if needed) before this is
+built.
+
+### B11. Observability metrics library
+**Blocks:** the "metrics" item of M3's observability scope (structured logging and
+health endpoints are done; metrics is not).
+**Question:** which metrics library/format (e.g. `prom-client` + a `/metrics`
+Prometheus endpoint, or something else)? A new dependency, per CLAUDE.md §4.
+
 ---
 
 ## C. Assumptions currently in force

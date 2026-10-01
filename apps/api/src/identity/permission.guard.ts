@@ -5,6 +5,7 @@ import type { Request } from "express";
 import { IS_PUBLIC_KEY } from "../auth/public.decorator.js";
 import { PERMISSION_SERVICE } from "./identity.tokens.js";
 import { PERMISSION_KEY, type RequiredPermission } from "./require-permission.decorator.js";
+import { AUTHENTICATED_ONLY_KEY } from "./authenticated-only.decorator.js";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; companyId: string };
@@ -24,6 +25,18 @@ export class PermissionGuard implements CanActivate {
     const isPublic = this.reflector.get<boolean | undefined>(IS_PUBLIC_KEY, context.getHandler());
     if (isPublic) {
       return true;
+    }
+
+    const authenticatedOnly = this.reflector.get<boolean | undefined>(
+      AUTHENTICATED_ONLY_KEY,
+      context.getHandler(),
+    );
+    if (authenticatedOnly) {
+      // @AuthenticatedOnly(): deliberately not the same as "no decorator at all" —
+      // see that file for why a handful of routes are exempt from needing a
+      // grantable permission without weakening "deny by default" for every other
+      // undeclared endpoint.
+      return Boolean(context.switchToHttp().getRequest<AuthenticatedRequest>().user);
     }
 
     const required = this.reflector.get<RequiredPermission | undefined>(

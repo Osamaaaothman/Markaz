@@ -22,14 +22,35 @@ RUN npm ci
 # that crashed on startup unable to resolve `@erp/shared`'s compiled files.
 RUN npx turbo run build --filter=@erp/api
 
-FROM node:22-alpine AS runtime
+# M3: the worker renders PDFs via Playwright/Chromium (apps/api/src/documents) —
+# Playwright's bundled Chromium is built against glibc and does not run on Alpine's
+# musl libc (confirmed against Playwright's own docs, not assumed), so the runtime
+# base switches to a Debian slim image here. api and worker share this one image
+# (docker-compose.yml — same Dockerfile, different command), so the API container
+# carries Chromium too even though it never renders a PDF itself; splitting into
+# two images to avoid that is an M10 image-size optimization, not a correctness
+# requirement.
+FROM node:22-bookworm-slim AS runtime
 # docs/04-DATA-MODEL-RULES.md §3: the whole process runs in UTC — a local-timezone
 # Date constructor for a calendar-fact field (`@db.Date`) serializes to the wrong
 # day on any container whose local timezone isn't UTC otherwise.
 ENV TZ=UTC
-RUN addgroup -S app && adduser -S app -G app
+# fonts-noto-core: Arabic script coverage (Noto Sans/Naskh Arabic) — without this,
+# Chromium falls back to a font with no Arabic glyphs and the PDF renders boxes
+# instead of text (docs/08-FRONTEND-I18N-RULES.md §5: "choose fonts with proper
+# Arabic support"). --with-deps installs Chromium's own OS-level dependencies.
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-core \
+  && rm -rf /var/lib/apt/lists/*
+RUN groupadd -r app && useradd -r -g app -m app
 WORKDIR /repo
 COPY --from=build /repo /repo
+# Installed directly to the app user's own cache dir (set before install, so
+# nothing needs moving/re-chowning afterward) — `npx playwright install --with-deps`
+# needs root for the apt-get half, so this still runs before USER app below.
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/app/.cache/ms-playwright
+RUN mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && chown -R app:app /home/app/.cache \
+  && npx playwright install --with-deps chromium \
+  && chown -R app:app /home/app/.cache
 USER app
 WORKDIR /repo/apps/api
 EXPOSE 3000
