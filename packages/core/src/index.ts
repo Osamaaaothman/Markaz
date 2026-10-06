@@ -34,3 +34,6 @@ export * from "./purchasing/purchase-request.service.js";
 export * from "./purchasing/purchase-order.service.js";
 export * from "./purchasing/purchase-receipt.service.js";
 export * from "./approvals/approval-policy.service.js";
+export * from "./purchasing/tax-code.service.js";
+export * from "./purchasing/supplier-invoice.util.js";
+export * from "./purchasing/supplier-invoice.service.js";

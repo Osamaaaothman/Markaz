@@ -12,6 +12,10 @@ export const ACCOUNT_MAPPING_KEYS = [
   "PROJECT_ISSUE_EXPENSE",
   "COUNT_LOSS",
   "COUNT_GAIN",
+  // M5 purchasing: where a supplier invoice posts its payable, input VAT and price variance.
+  "ACCOUNTS_PAYABLE",
+  "VAT_INPUT",
+  "PURCHASE_PRICE_VARIANCE",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
 

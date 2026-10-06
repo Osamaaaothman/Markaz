@@ -58,6 +58,8 @@ model Company {
   // M5 purchasing
   purchaseRequests PurchaseRequest[]
   purchaseOrders   PurchaseOrder[]
+  taxCodes         TaxCode[]
+  supplierInvoices SupplierInvoice[]
 
   @@map("companies")
 }
@@ -310,13 +312,14 @@ model Account {
   updatedBy     String?  @map("updated_by")
   version       Int      @default(1)
 
-  company           Company            @relation(fields: [companyId], references: [id])
-  parent            Account?           @relation("AccountTree", fields: [parentId], references: [id])
-  children          Account[]          @relation("AccountTree")
-  party             Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  journalEntryLines JournalEntryLine[]
+  company              Company               @relation(fields: [companyId], references: [id])
+  parent               Account?              @relation("AccountTree", fields: [parentId], references: [id])
+  children             Account[]             @relation("AccountTree")
+  party                Party?                @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  journalEntryLines    JournalEntryLine[]
   // M4 inventory: an account may be the target of a mapping key (INVENTORY, GRNI, ...).
-  accountMappings   AccountMapping[]
+  accountMappings      AccountMapping[]
+  supplierInvoiceLines SupplierInvoiceLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -344,12 +347,13 @@ model Party {
   updatedBy String?  @map("updated_by")
   version   Int      @default(1)
 
-  company        Company         @relation(fields: [companyId], references: [id])
-  accounts       Account[]
+  company          Company           @relation(fields: [companyId], references: [id])
+  accounts         Account[]
   // M4 inventory: the supplier a goods receipt was received from, if recorded.
-  goodsReceipts  GoodsReceipt[]
+  goodsReceipts    GoodsReceipt[]
   // M5 purchasing: orders placed with this party as the supplier.
-  purchaseOrders PurchaseOrder[]
+  purchaseOrders   PurchaseOrder[]
+  supplierInvoices SupplierInvoice[]
 
   @@unique([companyId, ref])
   @@index([companyId, kind])
@@ -400,17 +404,18 @@ model JournalEntry {
   reversalOfEntryId  String?  @map("reversal_of_entry_id")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  company         Company            @relation(fields: [companyId], references: [id])
-  fiscalPeriod    FiscalPeriod       @relation(fields: [fiscalPeriodId], references: [id])
-  lines           JournalEntryLine[]
-  reversalOf      JournalEntry?      @relation("Reversal", fields: [reversalOfEntryId], references: [id])
-  reversedBy      JournalEntry[]     @relation("Reversal")
+  company          Company            @relation(fields: [companyId], references: [id])
+  fiscalPeriod     FiscalPeriod       @relation(fields: [fiscalPeriodId], references: [id])
+  lines            JournalEntryLine[]
+  reversalOf       JournalEntry?      @relation("Reversal", fields: [reversalOfEntryId], references: [id])
+  reversedBy       JournalEntry[]     @relation("Reversal")
   // M4 inventory: the entry a stock movement / goods receipt / stock issue / stock count
   // line was posted by.
-  stockMovements  StockMovement[]
-  goodsReceipts   GoodsReceipt[]
-  stockIssues     StockIssue[]
-  stockCountLines StockCountLine[]
+  stockMovements   StockMovement[]
+  goodsReceipts    GoodsReceipt[]
+  stockIssues      StockIssue[]
+  stockCountLines  StockCountLine[]
+  supplierInvoices SupplierInvoice[]
 
   // The idempotencyKey unique constraint below IS the duplicate-posting guard
   // (docs/04-DATA-MODEL-RULES.md §6/§9) — a separate uniqueness constraint on the
@@ -912,6 +917,7 @@ model PurchaseOrder {
   lines            PurchaseOrderLine[]
   purchaseRequests PurchaseRequest[]
   goodsReceipts    GoodsReceipt[]
+  supplierInvoices SupplierInvoice[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -928,12 +934,104 @@ model PurchaseOrderLine {
   quantity         Decimal @db.Decimal(19, 4)
   unitPrice        Decimal @map("unit_price") @db.Decimal(19, 4)
   receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(19, 4)
+  // Quantity already matched to supplier invoices; never more than received (CHECK).
+  invoicedQuantity Decimal @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
   lineNumber       Int     @map("line_number")
 
-  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
-  item              Item               @relation(fields: [itemId], references: [id])
+  purchaseOrder     PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
+  item              Item                  @relation(fields: [itemId], references: [id])
   goodsReceiptLines GoodsReceiptLine[]
+  invoiceLines      SupplierInvoiceLine[]
 
   @@index([purchaseOrderId])
   @@map("purchase_order_lines")
+}
+
+// ─── M5: supplier invoices and tax codes ────────────────────────────────────────
+// A tax code is a treatment, not a bare rate (docs/14 M6 "tax treatment codes"): STANDARD carries a
+// percentage, the others are always 0 and exist so a report can tell zero-rated from exempt from
+// outside the scope. Rate and treatment are copied onto each invoice line when posted.
+model TaxCode {
+  id        String   @id
+  companyId String   @map("company_id")
+  code      String
+  name      String
+  nameAr    String?  @map("name_ar")
+  // Percentage, e.g. 15.0000 for 15%.
+  rate      Decimal  @db.Decimal(7, 4)
+  treatment String // STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+  version   Int      @default(1)
+
+  company      Company               @relation(fields: [companyId], references: [id])
+  invoiceLines SupplierInvoiceLine[]
+
+  @@unique([companyId, code])
+  @@map("tax_codes")
+}
+
+// A posted supplier invoice. Immutable like a journal entry; a correction is a new document.
+// Posting: Dr GRNI at the order price for the matched quantity, Dr/Cr purchase price variance for
+// the difference, Dr expense for non-stock lines, Dr input VAT, Cr accounts payable for the gross.
+model SupplierInvoice {
+  id                    String    @id
+  companyId             String    @map("company_id")
+  number                String
+  supplierId            String    @map("supplier_id")
+  // The number printed on the supplier's own invoice; unique per supplier so the same bill cannot be entered twice.
+  supplierInvoiceNumber String    @map("supplier_invoice_number")
+  invoiceDate           DateTime  @map("invoice_date") @db.Date
+  dueDate               DateTime? @map("due_date") @db.Date
+  currency              String
+  totalNet              Decimal   @map("total_net") @db.Decimal(19, 4)
+  totalTax              Decimal   @map("total_tax") @db.Decimal(19, 4)
+  totalGross            Decimal   @map("total_gross") @db.Decimal(19, 4)
+  purchaseOrderId       String?   @map("purchase_order_id")
+  journalEntryId        String    @map("journal_entry_id")
+  notes                 String?
+  actorId               String    @map("actor_id")
+  correlationId         String    @map("correlation_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  company       Company               @relation(fields: [companyId], references: [id])
+  supplier      Party                 @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  journalEntry  JournalEntry          @relation(fields: [journalEntryId], references: [id])
+  lines         SupplierInvoiceLine[]
+
+  @@unique([companyId, number])
+  @@unique([companyId, supplierId, supplierInvoiceNumber])
+  @@index([companyId, supplierId])
+  @@map("supplier_invoices")
+}
+
+model SupplierInvoiceLine {
+  id                  String  @id
+  supplierInvoiceId   String  @map("supplier_invoice_id")
+  kind                String // PO_LINE | EXPENSE
+  purchaseOrderLineId String? @map("purchase_order_line_id")
+  // Expense lines post straight to this account.
+  accountId           String? @map("account_id")
+  description         String?
+  quantity            Decimal @db.Decimal(19, 4)
+  unitPrice           Decimal @map("unit_price") @db.Decimal(19, 4)
+  netAmount           Decimal @map("net_amount") @db.Decimal(19, 4)
+  taxCodeId           String  @map("tax_code_id")
+  taxRate             Decimal @map("tax_rate") @db.Decimal(7, 4)
+  taxAmount           Decimal @map("tax_amount") @db.Decimal(19, 4)
+  // Invoice net minus quantity x the order price; 0 for expense lines.
+  priceVariance       Decimal @default(0) @map("price_variance") @db.Decimal(19, 4)
+  lineNumber          Int     @map("line_number")
+
+  supplierInvoice   SupplierInvoice    @relation(fields: [supplierInvoiceId], references: [id])
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+  account           Account?           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  taxCode           TaxCode            @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
+
+  @@index([supplierInvoiceId])
+  @@map("supplier_invoice_lines")
 }
