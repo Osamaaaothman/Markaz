@@ -88,7 +88,43 @@
   "dashboard": {
     "welcome": "مرحباً، {{email}}",
     "subtitle": "نظرة سريعة على {{companyName}}.",
-    "companyLabel": "الشركة"
+    "companyLabel": "الشركة",
+    "hello": "مرحباً، {{name}}",
+    "nothingToShow": "لا توجد تقارير للوحة التحكم لدورك بعد. استخدم القائمة للوصول إلى عملك.",
+    "kpi": {
+      "receivables": "مستحق لك",
+      "payables": "مستحق عليك",
+      "cash": "البنك والصندوق",
+      "sales": "مبيعات هذا الشهر",
+      "stock": "قيمة المخزون",
+      "overdue": "{{amount}} متأخر",
+      "cashHint": "الحسابات المستخدمة في المدفوعات",
+      "cashNone": "يظهر بعد أول دفعة",
+      "salesHint": "بعد خصم الإشعارات الدائنة"
+    },
+    "chart": {
+      "title": "آخر ستة أشهر",
+      "revenue": "الإيرادات",
+      "expense": "المصروفات",
+      "aria": "الإيرادات والمصروفات لكل شهر من آخر ستة أشهر"
+    },
+    "attention": {
+      "title": "يحتاج انتباهك",
+      "allClear": "لا شيء بانتظارك.",
+      "approvals": "أوامر شراء بانتظار الاعتماد: {{count}}",
+      "requests": "طلبات شراء بانتظار القرار: {{count}}",
+      "reorder": "أصناف تحت نقطة إعادة الطلب: {{count}}",
+      "quotations": "عروض أسعار مفتوحة: {{count}}",
+      "overdueReceivables": "العملاء متأخرون بمبلغ {{amount}}",
+      "overduePayables": "أنت متأخر للموردين بمبلغ {{amount}}"
+    },
+    "actions": {
+      "invoice": "فاتورة مبيعات جديدة",
+      "receipt": "سند قبض من عميل",
+      "purchaseOrder": "أمر شراء جديد",
+      "supplierInvoice": "فاتورة مورد",
+      "journal": "قيود اليومية"
+    }
   },
   "accounting": {
     "chartOfAccounts": {

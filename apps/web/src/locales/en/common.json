@@ -88,7 +88,43 @@
   "dashboard": {
     "welcome": "Welcome, {{email}}",
     "subtitle": "Here's a quick look at {{companyName}}.",
-    "companyLabel": "Company"
+    "companyLabel": "Company",
+    "hello": "Hello, {{name}}",
+    "nothingToShow": "Your role has no dashboard reports yet. Use the menu to get to your work.",
+    "kpi": {
+      "receivables": "Owed to you",
+      "payables": "You owe",
+      "cash": "Bank and cash",
+      "sales": "Sales this month",
+      "stock": "Stock value",
+      "overdue": "{{amount}} overdue",
+      "cashHint": "Accounts used for payments",
+      "cashNone": "Appears after the first payment",
+      "salesHint": "Net of credit notes"
+    },
+    "chart": {
+      "title": "Last six months",
+      "revenue": "Revenue",
+      "expense": "Expenses",
+      "aria": "Revenue and expenses for each of the last six months"
+    },
+    "attention": {
+      "title": "Needs your attention",
+      "allClear": "Nothing is waiting for you.",
+      "approvals": "Purchase orders waiting for approval: {{count}}",
+      "requests": "Purchase requests waiting: {{count}}",
+      "reorder": "Items below their reorder point: {{count}}",
+      "quotations": "Open quotations: {{count}}",
+      "overdueReceivables": "Customers are overdue by {{amount}}",
+      "overduePayables": "You are overdue to suppliers by {{amount}}"
+    },
+    "actions": {
+      "invoice": "New sales invoice",
+      "receipt": "Customer receipt",
+      "purchaseOrder": "New purchase order",
+      "supplierInvoice": "Supplier invoice",
+      "journal": "Journal entries"
+    }
   },
   "accounting": {
     "chartOfAccounts": {
