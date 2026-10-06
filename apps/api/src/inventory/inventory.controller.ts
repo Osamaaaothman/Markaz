@@ -1,4 +1,5 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Patch, Post, Put, Query } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Patch, Post, Put, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import {
   AccountMappingError,
   AccountMappingService,
@@ -39,7 +40,9 @@ import { ItemsQueryDto } from "./dto/items-query.dto.js";
 import { RecordStockCountDto } from "./dto/record-stock-count.dto.js";
 import { SetAccountMappingDto } from "./dto/set-account-mapping.dto.js";
 import { StockCountsQueryDto } from "./dto/stock-counts-query.dto.js";
+import { StockLevelsExportQueryDto } from "./dto/stock-levels-export-query.dto.js";
 import { StockLevelsQueryDto } from "./dto/stock-levels-query.dto.js";
+import { InventoryExportService } from "./inventory-export.service.js";
 import { UpdateItemDto } from "./dto/update-item.dto.js";
 import { UpdateWarehouseDto } from "./dto/update-warehouse.dto.js";
 import { WarehousesQueryDto } from "./dto/warehouses-query.dto.js";
@@ -54,6 +57,7 @@ export class InventoryController {
     private readonly goodsReceipts: GoodsReceiptService,
     private readonly stockIssues: StockIssueService,
     private readonly stockCounts: StockCountService,
+    private readonly exports: InventoryExportService,
   ) {}
 
   // ── Warehouses ──────────────────────────────────────────────────────────────
@@ -144,6 +148,20 @@ export class InventoryController {
   @RequirePermission("stock", "read")
   listStockLevels(@CurrentUser() actor: CurrentUserPayload, @Query() query: StockLevelsQueryDto): Promise<StockLevelEntry[]> {
     return this.stockLevels.list(actor.companyId, query);
+  }
+
+  @Get("stock-levels/export")
+  @RequirePermission("stock", "read")
+  async exportStockLevels(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: StockLevelsExportQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const { format, lang, ...filters } = query;
+    const file = await this.exports.exportStockLevels(actor.companyId, filters, format, lang ?? "en");
+    res.header("Content-Type", file.contentType);
+    res.header("Content-Disposition", `attachment; filename="${file.filename}"`);
+    res.send(file.content);
   }
 
   // ── Account mapping (tenant config: which account each posting key lands in) ─

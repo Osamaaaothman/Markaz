@@ -16,6 +16,7 @@ import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { INVENTORY_ENGINE, INVENTORY_NUMBERING } from "./inventory.tokens.js";
 import { InventoryController } from "./inventory.controller.js";
+import { InventoryExportService } from "./inventory-export.service.js";
 
 @Module({
   controllers: [InventoryController],
@@ -69,6 +70,7 @@ import { InventoryController } from "./inventory.controller.js";
       ) => new StockCountService(prisma, engine, numbering, mappings, audit),
       inject: [PrismaService, INVENTORY_ENGINE, INVENTORY_NUMBERING, AccountMappingService, AUDIT_LOGGER],
     },
+    InventoryExportService,
   ],
 })
 export class InventoryModule {}

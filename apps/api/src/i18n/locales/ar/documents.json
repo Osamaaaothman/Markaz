@@ -41,5 +41,29 @@
     "netLoss": "صافي الخسارة",
     "account": "الحساب",
     "amount": "المبلغ"
+  },
+  "generalLedger": {
+    "title": "كشف حساب",
+    "subtitle": "عن الفترة من {{from}} إلى {{to}}.",
+    "date": "التاريخ",
+    "entry": "القيد",
+    "description": "البيان",
+    "debit": "مدين",
+    "credit": "دائن",
+    "balance": "الرصيد",
+    "openingBalance": "الرصيد الافتتاحي",
+    "total": "الإجمالي",
+    "truncated": "في هذه الفترة سطور أكثر مما هو معروض؛ الإجماليات تشمل كل السطور."
+  },
+  "stockLevels": {
+    "title": "تقييم المخزون",
+    "subtitle": "الكمية والقيمة الحالية حتى تاريخ {{asOf}}.",
+    "code": "الرمز",
+    "item": "الصنف",
+    "warehouse": "المستودع",
+    "quantity": "الكمية",
+    "averageCost": "متوسط التكلفة",
+    "value": "القيمة",
+    "totalValue": "إجمالي قيمة المخزون"
   }
 }

@@ -41,5 +41,29 @@
     "netLoss": "Net Loss",
     "account": "Account",
     "amount": "Amount"
+  },
+  "generalLedger": {
+    "title": "Account Statement",
+    "subtitle": "For the period {{from}} to {{to}}.",
+    "date": "Date",
+    "entry": "Entry",
+    "description": "Description",
+    "debit": "Debit",
+    "credit": "Credit",
+    "balance": "Balance",
+    "openingBalance": "Opening balance",
+    "total": "Total",
+    "truncated": "This period has more lines than shown; the totals still cover all of it."
+  },
+  "stockLevels": {
+    "title": "Stock Valuation",
+    "subtitle": "On-hand quantity and value, as of {{asOf}}.",
+    "code": "Code",
+    "item": "Item",
+    "warehouse": "Warehouse",
+    "quantity": "Quantity",
+    "averageCost": "Average cost",
+    "value": "Value",
+    "totalValue": "Total stock value"
   }
 }
