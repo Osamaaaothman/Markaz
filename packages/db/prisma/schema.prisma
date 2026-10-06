@@ -55,6 +55,10 @@ model Company {
   stockIssues        StockIssue[]
   stockCounts        StockCount[]
 
+  // M5 purchasing
+  purchaseRequests PurchaseRequest[]
+  purchaseOrders   PurchaseOrder[]
+
   @@map("companies")
 }
 
@@ -340,10 +344,12 @@ model Party {
   updatedBy String?  @map("updated_by")
   version   Int      @default(1)
 
-  company       Company        @relation(fields: [companyId], references: [id])
-  accounts      Account[]
+  company        Company         @relation(fields: [companyId], references: [id])
+  accounts       Account[]
   // M4 inventory: the supplier a goods receipt was received from, if recorded.
-  goodsReceipts GoodsReceipt[]
+  goodsReceipts  GoodsReceipt[]
+  // M5 purchasing: orders placed with this party as the supplier.
+  purchaseOrders PurchaseOrder[]
 
   @@unique([companyId, ref])
   @@index([companyId, kind])
@@ -593,13 +599,15 @@ model Item {
   updatedBy    String?  @map("updated_by")
   version      Int      @default(1)
 
-  company           Company              @relation(fields: [companyId], references: [id])
-  stock             ItemWarehouseStock[]
-  stockMovements    StockMovement[]
-  costLayers        CostLayer[]
-  goodsReceiptLines GoodsReceiptLine[]
-  stockIssueLines   StockIssueLine[]
-  stockCountLines   StockCountLine[]
+  company              Company               @relation(fields: [companyId], references: [id])
+  stock                ItemWarehouseStock[]
+  stockMovements       StockMovement[]
+  costLayers           CostLayer[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  stockIssueLines      StockIssueLine[]
+  stockCountLines      StockCountLine[]
+  purchaseRequestLines PurchaseRequestLine[]
+  purchaseOrderLines   PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -694,39 +702,45 @@ model CostLayer {
 // optional because a tenant may not have parties set up for every source yet. Immutable once
 // posted, like a journal entry — a correction is a new document, never an edit.
 model GoodsReceipt {
-  id             String   @id
-  companyId      String   @map("company_id")
-  number         String
-  warehouseId    String   @map("warehouse_id")
-  partyId        String?  @map("party_id")
-  documentDate   DateTime @map("document_date") @db.Date
-  reference      String?
-  journalEntryId String   @map("journal_entry_id")
-  actorId        String   @map("actor_id")
-  correlationId  String   @map("correlation_id")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id              String   @id
+  companyId       String   @map("company_id")
+  number          String
+  warehouseId     String   @map("warehouse_id")
+  partyId         String?  @map("party_id")
+  // M5: the purchase order this receipt was booked against, if any (null = a direct receipt).
+  purchaseOrderId String?  @map("purchase_order_id")
+  documentDate    DateTime @map("document_date") @db.Date
+  reference       String?
+  journalEntryId  String   @map("journal_entry_id")
+  actorId         String   @map("actor_id")
+  correlationId   String   @map("correlation_id")
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  company      Company            @relation(fields: [companyId], references: [id])
-  warehouse    Warehouse          @relation(fields: [warehouseId], references: [id])
-  party        Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  journalEntry JournalEntry       @relation(fields: [journalEntryId], references: [id])
-  lines        GoodsReceiptLine[]
+  company       Company            @relation(fields: [companyId], references: [id])
+  warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
+  party         Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  journalEntry  JournalEntry       @relation(fields: [journalEntryId], references: [id])
+  purchaseOrder PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  lines         GoodsReceiptLine[]
 
   @@unique([companyId, number])
   @@map("goods_receipts")
 }
 
 model GoodsReceiptLine {
-  id             String  @id
-  goodsReceiptId String  @map("goods_receipt_id")
-  itemId         String  @map("item_id")
-  quantity       Decimal @db.Decimal(19, 4)
-  unitCost       Decimal @map("unit_cost") @db.Decimal(19, 4)
-  value          Decimal @db.Decimal(19, 4)
-  lineNumber     Int     @map("line_number")
+  id                  String  @id
+  goodsReceiptId      String  @map("goods_receipt_id")
+  itemId              String  @map("item_id")
+  quantity            Decimal @db.Decimal(19, 4)
+  unitCost            Decimal @map("unit_cost") @db.Decimal(19, 4)
+  value               Decimal @db.Decimal(19, 4)
+  lineNumber          Int     @map("line_number")
+  // M5: the order line this quantity was received against, if any.
+  purchaseOrderLineId String? @map("purchase_order_line_id")
 
-  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id])
-  item         Item         @relation(fields: [itemId], references: [id])
+  goodsReceipt      GoodsReceipt       @relation(fields: [goodsReceiptId], references: [id])
+  item              Item               @relation(fields: [itemId], references: [id])
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
 
   @@index([goodsReceiptId])
   @@map("goods_receipt_lines")
@@ -821,4 +835,105 @@ model StockCountLine {
 
   @@index([stockCountId])
   @@map("stock_count_lines")
+}
+
+// ─── M5: Purchasing ─────────────────────────────────────────────────────────────
+// docs/14-MILESTONES.md M5. Request -> order -> receipt (the M4 goods receipt, now linked to the
+// order) -> supplier invoice. A supplier is simply a Party. Numbers (PRQ-2026-000001,
+// PO-2026-000001) come from the gapless document_number_series, allocated in the creating
+// transaction like every other document number.
+
+// An internal request to buy, raised by whoever needs the goods. PENDING until a buyer turns it
+// into an order (PROCESSED, linked) or turns it down (REJECTED, with a reason).
+model PurchaseRequest {
+  id              String    @id
+  companyId       String    @map("company_id")
+  number          String
+  status          String // PENDING | PROCESSED | REJECTED
+  notes           String?
+  rejectionReason String?   @map("rejection_reason")
+  requestedBy     String    @map("requested_by")
+  decidedBy       String?   @map("decided_by")
+  decidedAt       DateTime? @map("decided_at")
+  purchaseOrderId String?   @map("purchase_order_id")
+  correlationId   String    @map("correlation_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  company       Company               @relation(fields: [companyId], references: [id])
+  purchaseOrder PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  lines         PurchaseRequestLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestLine {
+  id                String  @id
+  purchaseRequestId String  @map("purchase_request_id")
+  itemId            String  @map("item_id")
+  quantity          Decimal @db.Decimal(19, 4)
+  notes             String?
+  lineNumber        Int     @map("line_number")
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  item            Item            @relation(fields: [itemId], references: [id])
+
+  @@index([purchaseRequestId])
+  @@map("purchase_request_lines")
+}
+
+// An order to one supplier. Above the company approval threshold (approval_policies, subject
+// "purchase_order") it waits in PENDING_APPROVAL; otherwise it is APPROVED at creation. Receipts
+// move it APPROVED -> PARTIALLY_RECEIVED -> RECEIVED. Lines are never edited after creation: a
+// wrong order is cancelled (only while nothing is received) and re-issued.
+model PurchaseOrder {
+  id                String    @id
+  companyId         String    @map("company_id")
+  number            String
+  supplierId        String    @map("supplier_id")
+  status            String // PENDING_APPROVAL | APPROVED | REJECTED | PARTIALLY_RECEIVED | RECEIVED | CANCELLED
+  orderDate         DateTime  @map("order_date") @db.Date
+  expectedDate      DateTime? @map("expected_date") @db.Date
+  currency          String
+  // Sum of quantity x unit price over the lines, before tax (tax is applied on the supplier invoice).
+  totalAmount       Decimal   @map("total_amount") @db.Decimal(19, 4)
+  notes             String?
+  approvalRequestId String?   @map("approval_request_id")
+  requestedBy       String    @map("requested_by")
+  correlationId     String    @map("correlation_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  version           Int       @default(1)
+
+  company          Company             @relation(fields: [companyId], references: [id])
+  supplier         Party               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  lines            PurchaseOrderLine[]
+  purchaseRequests PurchaseRequest[]
+  goodsReceipts    GoodsReceipt[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([companyId, supplierId])
+  @@map("purchase_orders")
+}
+
+// receivedQuantity is the only mutable column here: it moves, under a row lock, in the same
+// transaction as the goods receipt that causes it. The database backstops 0 <= received <= ordered.
+model PurchaseOrderLine {
+  id               String  @id
+  purchaseOrderId  String  @map("purchase_order_id")
+  itemId           String  @map("item_id")
+  quantity         Decimal @db.Decimal(19, 4)
+  unitPrice        Decimal @map("unit_price") @db.Decimal(19, 4)
+  receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(19, 4)
+  lineNumber       Int     @map("line_number")
+
+  purchaseOrder     PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  item              Item               @relation(fields: [itemId], references: [id])
+  goodsReceiptLines GoodsReceiptLine[]
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_lines")
 }

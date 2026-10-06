@@ -84,6 +84,15 @@ const PERMISSION_CATALOG = [
   { code: "stock_count:create", description: "Record a stock count" },
   { code: "stock_count:read", description: "View stock counts" },
   { code: "stock_count:post", description: "Post a recorded stock count" },
+  { code: "purchase_request:create", description: "Raise a purchase request" },
+  { code: "purchase_request:read", description: "View purchase requests" },
+  { code: "purchase_request:reject", description: "Reject a purchase request" },
+  { code: "purchase_order:create", description: "Create a purchase order" },
+  { code: "purchase_order:read", description: "View purchase orders" },
+  { code: "purchase_order:approve", description: "Approve or reject a purchase order above the approval threshold" },
+  { code: "purchase_order:cancel", description: "Cancel a purchase order that has not been received" },
+  { code: "approval_policy:read", description: "View approval thresholds" },
+  { code: "approval_policy:update", description: "Change approval thresholds" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);
