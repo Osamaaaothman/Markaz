@@ -116,6 +116,12 @@ concurrent issue of the last unit fails cleanly.
 **Gate:** full purchase cycle end to end; a quantity or price variance is surfaced and
 handled, not silently absorbed.
 
+**Status (2026-10):** built and verified against a real database - purchase requests, purchase orders with
+an approval threshold, receiving against an order, supplier invoices with three-way matching (quantity over
+received is refused, a price variance must be accepted), tax codes, and the screens for all of it. Open
+items: supplier payments and AP ageing, debit notes. Accounting defaults awaiting an accountant: see
+`docs/01-OPEN-DECISIONS.md` section D.
+
 ---
 
 ## M6 — Sales & AR

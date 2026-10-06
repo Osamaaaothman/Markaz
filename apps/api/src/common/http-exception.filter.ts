@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { domainErrorFields } from "./domain-error.js";
 import { reqIdToString } from "./req-id.js";
 
 // One error shape everywhere — docs/07-API-RULES.md §4. `code` is the stable,
@@ -22,16 +23,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    const { code: domainCode, lineNumber } = domainErrorFields(exception instanceof HttpException ? exception.getResponse() : undefined);
+
     const code =
-      exception instanceof HttpException
-        ? (exception.constructor.name.replace(/Exception$/, "").toUpperCase())
-        : "INTERNAL_ERROR";
+      domainCode ??
+      (exception instanceof HttpException
+        ? exception.constructor.name.replace(/Exception$/, "").toUpperCase()
+        : "INTERNAL_ERROR");
 
     const message =
       exception instanceof HttpException ? exception.message : "An unexpected error occurred";
 
     response.status(status).json({
-      error: { code, message, details: [] },
+      error: { code, message, details: lineNumber !== undefined ? [{ lineNumber }] : [] },
       correlationId: request.id !== undefined ? reqIdToString(request.id) : undefined,
     });
   }
