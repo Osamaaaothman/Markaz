@@ -22,6 +22,8 @@ const RESOURCE_ORDER = [
   "purchase_request",
   "purchase_order",
   "approval_policy",
+  "supplier_invoice",
+  "tax_code",
 ] as const;
 
 export function splitPermissionCode(code: string): { resource: string; action: string } {

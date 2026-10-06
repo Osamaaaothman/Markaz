@@ -93,6 +93,11 @@ const PERMISSION_CATALOG = [
   { code: "purchase_order:cancel", description: "Cancel a purchase order that has not been received" },
   { code: "approval_policy:read", description: "View approval thresholds" },
   { code: "approval_policy:update", description: "Change approval thresholds" },
+  { code: "supplier_invoice:create", description: "Post a supplier invoice" },
+  { code: "supplier_invoice:read", description: "View supplier invoices" },
+  { code: "tax_code:read", description: "View tax codes" },
+  { code: "tax_code:create", description: "Create tax codes" },
+  { code: "tax_code:update", description: "Edit or deactivate tax codes" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

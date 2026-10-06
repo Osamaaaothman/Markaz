@@ -281,7 +281,9 @@
         "stock_count": "الجرد",
         "purchase_request": "طلبات الشراء",
         "purchase_order": "أوامر الشراء",
-        "approval_policy": "حدود الموافقة"
+        "approval_policy": "حدود الموافقة",
+        "supplier_invoice": "فواتير الموردين",
+        "tax_code": "رموز الضريبة"
       },
       "actions": {
         "create": "إنشاء",

@@ -281,7 +281,9 @@
         "stock_count": "Stock counts",
         "purchase_request": "Purchase requests",
         "purchase_order": "Purchase orders",
-        "approval_policy": "Approval thresholds"
+        "approval_policy": "Approval thresholds",
+        "supplier_invoice": "Supplier invoices",
+        "tax_code": "Tax codes"
       },
       "actions": {
         "create": "Create",
