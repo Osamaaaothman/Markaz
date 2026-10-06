@@ -215,3 +215,23 @@ Confirm or change each before the first real customer posts a supplier invoice.
 **Known gaps, M5:** no debit notes or purchase returns; no supplier payments or AP ageing (arrive with the
 payments work); purchase orders cannot be edited (cancel and re-issue); a retried receipt or invoice is not
 replayed at document level (the ledger itself is protected by the idempotency key).
+
+## E. Accounting treatments built with a stated default (M6 sales)
+
+Marked `// REVIEW:` / documented in `packages/core/src/sales/`. Confirm before the first customer invoice.
+
+- **E1. Revenue and cost recognised at invoice.** An invoice books revenue, output VAT and the receivable,
+  and for stock lines the cost of goods sold at weighted-average cost, in one posting. There is no delivery
+  note: the goods leave stock when the invoice is posted. A separate delivery step (revenue on delivery,
+  stock out earlier) is a different design.
+- **E2. Credit notes do not return stock.** A credit note reverses revenue, output VAT and the receivable
+  only. A customer return to stock (and the COGS reversal that goes with it) is a separate document, not built.
+- **E3. Output VAT.** Computed per line from the tax code and rounded to four decimals, like input VAT (D3).
+  VAT on a credit note reverses on the credit note's own date.
+- **E4. Revenue account.** One mapped default (`SALES_REVENUE`); a line may name its own postable account.
+  A per-item or per-category revenue account is not modelled.
+- **E5. Payment terms.** No terms table: the due date is entered per invoice and defaults to the invoice date.
+- **E6. Price list.** Items carry no selling price; the price is typed on each line.
+
+**Known gaps, M6:** no customer payments, statement or ageing yet (next slice); no invoice PDF or email yet; no
+ZATCA e-invoicing fields (UUID, hash, QR) — that is the compliance pack, M7, and is blocked on decision A4.

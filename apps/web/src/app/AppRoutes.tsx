@@ -23,6 +23,10 @@ import { PurchaseOrderDetailPage } from "../features/purchasing/PurchaseOrderDet
 import { PurchaseOrderFormPage } from "../features/purchasing/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "../features/purchasing/PurchaseOrdersPage";
 import { PurchaseRequestsPage } from "../features/purchasing/PurchaseRequestsPage";
+import { QuotationsPage } from "../features/sales/QuotationsPage";
+import { QuotationFormPage, SalesInvoiceFormPage, SalesOrderFormPage } from "../features/sales/SalesDocumentFormPage";
+import { SalesInvoiceDetailPage, SalesInvoicesPage } from "../features/sales/SalesInvoicesPage";
+import { SalesOrderDetailPage, SalesOrdersPage } from "../features/sales/SalesOrdersPage";
 import { UsersPage } from "../features/settings/UsersPage";
 import { AppShell } from "./layout/AppShell";
 import { NAV_ITEMS } from "./layout/NavConfig";
@@ -102,6 +106,26 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/tax-codes")} />}>
             <Route path="/settings/tax-codes" element={<TaxCodesPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/sales/quotations")} />}>
+            <Route path="/sales/quotations" element={<QuotationsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["quotation:create"]} />}>
+            <Route path="/sales/quotations/new" element={<QuotationFormPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/sales/orders")} />}>
+            <Route path="/sales/orders" element={<SalesOrdersPage />} />
+            <Route path="/sales/orders/:id" element={<SalesOrderDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["sales_order:create"]} />}>
+            <Route path="/sales/orders/new" element={<SalesOrderFormPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/sales/invoices")} />}>
+            <Route path="/sales/invoices" element={<SalesInvoicesPage />} />
+            <Route path="/sales/invoices/:id" element={<SalesInvoiceDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["sales_invoice:create"]} />}>
+            <Route path="/sales/invoices/new" element={<SalesInvoiceFormPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/approvals")} />}>
             <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
