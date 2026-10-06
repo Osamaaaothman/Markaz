@@ -285,7 +285,11 @@
         "purchase_order": "Purchase orders",
         "approval_policy": "Approval thresholds",
         "supplier_invoice": "Supplier invoices",
-        "tax_code": "Tax codes"
+        "tax_code": "Tax codes",
+        "quotation": "Quotations",
+        "sales_order": "Sales orders",
+        "sales_invoice": "Sales invoices",
+        "credit_note": "Credit notes"
       },
       "actions": {
         "create": "Create",

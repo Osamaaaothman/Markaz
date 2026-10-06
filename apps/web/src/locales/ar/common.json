@@ -285,7 +285,11 @@
         "purchase_order": "أوامر الشراء",
         "approval_policy": "حدود الموافقة",
         "supplier_invoice": "فواتير الموردين",
-        "tax_code": "رموز الضريبة"
+        "tax_code": "رموز الضريبة",
+        "quotation": "عروض الأسعار",
+        "sales_order": "أوامر البيع",
+        "sales_invoice": "فواتير المبيعات",
+        "credit_note": "إشعارات دائنة"
       },
       "actions": {
         "create": "إنشاء",
