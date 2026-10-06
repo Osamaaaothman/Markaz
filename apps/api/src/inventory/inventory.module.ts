@@ -8,6 +8,7 @@ import {
   StockCountService,
   StockIssueService,
   StockLevelService,
+  StockMovementService,
   WarehouseService,
   type IAccountingEngine,
   type IAuditLogger,
@@ -71,6 +72,7 @@ import { InventoryExportService } from "./inventory-export.service.js";
       inject: [PrismaService, INVENTORY_ENGINE, INVENTORY_NUMBERING, AccountMappingService, AUDIT_LOGGER],
     },
     InventoryExportService,
+    { provide: StockMovementService, useFactory: (prisma: PrismaService) => new StockMovementService(prisma), inject: [PrismaService] },
   ],
 })
 export class InventoryModule {}

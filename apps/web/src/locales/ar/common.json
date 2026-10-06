@@ -39,7 +39,8 @@
     "salesInvoices": "فواتير المبيعات",
     "payments": "المدفوعات",
     "aging": "أعمار الديون",
-    "partyStatement": "كشف حساب عميل / مورد"
+    "partyStatement": "كشف حساب عميل / مورد",
+    "stockMovements": "حركات المخزون"
   },
   "actions": {
     "save": "حفظ",
@@ -244,7 +245,8 @@
       "details": "تفاصيل القيد المحاسبي",
       "exchangeRate": "سعر الصرف",
       "reversalOf": "قيد عكسي للقيد رقم {{number}}",
-      "loadError": "تعذّر تحميل هذا القيد."
+      "loadError": "تعذّر تحميل هذا القيد.",
+      "exportCsv": "تصدير السطور (CSV)"
     },
     "accountStatement": {
       "title": "كشف حساب",
@@ -497,6 +499,29 @@
         "SALES_REVENUE": "دائن بصافي فواتير المبيعات (ويمكن لأي سطر تحديد حسابه الخاص).",
         "VAT_OUTPUT": "دائن بضريبة القيمة المضافة المحصّلة على فواتير المبيعات.",
         "COST_OF_GOODS_SOLD": "مدين بتكلفة المخزون المباع بالمتوسط المرجح."
+      }
+    },
+    "movements": {
+      "title": "حركات المخزون",
+      "subtitle": "كل حركة لكل صنف: ما دخل وما خرج وبأي تكلفة.",
+      "item": "الصنف",
+      "allItems": "كل الأصناف",
+      "type": "النوع",
+      "allTypes": "كل الأنواع",
+      "date": "التاريخ",
+      "source": "المصدر",
+      "entry": "قيد اليومية",
+      "unitCost": "تكلفة الوحدة",
+      "types": {
+        "RECEIPT": "استلام",
+        "ISSUE": "صرف",
+        "COUNT_ADJUSTMENT": "تسوية جرد"
+      },
+      "sources": {
+        "goods_receipt": "استلام مخزون",
+        "stock_issue": "صرف مخزون",
+        "stock_count": "جرد",
+        "sales_invoice": "فاتورة مبيعات"
       }
     }
   },

@@ -2,6 +2,10 @@
 module.exports = {
   testEnvironment: "node",
   rootDir: "src",
+  // The database specs build a whole company (accounts, parties, documents) in beforeAll. Alone that takes
+  // a second or two; with every package testing in parallel against one Postgres it can pass 5s, and the
+  // default 5s hook timeout turned that load into a spurious failure of a whole spec.
+  testTimeout: 60_000,
   testRegex: ".*\\.spec\\.ts$",
   moduleNameMapper: {
     // Source imports use explicit ".js" extensions (required by NodeNext module

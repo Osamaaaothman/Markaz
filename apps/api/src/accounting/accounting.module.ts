@@ -13,6 +13,7 @@ import {
 import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AccountingController } from "./accounting.controller.js";
+import { JournalExportService } from "./journal-export.service.js";
 import { LedgerController } from "./ledger.controller.js";
 import { LedgerExportService } from "./ledger-export.service.js";
 import { AccountingExportService } from "./accounting-export.service.js";
@@ -60,6 +61,7 @@ import { ACCOUNTING_ENGINE, NUMBERING_SERVICE } from "./accounting.tokens.js";
     },
     AccountingExportService,
     LedgerExportService,
+    JournalExportService,
   ],
 })
 export class AccountingModule {}

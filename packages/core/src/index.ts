@@ -53,3 +53,4 @@ export * from "./payments/party-statement.service.js";
 
 // Dashboard
 export * from "./dashboard/dashboard.service.js";
+export * from "./inventory/stock-movement.service.js";

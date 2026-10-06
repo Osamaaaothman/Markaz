@@ -8,6 +8,8 @@ import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
+import { apiClient } from "../../shared/api/client";
+import { downloadBlob } from "../../shared/lib/download-file";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryDetailDialog } from "./JournalEntryDetailDialog";
@@ -37,12 +39,24 @@ export function JournalEntriesPage(): React.JSX.Element {
         </div>
         {/* The entry form loads the account list and the fiscal periods, so creating one
             also needs those two read permissions — not just journal_entry:create. */}
-        <PermissionButton
-          allowed={canAll(["journal_entry:create", "account:read", "fiscal_period:read"])}
-          label={t("accounting.journalEntries.new")}
-          icon="pi pi-plus"
-          onClick={() => setFormVisible(true)}
-        />
+        <div className="erp-page__header-actions">
+          <Button
+            label={t("accounting.journalEntries.exportCsv")}
+            icon="pi pi-file"
+            outlined
+            onClick={() =>
+              void apiClient
+                .get<Blob>("/v1/journal-entries/export", { params: filter, responseType: "blob" })
+                .then((response) => downloadBlob(response.data, "journal-lines.csv"))
+            }
+          />
+          <PermissionButton
+            allowed={canAll(["journal_entry:create", "account:read", "fiscal_period:read"])}
+            label={t("accounting.journalEntries.new")}
+            icon="pi pi-plus"
+            onClick={() => setFormVisible(true)}
+          />
+        </div>
       </div>
 
       <div className="erp-form__row">

@@ -26,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/inventory/warehouses", labelKey: "nav.warehouses", icon: "pi pi-building", permissions: ["warehouse:read"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/items", labelKey: "nav.items", icon: "pi pi-box", permissions: ["item:read"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/stock-levels", labelKey: "nav.stockLevels", icon: "pi pi-chart-bar", permissions: ["stock:read"], groupKey: "nav.groups.inventory" },
+  { to: "/inventory/movements", labelKey: "nav.stockMovements", icon: "pi pi-history", permissions: ["stock:read"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/goods-receipts/new", labelKey: "nav.goodsReceipt", icon: "pi pi-download", permissions: ["goods_receipt:create"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/stock-issues/new", labelKey: "nav.stockIssue", icon: "pi pi-upload", permissions: ["stock_issue:create"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/stock-counts", labelKey: "nav.stockCount", icon: "pi pi-check-square", permissions: ["stock_count:read"], groupKey: "nav.groups.inventory" },

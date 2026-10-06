@@ -34,6 +34,7 @@ import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AccountingExportService, type ExportedFile } from "./accounting-export.service.js";
+import { JournalExportService } from "./journal-export.service.js";
 import { ACCOUNTING_ENGINE } from "./accounting.tokens.js";
 import { PostJournalEntryDto } from "./dto/post-journal-entry.dto.js";
 import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
@@ -60,6 +61,7 @@ export class AccountingController {
     private readonly balanceSheetService: BalanceSheetService,
     private readonly incomeStatementService: IncomeStatementService,
     private readonly exportService: AccountingExportService,
+    private readonly journalExport: JournalExportService,
     private readonly prisma: PrismaService,
     private readonly chartOfAccounts: ChartOfAccountsService,
   ) {}
@@ -224,6 +226,18 @@ export class AccountingController {
         nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
       },
     };
+  }
+
+  // Every posted line in the range as CSV. Declared before ":id" so "export" is not read as an id.
+  @Get("journal-entries/export")
+  @RequirePermission("journal_entry", "read")
+  async exportJournalEntries(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: JournalEntriesQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const file = await this.journalExport.exportCsv(actor.companyId, query.from ? new Date(query.from) : null, query.to ? new Date(query.to) : null);
+    this.sendFile(res, file);
   }
 
   @Get("journal-entries/:id")
