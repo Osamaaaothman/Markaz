@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "../features/auth/LoginPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { ChartOfAccountsPage } from "../features/accounting/ChartOfAccountsPage";
+import { AccountStatementPage } from "../features/accounting/AccountStatementPage";
 import { TrialBalancePage } from "../features/accounting/TrialBalancePage";
 import { BalanceSheetPage } from "../features/accounting/BalanceSheetPage";
 import { IncomeStatementPage } from "../features/accounting/IncomeStatementPage";
@@ -38,6 +39,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/parties")} />}>
             <Route path="/parties" element={<PartiesPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/accounting/account-statement")} />}>
+            <Route path="/accounting/account-statement" element={<AccountStatementPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/trial-balance")} />}>
             <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />

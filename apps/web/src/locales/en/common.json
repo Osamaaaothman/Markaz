@@ -24,7 +24,8 @@
     "goodsReceipt": "Goods receipt",
     "stockIssue": "Stock issue",
     "stockCount": "Stock count",
-    "accountMapping": "Account mapping"
+    "accountMapping": "Account mapping",
+    "accountStatement": "Account statement"
   },
   "actions": {
     "save": "Save",
@@ -194,6 +195,20 @@
       "exchangeRate": "Exchange rate",
       "reversalOf": "Reverses entry {{number}}",
       "loadError": "Couldn't load this entry."
+    },
+    "accountStatement": {
+      "title": "Account statement",
+      "subtitle": "Every posting on one account, with a running balance.",
+      "account": "Account",
+      "pickAccount": "Choose an account",
+      "choose": "Choose an account to see its statement.",
+      "opening": "Opening balance",
+      "closing": "Closing balance",
+      "date": "Date",
+      "entry": "Entry",
+      "description": "Description",
+      "empty": "No postings in this period.",
+      "truncated": "This period has more lines than shown; the totals and closing balance still cover all of it."
     }
   },
   "parties": {

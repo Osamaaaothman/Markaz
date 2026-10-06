@@ -8,7 +8,9 @@ import { Tag } from "primereact/tag";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
+import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { exportReport, type ExportFormat } from "../accounting/export-report";
 import { useAllWarehouses } from "./use-warehouses";
 import { useStockLevels, type StockLevelEntry } from "./use-stock-levels";
 
@@ -24,12 +26,28 @@ export function StockLevelsPage(): React.JSX.Element {
 
   const { data, isPending, isError, refetch } = useStockLevels({ warehouseId, belowReorderOnly });
 
+  // Same filters as the table, so the file matches what is on screen.
+  const handleExport = (format: ExportFormat) =>
+    exportReport(
+      "/v1/stock-levels/export",
+      {
+        lang: i18n.language,
+        ...(warehouseId ? { warehouseId } : {}),
+        ...(belowReorderOnly ? { belowReorderOnly: "true" } : {}),
+      },
+      "stock-levels",
+      format,
+    );
+
   return (
     <div className="erp-page erp-page--wide">
       <div className="erp-page__header">
         <div>
           <h1 className="erp-page__title">{t("inventory.stockLevels.title")}</h1>
           <p className="erp-page__subtitle">{t("inventory.stockLevels.subtitle")}</p>
+        </div>
+        <div className="erp-page__header-actions">
+          <ExportButtons onExport={handleExport} />
         </div>
       </div>
 

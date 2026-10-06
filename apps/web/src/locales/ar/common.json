@@ -24,7 +24,8 @@
     "goodsReceipt": "استلام مخزون",
     "stockIssue": "صرف مخزون",
     "stockCount": "الجرد",
-    "accountMapping": "ربط الحسابات"
+    "accountMapping": "ربط الحسابات",
+    "accountStatement": "كشف حساب"
   },
   "actions": {
     "save": "حفظ",
@@ -194,6 +195,20 @@
       "exchangeRate": "سعر الصرف",
       "reversalOf": "قيد عكسي للقيد رقم {{number}}",
       "loadError": "تعذّر تحميل هذا القيد."
+    },
+    "accountStatement": {
+      "title": "كشف حساب",
+      "subtitle": "كل الحركات على حساب واحد مع الرصيد التراكمي.",
+      "account": "الحساب",
+      "pickAccount": "اختر حساباً",
+      "choose": "اختر حساباً لعرض كشفه.",
+      "opening": "الرصيد الافتتاحي",
+      "closing": "الرصيد الختامي",
+      "date": "التاريخ",
+      "entry": "القيد",
+      "description": "البيان",
+      "empty": "لا حركات في هذه الفترة.",
+      "truncated": "في هذه الفترة سطور أكثر مما هو معروض؛ الإجماليات والرصيد الختامي تشمل كل السطور."
     }
   },
   "parties": {
