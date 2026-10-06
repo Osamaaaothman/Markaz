@@ -1,11 +1,12 @@
 import { Type } from "class-transformer";
 import { ArrayMinSize, IsArray, IsDateString, IsNotEmpty, IsString, MaxLength, ValidateNested } from "class-validator";
+import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 export class StockIssueLineDto {
   @IsString()
   itemId!: string;
 
-  @IsString()
+  @IsDecimalString({ positive: true })
   quantity!: string;
 }
 

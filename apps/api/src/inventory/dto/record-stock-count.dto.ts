@@ -1,16 +1,17 @@
 import { Type } from "class-transformer";
 import { ArrayMinSize, IsArray, IsDateString, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 export class StockCountLineDto {
   @IsString()
   itemId!: string;
 
-  @IsString()
+  @IsDecimalString()
   countedQuantity!: string;
 
   // Required by the service only when nothing is currently on hand for this item.
   @IsOptional()
-  @IsString()
+  @IsDecimalString()
   unitCostIfNoStock?: string;
 }
 
