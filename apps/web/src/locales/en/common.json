@@ -293,7 +293,10 @@
         "quotation": "Quotations",
         "sales_order": "Sales orders",
         "sales_invoice": "Sales invoices",
-        "credit_note": "Credit notes"
+        "credit_note": "Credit notes",
+        "payment": "Payments",
+        "customer_receipt": "Customer receipts",
+        "supplier_payment": "Supplier payments"
       },
       "actions": {
         "create": "Create",

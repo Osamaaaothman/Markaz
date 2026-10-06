@@ -293,7 +293,10 @@
         "quotation": "عروض الأسعار",
         "sales_order": "أوامر البيع",
         "sales_invoice": "فواتير المبيعات",
-        "credit_note": "إشعارات دائنة"
+        "credit_note": "إشعارات دائنة",
+        "payment": "المدفوعات",
+        "customer_receipt": "سندات قبض العملاء",
+        "supplier_payment": "مدفوعات الموردين"
       },
       "actions": {
         "create": "إنشاء",

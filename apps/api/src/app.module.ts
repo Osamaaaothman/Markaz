@@ -9,6 +9,7 @@ import { AuthModule } from "./auth/auth.module.js";
 import { AccountingModule } from "./accounting/accounting.module.js";
 import { PartiesModule } from "./parties/parties.module.js";
 import { InventoryModule } from "./inventory/inventory.module.js";
+import { PaymentsModule } from "./payments/payments.module.js";
 import { PurchasingModule } from "./purchasing/purchasing.module.js";
 import { SalesModule } from "./sales/sales.module.js";
 import { JobsModule } from "./jobs/jobs.module.js";
@@ -40,6 +41,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
     InventoryModule,
     PurchasingModule,
     SalesModule,
+    PaymentsModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -107,6 +107,9 @@ const PERMISSION_CATALOG = [
   { code: "sales_invoice:create", description: "Post a sales invoice" },
   { code: "sales_invoice:read", description: "View sales invoices and credit notes" },
   { code: "credit_note:create", description: "Post a credit note against an invoice" },
+  { code: "payment:read", description: "View customer receipts and supplier payments" },
+  { code: "customer_receipt:create", description: "Record a payment received from a customer" },
+  { code: "supplier_payment:create", description: "Record a payment made to a supplier" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

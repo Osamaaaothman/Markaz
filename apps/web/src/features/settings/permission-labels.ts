@@ -28,6 +28,9 @@ const RESOURCE_ORDER = [
   "sales_order",
   "sales_invoice",
   "credit_note",
+  "payment",
+  "customer_receipt",
+  "supplier_payment",
 ] as const;
 
 export function splitPermissionCode(code: string): { resource: string; action: string } {
