@@ -27,6 +27,8 @@ import { QuotationsPage } from "../features/sales/QuotationsPage";
 import { QuotationFormPage, SalesInvoiceFormPage, SalesOrderFormPage } from "../features/sales/SalesDocumentFormPage";
 import { SalesInvoiceDetailPage, SalesInvoicesPage } from "../features/sales/SalesInvoicesPage";
 import { SalesOrderDetailPage, SalesOrdersPage } from "../features/sales/SalesOrdersPage";
+import { CustomerReceiptPage, SupplierPaymentPage } from "../features/payments/PaymentFormPage";
+import { PaymentsPage } from "../features/payments/PaymentsPage";
 import { UsersPage } from "../features/settings/UsersPage";
 import { AppShell } from "./layout/AppShell";
 import { NAV_ITEMS } from "./layout/NavConfig";
@@ -126,6 +128,15 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={["sales_invoice:create"]} />}>
             <Route path="/sales/invoices/new" element={<SalesInvoiceFormPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/payments")} />}>
+            <Route path="/payments" element={<PaymentsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["customer_receipt:create"]} />}>
+            <Route path="/payments/receipts/new" element={<CustomerReceiptPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["supplier_payment:create"]} />}>
+            <Route path="/payments/supplier/new" element={<SupplierPaymentPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/approvals")} />}>
             <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />

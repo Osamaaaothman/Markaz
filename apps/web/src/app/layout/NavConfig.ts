@@ -33,6 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/sales/quotations", labelKey: "nav.quotations", icon: "pi pi-file-edit", permissions: ["quotation:read"], groupKey: "nav.groups.sales" },
   { to: "/sales/orders", labelKey: "nav.salesOrders", icon: "pi pi-shopping-bag", permissions: ["sales_order:read"], groupKey: "nav.groups.sales" },
   { to: "/sales/invoices", labelKey: "nav.salesInvoices", icon: "pi pi-file", permissions: ["sales_invoice:read"], groupKey: "nav.groups.sales" },
+  { to: "/payments", labelKey: "nav.payments", icon: "pi pi-wallet", permissions: ["payment:read"], groupKey: "nav.groups.payments" },
   { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users", permissions: ["user:read", "role:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/account-mapping", labelKey: "nav.accountMapping", icon: "pi pi-link", permissions: ["account_mapping:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/tax-codes", labelKey: "nav.taxCodes", icon: "pi pi-percentage", permissions: ["tax_code:read"], groupKey: "nav.groups.settings" },
