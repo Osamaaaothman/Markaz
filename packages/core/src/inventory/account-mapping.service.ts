@@ -16,6 +16,11 @@ export const ACCOUNT_MAPPING_KEYS = [
   "ACCOUNTS_PAYABLE",
   "VAT_INPUT",
   "PURCHASE_PRICE_VARIANCE",
+  // M6 sales: receivable, revenue, output VAT and cost of goods sold.
+  "ACCOUNTS_RECEIVABLE",
+  "SALES_REVENUE",
+  "VAT_OUTPUT",
+  "COST_OF_GOODS_SOLD",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
 
