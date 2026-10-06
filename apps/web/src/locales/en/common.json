@@ -16,7 +16,8 @@
       "accounting": "Accounting",
       "masterData": "Master data",
       "settings": "Settings",
-      "inventory": "Inventory"
+      "inventory": "Inventory",
+      "purchasing": "Purchasing"
     },
     "warehouses": "Warehouses",
     "items": "Items",
@@ -25,7 +26,10 @@
     "stockIssue": "Stock issue",
     "stockCount": "Stock count",
     "accountMapping": "Account mapping",
-    "accountStatement": "Account statement"
+    "accountStatement": "Account statement",
+    "purchaseRequests": "Purchase requests",
+    "purchaseOrders": "Purchase orders",
+    "approvalLimits": "Approval limits"
   },
   "actions": {
     "save": "Save",
@@ -274,7 +278,10 @@
         "account_mapping": "Inventory account mapping",
         "goods_receipt": "Goods receipts",
         "stock_issue": "Stock issues",
-        "stock_count": "Stock counts"
+        "stock_count": "Stock counts",
+        "purchase_request": "Purchase requests",
+        "purchase_order": "Purchase orders",
+        "approval_policy": "Approval thresholds"
       },
       "actions": {
         "create": "Create",
@@ -282,7 +289,10 @@
         "reverse": "Reverse",
         "assign": "Assign",
         "update": "Update",
-        "post": "Post"
+        "post": "Post",
+        "reject": "Reject",
+        "approve": "Approve",
+        "cancel": "Cancel"
       },
       "createUserSuccess": "User created.",
       "createUserError": "Couldn't create user.",
@@ -417,6 +427,83 @@
         "COUNT_LOSS": "Debited when a count finds less stock than the books.",
         "COUNT_GAIN": "Credited when a count finds more stock than the books."
       }
+    }
+  },
+  "purchasing": {
+    "title": "Purchasing",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "number": "Number",
+    "date": "Date",
+    "lineCount": "Lines",
+    "view": "View",
+    "lines": "Lines",
+    "quantity": "Quantity",
+    "notes": "Notes",
+    "supplier": "Supplier",
+    "unitPrice": "Unit price",
+    "total": "Total",
+    "received": "Received",
+    "outstanding": "Outstanding",
+    "receiveNow": "Receive now",
+    "requestStatus": {
+      "PENDING": "Pending",
+      "PROCESSED": "Ordered",
+      "REJECTED": "Rejected"
+    },
+    "orderStatus": {
+      "PENDING_APPROVAL": "Waiting for approval",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "PARTIALLY_RECEIVED": "Partly received",
+      "RECEIVED": "Received",
+      "CANCELLED": "Cancelled"
+    },
+    "requests": {
+      "title": "Purchase requests",
+      "subtitle": "What people need bought. A buyer turns a request into an order, or turns it down.",
+      "new": "New request",
+      "notes": "Notes (optional)",
+      "createOrder": "Create order",
+      "reject": "Reject",
+      "openOrder": "Open order",
+      "rejectReason": "Why is it being rejected?",
+      "rejectError": "Could not reject this request.",
+      "createError": "Could not save this request."
+    },
+    "orders": {
+      "title": "Purchase orders",
+      "subtitle": "Orders placed with suppliers, and what has arrived against them.",
+      "new": "New order",
+      "newTitle": "New purchase order",
+      "newSubtitle": "Choose the supplier, then the items and the agreed prices.",
+      "fromRequest": "Started from request {{number}}.",
+      "orderDate": "Order date",
+      "expectedDate": "Expected date",
+      "create": "Create order",
+      "createError": "Could not create this order.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "receive": "Receive goods",
+      "cancel": "Cancel order",
+      "waitingApproval": "This order is above the approval limit. It can be received only after someone with the right approves it.",
+      "actionError": "That action could not be completed. The order may have changed; reload and try again.",
+      "backToList": "Back to orders",
+      "receiveTitle": "Receive goods",
+      "receiveConflict": "More than the outstanding quantity, or the order is no longer open for receiving.",
+      "receiveError": "Could not post this receipt.",
+      "postReceipt": "Post receipt"
+    },
+    "approvals": {
+      "title": "Approval limits",
+      "subtitle": "Above this amount a document waits for approval. Leave it empty to never require approval.",
+      "subjects": {
+        "purchase_order": "Purchase orders"
+      },
+      "noThreshold": "No limit set: orders never need approval.",
+      "currentThreshold": "Orders above {{amount}} need approval.",
+      "thresholdPlaceholder": "Amount in {{currency}}",
+      "saveError": "Could not save this limit."
     }
   }
 }
