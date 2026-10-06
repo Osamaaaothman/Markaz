@@ -110,6 +110,8 @@ const PERMISSION_CATALOG = [
   { code: "payment:read", description: "View customer receipts and supplier payments" },
   { code: "customer_receipt:create", description: "Record a payment received from a customer" },
   { code: "supplier_payment:create", description: "Record a payment made to a supplier" },
+  { code: "aging_report:read", description: "View receivables and payables ageing" },
+  { code: "party_statement:read", description: "View customer and supplier statements" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

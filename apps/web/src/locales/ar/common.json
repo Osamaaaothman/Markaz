@@ -298,7 +298,9 @@
         "credit_note": "إشعارات دائنة",
         "payment": "المدفوعات",
         "customer_receipt": "سندات قبض العملاء",
-        "supplier_payment": "مدفوعات الموردين"
+        "supplier_payment": "مدفوعات الموردين",
+        "aging_report": "تقارير أعمار الديون",
+        "party_statement": "كشوف حساب العملاء والموردين"
       },
       "actions": {
         "create": "إنشاء",

@@ -298,7 +298,9 @@
         "credit_note": "Credit notes",
         "payment": "Payments",
         "customer_receipt": "Customer receipts",
-        "supplier_payment": "Supplier payments"
+        "supplier_payment": "Supplier payments",
+        "aging_report": "Ageing reports",
+        "party_statement": "Customer and supplier statements"
       },
       "actions": {
         "create": "Create",

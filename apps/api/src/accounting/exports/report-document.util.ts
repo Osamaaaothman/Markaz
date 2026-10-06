@@ -15,6 +15,8 @@ export function renderReportShell(params: {
   readonly title: string;
   readonly subtitle: string;
   readonly bodyHtml: string;
+  // Extra CSS appended after the shell's own (a dense table for a report with many columns).
+  readonly extraCss?: string;
 }): string {
   const dir = params.language === "ar" ? "rtl" : "ltr";
   return `<!doctype html>
@@ -40,6 +42,7 @@ export function renderReportShell(params: {
   td.amount, th.amount { text-align: end; font-variant-numeric: tabular-nums; }
   .total-row td { font-weight: 600; background: #fafafa; }
   .grand-total { margin-block-start: 10pt; font-weight: 700; font-size: 11pt; }
+  ${params.extraCss ?? ""}
 </style>
 </head>
 <body>

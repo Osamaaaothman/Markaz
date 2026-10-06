@@ -65,5 +65,56 @@
     "averageCost": "Average cost",
     "value": "Value",
     "totalValue": "Total stock value"
+  },
+  "aging": {
+    "receivablesTitle": "Receivables Ageing",
+    "payablesTitle": "Payables Ageing",
+    "subtitle": "Open invoices by days overdue, as of {{asOf}}.",
+    "party": "Party",
+    "current": "Current",
+    "days1to30": "1-30 days",
+    "days31to60": "31-60 days",
+    "days61to90": "61-90 days",
+    "over90": "Over 90 days",
+    "onAccount": "On account",
+    "total": "Total",
+    "ledgerBalance": "Ledger balance",
+    "difference": "Difference",
+    "notMapped": "The control account is not mapped yet, so this report cannot be tied to the ledger."
+  },
+  "partyStatement": {
+    "customerTitle": "Customer Statement",
+    "supplierTitle": "Supplier Statement",
+    "subtitle": "For the period {{from}} to {{to}}.",
+    "date": "Date",
+    "type": "Type",
+    "number": "Number",
+    "reference": "Reference",
+    "charges": "Charges",
+    "settlements": "Payments and credits",
+    "balance": "Balance",
+    "opening": "Opening balance",
+    "total": "Total",
+    "kinds": {
+      "INVOICE": "Invoice",
+      "CREDIT_NOTE": "Credit note",
+      "RECEIPT": "Receipt",
+      "PAYMENT": "Payment"
+    }
+  },
+  "salesInvoice": {
+    "invoiceTitle": "Invoice",
+    "creditNoteTitle": "Credit Note",
+    "number": "Number",
+    "date": "Date",
+    "dueDate": "Due date",
+    "customer": "Customer",
+    "description": "Description",
+    "quantity": "Qty",
+    "unitPrice": "Unit price",
+    "net": "Net",
+    "taxRate": "VAT %",
+    "tax": "VAT",
+    "total": "Total"
   }
 }
