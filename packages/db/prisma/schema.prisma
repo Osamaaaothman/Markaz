@@ -63,6 +63,7 @@ model Company {
   quotations       Quotation[]
   salesOrders      SalesOrder[]
   salesInvoices    SalesInvoice[]
+  payments         Payment[]
 
   @@map("companies")
 }
@@ -323,6 +324,7 @@ model Account {
   // M4 inventory: an account may be the target of a mapping key (INVENTORY, GRNI, ...).
   accountMappings      AccountMapping[]
   supplierInvoiceLines SupplierInvoiceLine[]
+  payments             Payment[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -360,6 +362,7 @@ model Party {
   quotations       Quotation[]
   salesOrders      SalesOrder[]
   salesInvoices    SalesInvoice[]
+  payments         Payment[]
 
   @@unique([companyId, ref])
   @@index([companyId, kind])
@@ -423,6 +426,7 @@ model JournalEntry {
   stockCountLines  StockCountLine[]
   supplierInvoices SupplierInvoice[]
   salesInvoices    SalesInvoice[]
+  payments         Payment[]
 
   // The idempotencyKey unique constraint below IS the duplicate-posting guard
   // (docs/04-DATA-MODEL-RULES.md §6/§9) — a separate uniqueness constraint on the
@@ -1011,11 +1015,12 @@ model SupplierInvoice {
   correlationId         String    @map("correlation_id")
   createdAt             DateTime  @default(now()) @map("created_at")
 
-  company       Company               @relation(fields: [companyId], references: [id])
-  supplier      Party                 @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  purchaseOrder PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
-  journalEntry  JournalEntry          @relation(fields: [journalEntryId], references: [id])
-  lines         SupplierInvoiceLine[]
+  company            Company               @relation(fields: [companyId], references: [id])
+  supplier           Party                 @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder      PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  journalEntry       JournalEntry          @relation(fields: [journalEntryId], references: [id])
+  lines              SupplierInvoiceLine[]
+  paymentAllocations PaymentAllocation[]
 
   @@unique([companyId, number])
   @@unique([companyId, supplierId, supplierInvoiceNumber])
@@ -1187,13 +1192,14 @@ model SalesInvoice {
   correlationId     String    @map("correlation_id")
   createdAt         DateTime  @default(now()) @map("created_at")
 
-  company         Company            @relation(fields: [companyId], references: [id])
-  customer        Party              @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  salesOrder      SalesOrder?        @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
-  originalInvoice SalesInvoice?      @relation("CreditNotes", fields: [originalInvoiceId], references: [id], onDelete: Restrict)
-  creditNotes     SalesInvoice[]     @relation("CreditNotes")
-  journalEntry    JournalEntry       @relation(fields: [journalEntryId], references: [id])
-  lines           SalesInvoiceLine[]
+  company            Company             @relation(fields: [companyId], references: [id])
+  customer           Party               @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  salesOrder         SalesOrder?         @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
+  originalInvoice    SalesInvoice?       @relation("CreditNotes", fields: [originalInvoiceId], references: [id], onDelete: Restrict)
+  creditNotes        SalesInvoice[]      @relation("CreditNotes")
+  journalEntry       JournalEntry        @relation(fields: [journalEntryId], references: [id])
+  lines              SalesInvoiceLine[]
+  paymentAllocations PaymentAllocation[]
 
   @@unique([companyId, number])
   @@index([companyId, customerId])
@@ -1230,4 +1236,59 @@ model SalesInvoiceLine {
 
   @@index([salesInvoiceId])
   @@map("sales_invoice_lines")
+}
+
+// ─── Payments (customer receipts and supplier payments) ─────────────────────────
+// A RECEIPT is money in from a customer (Dr cash/bank, Cr receivable); a PAYMENT is money out to a
+// supplier (Dr payable, Cr cash/bank). The whole amount posts to the control account; the allocations
+// say which invoices it settles. Whatever is not allocated stays "on account" for the party. A posted
+// payment is immutable — a mistake is corrected by a reversing entry, never an edit.
+model Payment {
+  id             String   @id
+  companyId      String   @map("company_id")
+  direction      String // RECEIPT | PAYMENT
+  number         String
+  partyId        String   @map("party_id")
+  paymentDate    DateTime @map("payment_date") @db.Date
+  amount         Decimal  @db.Decimal(19, 4)
+  currency       String
+  // The bank or cash account the money moved through.
+  cashAccountId  String   @map("cash_account_id")
+  method         String // CASH | BANK_TRANSFER | CHEQUE | CARD | OTHER
+  reference      String?
+  notes          String?
+  journalEntryId String   @map("journal_entry_id")
+  actorId        String   @map("actor_id")
+  correlationId  String   @map("correlation_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  company      Company             @relation(fields: [companyId], references: [id])
+  party        Party               @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  cashAccount  Account             @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry        @relation(fields: [journalEntryId], references: [id])
+  allocations  PaymentAllocation[]
+
+  @@unique([companyId, number])
+  @@index([companyId, partyId])
+  @@index([companyId, direction])
+  @@map("payments")
+}
+
+// Exactly one target: a sales invoice (for a RECEIPT) or a supplier invoice (for a PAYMENT).
+model PaymentAllocation {
+  id                String  @id
+  companyId         String  @map("company_id")
+  paymentId         String  @map("payment_id")
+  salesInvoiceId    String? @map("sales_invoice_id")
+  supplierInvoiceId String? @map("supplier_invoice_id")
+  amount            Decimal @db.Decimal(19, 4)
+
+  payment         Payment          @relation(fields: [paymentId], references: [id])
+  salesInvoice    SalesInvoice?    @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  supplierInvoice SupplierInvoice? @relation(fields: [supplierInvoiceId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([salesInvoiceId])
+  @@index([supplierInvoiceId])
+  @@map("payment_allocations")
 }
