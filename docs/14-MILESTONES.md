@@ -140,8 +140,10 @@ ties to the ledger.
 
 **Status (2026-10):** quotations, sales orders, sales invoices (revenue, output VAT, receivable, COGS out of stock
 at weighted-average cost) and credit notes are built and verified against a real database, with their screens.
-Open: customer payments and allocation, customer statement, aging report, invoice PDF and email. Accounting
-defaults awaiting an accountant: `docs/01-OPEN-DECISIONS.md` section E.
+Customer receipts and supplier payments with allocation to invoices, receivables and payables ageing (tied to the
+control account to the cent, at any past date), customer/supplier statements, CSV/PDF export and an invoice PDF are
+also built and verified. Open: invoice **email delivery** (needs mail credentials and a recipient decision), ZATCA
+fields (M7). Accounting defaults awaiting an accountant: `docs/01-OPEN-DECISIONS.md` section E.
 
 ---
 

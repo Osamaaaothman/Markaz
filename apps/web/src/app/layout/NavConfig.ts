@@ -20,6 +20,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/accounting/trial-balance", labelKey: "nav.trialBalance", icon: "pi pi-chart-bar", permissions: ["trial_balance:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/balance-sheet", labelKey: "nav.balanceSheet", icon: "pi pi-wallet", permissions: ["balance_sheet:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/income-statement", labelKey: "nav.incomeStatement", icon: "pi pi-chart-line", permissions: ["income_statement:read"], groupKey: "nav.groups.accounting" },
+  { to: "/accounting/aging", labelKey: "nav.aging", icon: "pi pi-clock", permissions: ["aging_report:read"], groupKey: "nav.groups.accounting" },
+  { to: "/accounting/party-statement", labelKey: "nav.partyStatement", icon: "pi pi-id-card", permissions: ["party_statement:read"], groupKey: "nav.groups.accounting" },
   { to: "/parties", labelKey: "nav.parties", icon: "pi pi-address-book", permissions: ["party:read"], groupKey: "nav.groups.masterData" },
   { to: "/inventory/warehouses", labelKey: "nav.warehouses", icon: "pi pi-building", permissions: ["warehouse:read"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/items", labelKey: "nav.items", icon: "pi pi-box", permissions: ["item:read"], groupKey: "nav.groups.inventory" },
