@@ -65,5 +65,56 @@
     "averageCost": "متوسط التكلفة",
     "value": "القيمة",
     "totalValue": "إجمالي قيمة المخزون"
+  },
+  "aging": {
+    "receivablesTitle": "أعمار الذمم المدينة",
+    "payablesTitle": "أعمار الذمم الدائنة",
+    "subtitle": "الفواتير المفتوحة حسب أيام التأخر، حتى {{asOf}}.",
+    "party": "الطرف",
+    "current": "غير مستحق",
+    "days1to30": "1-30 يوماً",
+    "days31to60": "31-60 يوماً",
+    "days61to90": "61-90 يوماً",
+    "over90": "أكثر من 90 يوماً",
+    "onAccount": "على الحساب",
+    "total": "الإجمالي",
+    "ledgerBalance": "رصيد الدفتر",
+    "difference": "الفرق",
+    "notMapped": "حساب الرقابة غير مربوط بعد، لذلك لا يمكن مطابقة هذا التقرير مع الدفتر."
+  },
+  "partyStatement": {
+    "customerTitle": "كشف حساب عميل",
+    "supplierTitle": "كشف حساب مورد",
+    "subtitle": "عن الفترة من {{from}} إلى {{to}}.",
+    "date": "التاريخ",
+    "type": "النوع",
+    "number": "الرقم",
+    "reference": "المرجع",
+    "charges": "المطلوبات",
+    "settlements": "المدفوعات والإشعارات",
+    "balance": "الرصيد",
+    "opening": "الرصيد الافتتاحي",
+    "total": "الإجمالي",
+    "kinds": {
+      "INVOICE": "فاتورة",
+      "CREDIT_NOTE": "إشعار دائن",
+      "RECEIPT": "سند قبض",
+      "PAYMENT": "دفعة"
+    }
+  },
+  "salesInvoice": {
+    "invoiceTitle": "فاتورة",
+    "creditNoteTitle": "إشعار دائن",
+    "number": "الرقم",
+    "date": "التاريخ",
+    "dueDate": "تاريخ الاستحقاق",
+    "customer": "العميل",
+    "description": "البيان",
+    "quantity": "الكمية",
+    "unitPrice": "سعر الوحدة",
+    "net": "الصافي",
+    "taxRate": "الضريبة %",
+    "tax": "الضريبة",
+    "total": "الإجمالي"
   }
 }

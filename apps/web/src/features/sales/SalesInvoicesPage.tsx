@@ -15,6 +15,7 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
 import { useCreateCreditNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
 
@@ -115,6 +116,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-page__header-actions">
           <Tag value={t(`sales.invoices.types.${invoice.documentType}`)} severity={invoice.documentType === "INVOICE" ? "info" : "warning"} />
+          <Button label={t("sales.invoices.downloadPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "pdf")} />
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("credit_note:create")} label={t("sales.invoices.creditNote")} icon="pi pi-minus-circle" outlined onClick={() => setCreditOpen(true)} /> : null}
           {invoice.originalInvoiceId ? <Button label={t("sales.invoices.openOriginal")} text onClick={() => void navigate(`/sales/invoices/${invoice.originalInvoiceId}`)} /> : null}
         </div>

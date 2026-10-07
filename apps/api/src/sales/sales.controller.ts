@@ -1,4 +1,5 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import {
   QuotationService,
   SalesError,
@@ -19,6 +20,10 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
+import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
+import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
 import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
@@ -67,6 +72,7 @@ export class SalesController {
     private readonly quotations: QuotationService,
     private readonly orders: SalesOrderService,
     private readonly invoices: SalesInvoiceService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // ── Quotations ──────────────────────────────────────────────────────────────
@@ -168,6 +174,24 @@ export class SalesController {
   @RequirePermission("sales_invoice", "read")
   getInvoice(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<SalesInvoiceDetail> {
     return mapSalesErrors(this.invoices.get(actor.companyId, id));
+  }
+
+  // A printable copy of the posted invoice or credit note, in the requested language.
+  @Get("sales-invoices/:id/pdf")
+  @RequirePermission("sales_invoice", "read")
+  async invoicePdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const invoice = await mapSalesErrors(this.invoices.get(actor.companyId, id));
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true } });
+    const pdf = await renderHtmlToPdf(await salesInvoiceToPdfHtml({ invoice, language, companyName: company.name }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${invoice.number}.pdf"`);
+    res.send(pdf);
   }
 
   @Post("sales-invoices")

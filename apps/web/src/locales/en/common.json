@@ -37,7 +37,9 @@
     "quotations": "Quotations",
     "salesOrders": "Sales orders",
     "salesInvoices": "Sales invoices",
-    "payments": "Payments"
+    "payments": "Payments",
+    "aging": "Ageing",
+    "partyStatement": "Customer / supplier statement"
   },
   "actions": {
     "save": "Save",
@@ -298,7 +300,9 @@
         "credit_note": "Credit notes",
         "payment": "Payments",
         "customer_receipt": "Customer receipts",
-        "supplier_payment": "Supplier payments"
+        "supplier_payment": "Supplier payments",
+        "aging_report": "Ageing reports",
+        "party_statement": "Customer and supplier statements"
       },
       "actions": {
         "create": "Create",
@@ -678,7 +682,8 @@
       "creditNoteHint": "A credit note reduces what the customer owes. It does not put goods back in stock.",
       "creditDate": "Credit note date",
       "postCreditNote": "Post credit note",
-      "openOriginal": "Open the invoice"
+      "openOriginal": "Open the invoice",
+      "downloadPdf": "Download PDF"
     }
   },
   "payments": {
@@ -734,6 +739,50 @@
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
       "INVOICE_NOT_FOUND": "An invoice to settle was not found for this party.",
       "DUPLICATE_ALLOCATION": "An invoice appears twice."
+    }
+  },
+  "aging": {
+    "title": "Ageing",
+    "subtitle": "Open invoices by how overdue they are. The total must equal the control account.",
+    "receivables": "Receivables (customers)",
+    "payables": "Payables (suppliers)",
+    "asOf": "As of",
+    "empty": "Nothing is owed.",
+    "party": "Customer / supplier",
+    "current": "Not yet due",
+    "days1to30": "1-30 days",
+    "days31to60": "31-60 days",
+    "days61to90": "61-90 days",
+    "over90": "Over 90 days",
+    "onAccount": "On account",
+    "total": "Total",
+    "ledgerBalance": "Ledger balance",
+    "difference": "Difference",
+    "ties": "Ties to the ledger",
+    "notMapped": "The control account is not mapped yet (Settings > Account mapping)"
+  },
+  "partyStatement": {
+    "title": "Customer / supplier statement",
+    "subtitle": "Every invoice, credit note and payment, with a running balance.",
+    "kind": "Statement for",
+    "customer": "Customer",
+    "supplier": "Supplier",
+    "party": "Name",
+    "choose": "Choose a customer or supplier.",
+    "opening": "Opening balance",
+    "closing": "Closing balance",
+    "empty": "No activity in this period.",
+    "date": "Date",
+    "type": "Type",
+    "reference": "Reference",
+    "charges": "Charges",
+    "settlements": "Payments and credits",
+    "balance": "Balance",
+    "kinds": {
+      "INVOICE": "Invoice",
+      "CREDIT_NOTE": "Credit note",
+      "RECEIPT": "Receipt",
+      "PAYMENT": "Payment"
     }
   }
 }
