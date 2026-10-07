@@ -13,6 +13,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { OrderStatusTag } from "./StatusTags";
 import { usePurchaseOrders, type PurchaseOrderStatus, type PurchaseOrderSummary } from "./use-purchasing";
+import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL = "ALL";
 const STATUSES: readonly PurchaseOrderStatus[] = ["PENDING_APPROVAL", "APPROVED", "PARTIALLY_RECEIVED", "RECEIVED", "REJECTED", "CANCELLED"];
@@ -76,6 +77,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
             <Column header={t("purchasing.orders.expectedDate")} style={{ width: "9rem" }} body={(row: PurchaseOrderSummary) => (row.expectedDate ? formatCalendarDate(row.expectedDate, i18n.language) : "")} />
             <Column header={t("purchasing.total")} align="right" style={{ width: "11rem" }} body={(row: PurchaseOrderSummary) => formatMoney(row.totalAmount, row.currency)} />
             <Column header={t("purchasing.status")} style={{ width: "11rem" }} body={(row: PurchaseOrderSummary) => <OrderStatusTag status={row.status} />} />
+            <Column header="" style={{ width: "4rem" }} body={(row: PurchaseOrderSummary) => <AttachmentsButton ownerType="PURCHASE_ORDER" ownerId={row.id} label={row.number} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">

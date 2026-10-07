@@ -8,6 +8,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { useAccountLabel } from "./use-account-label";
 import { useJournalEntry, type JournalEntryLineDetail } from "./use-journal-entries";
+import { AttachmentsPanel } from "../attachments/AttachmentsPanel";
 
 export function JournalEntryDetailDialog({
   entryId,
@@ -101,6 +102,9 @@ export function JournalEntryDetailDialog({
               <strong>{t("accounting.journalEntries.totalCredit")}:</strong> {formatMoney(entry.totalCredit, entry.currency)}
             </p>
           </div>
+
+          <h3 className="erp-form__section-title">{t("attachments.title")}</h3>
+          <AttachmentsPanel ownerType="JOURNAL_ENTRY" ownerId={entry.id} />
         </div>
       )}
     </Dialog>
