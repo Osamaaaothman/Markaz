@@ -51,6 +51,9 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/home/app/.cache/ms-playwright
 RUN mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && chown -R app:app /home/app/.cache \
   && npx playwright install --with-deps chromium \
   && chown -R app:app /home/app/.cache
+# Attached documents live here (a named volume in docker-compose.yml). Created and owned by the app user
+# before the volume is first mounted, so the volume inherits that ownership and the API can write to it.
+RUN mkdir -p /data/attachments && chown -R app:app /data
 USER app
 WORKDIR /repo/apps/api
 EXPOSE 3000
