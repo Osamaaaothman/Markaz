@@ -18,7 +18,8 @@
       "settings": "الإعدادات",
       "inventory": "المخزون",
       "purchasing": "المشتريات",
-      "sales": "المبيعات"
+      "sales": "المبيعات",
+      "payments": "المدفوعات"
     },
     "warehouses": "المستودعات",
     "items": "الأصناف",
@@ -35,7 +36,8 @@
     "taxCodes": "رموز الضريبة",
     "quotations": "عروض الأسعار",
     "salesOrders": "أوامر البيع",
-    "salesInvoices": "فواتير المبيعات"
+    "salesInvoices": "فواتير المبيعات",
+    "payments": "المدفوعات"
   },
   "actions": {
     "save": "حفظ",
@@ -293,7 +295,10 @@
         "quotation": "عروض الأسعار",
         "sales_order": "أوامر البيع",
         "sales_invoice": "فواتير المبيعات",
-        "credit_note": "إشعارات دائنة"
+        "credit_note": "إشعارات دائنة",
+        "payment": "المدفوعات",
+        "customer_receipt": "سندات قبض العملاء",
+        "supplier_payment": "مدفوعات الموردين"
       },
       "actions": {
         "create": "إنشاء",
@@ -674,6 +679,61 @@
       "creditDate": "تاريخ الإشعار",
       "postCreditNote": "ترحيل الإشعار الدائن",
       "openOriginal": "فتح الفاتورة"
+    }
+  },
+  "payments": {
+    "title": "المدفوعات",
+    "subtitle": "الأموال المقبوضة من العملاء والمدفوعة للموردين، والفواتير التي يسدّدها كل منها.",
+    "newReceipt": "سند قبض من عميل",
+    "newPayment": "دفعة لمورد",
+    "direction": "الاتجاه",
+    "allDirections": "المقبوض والمدفوع",
+    "directions": {
+      "RECEIPT": "مقبوض",
+      "PAYMENT": "مدفوع"
+    },
+    "party": "العميل / المورد",
+    "date": "التاريخ",
+    "amount": "المبلغ",
+    "method": "الطريقة",
+    "methods": {
+      "CASH": "نقداً",
+      "BANK_TRANSFER": "تحويل بنكي",
+      "CHEQUE": "شيك",
+      "CARD": "بطاقة",
+      "OTHER": "أخرى"
+    },
+    "reference": "المرجع",
+    "bankAccount": "حساب البنك / الصندوق",
+    "pickBank": "اختر الحساب",
+    "settle": "الفواتير المراد سدادها",
+    "fillOldest": "املأ الأقدم أولاً",
+    "noOpenInvoices": "لا يوجد مبلغ مستحق على أي فاتورة. سيبقى المبلغ على الحساب.",
+    "outstanding": "المتبقي",
+    "settleNow": "سداد الآن",
+    "allocated": "المخصّص للفواتير",
+    "onAccount": "على الحساب",
+    "receipt": {
+      "title": "سند قبض من عميل",
+      "subtitle": "سجّل مبلغاً استلمته من عميل.",
+      "party": "العميل",
+      "submit": "ترحيل السند"
+    },
+    "payment": {
+      "title": "دفعة لمورد",
+      "subtitle": "سجّل مبلغاً دفعته لمورد.",
+      "party": "المورد",
+      "submit": "ترحيل الدفعة"
+    },
+    "errors": {
+      "generic": "تعذّر ترحيل هذه الدفعة.",
+      "badRequest": "تأكد من ضبط حسابي الذمم المدينة والدائنة في الإعدادات > ربط الحسابات.",
+      "OVER_ALLOCATED": "المبلغ أكبر من المتبقي على الفاتورة.",
+      "ALLOCATION_EXCEEDS_PAYMENT": "مجموع التخصيصات أكبر من الدفعة.",
+      "CASH_ACCOUNT_INVALID": "اختر حساب أصول قابلاً للترحيل للبنك أو الصندوق.",
+      "NO_OPEN_PERIOD": "لا توجد فترة مالية مفتوحة تغطي هذا التاريخ.",
+      "INVOICE_NOT_FOUND": "لم يتم العثور على فاتورة للسداد لهذا الطرف.",
+      "DUPLICATE_ALLOCATION": "فاتورة تظهر مرتين."
     }
   }
 }

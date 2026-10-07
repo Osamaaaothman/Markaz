@@ -18,7 +18,8 @@
       "settings": "Settings",
       "inventory": "Inventory",
       "purchasing": "Purchasing",
-      "sales": "Sales"
+      "sales": "Sales",
+      "payments": "Payments"
     },
     "warehouses": "Warehouses",
     "items": "Items",
@@ -35,7 +36,8 @@
     "taxCodes": "Tax codes",
     "quotations": "Quotations",
     "salesOrders": "Sales orders",
-    "salesInvoices": "Sales invoices"
+    "salesInvoices": "Sales invoices",
+    "payments": "Payments"
   },
   "actions": {
     "save": "Save",
@@ -293,7 +295,10 @@
         "quotation": "Quotations",
         "sales_order": "Sales orders",
         "sales_invoice": "Sales invoices",
-        "credit_note": "Credit notes"
+        "credit_note": "Credit notes",
+        "payment": "Payments",
+        "customer_receipt": "Customer receipts",
+        "supplier_payment": "Supplier payments"
       },
       "actions": {
         "create": "Create",
@@ -674,6 +679,61 @@
       "creditDate": "Credit note date",
       "postCreditNote": "Post credit note",
       "openOriginal": "Open the invoice"
+    }
+  },
+  "payments": {
+    "title": "Payments",
+    "subtitle": "Money received from customers and paid to suppliers, and the invoices each settles.",
+    "newReceipt": "Customer receipt",
+    "newPayment": "Supplier payment",
+    "direction": "Direction",
+    "allDirections": "Received and paid",
+    "directions": {
+      "RECEIPT": "Received",
+      "PAYMENT": "Paid"
+    },
+    "party": "Customer / supplier",
+    "date": "Date",
+    "amount": "Amount",
+    "method": "Method",
+    "methods": {
+      "CASH": "Cash",
+      "BANK_TRANSFER": "Bank transfer",
+      "CHEQUE": "Cheque",
+      "CARD": "Card",
+      "OTHER": "Other"
+    },
+    "reference": "Reference",
+    "bankAccount": "Bank / cash account",
+    "pickBank": "Choose the account",
+    "settle": "Invoices to settle",
+    "fillOldest": "Fill oldest first",
+    "noOpenInvoices": "Nothing is owed on any invoice. The amount will stay on account.",
+    "outstanding": "Still owed",
+    "settleNow": "Settle now",
+    "allocated": "Allocated to invoices",
+    "onAccount": "On account",
+    "receipt": {
+      "title": "Customer receipt",
+      "subtitle": "Record money received from a customer.",
+      "party": "Customer",
+      "submit": "Post receipt"
+    },
+    "payment": {
+      "title": "Supplier payment",
+      "subtitle": "Record money paid to a supplier.",
+      "party": "Supplier",
+      "submit": "Post payment"
+    },
+    "errors": {
+      "generic": "Could not post this payment.",
+      "badRequest": "Check that Settings > Account mapping has the receivable and payable accounts set.",
+      "OVER_ALLOCATED": "More than an invoice still owes.",
+      "ALLOCATION_EXCEEDS_PAYMENT": "The allocations add up to more than the payment.",
+      "CASH_ACCOUNT_INVALID": "Choose a postable asset account for the bank or cash.",
+      "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+      "INVOICE_NOT_FOUND": "An invoice to settle was not found for this party.",
+      "DUPLICATE_ALLOCATION": "An invoice appears twice."
     }
   }
 }
