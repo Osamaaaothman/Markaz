@@ -3,6 +3,7 @@ import {
   AccountBalancesService,
   BalanceSheetService,
   ChartOfAccountsService,
+  GeneralLedgerService,
   IncomeStatementService,
   PrismaAccountingEngine,
   PrismaNumberingService,
@@ -12,11 +13,13 @@ import {
 import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AccountingController } from "./accounting.controller.js";
+import { LedgerController } from "./ledger.controller.js";
+import { LedgerExportService } from "./ledger-export.service.js";
 import { AccountingExportService } from "./accounting-export.service.js";
 import { ACCOUNTING_ENGINE, NUMBERING_SERVICE } from "./accounting.tokens.js";
 
 @Module({
-  controllers: [AccountingController],
+  controllers: [AccountingController, LedgerController],
   providers: [
     { provide: NUMBERING_SERVICE, useFactory: () => new PrismaNumberingService() },
     {
@@ -50,7 +53,13 @@ import { ACCOUNTING_ENGINE, NUMBERING_SERVICE } from "./accounting.tokens.js";
       useFactory: (prisma: PrismaService) => new IncomeStatementService(prisma),
       inject: [PrismaService],
     },
+    {
+      provide: GeneralLedgerService,
+      useFactory: (prisma: PrismaService) => new GeneralLedgerService(prisma),
+      inject: [PrismaService],
+    },
     AccountingExportService,
+    LedgerExportService,
   ],
 })
 export class AccountingModule {}
