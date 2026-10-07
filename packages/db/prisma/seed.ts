@@ -112,6 +112,9 @@ const PERMISSION_CATALOG = [
   { code: "supplier_payment:create", description: "Record a payment made to a supplier" },
   { code: "aging_report:read", description: "View receivables and payables ageing" },
   { code: "party_statement:read", description: "View customer and supplier statements" },
+  { code: "attachment:read", description: "View and download attached documents" },
+  { code: "attachment:create", description: "Attach a document to a record" },
+  { code: "attachment:delete", description: "Remove an attached document" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);
