@@ -155,7 +155,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
             </div>
           ))}
         </div>
-        <Button type="button" label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
+        <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
 
         <div className="erp-lines__totals">
           <span>

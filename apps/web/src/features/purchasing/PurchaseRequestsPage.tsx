@@ -198,7 +198,7 @@ function NewRequestDialog({ visible, onHide }: { visible: boolean; onHide: () =>
             </div>
           ))}
         </div>
-        <Button type="button" label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
+        <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
         {errors.lines?.root?.message ? <p className="erp-field__error">{t(`validation.${errors.lines.root.message}`)}</p> : null}
         {create.isError ? <p className="erp-auth-card__error">{t("purchasing.requests.createError")}</p> : null}
         <div className="erp-form__actions">

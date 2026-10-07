@@ -271,6 +271,7 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
         </div>
         <Button
           type="button"
+          data-erp-add-line
           label={t("actions.addLine")}
           icon="pi pi-plus"
           text

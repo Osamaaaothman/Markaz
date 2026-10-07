@@ -1,0 +1,786 @@
+/* ============================================================================
+   Markaz design system — page patterns
+   Page header, empty/error states, skeleton, sign-in, dashboard, design-system page.
+   ============================================================================ */
+
+/* ---------- page scaffolding ---------- */
+
+.erp-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-5);
+}
+
+.erp-page__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--mk-space-4);
+  flex-wrap: wrap;
+}
+
+.erp-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.erp-page__title {
+  margin: 0;
+  font-size: var(--mk-text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.erp-page__subtitle {
+  margin: 0.3rem 0 0;
+  color: var(--mk-text-muted);
+  font-size: 0.92rem;
+  max-width: 62ch;
+}
+
+.erp-page__error,
+.erp-page__empty {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: var(--mk-text-muted);
+  background: var(--mk-surface);
+  border: 1px dashed var(--mk-border-strong);
+  border-radius: var(--mk-radius-lg);
+}
+
+.erp-page__error {
+  color: var(--mk-danger);
+  border-color: color-mix(in srgb, var(--mk-danger) 40%, transparent);
+  background: var(--mk-danger-soft);
+}
+
+/* ---------- loading skeleton ---------- */
+
+.erp-page-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-5);
+}
+
+.erp-page-skeleton__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--mk-space-4);
+}
+
+.erp-page-skeleton__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.1rem;
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-lg);
+}
+
+.erp-page-skeleton__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+html body .p-skeleton {
+  background: linear-gradient(100deg, var(--mk-surface-3) 30%, color-mix(in srgb, var(--mk-surface) 65%, var(--mk-surface-3)) 50%, var(--mk-surface-3) 70%);
+  background-size: 200% 100%;
+  animation: mk-shimmer 1.6s linear infinite;
+  border-radius: var(--mk-radius-sm);
+}
+
+html body .p-skeleton::after {
+  display: none;
+}
+
+/* ---------- sign-in ---------- */
+
+.mk-auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 960px) {
+  .mk-auth {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  }
+}
+
+.mk-auth__brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2rem 1.5rem;
+  color: #fff;
+  overflow: hidden;
+  background: var(--mk-ink-900);
+}
+
+@media (min-width: 960px) {
+  .mk-auth__brand {
+    padding: 3rem 3.5rem;
+  }
+}
+
+/* drifting orbs and a faint grid, purely decorative */
+.mk-auth__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  pointer-events: none;
+  animation: mk-float 9s ease-in-out infinite;
+}
+
+.mk-auth__orb--a {
+  inset-block-start: 14%;
+  inset-inline-end: -4rem;
+  width: 18rem;
+  height: 18rem;
+  display: none;
+}
+
+.mk-auth__orb--b {
+  inset-block-end: 6%;
+  inset-inline-start: -5rem;
+  width: 22rem;
+  height: 22rem;
+  display: none;
+  animation-delay: -4s;
+  animation-duration: 12s;
+}
+
+.mk-auth__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+
+.mk-auth__brand-top,
+.mk-auth__brand-mid,
+.mk-auth__brand-foot {
+  position: relative;
+  z-index: 1;
+}
+
+.mk-auth__hero {
+  margin: 1.5rem 0 0.75rem;
+  font-size: clamp(1.7rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  max-width: 18ch;
+}
+
+.mk-auth__hero em {
+  font-style: normal;
+  color: var(--mk-brass-300);
+}
+
+.mk-auth__lead {
+  margin: 0;
+  max-width: 44ch;
+  color: rgb(255 255 255 / 0.72);
+  font-size: 1.02rem;
+}
+
+.mk-auth__points {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mk-auth__points li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: rgb(255 255 255 / 0.86);
+  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+  animation-delay: calc(var(--i, 0) * 120ms + 500ms);
+}
+
+.mk-auth__points i {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.09);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  color: var(--mk-brand-300);
+}
+
+.mk-auth__brand-foot {
+  color: rgb(255 255 255 / 0.45);
+  font-size: var(--mk-text-xs);
+}
+
+.mk-auth__panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+  background: var(--mk-bg);
+}
+
+.mk-auth__tools {
+  position: absolute;
+  inset-block-start: 1rem;
+  inset-inline-end: 1rem;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.mk-auth__card {
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 2.1rem 2rem;
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-xl);
+  box-shadow: var(--mk-shadow-lg);
+  animation: mk-scale-in var(--mk-dur-slow) var(--mk-ease) 0.15s both;
+}
+
+.erp-auth-card__title {
+  margin: 0;
+  font-size: var(--mk-text-2xl);
+  font-weight: 800;
+}
+
+.erp-auth-card__subtitle {
+  margin: -0.4rem 0 0.4rem;
+  color: var(--mk-text-muted);
+  font-size: 0.92rem;
+}
+
+.erp-auth-card__error {
+  margin: 0;
+  color: var(--mk-danger);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.erp-auth-card__submit {
+  margin-block-start: 0.4rem;
+  width: 100%;
+  height: 2.9rem;
+  justify-content: center;
+}
+
+html body .erp-auth-card .p-password {
+  width: 100%;
+}
+
+/* ---------- dashboard ---------- */
+
+.erp-dashboard {
+  gap: var(--mk-space-6);
+}
+
+.mk-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem 2rem;
+  padding: 1.4rem 0 0.4rem;
+}
+
+.mk-hero__title {
+  margin: 0;
+  font-size: var(--mk-text-2xl);
+  font-weight: 800;
+}
+
+.mk-hero__sub {
+  margin: 0.3rem 0 0;
+  color: var(--mk-text-muted);
+  font-size: 0.92rem;
+}
+
+.mk-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+html body .mk-hero__actions .p-button {
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border-strong);
+  color: var(--mk-text);
+  box-shadow: none;
+}
+
+html body .mk-hero__actions .p-button:enabled:hover {
+  background: var(--mk-surface-3);
+  border-color: var(--mk-text-subtle);
+  color: var(--mk-text);
+}
+
+.erp-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12.2rem, 1fr));
+  gap: var(--mk-space-4);
+}
+
+.erp-kpi {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "label icon" "value value" "hint hint";
+  align-items: start;
+  gap: 0.2rem 0.75rem;
+  padding: 1.1rem 1.2rem 1rem;
+  text-align: start;
+  font: inherit;
+  color: var(--mk-text);
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-lg);
+  box-shadow: var(--mk-shadow-xs);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform var(--mk-dur) var(--mk-ease), box-shadow var(--mk-dur) ease, border-color var(--mk-dur) ease;
+}
+
+/* a thin accent along the top edge */
+.erp-kpi::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  height: 3px;
+  background: var(--mk-brand-500);
+  transform: scaleX(0);
+  transform-origin: inline-start;
+  transition: transform var(--mk-dur-slow) var(--mk-ease);
+}
+
+html[dir="rtl"] .erp-kpi::before {
+  transform-origin: right;
+}
+
+.erp-kpi:hover,
+.erp-kpi:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: var(--mk-shadow-md);
+  border-color: color-mix(in srgb, var(--mk-primary) 45%, var(--mk-border));
+  outline: none;
+}
+
+.erp-kpi:hover::before,
+.erp-kpi:focus-visible::before {
+  transform: scaleX(1);
+}
+
+.erp-kpi__icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 11px;
+  color: var(--mk-primary);
+  background: var(--mk-primary-soft);
+  transition: transform var(--mk-dur) var(--mk-ease-spring);
+}
+
+.erp-kpi:hover .erp-kpi__icon {
+  transform: rotate(-8deg) scale(1.1);
+}
+
+.erp-kpi__label {
+  grid-area: label;
+  align-self: center;
+  color: var(--mk-text-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.erp-kpi__value {
+  grid-area: value;
+  margin-block-start: 0.35rem;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.erp-kpi__value small {
+  margin-inline-start: 0.3rem;
+  color: var(--mk-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.erp-kpi__hint {
+  grid-area: hint;
+  color: var(--mk-text-muted);
+  font-size: 0.8rem;
+}
+
+.erp-kpi--warn .erp-kpi__hint {
+  color: var(--mk-warning);
+  font-weight: 700;
+}
+
+/* a ring beside the figure: how much of it is overdue */
+.erp-kpi__ring {
+  grid-area: icon;
+  width: 2.7rem;
+  height: 2.7rem;
+}
+
+.mk-ring__track {
+  fill: none;
+  stroke: var(--mk-surface-3);
+  stroke-width: 5;
+}
+
+.mk-ring__bar {
+  fill: none;
+  stroke: var(--mk-warning);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: var(--mk-ring-offset, 100);
+  transform: rotate(-90deg);
+  transform-origin: center;
+  animation: mk-ring-in 1.1s var(--mk-ease) 0.3s both;
+}
+
+@keyframes mk-ring-in {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: var(--mk-ring-offset, 100);
+  }
+}
+
+.erp-dashboard__grid {
+  display: grid;
+  gap: var(--mk-space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1040px) {
+  .erp-dashboard__grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  }
+}
+
+/* ---- the six-month chart ---- */
+
+.erp-chart {
+  margin: 0;
+}
+
+.erp-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.erp-chart__grid {
+  stroke: var(--mk-chart-grid);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+
+.erp-chart__axis-label {
+  fill: var(--mk-text-subtle);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-chart__label {
+  fill: var(--mk-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.erp-chart__bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: mk-grow-y 0.8s var(--mk-ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 150ms);
+  transition: filter var(--mk-dur-fast) ease, opacity var(--mk-dur-fast) ease;
+}
+
+.erp-chart__bar--revenue {
+  fill: var(--mk-chart-1);
+}
+
+.erp-chart__bar--expense {
+  fill: var(--mk-chart-2);
+}
+
+.erp-chart__col:hover .erp-chart__bar {
+  filter: brightness(1.12) saturate(1.1);
+}
+
+.erp-chart__hit {
+  fill: transparent;
+}
+
+.erp-chart__col:hover .erp-chart__hit {
+  fill: color-mix(in srgb, var(--mk-primary) 6%, transparent);
+}
+
+.erp-chart__line {
+  fill: none;
+  stroke: var(--mk-chart-3);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mk-draw 1.3s var(--mk-ease) 0.7s forwards;
+  --mk-len: 1;
+}
+
+.erp-chart__dot {
+  fill: var(--mk-surface);
+  stroke: var(--mk-chart-3);
+  stroke-width: 2.2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mk-pop 0.5s var(--mk-ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 90ms + 1.1s);
+}
+
+.erp-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  margin-block-start: 0.8rem;
+  color: var(--mk-text-muted);
+  font-size: 0.82rem;
+}
+
+.erp-chart__key::before {
+  content: "";
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-inline-end: 0.4rem;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.erp-chart__key--revenue::before {
+  background: var(--mk-chart-1);
+}
+
+.erp-chart__key--expense::before {
+  background: var(--mk-chart-2);
+}
+
+.erp-chart__key--net::before {
+  background: var(--mk-chart-3);
+  border-radius: 50%;
+}
+
+.erp-chart__tip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  min-width: 9rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-ink-900);
+  color: #fff;
+  box-shadow: var(--mk-shadow-lg);
+  font-size: 0.8rem;
+  transform: translate(-50%, -100%);
+  animation: mk-fade var(--mk-dur-fast) ease both;
+}
+
+.erp-chart__tip strong {
+  display: block;
+  margin-block-end: 0.25rem;
+}
+
+.erp-chart__tip div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-chart-wrap {
+  position: relative;
+}
+
+.erp-chart-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-block-start: 1rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--mk-border);
+}
+
+.erp-chart-summary span {
+  display: block;
+  color: var(--mk-text-muted);
+  font-size: 0.78rem;
+}
+
+.erp-chart-summary strong {
+  font-size: 1.02rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- needs attention ---- */
+
+.erp-attention {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.erp-attention__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  text-align: start;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--mk-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--mk-radius-sm);
+  cursor: pointer;
+  transition: background-color var(--mk-dur-fast) ease, border-color var(--mk-dur-fast) ease, transform var(--mk-dur-fast) ease;
+}
+
+.erp-attention__item > .pi:first-child {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  background: var(--mk-warning-soft);
+  color: var(--mk-warning);
+}
+
+.erp-attention__item:hover,
+.erp-attention__item:focus-visible {
+  background: var(--mk-surface-2);
+  border-color: var(--mk-border);
+  outline: none;
+  transform: translateX(calc(var(--mk-dir-sign, 1) * 2px));
+}
+
+.erp-attention__item span {
+  flex: 1;
+}
+
+.erp-attention__chevron {
+  color: var(--mk-text-subtle);
+  font-size: 0.78rem;
+}
+
+html[dir="rtl"] .erp-attention__chevron {
+  transform: scaleX(-1);
+}
+
+/* ---------- design-system page ---------- */
+
+.mk-ds__grid {
+  display: grid;
+  gap: var(--mk-space-4);
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+
+.mk-ds__swatch {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--mk-radius);
+  border: 1px solid var(--mk-border);
+  background: var(--mk-surface);
+  overflow: hidden;
+}
+
+.mk-ds__chip {
+  height: 3.6rem;
+}
+
+.mk-ds__meta {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.mk-ds__meta strong {
+  display: block;
+}
+
+.mk-ds__meta code {
+  color: var(--mk-text-muted);
+  font-family: var(--mk-font-mono);
+  font-size: 0.72rem;
+}
+
+.mk-ds__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mk-ds__type > div {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding-block: 0.35rem;
+  border-block-end: 1px dashed var(--mk-border);
+}
+
+.mk-ds__type small {
+  flex: 0 0 8rem;
+  color: var(--mk-text-muted);
+  font-family: var(--mk-font-mono);
+}
+
+.mk-ds__logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2.5rem;
+  padding: 1.6rem;
+  border-radius: var(--mk-radius-lg);
+}
+
+.mk-ds__logos--dark {
+  background: var(--mk-ink-900);
+  color: #fff;
+}
+
+.mk-ds__logos--light {
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+}

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "ERP-Lite",
+    "name": "Markaz",
     "tagline": "Accounting, done right"
   },
   "nav": {
@@ -125,6 +125,12 @@
       "purchaseOrder": "New purchase order",
       "supplierInvoice": "Supplier invoice",
       "journal": "Journal entries"
+    },
+    "chartExtra": {
+      "net": "Net result",
+      "totalRevenue": "Revenue, six months",
+      "totalExpense": "Expenses, six months",
+      "netResult": "Net, six months"
     }
   },
   "accounting": {
@@ -845,5 +851,109 @@
       "RECEIPT": "Receipt",
       "PAYMENT": "Payment"
     }
+  },
+  "shell": {
+    "search": "Search or jump to…",
+    "searchPlaceholder": "Type a screen, a document to create, or a setting",
+    "noResults": "Nothing matches that.",
+    "navigate": "to move",
+    "open": "to open",
+    "close": "to close",
+    "sections": {
+      "pages": "Screens",
+      "create": "Create",
+      "settings": "Settings"
+    },
+    "collapseSidebar": "Collapse menu",
+    "expandSidebar": "Expand menu",
+    "openMenu": "Open menu",
+    "breadcrumb": "You are here",
+    "density": "Row density",
+    "densityCompact": "Compact rows (click for comfortable)",
+    "densityComfortable": "Comfortable rows (click for compact)",
+    "toggleTheme": "Switch light / dark",
+    "designSystem": "Design system"
+  },
+  "authHero": {
+    "titleA": "Your books,",
+    "titleB": "clear and in control.",
+    "lead": "Accounting, inventory, sales and purchasing, built for businesses in the Gulf.",
+    "points": {
+      "a": "Entries that always balance, and books that cannot be altered",
+      "b": "Fully bilingual: Arabic and English, right to left or left to right",
+      "c": "Reports with PDF and CSV in one click"
+    },
+    "footer": "© {{year}} Markaz. All rights reserved."
+  },
+  "ds": {
+    "title": "Design system",
+    "subtitle": "The colours, type, components and motion every Markaz screen is built from.",
+    "logo": "Logo",
+    "logoNote": "The emblem is the Arabic letter meem drawn as a ring and a tail, with a brass dot at its centre: markaz means centre.",
+    "replay": "Replay animation",
+    "onDark": "On dark",
+    "onLight": "On light",
+    "colors": "Colour",
+    "brand": "Brand",
+    "status": "Status",
+    "neutral": "Surfaces and text",
+    "type": "Type",
+    "typeNote": "One family, tabular numerals for every amount, generous line height for Arabic.",
+    "sample": "Aa — The ledger 1,234.50",
+    "scale": {
+      "3xl": "Display",
+      "2xl": "Page title",
+      "xl": "Section",
+      "lg": "Card title",
+      "base": "Body",
+      "sm": "Secondary",
+      "xs": "Caption"
+    },
+    "buttons": "Buttons",
+    "primary": "Primary",
+    "outlined": "Outlined",
+    "text": "Text",
+    "secondary": "Secondary",
+    "danger": "Destructive",
+    "small": "Small",
+    "loading": "Loading",
+    "disabled": "Disabled",
+    "iconOnly": "Icon only",
+    "forms": "Fields",
+    "textField": "Text",
+    "dropdownField": "Choice",
+    "dateField": "Date",
+    "invalidField": "Invalid",
+    "disabledField": "Disabled",
+    "required": "This field is required.",
+    "switches": "Switches and choices",
+    "segmented": "Segmented",
+    "tags": "Status tags",
+    "tagPaid": "Paid",
+    "tagPending": "Pending",
+    "tagOverdue": "Overdue",
+    "tagDraft": "Draft",
+    "tagInfo": "Open",
+    "data": "Data",
+    "sampleTable": "Sample table",
+    "number": "Number",
+    "customer": "Customer",
+    "amount": "Amount",
+    "cards": "Cards and figures",
+    "owedToYou": "Owed to you",
+    "overdueNote": "{{amount}} overdue",
+    "feedback": "Feedback",
+    "openDialog": "Open a dialog",
+    "dialogTitle": "Post this invoice?",
+    "dialogBody": "A posted invoice cannot be edited. Corrections are made with a credit note.",
+    "empty": "Nothing here yet",
+    "emptyBody": "Create the first document and it will show up in this list.",
+    "motion": "Motion",
+    "motionNote": "Entrances ease in, charts grow from their baseline, figures count up. Everything stops for people who ask their system for reduced motion.",
+    "keyboard": "Keyboard",
+    "kbdPalette": "Open the command palette",
+    "kbdSlash": "Open it from anywhere that is not a text field",
+    "kbdEnter": "Next field in a document line; the last field adds a line",
+    "kbdEsc": "Close a dialog or the palette"
   }
 }

@@ -1,0 +1,845 @@
+/* ============================================================================
+   Markaz design system — components
+   Restyles every PrimeReact component the product uses so they read as one family.
+   The "html body" prefix lifts specificity above PrimeReact's runtime theme file, which is
+   appended to <head> after this bundle and would otherwise win on source order.
+   ============================================================================ */
+
+/* ---------- buttons ---------- */
+
+html body .p-button {
+  height: var(--mk-control-h);
+  padding-inline: 1.05rem;
+  gap: 0.5rem;
+  border-radius: var(--mk-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--mk-primary) 82%, #000);
+  background: var(--mk-primary);
+  color: var(--mk-on-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: var(--mk-shadow-xs), inset 0 1px 0 rgb(255 255 255 / 0.18);
+  transition: transform var(--mk-dur-fast) var(--mk-ease), box-shadow var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease, border-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease;
+}
+
+html body .p-button .p-button-label {
+  font-weight: inherit;
+}
+
+html body .p-button:enabled:hover {
+  background: var(--mk-primary-hover);
+  border-color: var(--mk-primary-hover);
+  color: var(--mk-on-primary);
+  box-shadow: var(--mk-shadow-md), inset 0 1px 0 rgb(255 255 255 / 0.18);
+  transform: translateY(-1px);
+}
+
+html body .p-button:enabled:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: var(--mk-shadow-xs);
+}
+
+html body .p-button:focus-visible,
+html body .p-button:focus {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-button.p-disabled,
+html body .p-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+}
+
+html body .p-button.p-button-outlined {
+  background: transparent;
+  color: var(--mk-primary);
+  border: 1px solid color-mix(in srgb, var(--mk-primary) 55%, transparent);
+  box-shadow: none;
+}
+
+html body .p-button.p-button-outlined:enabled:hover {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  border-color: var(--mk-primary);
+  box-shadow: none;
+  transform: none;
+}
+
+html body .p-button.p-button-text {
+  background: transparent;
+  border-color: transparent;
+  color: var(--mk-primary);
+  box-shadow: none;
+}
+
+html body .p-button.p-button-text:enabled:hover {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+/* secondary and danger share the same three looks */
+html body .p-button.p-button-secondary {
+  background: var(--mk-surface-3);
+  border-color: var(--mk-border-strong);
+  color: var(--mk-text);
+  box-shadow: var(--mk-shadow-xs);
+}
+
+html body .p-button.p-button-secondary:enabled:hover {
+  background: var(--mk-border);
+  color: var(--mk-text);
+  border-color: var(--mk-text-subtle);
+}
+
+html body .p-button.p-button-secondary.p-button-outlined,
+html body .p-button.p-button-secondary.p-button-text {
+  background: transparent;
+  color: var(--mk-text-muted);
+  border-color: var(--mk-border-strong);
+}
+
+html body .p-button.p-button-secondary.p-button-text {
+  border-color: transparent;
+}
+
+html body .p-button.p-button-secondary.p-button-outlined:enabled:hover,
+html body .p-button.p-button-secondary.p-button-text:enabled:hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+html body .p-button.p-button-danger {
+  background: var(--mk-danger);
+  border-color: var(--mk-danger);
+  color: #fff;
+}
+
+html body .p-button.p-button-danger:enabled:hover {
+  background: color-mix(in srgb, var(--mk-danger) 88%, #000);
+  border-color: color-mix(in srgb, var(--mk-danger) 88%, #000);
+  color: #fff;
+}
+
+html body .p-button.p-button-danger.p-button-outlined,
+html body .p-button.p-button-danger.p-button-text {
+  background: transparent;
+  color: var(--mk-danger);
+  border-color: color-mix(in srgb, var(--mk-danger) 50%, transparent);
+}
+
+html body .p-button.p-button-danger.p-button-text {
+  border-color: transparent;
+}
+
+html body .p-button.p-button-danger.p-button-outlined:enabled:hover,
+html body .p-button.p-button-danger.p-button-text:enabled:hover {
+  background: var(--mk-danger-soft);
+  color: var(--mk-danger);
+}
+
+html body .p-button.p-button-sm {
+  height: calc(var(--mk-control-h) - 0.5rem);
+  padding-inline: 0.8rem;
+  font-size: 0.82rem;
+}
+
+html body .p-button.p-button-icon-only {
+  width: var(--mk-control-h);
+  padding-inline: 0;
+}
+
+html body .p-button.p-button-icon-only.p-button-sm {
+  width: calc(var(--mk-control-h) - 0.5rem);
+}
+
+html body .p-button.p-button-rounded {
+  border-radius: 999px;
+}
+
+/* ---------- inputs ---------- */
+
+html body .p-inputtext,
+html body .p-inputtextarea,
+html body .p-dropdown,
+html body .p-multiselect,
+html body .p-password input {
+  min-height: var(--mk-control-h);
+  border-radius: var(--mk-radius-sm);
+  border: 1px solid var(--mk-border-strong);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease;
+}
+
+html body .p-inputtext,
+html body .p-inputtextarea {
+  padding: 0.5rem 0.8rem;
+}
+
+html body .p-inputtext::placeholder,
+html body .p-inputtextarea::placeholder {
+  color: var(--mk-text-subtle);
+}
+
+html body .p-inputtext:enabled:hover,
+html body .p-inputtextarea:enabled:hover,
+html body .p-dropdown:not(.p-disabled):hover,
+html body .p-multiselect:not(.p-disabled):hover {
+  border-color: var(--mk-text-subtle);
+}
+
+html body .p-inputtext:enabled:focus,
+html body .p-inputtextarea:enabled:focus,
+html body .p-dropdown:not(.p-disabled).p-focus,
+html body .p-multiselect:not(.p-disabled).p-focus,
+html body .p-password input:enabled:focus {
+  outline: 0;
+  border-color: var(--mk-primary);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-inputtext:disabled,
+html body .p-inputtextarea:disabled,
+html body .p-dropdown.p-disabled {
+  background: var(--mk-surface-3);
+  color: var(--mk-text-muted);
+  opacity: 0.8;
+}
+
+html body .p-inputtext.p-invalid,
+html body .p-dropdown.p-invalid,
+html body .p-inputtextarea.p-invalid,
+html body .p-password.p-invalid input {
+  border-color: var(--mk-danger);
+}
+
+html body .p-inputtext.p-invalid:enabled:focus,
+html body .p-dropdown.p-invalid.p-focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mk-danger) 30%, transparent);
+}
+
+html body .p-dropdown {
+  align-items: center;
+}
+
+html body .p-dropdown .p-dropdown-label {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+html body .p-dropdown .p-dropdown-trigger,
+html body .p-calendar .p-datepicker-trigger {
+  color: var(--mk-text-muted);
+}
+
+html body .p-calendar .p-datepicker-trigger {
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface-3);
+  border: 1px solid var(--mk-border-strong);
+  color: var(--mk-text-muted);
+  box-shadow: none;
+  transform: none;
+}
+
+html body .p-calendar .p-datepicker-trigger:enabled:hover {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  transform: none;
+}
+
+/* overlay panels: dropdown lists, calendars, menus */
+html body .p-dropdown-panel,
+html body .p-multiselect-panel,
+html body .p-datepicker,
+html body .p-menu {
+  border-radius: var(--mk-radius);
+  border: 1px solid var(--mk-border-strong);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  box-shadow: var(--mk-shadow-lg);
+  font-family: inherit;
+}
+
+html body .p-dropdown-panel .p-dropdown-header {
+  background: var(--mk-surface-2);
+  border-bottom: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius) var(--mk-radius) 0 0;
+}
+
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item {
+  margin: 2px 6px;
+  border-radius: var(--mk-radius-xs);
+  padding: 0.55rem 0.7rem;
+  color: var(--mk-text);
+  font-size: 0.9rem;
+}
+
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover,
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-focus {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  font-weight: 600;
+}
+
+html body .p-datepicker table td > span.p-highlight {
+  background: var(--mk-primary);
+  color: var(--mk-on-primary);
+}
+
+html body .p-menu .p-menuitem-link {
+  border-radius: var(--mk-radius-xs);
+  margin: 2px 4px;
+}
+
+html body .p-menu .p-menuitem:not(.p-highlight):not(.p-disabled) > .p-menuitem-content:hover {
+  background: var(--mk-surface-3);
+}
+
+/* switches, checkboxes, segmented selector */
+html body .p-inputswitch.p-inputswitch-checked .p-inputswitch-slider {
+  background: var(--mk-primary);
+}
+
+html body .p-checkbox .p-checkbox-box {
+  border-radius: 6px;
+  border-color: var(--mk-border-strong);
+  background: var(--mk-surface);
+}
+
+html body .p-checkbox .p-checkbox-box.p-highlight {
+  background: var(--mk-primary);
+  border-color: var(--mk-primary);
+}
+
+html body .p-selectbutton {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--mk-surface-3);
+  border: 1px solid var(--mk-border);
+}
+
+html body .p-selectbutton .p-button {
+  height: calc(var(--mk-control-h) - 0.55rem);
+  border: 0;
+  border-radius: 999px !important;
+  background: transparent;
+  color: var(--mk-text-muted);
+  box-shadow: none;
+  font-weight: 600;
+  transform: none;
+}
+
+html body .p-selectbutton .p-button:enabled:hover {
+  background: transparent;
+  color: var(--mk-text);
+  box-shadow: none;
+  transform: none;
+}
+
+html body .p-selectbutton .p-button.p-highlight {
+  background: var(--mk-surface);
+  color: var(--mk-primary);
+  box-shadow: var(--mk-shadow-sm);
+}
+
+/* ---------- status tags ---------- */
+
+html body .p-tag {
+  gap: 0.4rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+
+html body .p-tag::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+html body .p-tag.p-tag-success {
+  background: var(--mk-success-soft);
+  color: var(--mk-success);
+}
+
+html body .p-tag.p-tag-warning {
+  background: var(--mk-warning-soft);
+  color: var(--mk-warning);
+}
+
+html body .p-tag.p-tag-danger {
+  background: var(--mk-danger-soft);
+  color: var(--mk-danger);
+}
+
+html body .p-tag.p-tag-info {
+  background: var(--mk-info-soft);
+  color: var(--mk-info);
+}
+
+html body .p-tag.p-tag-secondary {
+  background: var(--mk-surface-3);
+  color: var(--mk-text-muted);
+}
+
+/* ---------- dialogs ---------- */
+
+html body .p-dialog-mask.p-component-overlay {
+  background: rgb(5 12 24 / 0.5);
+  backdrop-filter: blur(4px);
+}
+
+html body .p-dialog {
+  border-radius: var(--mk-radius-lg);
+  border: 1px solid var(--mk-border-strong);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  box-shadow: var(--mk-shadow-xl);
+  font-family: inherit;
+  animation: mk-scale-in var(--mk-dur) var(--mk-ease) both;
+}
+
+html body .p-dialog .p-dialog-header {
+  padding: 1.1rem 1.4rem;
+  background: transparent;
+  border-bottom: 1px solid var(--mk-border);
+  color: var(--mk-text);
+}
+
+html body .p-dialog .p-dialog-header .p-dialog-title {
+  font-size: var(--mk-text-lg);
+  font-weight: 700;
+}
+
+html body .p-dialog .p-dialog-content {
+  padding: 1.25rem 1.4rem 1.4rem;
+  background: transparent;
+  color: var(--mk-text);
+}
+
+html body .p-dialog .p-dialog-header-icon {
+  border-radius: 50%;
+  color: var(--mk-text-muted);
+}
+
+html body .p-dialog .p-dialog-header-icon:enabled:hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+  box-shadow: none;
+  transform: none;
+}
+
+/* PrimeReact's Dropdown/MultiSelect filter input ships with a -28px right margin that overflows its
+   panel; the search icon already sits inside the input's own padding. Physical margin-right on purpose:
+   PrimeReact's own rule is physical in both directions. */
+html body .p-dropdown-panel .p-dropdown-filter-container .p-dropdown-filter,
+html body .p-multiselect-panel .p-multiselect-filter-container .p-multiselect-filter {
+  margin-right: 0;
+}
+
+html body .p-message {
+  border-radius: var(--mk-radius-sm);
+}
+
+/* ---------- data tables ---------- */
+
+.erp-table {
+  border-radius: var(--mk-radius);
+  border: 1px solid var(--mk-border);
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-xs);
+  overflow: hidden;
+}
+
+/* Headers stay put while the body scrolls inside the table's own frame (and it scrolls sideways there too). */
+html body .erp-table .p-datatable-wrapper,
+html body .erp-table .p-treetable-wrapper {
+  max-height: calc(100dvh - 15rem);
+  overflow: auto;
+}
+
+html body .erp-table .p-datatable-thead > tr > th,
+html body .erp-table .p-treetable-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  background: var(--mk-surface-2);
+  color: var(--mk-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 0;
+  border-block-end: 1px solid var(--mk-border-strong);
+  box-shadow: 0 1px 0 var(--mk-border);
+}
+
+html body .erp-table .p-datatable-tbody > tr > td,
+html body .erp-table .p-treetable-tbody > tr > td {
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  border: 0;
+  border-block-end: 1px solid var(--mk-border);
+  font-size: 0.88rem;
+  color: var(--mk-text);
+  transition: background-color var(--mk-dur-fast) ease;
+}
+
+html body .erp-table .p-datatable-tbody > tr,
+html body .erp-table .p-treetable-tbody > tr {
+  background: transparent;
+  color: var(--mk-text);
+}
+
+html body .erp-table .p-datatable-tbody > tr:last-child > td {
+  border-block-end: 0;
+}
+
+html body .erp-table .p-datatable-tbody > tr:hover > td,
+html body .erp-table .p-treetable-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--mk-primary) 6%, transparent);
+}
+
+html body .erp-table .p-datatable-tbody > tr.p-highlight > td {
+  background: var(--mk-primary-soft);
+  color: var(--mk-text);
+}
+
+html body .erp-table .p-datatable-tbody > tr.p-selectable-row {
+  cursor: pointer;
+}
+
+html body .erp-table .p-datatable-emptymessage > td {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--mk-text-muted);
+}
+
+/* the footer line of a table: totals and counts sit in a quiet bar under it */
+.erp-table-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+  align-items: center;
+  padding: 0.8rem 1.1rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-xs);
+  font-size: 0.88rem;
+  color: var(--mk-text-muted);
+}
+
+.erp-table-footer strong {
+  color: var(--mk-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-table-footer--center {
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.erp-table__account {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.erp-table__account-code {
+  font-family: var(--mk-font-mono);
+  font-size: 0.8rem;
+  color: var(--mk-text-muted);
+}
+
+/* ---------- forms ---------- */
+
+.erp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.erp-field > input,
+.erp-field > .p-inputtext,
+.erp-field > .p-password,
+.erp-field > .p-password .p-icon-field,
+.erp-field > .p-password input,
+.erp-field > .p-dropdown,
+.erp-field > .p-calendar,
+.erp-field > .p-calendar input,
+.erp-field > .p-inputtextarea {
+  width: 100%;
+}
+
+.erp-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mk-text-muted);
+}
+
+.erp-field__hint {
+  color: var(--mk-text-muted);
+  font-size: 0.8rem;
+}
+
+.erp-field__error {
+  color: var(--mk-danger);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.erp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.erp-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.erp-form__section-title {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.erp-form__section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--mk-border);
+}
+
+/* The actions bar of a form stays visible at the bottom while a long document is edited. */
+.erp-form__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-block-start: 0.5rem;
+  padding-block: 0.9rem;
+  background: linear-gradient(180deg, transparent, var(--mk-bg) 38%);
+}
+
+.p-dialog .erp-form__actions {
+  background: linear-gradient(180deg, transparent, var(--mk-surface) 38%);
+}
+
+/* document line grids */
+.erp-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.erp-lines__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface-2);
+  transition: border-color var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease;
+  animation: mk-rise var(--mk-dur) var(--mk-ease) both;
+}
+
+.erp-lines__row:hover {
+  border-color: var(--mk-border-strong);
+}
+
+.erp-lines__row:focus-within {
+  border-color: var(--mk-primary);
+  background: var(--mk-surface);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+.erp-lines__row--error {
+  border-color: var(--mk-danger);
+  background: var(--mk-danger-soft);
+}
+
+.erp-lines__account {
+  flex: 2;
+  min-width: 12rem;
+}
+
+.erp-lines__amount {
+  flex: 1;
+  min-width: 6rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-lines__description {
+  flex: 1.5;
+  min-width: 9rem;
+}
+
+.erp-lines__totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.75rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  font-size: 0.92rem;
+}
+
+.erp-lines__totals strong {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-dialog {
+  width: 90vw;
+  max-width: 760px;
+}
+
+.erp-dialog--wide {
+  max-width: 960px;
+}
+
+/* a row of buttons or inputs inside a table cell or a field */
+.erp-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.erp-button-link {
+  background: none;
+  border: none;
+  color: var(--mk-primary);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  align-self: flex-start;
+}
+
+.erp-no-permission {
+  display: inline-flex;
+  cursor: not-allowed;
+}
+
+/* ---------- cards ---------- */
+
+.erp-card {
+  padding: 1.15rem 1.3rem;
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-lg);
+  box-shadow: var(--mk-shadow-xs);
+}
+
+.erp-card__title {
+  margin: 0 0 0.85rem;
+  font-size: var(--mk-text-lg);
+  font-weight: 700;
+}
+
+.erp-card__empty {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--mk-text-muted);
+}
+
+.erp-card__empty .pi {
+  color: var(--mk-success);
+}
+
+/* amounts never wrap onto two lines */
+html body .erp-table .p-datatable-tbody > tr > td.p-align-right,
+html body .erp-table .p-datatable-thead > tr > th.p-align-right {
+  white-space: nowrap;
+}
+
+html body .erp-table .p-datatable-tbody > tr > td {
+  vertical-align: middle;
+}
+
+/* the label inside a dropdown / multiselect is itself an .p-inputtext: it must not draw a second box */
+html body .p-dropdown .p-inputtext,
+html body .p-multiselect .p-multiselect-label,
+html body .p-calendar-w-btn .p-inputtext {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  min-height: 0;
+  border-radius: 0;
+}
+
+html body .p-calendar-w-btn {
+  display: flex;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface);
+  overflow: hidden;
+  transition: border-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease;
+}
+
+html body .p-calendar-w-btn:focus-within {
+  border-color: var(--mk-primary);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-calendar-w-btn .p-datepicker-trigger {
+  border-radius: 0;
+  border-width: 0;
+  border-inline-start: 1px solid var(--mk-border);
+}
+
+html body .p-dropdown .p-dropdown-trigger {
+  width: 2.5rem;
+}
+
+/* a lone text button under a form (add line) keeps its natural width */
+.erp-form > .p-button,
+.erp-page > .p-button {
+  align-self: flex-start;
+}

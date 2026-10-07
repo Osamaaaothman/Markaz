@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "../features/auth/LoginPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
+import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
 import { ChartOfAccountsPage } from "../features/accounting/ChartOfAccountsPage";
 import { AccountStatementPage } from "../features/accounting/AccountStatementPage";
 import { TrialBalancePage } from "../features/accounting/TrialBalancePage";
@@ -51,6 +52,7 @@ export function AppRoutes(): React.JSX.Element {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
+          <Route path="/design-system" element={<DesignSystemPage />} />
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/chart-of-accounts")} />}>
             <Route path="/accounting/chart-of-accounts" element={<ChartOfAccountsPage />} />
           </Route>

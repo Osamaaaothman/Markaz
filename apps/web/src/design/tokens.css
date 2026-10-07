@@ -1,0 +1,235 @@
+/* ============================================================================
+   Markaz design system — tokens
+   One file holds every colour, size, radius, shadow and timing the product uses.
+   Components read these; nothing else in the app hard-codes a value. Changing the brand
+   is a change to the palette section here and nowhere else.
+
+   Selectors are html[data-theme-mode] (specificity 0,1,1) so they beat PrimeReact's runtime
+   theme file, which is appended to <head> after our bundle and sets the same variables on :root.
+   ============================================================================ */
+
+:root,
+html[data-theme-mode="light"] {
+  /* ---- palette: ink, forest and brass. Flat colour only: no gradients, no glow. ---- */
+  --mk-ink-950: #12110f;
+  --mk-ink-900: #1b1a17;
+  --mk-ink-800: #24221f;
+  --mk-ink-700: #34312c;
+  --mk-ink-600: #4a463f;
+
+  --mk-brand-50: #eef5f1;
+  --mk-brand-100: #d6e8de;
+  --mk-brand-200: #acd1bd;
+  --mk-brand-300: #7fb69a;
+  --mk-brand-400: #54987a;
+  --mk-brand-500: #2f7d5e;
+  --mk-brand-600: #256b4f;
+  --mk-brand-700: #1d583f;
+  --mk-brand-800: #164531;
+
+  --mk-brass-100: #f3ead2;
+  --mk-brass-300: #dcc68a;
+  --mk-brass-400: #c9aa5c;
+  --mk-brass-500: #b08a2e;
+  --mk-brass-600: #8f6e20;
+
+  /* ---- neutrals (warm stone) ---- */
+  --mk-gray-25: #fbfaf8;
+  --mk-gray-50: #f6f5f2;
+  --mk-gray-100: #efede8;
+  --mk-gray-200: #e6e3dc;
+  --mk-gray-300: #d2cec4;
+  --mk-gray-400: #a29d92;
+  --mk-gray-500: #6b675f;
+  --mk-gray-600: #504d46;
+  --mk-gray-700: #3a3833;
+  --mk-gray-800: #272622;
+  --mk-gray-900: #1c1b18;
+
+  /* ---- semantic: surfaces and text ---- */
+  --mk-bg: #f6f5f2;
+  --mk-bg-accent: #efede8;
+  --mk-surface: #ffffff;
+  --mk-surface-2: #faf9f7;
+  --mk-surface-3: #f1efea;
+  --mk-border: #e6e3dc;
+  --mk-border-strong: #d2cec4;
+  --mk-text: #1c1b18;
+  --mk-text-muted: #6b675f;
+  --mk-text-subtle: #a29d92;
+
+  /* ---- semantic: actions and status ---- */
+  --mk-primary: var(--mk-brand-700);
+  --mk-primary-hover: var(--mk-brand-800);
+  --mk-primary-soft: color-mix(in srgb, var(--mk-brand-600) 11%, transparent);
+  --mk-primary-ring: color-mix(in srgb, var(--mk-brand-500) 35%, transparent);
+  --mk-on-primary: #ffffff;
+  --mk-accent: var(--mk-brass-500);
+
+  --mk-success: #12805c;
+  --mk-success-soft: #e4f2ea;
+  --mk-warning: #b54708;
+  --mk-warning-soft: #fef0e1;
+  --mk-danger: #c42b1c;
+  --mk-danger-soft: #fdeceb;
+  --mk-info: #2b62a8;
+  --mk-info-soft: #e8eff8;
+
+  /* ---- sidebar (dark in both themes) ---- */
+  --mk-side-bg-from: var(--mk-ink-900);
+  --mk-side-bg-to: var(--mk-ink-900);
+  --mk-side-text: rgb(255 255 255 / 0.74);
+  --mk-side-text-strong: #ffffff;
+  --mk-side-muted: rgb(255 255 255 / 0.42);
+  --mk-side-hover: rgb(255 255 255 / 0.07);
+  --mk-side-active: rgb(255 255 255 / 0.09);
+
+  /* ---- charts ---- */
+  --mk-chart-1: var(--mk-brand-600);
+  --mk-chart-2: var(--mk-brass-500);
+  --mk-chart-3: var(--mk-ink-600);
+  --mk-chart-grid: var(--mk-border);
+
+  /* ---- shape, depth ---- */
+  --mk-radius-xs: 6px;
+  --mk-radius-sm: 8px;
+  --mk-radius: 12px;
+  --mk-radius-lg: 16px;
+  --mk-radius-xl: 22px;
+  --mk-shadow-xs: 0 1px 2px rgb(16 24 40 / 0.05);
+  --mk-shadow-sm: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.08);
+  --mk-shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.05);
+  --mk-shadow-lg: 0 16px 32px -8px rgb(16 24 40 / 0.14), 0 6px 12px -4px rgb(16 24 40 / 0.06);
+  --mk-shadow-xl: 0 28px 56px -12px rgb(16 24 40 / 0.28);
+
+  /* ---- spacing (4px grid) ---- */
+  --mk-space-1: 0.25rem;
+  --mk-space-2: 0.5rem;
+  --mk-space-3: 0.75rem;
+  --mk-space-4: 1rem;
+  --mk-space-5: 1.25rem;
+  --mk-space-6: 1.5rem;
+  --mk-space-8: 2rem;
+  --mk-space-10: 2.5rem;
+
+  /* ---- type ---- */
+  --mk-font: "IBM Plex Sans Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mk-font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --mk-text-xs: 0.75rem;
+  --mk-text-sm: 0.8125rem;
+  --mk-text-base: 0.9375rem;
+  --mk-text-lg: 1.0625rem;
+  --mk-text-xl: 1.25rem;
+  --mk-text-2xl: 1.625rem;
+  --mk-text-3xl: 2rem;
+
+  /* ---- density (the top bar toggles data-density) ---- */
+  --mk-control-h: 2.5rem;
+  --mk-row-pad-y: 0.7rem;
+  --mk-row-pad-x: 0.9rem;
+
+  /* ---- motion ---- */
+  --mk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mk-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --mk-dur-fast: 120ms;
+  --mk-dur: 220ms;
+  --mk-dur-slow: 420ms;
+
+  /* ---- layout ---- */
+  --mk-sidebar-w: 268px;
+  --mk-sidebar-w-collapsed: 76px;
+  --mk-topbar-h: 64px;
+
+  /* ---- PrimeReact bridge: the runtime theme reads these ---- */
+  --font-family: var(--mk-font);
+  --primary-color: var(--mk-primary);
+  --primary-color-text: var(--mk-on-primary);
+  --primary-50: var(--mk-brand-50);
+  --primary-100: var(--mk-brand-100);
+  --primary-200: var(--mk-brand-200);
+  --primary-300: var(--mk-brand-300);
+  --primary-400: var(--mk-brand-400);
+  --primary-500: var(--mk-brand-500);
+  --primary-600: var(--mk-brand-600);
+  --primary-700: var(--mk-brand-700);
+  --primary-800: var(--mk-brand-800);
+  --primary-900: #0f3426;
+  --highlight-bg: var(--mk-primary-soft);
+  --highlight-text-color: var(--mk-brand-800);
+  --focus-ring: 0 0 0 0.2rem var(--mk-primary-ring);
+  --surface-ground: var(--mk-bg);
+  --surface-card: var(--mk-surface);
+  --surface-section: var(--mk-surface);
+  --surface-border: var(--mk-border);
+  --text-color: var(--mk-text);
+  --text-color-secondary: var(--mk-text-muted);
+  --border-radius: var(--mk-radius-sm);
+
+  /* ---- legacy aliases: the older stylesheets read these names ---- */
+  --erp-brand: var(--mk-primary);
+  --erp-brand-hover: var(--mk-primary-hover);
+  --erp-surface: var(--mk-surface);
+  --erp-page-bg: var(--mk-bg);
+  --erp-border: var(--mk-border);
+  --erp-text: var(--mk-text);
+  --erp-text-muted: var(--mk-text-muted);
+  --erp-radius: var(--mk-radius);
+  --erp-radius-sm: var(--mk-radius-sm);
+  --erp-shell-sidebar-width: var(--mk-sidebar-w);
+  --erp-topbar-height: var(--mk-topbar-h);
+  --erp-shadow-sm: var(--mk-shadow-sm);
+  --erp-shadow-md: var(--mk-shadow-md);
+
+  color-scheme: light;
+}
+
+html[data-theme-mode="dark"] {
+  --mk-bg: #131210;
+  --mk-bg-accent: #181714;
+  --mk-surface: #1b1a17;
+  --mk-surface-2: #221f1c;
+  --mk-surface-3: #2a2723;
+  --mk-border: #2e2b26;
+  --mk-border-strong: #403c35;
+  --mk-text: #eceae4;
+  --mk-text-muted: #a8a399;
+  --mk-text-subtle: #7a766d;
+
+  --mk-primary: var(--mk-brand-400);
+  --mk-primary-hover: var(--mk-brand-300);
+  --mk-primary-soft: color-mix(in srgb, var(--mk-brand-400) 14%, transparent);
+  --mk-primary-ring: color-mix(in srgb, var(--mk-brand-400) 38%, transparent);
+  --mk-on-primary: #0d2a1e;
+
+  --mk-success: #5fc79a;
+  --mk-success-soft: rgb(95 199 154 / 0.13);
+  --mk-warning: #fbb26a;
+  --mk-warning-soft: rgb(251 178 106 / 0.14);
+  --mk-danger: #ff8a7d;
+  --mk-danger-soft: rgb(255 138 125 / 0.14);
+  --mk-info: #86aedd;
+  --mk-info-soft: rgb(134 174 221 / 0.14);
+
+  --mk-side-bg-from: #0e0d0b;
+  --mk-side-bg-to: #0e0d0b;
+
+  --mk-chart-1: var(--mk-brand-400);
+  --mk-chart-2: var(--mk-brass-400);
+  --mk-chart-3: #8d8678;
+
+  --mk-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+  --mk-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35), 0 1px 3px rgb(0 0 0 / 0.3);
+  --mk-shadow-md: 0 6px 12px -2px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --mk-shadow-lg: 0 18px 36px -8px rgb(0 0 0 / 0.55);
+  --mk-shadow-xl: 0 30px 60px -12px rgb(0 0 0 / 0.65);
+
+  --highlight-text-color: var(--mk-brand-200);
+  color-scheme: dark;
+}
+
+/* ---- density ---- */
+html[data-density="compact"] {
+  --mk-control-h: 2.1rem;
+  --mk-row-pad-y: 0.4rem;
+  --mk-row-pad-x: 0.7rem;
+}

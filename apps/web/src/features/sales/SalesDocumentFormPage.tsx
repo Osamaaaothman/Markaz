@@ -232,7 +232,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             </div>
           ))}
         </div>
-        {!orderId ? <Button type="button" label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => setLines((prev) => [...prev, blankLine()])} /> : null}
+        {!orderId ? <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => setLines((prev) => [...prev, blankLine()])} /> : null}
 
         <div className="erp-field">
           <label htmlFor="sdNotes">{t("purchasing.notes")}</label>
