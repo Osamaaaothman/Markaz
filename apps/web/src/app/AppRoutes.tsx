@@ -15,6 +15,11 @@ import { StockCountPage } from "../features/inventory/StockCountPage";
 import { StockIssuePage } from "../features/inventory/StockIssuePage";
 import { StockLevelsPage } from "../features/inventory/StockLevelsPage";
 import { WarehousesPage } from "../features/inventory/WarehousesPage";
+import { ApprovalPolicyPage } from "../features/purchasing/ApprovalPolicyPage";
+import { PurchaseOrderDetailPage } from "../features/purchasing/PurchaseOrderDetailPage";
+import { PurchaseOrderFormPage } from "../features/purchasing/PurchaseOrderFormPage";
+import { PurchaseOrdersPage } from "../features/purchasing/PurchaseOrdersPage";
+import { PurchaseRequestsPage } from "../features/purchasing/PurchaseRequestsPage";
 import { UsersPage } from "../features/settings/UsersPage";
 import { AppShell } from "./layout/AppShell";
 import { NAV_ITEMS } from "./layout/NavConfig";
@@ -75,6 +80,19 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-counts")} />}>
             <Route path="/inventory/stock-counts" element={<StockCountPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/requests")} />}>
+            <Route path="/purchasing/requests" element={<PurchaseRequestsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/orders")} />}>
+            <Route path="/purchasing/orders" element={<PurchaseOrdersPage />} />
+            <Route path="/purchasing/orders/:id" element={<PurchaseOrderDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["purchase_order:create"]} />}>
+            <Route path="/purchasing/orders/new" element={<PurchaseOrderFormPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/settings/approvals")} />}>
+            <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/account-mapping")} />}>
             <Route path="/settings/account-mapping" element={<AccountMappingPage />} />

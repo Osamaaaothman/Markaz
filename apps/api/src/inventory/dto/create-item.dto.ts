@@ -1,4 +1,5 @@
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 export class CreateItemDto {
   @IsString()
@@ -22,6 +23,6 @@ export class CreateItemDto {
   unit!: string;
 
   @IsOptional()
-  @IsString()
+  @IsDecimalString()
   reorderPoint?: string;
 }

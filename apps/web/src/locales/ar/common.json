@@ -16,7 +16,8 @@
       "accounting": "المحاسبة",
       "masterData": "البيانات الأساسية",
       "settings": "الإعدادات",
-      "inventory": "المخزون"
+      "inventory": "المخزون",
+      "purchasing": "المشتريات"
     },
     "warehouses": "المستودعات",
     "items": "الأصناف",
@@ -25,7 +26,10 @@
     "stockIssue": "صرف مخزون",
     "stockCount": "الجرد",
     "accountMapping": "ربط الحسابات",
-    "accountStatement": "كشف حساب"
+    "accountStatement": "كشف حساب",
+    "purchaseRequests": "طلبات الشراء",
+    "purchaseOrders": "أوامر الشراء",
+    "approvalLimits": "حدود الموافقة"
   },
   "actions": {
     "save": "حفظ",
@@ -274,7 +278,10 @@
         "account_mapping": "ربط حسابات المخزون",
         "goods_receipt": "إيصالات الاستلام",
         "stock_issue": "إيصالات الصرف",
-        "stock_count": "الجرد"
+        "stock_count": "الجرد",
+        "purchase_request": "طلبات الشراء",
+        "purchase_order": "أوامر الشراء",
+        "approval_policy": "حدود الموافقة"
       },
       "actions": {
         "create": "إنشاء",
@@ -282,7 +289,10 @@
         "reverse": "عكس",
         "assign": "إسناد",
         "update": "تعديل",
-        "post": "ترحيل"
+        "post": "ترحيل",
+        "reject": "رفض",
+        "approve": "اعتماد",
+        "cancel": "إلغاء"
       },
       "createUserSuccess": "تم إنشاء المستخدم.",
       "createUserError": "تعذّر إنشاء المستخدم.",
@@ -417,6 +427,83 @@
         "COUNT_LOSS": "مدين عندما يجد الجرد كمية أقل من الدفاتر.",
         "COUNT_GAIN": "دائن عندما يجد الجرد كمية أكثر من الدفاتر."
       }
+    }
+  },
+  "purchasing": {
+    "title": "المشتريات",
+    "status": "الحالة",
+    "allStatuses": "كل الحالات",
+    "number": "الرقم",
+    "date": "التاريخ",
+    "lineCount": "السطور",
+    "view": "عرض",
+    "lines": "السطور",
+    "quantity": "الكمية",
+    "notes": "ملاحظات",
+    "supplier": "المورد",
+    "unitPrice": "سعر الوحدة",
+    "total": "الإجمالي",
+    "received": "المستلم",
+    "outstanding": "المتبقي",
+    "receiveNow": "استلام الآن",
+    "requestStatus": {
+      "PENDING": "قيد الانتظار",
+      "PROCESSED": "تم تحويله لأمر",
+      "REJECTED": "مرفوض"
+    },
+    "orderStatus": {
+      "PENDING_APPROVAL": "بانتظار الاعتماد",
+      "APPROVED": "معتمد",
+      "REJECTED": "مرفوض",
+      "PARTIALLY_RECEIVED": "مستلم جزئياً",
+      "RECEIVED": "مستلم بالكامل",
+      "CANCELLED": "ملغي"
+    },
+    "requests": {
+      "title": "طلبات الشراء",
+      "subtitle": "ما يحتاج الناس لشرائه. يحوّل المشتري الطلب إلى أمر شراء أو يرفضه.",
+      "new": "طلب جديد",
+      "notes": "ملاحظات (اختياري)",
+      "createOrder": "إنشاء أمر شراء",
+      "reject": "رفض",
+      "openOrder": "فتح الأمر",
+      "rejectReason": "ما سبب الرفض؟",
+      "rejectError": "تعذّر رفض هذا الطلب.",
+      "createError": "تعذّر حفظ هذا الطلب."
+    },
+    "orders": {
+      "title": "أوامر الشراء",
+      "subtitle": "الأوامر المرسلة للموردين وما وصل منها.",
+      "new": "أمر شراء جديد",
+      "newTitle": "أمر شراء جديد",
+      "newSubtitle": "اختر المورد ثم الأصناف والأسعار المتفق عليها.",
+      "fromRequest": "بدأ من الطلب {{number}}.",
+      "orderDate": "تاريخ الأمر",
+      "expectedDate": "التاريخ المتوقع",
+      "create": "إنشاء الأمر",
+      "createError": "تعذّر إنشاء هذا الأمر.",
+      "approve": "اعتماد",
+      "reject": "رفض",
+      "receive": "استلام بضاعة",
+      "cancel": "إلغاء الأمر",
+      "waitingApproval": "هذا الأمر فوق حد الموافقة، ولا يمكن استلامه إلا بعد أن يعتمده من يملك الصلاحية.",
+      "actionError": "تعذّر تنفيذ الإجراء. قد يكون الأمر تغيّر؛ أعد التحميل وحاول مجدداً.",
+      "backToList": "العودة إلى الأوامر",
+      "receiveTitle": "استلام بضاعة",
+      "receiveConflict": "الكمية أكبر من المتبقي، أو لم يعد الأمر مفتوحاً للاستلام.",
+      "receiveError": "تعذّر ترحيل هذا الاستلام.",
+      "postReceipt": "ترحيل الاستلام"
+    },
+    "approvals": {
+      "title": "حدود الموافقة",
+      "subtitle": "فوق هذا المبلغ ينتظر المستند الاعتماد. اتركه فارغاً لعدم طلب اعتماد أبداً.",
+      "subjects": {
+        "purchase_order": "أوامر الشراء"
+      },
+      "noThreshold": "لا يوجد حد: لا تحتاج الأوامر إلى اعتماد.",
+      "currentThreshold": "الأوامر فوق {{amount}} تحتاج إلى اعتماد.",
+      "thresholdPlaceholder": "المبلغ بـ {{currency}}",
+      "saveError": "تعذّر حفظ هذا الحد."
     }
   }
 }

@@ -1,14 +1,15 @@
 import { Type } from "class-transformer";
 import { ArrayMinSize, IsArray, IsDateString, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
+import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 export class GoodsReceiptLineDto {
   @IsString()
   itemId!: string;
 
-  @IsString()
+  @IsDecimalString({ positive: true })
   quantity!: string;
 
-  @IsString()
+  @IsDecimalString()
   unitCost!: string;
 }
 

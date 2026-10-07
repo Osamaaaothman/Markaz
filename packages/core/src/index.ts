@@ -28,3 +28,9 @@ export * from "./accounting/general-ledger.service.js";
 export * from "./outbox/outbox-writer.js";
 export * from "./approvals/approval-policy.js";
 export * from "./approvals/approval.service.js";
+
+// M5 purchasing
+export * from "./purchasing/purchase-request.service.js";
+export * from "./purchasing/purchase-order.service.js";
+export * from "./purchasing/purchase-receipt.service.js";
+export * from "./approvals/approval-policy.service.js";

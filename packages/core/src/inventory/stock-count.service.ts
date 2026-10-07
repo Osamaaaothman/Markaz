@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAccountingEngine, IAuditLogger, INumberingService } from "../contracts.js";
+import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "./account-mapping.service.js";
 import { lockStockRow, saveStockRow } from "./stock-row.repo.js";
@@ -226,6 +227,7 @@ export class StockCountService {
       // requires at least 2 lines — there is nothing to post.
       if (totalShortage.greaterThan(0) || totalSurplus.greaterThan(0)) {
         const period = await findOpenFiscalPeriod(tx, actor.companyId, count.documentDate);
+        const currency = await companyCurrency(tx, actor.companyId);
         if (!period) throw new StockCountError("NO_OPEN_PERIOD", "No open fiscal period covers this document date");
 
         const lossAccountId = totalShortage.greaterThan(0) ? await this.accountMappings.resolve(tx, actor.companyId, "COUNT_LOSS") : null;
@@ -252,7 +254,7 @@ export class StockCountService {
             fiscalPeriodId: period.id,
             entryDate: count.documentDate,
             postingDate: count.documentDate,
-            currency: "SAR",
+            currency,
             lines,
             sourceModule: "inventory",
             sourceDocumentType: "stock_count",

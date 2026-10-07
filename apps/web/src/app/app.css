@@ -928,3 +928,11 @@ body {
 .p-multiselect-panel .p-multiselect-filter-container .p-multiselect-filter {
   margin-right: 0;
 }
+
+/* A row of buttons/inputs inside a table cell or a field (purchasing, settings). */
+.erp-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}

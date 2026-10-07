@@ -27,6 +27,9 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/inventory/goods-receipts/new", labelKey: "nav.goodsReceipt", icon: "pi pi-download", permissions: ["goods_receipt:create"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/stock-issues/new", labelKey: "nav.stockIssue", icon: "pi pi-upload", permissions: ["stock_issue:create"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/stock-counts", labelKey: "nav.stockCount", icon: "pi pi-check-square", permissions: ["stock_count:read"], groupKey: "nav.groups.inventory" },
+  { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
+  { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing" },
   { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users", permissions: ["user:read", "role:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/account-mapping", labelKey: "nav.accountMapping", icon: "pi pi-link", permissions: ["account_mapping:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },
 ];

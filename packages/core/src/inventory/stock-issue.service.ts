@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAccountingEngine, IAuditLogger } from "../contracts.js";
+import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "./account-mapping.service.js";
 import { lockStockRow, saveStockRow } from "./stock-row.repo.js";
@@ -77,6 +78,7 @@ export class StockIssueService {
       }
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.documentDate);
+      const currency = await companyCurrency(tx, actor.companyId);
       if (!period) throw new StockIssueError("NO_OPEN_PERIOD", "No open fiscal period covers this document date");
 
       const expenseAccountId = await this.accountMappings.resolve(tx, actor.companyId, "PROJECT_ISSUE_EXPENSE");
@@ -109,7 +111,7 @@ export class StockIssueService {
           fiscalPeriodId: period.id,
           entryDate: input.documentDate,
           postingDate: input.documentDate,
-          currency: "SAR",
+          currency,
           lines: [
             { accountId: expenseAccountId, debit: totalValue.toFixed(4), description: `Stock issue — ${input.costCenterRef}` },
             { accountId: inventoryAccountId, credit: totalValue.toFixed(4), description: `Stock issue — ${input.costCenterRef}` },

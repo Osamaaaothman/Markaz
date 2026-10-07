@@ -138,3 +138,21 @@ describe("stock count DTO", () => {
     ).toEqual([]);
   });
 });
+
+describe("decimal fields", () => {
+  it("rejects non-numeric, negative and over-precise quantities and costs", async () => {
+    const receipt = (line: object) => fieldsWithErrors(CreateGoodsReceiptDto, { warehouseId: "w1", documentDate: "2026-01-01", lines: [line] });
+    expect(await receipt({ itemId: "i1", quantity: "abc", unitCost: "1" })).toEqual(["lines"]);
+    expect(await receipt({ itemId: "i1", quantity: "0", unitCost: "1" })).toEqual(["lines"]);
+    expect(await receipt({ itemId: "i1", quantity: "-5", unitCost: "1" })).toEqual(["lines"]);
+    expect(await receipt({ itemId: "i1", quantity: "1", unitCost: "1.23456" })).toEqual(["lines"]);
+    expect(await receipt({ itemId: "i1", quantity: "1.5", unitCost: "0" })).toEqual([]);
+  });
+
+  it("rejects a bad reorder point and a bad counted quantity", async () => {
+    expect(await fieldsWithErrors(CreateItemDto, { code: "I", name: "N", unit: "EA", reorderPoint: "-1" })).toEqual(["reorderPoint"]);
+    expect(
+      await fieldsWithErrors(RecordStockCountDto, { warehouseId: "w1", documentDate: "2026-01-01", lines: [{ itemId: "i1", countedQuantity: "x" }] }),
+    ).toEqual(["lines"]);
+  });
+});

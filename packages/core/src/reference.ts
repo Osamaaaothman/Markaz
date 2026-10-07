@@ -38,3 +38,21 @@ export async function allocateRef(tx: TransactionClient, companyId: string, kind
 
   return numbering.next(documentType, { companyId, fiscalYear: REF_FISCAL_YEAR_KEY }, tx);
 }
+
+// Per-fiscal-year document numbers for documents that are not journal entries (PRQ-2026-000001,
+// PO-2026-000001). Same gapless series table; the prefix carries the document kind and the year so
+// the number reads on its own. Call it in the same transaction that creates the document.
+export async function allocateDocumentNumber(
+  tx: TransactionClient,
+  companyId: string,
+  documentType: string,
+  prefix: string,
+  fiscalYear: string,
+): Promise<string> {
+  await tx.$executeRaw`
+    INSERT INTO document_number_series (id, company_id, document_type, fiscal_year, prefix, padding, last_number, updated_at)
+    VALUES (${newId()}, ${companyId}, ${documentType}, ${fiscalYear}, ${`${prefix}-${fiscalYear}-`}, ${REF_PADDING}, 0, now())
+    ON CONFLICT (company_id, document_type, fiscal_year) DO NOTHING
+  `;
+  return numbering.next(documentType, { companyId, fiscalYear }, tx);
+}
