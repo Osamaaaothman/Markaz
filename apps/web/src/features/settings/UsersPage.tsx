@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { MultiSelect } from "primereact/multiselect";
@@ -342,7 +342,7 @@ export function UsersPage(): React.JSX.Element {
                 </button>
               </div>
             ) : (
-              <DataTable
+              <DataGrid
                 value={users}
                 className="erp-table"
                 stripedRows
@@ -401,7 +401,7 @@ export function UsersPage(): React.JSX.Element {
                   )}
                   style={{ width: "10rem" }}
                 />
-              </DataTable>
+              </DataGrid>
             )}
           </TabPanel>
         ) : null}
@@ -432,7 +432,7 @@ export function UsersPage(): React.JSX.Element {
                 </button>
               </div>
             ) : (
-              <DataTable
+              <DataGrid
                 value={roles}
                 className="erp-table"
                 stripedRows
@@ -468,7 +468,7 @@ export function UsersPage(): React.JSX.Element {
                     </div>
                   )}
                 />
-              </DataTable>
+              </DataGrid>
             )}
           </TabPanel>
         ) : null}

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -39,7 +39,7 @@ export function SupplierInvoicesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={invoices} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid value={invoices} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SupplierInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("purchasing.invoices.supplierInvoiceNumber")} style={{ width: "12rem" }} body={(r: SupplierInvoiceSummary) => r.supplierInvoiceNumber} />
             <Column header={t("purchasing.supplier")} body={(r: SupplierInvoiceSummary) => localizedName({ name: r.supplierName, nameAr: r.supplierNameAr }, i18n.language)} />
@@ -48,7 +48,7 @@ export function SupplierInvoicesPage(): React.JSX.Element {
             <Column header={t("purchasing.invoices.net")} align="right" body={(r: SupplierInvoiceSummary) => formatMoney(r.totalNet, r.currency)} />
             <Column header={t("purchasing.invoices.tax")} align="right" body={(r: SupplierInvoiceSummary) => formatMoney(r.totalTax, r.currency)} />
             <Column header={t("purchasing.invoices.gross")} align="right" body={(r: SupplierInvoiceSummary) => <strong>{formatMoney(r.totalGross, r.currency)}</strong>} />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />

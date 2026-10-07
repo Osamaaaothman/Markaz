@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate } from "../../shared/lib/format-date";
@@ -60,7 +60,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable
+          <DataGrid
             value={orders}
             className="erp-table"
             stripedRows
@@ -76,7 +76,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
             <Column header={t("purchasing.orders.expectedDate")} style={{ width: "9rem" }} body={(row: PurchaseOrderSummary) => (row.expectedDate ? formatCalendarDate(row.expectedDate, i18n.language) : "")} />
             <Column header={t("purchasing.total")} align="right" style={{ width: "11rem" }} body={(row: PurchaseOrderSummary) => formatMoney(row.totalAmount, row.currency)} />
             <Column header={t("purchasing.status")} style={{ width: "11rem" }} body={(row: PurchaseOrderSummary) => <OrderStatusTag status={row.status} />} />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />

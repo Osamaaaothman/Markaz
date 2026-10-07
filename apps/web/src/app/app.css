@@ -241,11 +241,37 @@
   }
 }
 
-/* The table uses a fixed layout, so the name column is simply what is left of the table's
-   width. The table never gets narrower than this: every column stays visible and the wrapper
-   scrolls sideways on a smaller screen instead of squeezing the name. */
+/* The table fills the width of the page and never scrolls: the name column takes what the fixed columns leave.
+   Where the width gets tight, the two secondary columns (id and type) drop out instead of a scroll bar
+   appearing; a phone keeps the sideways scroll as its last resort (design/components.css). */
+@media (max-width: 1500px) {
+  .erp-coa .coa-col-hide-lg {
+    display: none;
+  }
+}
+
+@media (max-width: 1280px) {
+  .erp-coa .coa-col-hide-md {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .erp-coa .coa-col-hide-sm2 {
+    display: none;
+  }
+}
+
+/* a phone: the last resort is a sideways scroll, with the name column given real room */
+@media (max-width: 899px) {
+  .erp-coa .p-treetable-table {
+    min-width: 40rem;
+  }
+}
+
 .erp-coa .p-treetable-table {
-  min-width: 80rem;
+  table-layout: fixed;
+  width: 100%;
 }
 
 .erp-coa .p-treetable-thead > tr > th,

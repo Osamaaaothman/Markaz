@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
@@ -72,7 +72,7 @@ export function TaxCodesPage(): React.JSX.Element {
           </button>
         </div>
       ) : (
-        <DataTable value={data} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.tax.empty")}>
+        <DataGrid value={data} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.tax.empty")}>
           <Column header={t("inventory.items.code")} style={{ width: "10rem" }} body={(row: TaxCodeSummary) => <span className="coa-code">{row.code}</span>} />
           <Column header={t("inventory.items.name")} body={(row: TaxCodeSummary) => localizedName(row, i18n.language)} />
           <Column header={t("purchasing.tax.treatment")} body={(row: TaxCodeSummary) => t(`purchasing.tax.treatments.${row.treatment}`)} />
@@ -96,7 +96,7 @@ export function TaxCodesPage(): React.JSX.Element {
               />
             )}
           />
-        </DataTable>
+        </DataGrid>
       )}
       {addDefaults.isError || update.isError ? <p className="erp-auth-card__error">{t("purchasing.tax.saveError")}</p> : null}
 

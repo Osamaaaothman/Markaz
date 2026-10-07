@@ -500,20 +500,39 @@ html body .p-message {
   border: 1px solid var(--mk-border);
   background: var(--mk-surface);
   box-shadow: var(--mk-shadow-xs);
-  overflow: hidden;
+  /* clip, not hidden: it rounds the corners without making the table a scroll box, so the header can stick
+     to the page scroll underneath the top bar. */
+  overflow: clip;
 }
 
-/* Headers stay put while the body scrolls inside the table's own frame (and it scrolls sideways there too). */
+/* No scroll box inside the table: the page scrolls. Only a narrow screen scrolls a wide table sideways. */
 html body .erp-table .p-datatable-wrapper,
 html body .erp-table .p-treetable-wrapper {
-  max-height: calc(100dvh - 15rem);
-  overflow: auto;
+  /* !important on purpose: PrimeReact writes overflow:auto and max-height as an inline style on this element */
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 899px) {
+  .erp-table {
+    overflow: visible;
+  }
+
+  html body .erp-table .p-datatable-wrapper,
+  html body .erp-table .p-treetable-wrapper {
+    overflow-x: auto !important;
+  }
+
+  html body .erp-table .p-datatable-thead > tr > th,
+  html body .erp-table .p-treetable-thead > tr > th {
+    position: static;
+  }
 }
 
 html body .erp-table .p-datatable-thead > tr > th,
 html body .erp-table .p-treetable-thead > tr > th {
   position: sticky;
-  top: 0;
+  top: var(--mk-topbar-h);
   z-index: 2;
   padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
   background: var(--mk-surface-2);
@@ -1157,4 +1176,104 @@ html body .p-tag.mk-tag--plain::before {
 html body .p-tag.mk-tag--plain {
   font-weight: 600;
   border: 1px solid var(--mk-border);
+}
+
+/* ---- shared grid: toolbar and paginator ---- */
+.mk-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-3);
+}
+
+.mk-grid__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+}
+
+.mk-grid__search {
+  position: relative;
+  flex: 0 1 22rem;
+  min-inline-size: 13rem;
+}
+
+.mk-grid__search > i {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 0.8rem;
+  margin-block-start: -0.5rem;
+  color: var(--mk-text-subtle);
+  pointer-events: none;
+}
+
+html body .mk-grid__search .p-inputtext {
+  width: 100%;
+  padding-inline: 2.4rem 0.9rem;
+}
+
+.mk-grid__count {
+  margin-inline-start: auto;
+  color: var(--mk-text-muted);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+html body .erp-table .p-paginator {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--mk-surface);
+  border: 0;
+  border-block-start: 1px solid var(--mk-border);
+  color: var(--mk-text-muted);
+  font-size: 0.84rem;
+}
+
+html body .erp-table .p-paginator .p-paginator-first,
+html body .erp-table .p-paginator .p-paginator-prev,
+html body .erp-table .p-paginator .p-paginator-next,
+html body .erp-table .p-paginator .p-paginator-last,
+html body .erp-table .p-paginator .p-paginator-page {
+  min-width: 2.2rem;
+  height: 2.2rem;
+  margin: 0;
+  border: 0;
+  border-radius: var(--mk-radius-xs);
+  background: transparent;
+  color: var(--mk-text-muted);
+  font-weight: 600;
+}
+
+html body .erp-table .p-paginator .p-paginator-page:not(.p-highlight):hover,
+html body .erp-table .p-paginator button:not(.p-disabled):not(.p-highlight):hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+html body .erp-table .p-paginator .p-paginator-page.p-highlight {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+
+html body .erp-table .p-paginator .p-dropdown {
+  min-height: 2.2rem;
+  margin-inline-end: auto;
+}
+
+html body .erp-table .p-paginator .p-paginator-current {
+  color: var(--mk-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the first/prev/next/last arrows point the way the page reads */
+html[dir="rtl"] .p-paginator .p-paginator-first svg,
+html[dir="rtl"] .p-paginator .p-paginator-prev svg,
+html[dir="rtl"] .p-paginator .p-paginator-next svg,
+html[dir="rtl"] .p-paginator .p-paginator-last svg {
+  transform: scaleX(-1);
 }

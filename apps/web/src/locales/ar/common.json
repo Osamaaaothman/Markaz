@@ -973,5 +973,12 @@
     "done": "تم التنزيل",
     "failed": "فشل التصدير. حاول مرة أخرى.",
     "dismiss": "إغلاق"
+  },
+  "table": {
+    "search": "ابحث في هذه القائمة…",
+    "rowCount": "{{total}} سجل",
+    "matches": "{{shown}} من {{total}} سجل",
+    "noMatch": "لا يوجد ما يطابق بحثك.",
+    "report": "⁦{first}–{last}⁩ من {totalRecords}"
   }
 }

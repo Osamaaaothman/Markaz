@@ -973,5 +973,12 @@
     "done": "Downloaded",
     "failed": "The export failed. Try again.",
     "dismiss": "Dismiss"
+  },
+  "table": {
+    "search": "Search in this list…",
+    "rowCount": "{{total}} rows",
+    "matches": "{{shown}} of {{total}} rows",
+    "noMatch": "Nothing matches your search.",
+    "report": "⁦{first}–{last}⁩ of {totalRecords}"
   }
 }

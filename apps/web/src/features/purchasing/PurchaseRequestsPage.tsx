@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
@@ -77,7 +77,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(row: PurchaseRequestSummary) => <span className="coa-code">{row.number}</span>} />
             <Column header={t("purchasing.date")} style={{ width: "8rem" }} body={(row: PurchaseRequestSummary) => formatCalendarDate(row.createdAt, i18n.language)} />
             <Column header={t("purchasing.requests.notes")} body={(row: PurchaseRequestSummary) => row.rejectionReason ?? row.notes ?? ""} />
@@ -114,7 +114,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
                 </div>
               )}
             />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
@@ -221,11 +221,11 @@ function RequestDetailDialog({ id, onHide }: { id: string | null; onHide: () => 
         <>
           {data.notes ? <p>{data.notes}</p> : null}
           {data.rejectionReason ? <p className="erp-page__error">{data.rejectionReason}</p> : null}
-          <DataTable value={[...data.lines]} className="erp-table" stripedRows showGridlines size="small">
+          <DataGrid value={[...data.lines]} className="erp-table" stripedRows showGridlines size="small">
             <Column header={t("inventory.items.code")} body={(l: (typeof data.lines)[number]) => <span className="coa-code">{l.itemCode}</span>} />
             <Column header={t("inventory.items.name")} body={(l: (typeof data.lines)[number]) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
             <Column header={t("purchasing.quantity")} align="right" body={(l: (typeof data.lines)[number]) => `${l.quantity} ${l.unit}`} />
-          </DataTable>
+          </DataGrid>
         </>
       )}
     </Dialog>
