@@ -9,6 +9,7 @@ import { InputText } from "primereact/inputtext";
 import { z } from "zod";
 import { useThemeStore } from "../../shared/theme/theme-store";
 import { Logo, LogoMark } from "../../shared/ui/Logo";
+import { AuthPreview } from "./AuthPreview";
 import { useLogin } from "./use-login";
 
 // Messages are translation-key suffixes, not literal text (looked up via
@@ -72,6 +73,7 @@ export function LoginPage(): React.JSX.Element {
               </li>
             ))}
           </ul>
+          <AuthPreview />
         </div>
 
         <p className="mk-auth__brand-foot">{t("authHero.footer", { year: new Date().getFullYear() })}</p>

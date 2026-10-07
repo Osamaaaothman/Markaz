@@ -883,7 +883,18 @@
       "b": "Fully bilingual: Arabic and English, right to left or left to right",
       "c": "Reports with PDF and CSV in one click"
     },
-    "footer": "© {{year}} Markaz. All rights reserved."
+    "footer": "© {{year}} Markaz. All rights reserved.",
+    "preview": {
+      "title": "Journal entry",
+      "sample": "Sample",
+      "debit": "Debit",
+      "credit": "Credit",
+      "receivable": "Accounts receivable",
+      "revenue": "Sales revenue",
+      "vat": "Output VAT",
+      "total": "Total",
+      "balanced": "Balanced: debit equals credit"
+    }
   },
   "ds": {
     "title": "Design system",

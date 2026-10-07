@@ -14,6 +14,7 @@ import "./design/shell.css";
 import "./design/components.css";
 import "./design/pages.css";
 import "./design/motion.css";
+import "./design/auth-life.css";
 import { useDocumentDirection } from "./shared/i18n/use-document-direction";
 import { usePrimeTheme } from "./shared/theme/use-prime-theme";
 import { AppProviders } from "./app/AppProviders";
