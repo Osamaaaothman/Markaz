@@ -25,3 +25,6 @@ apps/web/dist/
 apps/api/dist/
 
 packages/db/prisma/*.db
+
+# Third-party specifications downloaded for reference (public, not redistributed)
+docs/vendor/

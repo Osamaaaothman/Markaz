@@ -75,7 +75,12 @@ gain/loss accounts (`COUNT_GAIN`/`COUNT_LOSS` in `account_mappings`) need the ac
 account codes before a real company can post a count — the keys exist, nothing is mapped to
 them by default.
 
-### A4. ZATCA integration path
+### A4. ZATCA integration path — DECIDED 2026-10-07: direct, no provider
+Decided by Osama in chat; recorded with what was verified and what is still unverified in
+`docs/adr/0004-zatca-direct-integration.md`. Still open inside this decision: the curve (P-256 vs
+secp256k1), the sandbox API contract, the current wave schedule — all need the developer-portal
+downloads listed in the ADR. The original question is kept below.
+
 **Blocks:** Milestone 6 (compliance)
 **Question:** Direct integration with ZATCA Fatoora APIs, or through an approved
 solution provider?
