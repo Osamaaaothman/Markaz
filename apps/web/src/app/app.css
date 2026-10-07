@@ -943,3 +943,216 @@ body {
   outline-offset: 2px;
   border-radius: 6px;
 }
+
+/* ---------- dashboard ---------- */
+
+.erp-dashboard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-end: 1.25rem;
+}
+
+.erp-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin-block-end: 1.25rem;
+}
+
+.erp-kpi {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "icon label" "value value" "hint hint";
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 1rem 1.1rem;
+  text-align: start;
+  font: inherit;
+  color: var(--erp-text);
+  background: var(--erp-surface);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  box-shadow: var(--erp-shadow-sm);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.erp-kpi:hover,
+.erp-kpi:focus-visible {
+  box-shadow: var(--erp-shadow-md);
+  border-color: var(--erp-brand);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.erp-kpi__icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  color: var(--erp-brand);
+  background: color-mix(in srgb, var(--erp-brand) 12%, transparent);
+}
+
+.erp-kpi__label {
+  grid-area: label;
+  color: var(--erp-text-muted);
+  font-size: 0.9rem;
+}
+
+.erp-kpi__value {
+  grid-area: value;
+  font-size: 1.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.erp-kpi__hint {
+  grid-area: hint;
+  color: var(--erp-text-muted);
+  font-size: 0.82rem;
+}
+
+.erp-kpi--warn .erp-kpi__hint {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.erp-dashboard__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 960px) {
+  .erp-dashboard__grid {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+.erp-card {
+  padding: 1.1rem 1.25rem;
+  background: var(--erp-surface);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  box-shadow: var(--erp-shadow-sm);
+}
+
+.erp-card__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.erp-card__empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--erp-text-muted);
+}
+
+.erp-card__empty .pi {
+  color: #15803d;
+}
+
+.erp-chart {
+  margin: 0;
+}
+
+.erp-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.erp-chart__axis {
+  stroke: var(--erp-border);
+  stroke-width: 1;
+}
+
+.erp-chart__bar--revenue {
+  fill: var(--erp-brand);
+}
+
+.erp-chart__bar--expense {
+  fill: #f59e0b;
+}
+
+.erp-chart__label {
+  fill: var(--erp-text-muted);
+  font-size: 11px;
+}
+
+.erp-chart__legend {
+  display: flex;
+  gap: 1rem;
+  margin-block-start: 0.5rem;
+  color: var(--erp-text-muted);
+  font-size: 0.85rem;
+}
+
+.erp-chart__key::before {
+  content: "";
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-inline-end: 0.35rem;
+  border-radius: 3px;
+  vertical-align: baseline;
+}
+
+.erp-chart__key--revenue::before {
+  background: var(--erp-brand);
+}
+
+.erp-chart__key--expense::before {
+  background: #f59e0b;
+}
+
+.erp-attention {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.erp-attention__item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  text-align: start;
+  font: inherit;
+  color: var(--erp-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--erp-radius-sm);
+  cursor: pointer;
+}
+
+.erp-attention__item:hover,
+.erp-attention__item:focus-visible {
+  background: color-mix(in srgb, var(--erp-brand) 8%, transparent);
+  outline: none;
+}
+
+.erp-attention__item span {
+  flex: 1;
+}
+
+.erp-attention__chevron {
+  color: var(--erp-text-muted);
+  font-size: 0.8rem;
+}
+
+/* The chevron points toward the end of the line, so it flips in right-to-left. */
+html[dir="rtl"] .erp-attention__chevron {
+  transform: scaleX(-1);
+}

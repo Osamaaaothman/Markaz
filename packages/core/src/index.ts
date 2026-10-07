@@ -50,3 +50,6 @@ export * from "./payments/payment.service.js";
 export * from "./payments/aging.util.js";
 export * from "./payments/aging.service.js";
 export * from "./payments/party-statement.service.js";
+
+// Dashboard
+export * from "./dashboard/dashboard.service.js";
