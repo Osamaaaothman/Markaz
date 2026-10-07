@@ -425,7 +425,8 @@
       "updateError": "Could not save this item.",
       "duplicateCode": "An item with this code already exists.",
       "picture": "Item picture",
-      "pictureAfterSave": "Save the item first, then open it again to add a picture."
+      "pictureAfterSave": "Save the item first; you can add a picture right after.",
+      "savedAddPicture": "The item is saved. You can add a picture now, then press Save to close."
     },
     "stockLevels": {
       "title": "Stock levels",
