@@ -14,6 +14,7 @@ import { ItemsPage } from "../features/inventory/ItemsPage";
 import { StockCountPage } from "../features/inventory/StockCountPage";
 import { StockIssuePage } from "../features/inventory/StockIssuePage";
 import { StockLevelsPage } from "../features/inventory/StockLevelsPage";
+import { StockMovementsPage } from "../features/inventory/StockMovementsPage";
 import { WarehousesPage } from "../features/inventory/WarehousesPage";
 import { ApprovalPolicyPage } from "../features/purchasing/ApprovalPolicyPage";
 import { SupplierInvoiceFormPage } from "../features/purchasing/SupplierInvoiceFormPage";
@@ -82,6 +83,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-levels")} />}>
             <Route path="/inventory/stock-levels" element={<StockLevelsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/inventory/movements")} />}>
+            <Route path="/inventory/movements" element={<StockMovementsPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/goods-receipts/new")} />}>
             <Route path="/inventory/goods-receipts/new" element={<GoodsReceiptPage />} />

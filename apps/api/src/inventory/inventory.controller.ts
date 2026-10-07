@@ -12,6 +12,7 @@ import {
   StockIssueError,
   StockIssueService,
   StockLevelService,
+  StockMovementService,
   UnmappedAccountError,
   WarehouseError,
   WarehouseService,
@@ -25,6 +26,7 @@ import {
   type StockCountSummary,
   type StockIssueResult,
   type StockLevelEntry,
+  type StockMovementPage,
   type WarehouseListPage,
   type WarehouseSummary,
 } from "@erp/core";
@@ -43,6 +45,8 @@ import { StockCountsQueryDto } from "./dto/stock-counts-query.dto.js";
 import { StockLevelsExportQueryDto } from "./dto/stock-levels-export-query.dto.js";
 import { StockLevelsQueryDto } from "./dto/stock-levels-query.dto.js";
 import { InventoryExportService } from "./inventory-export.service.js";
+import { StockMovementsQueryDto } from "./dto/stock-movements-query.dto.js";
+import { stockMovementsToCsv } from "./exports/stock-movements-export.js";
 import { UpdateItemDto } from "./dto/update-item.dto.js";
 import { UpdateWarehouseDto } from "./dto/update-warehouse.dto.js";
 import { WarehousesQueryDto } from "./dto/warehouses-query.dto.js";
@@ -58,6 +62,7 @@ export class InventoryController {
     private readonly stockIssues: StockIssueService,
     private readonly stockCounts: StockCountService,
     private readonly exports: InventoryExportService,
+    private readonly movements: StockMovementService,
   ) {}
 
   // ── Warehouses ──────────────────────────────────────────────────────────────
@@ -162,6 +167,27 @@ export class InventoryController {
     res.header("Content-Type", file.contentType);
     res.header("Content-Disposition", `attachment; filename="${file.filename}"`);
     res.send(file.content);
+  }
+
+  // ── Stock movements (the stock card; read-only) ────────────────────────────
+
+  @Get("stock-movements")
+  @RequirePermission("stock", "read")
+  listStockMovements(@CurrentUser() actor: CurrentUserPayload, @Query() query: StockMovementsQueryDto): Promise<StockMovementPage> {
+    return this.movements.list(actor.companyId, toMovementQuery(query));
+  }
+
+  @Get("stock-movements/export")
+  @RequirePermission("stock", "read")
+  async exportStockMovements(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: StockMovementsQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const entries = await this.movements.listForExport(actor.companyId, toMovementQuery(query));
+    res.header("Content-Type", "text/csv; charset=utf-8");
+    res.header("Content-Disposition", 'attachment; filename="stock-movements.csv"');
+    res.send(stockMovementsToCsv(entries));
   }
 
   // ── Account mapping (tenant config: which account each posting key lands in) ─
@@ -339,4 +365,16 @@ export class InventoryController {
       }
     }
   }
+}
+
+function toMovementQuery(query: StockMovementsQueryDto) {
+  return {
+    ...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
+    ...(query.limit !== undefined ? { limit: query.limit } : {}),
+    ...(query.itemId !== undefined ? { itemId: query.itemId } : {}),
+    ...(query.warehouseId !== undefined ? { warehouseId: query.warehouseId } : {}),
+    ...(query.movementType !== undefined ? { movementType: query.movementType } : {}),
+    ...(query.from !== undefined ? { from: new Date(query.from) } : {}),
+    ...(query.to !== undefined ? { to: new Date(query.to) } : {}),
+  };
 }

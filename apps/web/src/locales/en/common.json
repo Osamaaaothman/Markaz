@@ -39,7 +39,8 @@
     "salesInvoices": "Sales invoices",
     "payments": "Payments",
     "aging": "Ageing",
-    "partyStatement": "Customer / supplier statement"
+    "partyStatement": "Customer / supplier statement",
+    "stockMovements": "Stock movements"
   },
   "actions": {
     "save": "Save",
@@ -244,7 +245,8 @@
       "details": "Journal entry details",
       "exchangeRate": "Exchange rate",
       "reversalOf": "Reverses entry {{number}}",
-      "loadError": "Couldn't load this entry."
+      "loadError": "Couldn't load this entry.",
+      "exportCsv": "Export lines (CSV)"
     },
     "accountStatement": {
       "title": "Account statement",
@@ -497,6 +499,29 @@
         "SALES_REVENUE": "Credited with the net of sales invoices (a line can name its own account instead).",
         "VAT_OUTPUT": "Credited with the VAT charged on sales invoices.",
         "COST_OF_GOODS_SOLD": "Debited with the cost of the stock sold, at weighted-average cost."
+      }
+    },
+    "movements": {
+      "title": "Stock movements",
+      "subtitle": "Every movement of every item: what came in, what went out, at what cost.",
+      "item": "Item",
+      "allItems": "All items",
+      "type": "Type",
+      "allTypes": "All types",
+      "date": "Date",
+      "source": "Source",
+      "entry": "Ledger entry",
+      "unitCost": "Unit cost",
+      "types": {
+        "RECEIPT": "Receipt",
+        "ISSUE": "Issue",
+        "COUNT_ADJUSTMENT": "Count adjustment"
+      },
+      "sources": {
+        "goods_receipt": "Goods receipt",
+        "stock_issue": "Stock issue",
+        "stock_count": "Stock count",
+        "sales_invoice": "Sales invoice"
       }
     }
   },
