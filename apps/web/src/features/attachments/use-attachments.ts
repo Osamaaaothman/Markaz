@@ -90,20 +90,12 @@ export function useRemoveAttachment() {
 
 // The file travels through the API with the user's own token, so it is fetched as a blob and handed to the
 // browser from memory; there is no link that works without being signed in.
-async function fetchBlob(id: string, download: boolean): Promise<Blob> {
+export async function fetchAttachmentBlob(id: string, download: boolean): Promise<Blob> {
   return (await apiClient.get<Blob>(`/v1/attachments/${id}/content`, { params: download ? { download: "true" } : {}, responseType: "blob" })).data;
 }
 
-export async function openAttachment(id: string): Promise<void> {
-  const blob = await fetchBlob(id, false);
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank", "noopener");
-  // The new tab has its own copy once it has loaded; release ours a minute later.
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
 export async function downloadAttachment(id: string, name: string): Promise<void> {
-  downloadBlob(await fetchBlob(id, true), name);
+  downloadBlob(await fetchAttachmentBlob(id, true), name);
 }
 
 export function formatBytes(bytes: number): string {

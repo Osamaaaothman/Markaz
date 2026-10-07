@@ -7,12 +7,12 @@ import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
 import { DataGrid } from "../../shared/ui/DataGrid";
+import { AttachmentViewer, type ViewedFile } from "./AttachmentViewer";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import {
   ATTACHMENT_OWNER_TYPES,
   downloadAttachment,
   formatBytes,
-  openAttachment,
   useAllAttachments,
   type AttachmentOwnerType,
   type AttachmentSummary,
@@ -34,6 +34,7 @@ export function DocumentsPage(): React.JSX.Element {
   const [ownerType, setOwnerType] = useState<AttachmentOwnerType | null>(null);
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState("");
+  const [viewing, setViewing] = useState<ViewedFile | null>(null);
   const { data, isPending, isError, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } = useAllAttachments(ownerType, applied);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" });
@@ -104,7 +105,7 @@ export function DocumentsPage(): React.JSX.Element {
               style={{ width: "7rem" }}
               body={(r: AttachmentSummary) => (
                 <div className="mk-attach__actions">
-                  <Button type="button" icon="pi pi-eye" text rounded aria-label={t("attachments.open")} tooltip={t("attachments.open")} onClick={() => void openAttachment(r.id)} />
+                  <Button type="button" icon="pi pi-eye" text rounded aria-label={t("attachments.open")} tooltip={t("attachments.open")} onClick={() => setViewing(r)} />
                   <Button type="button" icon="pi pi-download" text rounded aria-label={t("attachments.download")} tooltip={t("attachments.download")} onClick={() => void downloadAttachment(r.id, r.originalName)} />
                 </div>
               )}
@@ -117,6 +118,7 @@ export function DocumentsPage(): React.JSX.Element {
           ) : null}
         </>
       )}
+      <AttachmentViewer file={viewing} onHide={() => setViewing(null)} />
     </div>
   );
 }

@@ -1567,3 +1567,63 @@ html body .mk-grid__columns .p-overlaypanel-content {
   margin: 0;
   font-weight: 700;
 }
+
+/* An icon-only button has an empty label (a non-breaking space) that, with the button's gap, pushed the icon off
+   centre. Hide the label and drop the gap so the icon sits in the middle of the circle or square. */
+html body .p-button.p-button-icon-only {
+  gap: 0;
+  justify-content: center;
+}
+
+html body .p-button.p-button-icon-only .p-button-label {
+  display: none;
+}
+
+html body .p-button.p-button-icon-only .p-button-icon,
+html body .p-button.p-button-icon-only .p-icon {
+  margin: 0;
+}
+
+/* ---- file viewer ---- */
+html body .mk-viewer {
+  inline-size: min(64rem, 96vw);
+}
+
+html body .mk-viewer .p-dialog-content {
+  padding: 0;
+}
+
+.mk-viewer__title {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-inline-size: 38rem;
+  display: inline-block;
+}
+
+.mk-viewer__stage {
+  display: grid;
+  place-items: center;
+  block-size: 72vh;
+  background: var(--mk-surface-3);
+  font-size: 1.8rem;
+  color: var(--mk-text-muted);
+}
+
+html body .mk-viewer.p-dialog-maximized .mk-viewer__stage {
+  block-size: calc(100vh - 9rem);
+}
+
+.mk-viewer__frame {
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.mk-viewer__image {
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  object-fit: contain;
+}
