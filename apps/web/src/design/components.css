@@ -309,8 +309,38 @@ html body .p-menu .p-menuitem:not(.p-highlight):not(.p-disabled) > .p-menuitem-c
 }
 
 /* switches, checkboxes, segmented selector */
-html body .p-inputswitch.p-inputswitch-checked .p-inputswitch-slider {
+/* The switch: off = knob at the reading side, on = knob at the far side, in both directions.
+   The theme positions the knob with physical left and translateX, which is backwards in Arabic. */
+html body .p-inputswitch .p-inputswitch-slider {
+  background: var(--mk-border-strong);
+}
+
+html body .p-inputswitch .p-inputswitch-slider::before {
+  left: auto;
+  inset-inline-start: 0.25rem;
+  transform: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+}
+
+html body .p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:hover) .p-inputswitch-slider {
+  background: var(--mk-text-subtle);
+}
+
+html body .p-inputswitch.p-highlight .p-inputswitch-slider,
+html body .p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:hover).p-highlight .p-inputswitch-slider {
   background: var(--mk-primary);
+}
+
+html body .p-inputswitch.p-highlight .p-inputswitch-slider::before {
+  transform: translateX(1.25rem);
+}
+
+html[dir="rtl"] body .p-inputswitch.p-highlight .p-inputswitch-slider::before {
+  transform: translateX(-1.25rem);
+}
+
+html body .p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:focus-visible) .p-inputswitch-slider {
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
 }
 
 html body .p-checkbox .p-checkbox-box {
@@ -407,7 +437,7 @@ html body .p-tag.p-tag-secondary {
 /* ---------- dialogs ---------- */
 
 html body .p-dialog-mask.p-component-overlay {
-  background: rgb(5 12 24 / 0.5);
+  background: rgb(18 17 15 / 0.55);
   backdrop-filter: blur(4px);
 }
 
@@ -842,4 +872,289 @@ html body .p-dropdown .p-dropdown-trigger {
 .erp-form > .p-button,
 .erp-page > .p-button {
   align-self: flex-start;
+}
+
+/* ---- table alignment: logical, so header and cells always agree in both directions ----
+   PrimeReact hard-codes text-align: left on cells and p-align-right/left on columns; in Arabic that put
+   the header at the right and the cell text at the left. Everything below follows the page direction:
+   "start" is the reading side, "end" (align="right" columns, i.e. amounts) is the opposite side. */
+html body .erp-table .p-datatable-thead > tr > th,
+html body .erp-table .p-datatable-tbody > tr > td,
+html body .erp-table .p-datatable-tfoot > tr > td,
+html body .erp-table .p-treetable-thead > tr > th,
+html body .erp-table .p-treetable-tbody > tr > td,
+html body .erp-table .p-treetable-tfoot > tr > td {
+  text-align: start;
+}
+
+html body .erp-table .p-datatable-thead > tr > th.p-align-right > .p-column-header-content,
+html body .erp-table .p-datatable-tbody > tr > td.p-align-right,
+html body .erp-table .p-datatable-tfoot > tr > td.p-align-right,
+html body .erp-table .p-treetable-thead > tr > th.p-align-right > .p-column-header-content,
+html body .erp-table .p-treetable-tbody > tr > td.p-align-right,
+html body .erp-table .p-treetable-tfoot > tr > td.p-align-right {
+  text-align: end;
+  justify-content: flex-end;
+}
+
+html body .erp-table .p-datatable-thead > tr > th.p-align-left > .p-column-header-content,
+html body .erp-table .p-datatable-tbody > tr > td.p-align-left,
+html body .erp-table .p-datatable-tfoot > tr > td.p-align-left,
+html body .erp-table .p-treetable-thead > tr > th.p-align-left > .p-column-header-content,
+html body .erp-table .p-treetable-tbody > tr > td.p-align-left,
+html body .erp-table .p-treetable-tfoot > tr > td.p-align-left {
+  text-align: start;
+  justify-content: flex-start;
+}
+
+html body .erp-table .p-datatable-thead > tr > th.p-align-center > .p-column-header-content,
+html body .erp-table .p-datatable-tbody > tr > td.p-align-center,
+html body .erp-table .p-datatable-tfoot > tr > td.p-align-center {
+  text-align: center;
+  justify-content: center;
+}
+
+/* Arabic letters join: no tracking, no upper-casing on headers */
+html[dir="rtl"] body .erp-table .p-datatable-thead > tr > th,
+html[dir="rtl"] body .erp-table .p-treetable-thead > tr > th {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.8rem;
+}
+
+/* numbers and dates keep their own direction inside an RTL cell */
+html body .erp-table td.p-align-right {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- export progress panel ---- */
+.mk-exports {
+  position: fixed;
+  inset-block-end: 1.25rem;
+  inset-inline-end: 1.25rem;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  inline-size: min(22rem, calc(100vw - 2rem));
+}
+
+.mk-export {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-lg);
+  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+}
+
+.mk-export > .pi {
+  margin-block-start: 0.15rem;
+  font-size: 1.15rem;
+  color: var(--mk-primary);
+}
+
+.mk-export--done > .pi {
+  color: var(--mk-success);
+}
+
+.mk-export--error > .pi {
+  color: var(--mk-danger);
+}
+
+.mk-export__body {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mk-export__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  text-align: start;
+}
+
+.mk-export__status {
+  color: var(--mk-text-muted);
+  font-size: 0.8rem;
+}
+
+.mk-export__bar {
+  position: relative;
+  block-size: 6px;
+  margin-block-start: 0.35rem;
+  border-radius: 999px;
+  background: var(--mk-surface-3);
+  overflow: hidden;
+}
+
+.mk-export__bar > span {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--mk-primary);
+  transition: inline-size var(--mk-dur) var(--mk-ease);
+}
+
+.mk-export__bar--indeterminate > span {
+  inline-size: 38%;
+  animation: mk-export-slide 1.1s var(--mk-ease) infinite;
+}
+
+html[dir="rtl"] .mk-export__bar--indeterminate > span {
+  animation-name: mk-export-slide-rtl;
+}
+
+@keyframes mk-export-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(270%); }
+}
+
+@keyframes mk-export-slide-rtl {
+  from { transform: translateX(100%); }
+  to { transform: translateX(-270%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-export__bar--indeterminate > span {
+    animation: none;
+    inline-size: 100%;
+    opacity: 0.5;
+  }
+}
+
+.mk-export__close {
+  border: 0;
+  background: transparent;
+  color: var(--mk-text-muted);
+  cursor: pointer;
+  padding: 0.2rem;
+}
+
+/* ---- tabs: flat, underline in the brand colour, panel on the surface (theme default is indigo on slate) ---- */
+html body .p-tabview .p-tabview-nav {
+  background: transparent;
+  border: 0;
+  border-block-end: 1px solid var(--mk-border);
+  gap: 0.25rem;
+}
+
+html body .p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  background: transparent;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  margin: 0 0 -1px;
+  padding: 0.8rem 1.1rem;
+  color: var(--mk-text-muted);
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 0;
+  box-shadow: none;
+  transition: color var(--mk-dur-fast) ease, border-color var(--mk-dur-fast) ease;
+}
+
+html body .p-tabview .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
+  background: transparent;
+  color: var(--mk-text);
+  border-color: var(--mk-border-strong);
+}
+
+html body .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  background: transparent;
+  color: var(--mk-primary);
+  border-color: var(--mk-primary);
+}
+
+html body .p-tabview .p-tabview-nav li .p-tabview-nav-link:focus-visible {
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-tabview .p-tabview-panels {
+  background: transparent;
+  padding: 1.25rem 0 0;
+  color: var(--mk-text);
+}
+
+/* ---- sortable headers: the arrows sit after the title with a gap, never on top of it ---- */
+html body .erp-table .p-sortable-column .p-column-header-content {
+  gap: 0.4rem;
+}
+
+html body .erp-table .p-sortable-column .p-sortable-column-icon {
+  margin: 0;
+  color: var(--mk-text-subtle);
+}
+
+html body .erp-table .p-sortable-column.p-highlight,
+html body .erp-table .p-sortable-column.p-highlight .p-sortable-column-icon {
+  color: var(--mk-primary);
+}
+
+html body .erp-table .p-sortable-column:not(.p-highlight):hover {
+  background: var(--mk-surface-3);
+}
+
+/* ---- multiselect list: a gap between the box and its label, selected rows tinted ---- */
+html body .p-multiselect-panel .p-multiselect-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--mk-surface-2);
+  border-bottom: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius) var(--mk-radius) 0 0;
+}
+
+html body .p-multiselect-panel .p-multiselect-header .p-multiselect-filter-container {
+  flex: 1;
+}
+
+html body .p-multiselect-panel .p-multiselect-items .p-multiselect-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 2px 6px;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--mk-radius-xs);
+  color: var(--mk-text);
+  font-size: 0.9rem;
+}
+
+html body .p-multiselect-panel .p-multiselect-items .p-multiselect-item:not(.p-highlight):hover {
+  background: var(--mk-surface-3);
+}
+
+html body .p-multiselect-panel .p-multiselect-items .p-multiselect-item.p-highlight {
+  background: var(--mk-primary-soft);
+  color: var(--mk-text);
+}
+
+html body .p-multiselect-panel .p-multiselect-close {
+  color: var(--mk-text-muted);
+}
+
+/* chips inside the multiselect box */
+html body .p-multiselect .p-multiselect-token {
+  background: var(--mk-primary-soft);
+  color: var(--mk-text);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+/* a tag without the status dot, for roles and permission lists */
+html body .p-tag.mk-tag--plain::before {
+  display: none;
+}
+
+html body .p-tag.mk-tag--plain {
+  font-weight: 600;
+  border: 1px solid var(--mk-border);
 }

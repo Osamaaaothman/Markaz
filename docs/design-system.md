@@ -41,5 +41,5 @@ The Arabic letter meem (م) drawn as a ring with a tail, with a gold dot at its 
 ## Known gaps
 
 - Column show/hide and a per-table toolbar are not built yet; tables have sticky headers, density and CSV/PDF export.
-- The Arabic UI font falls back to the system stack. Bundling IBM Plex Sans Arabic (OFL) needs Osama's approval (new asset).
+- The UI font is IBM Plex Sans Arabic (OFL), self-hosted through @fontsource, weights 400-700, Arabic and Latin subsets.
 - Totals bars on document forms are inline with the form, not yet pinned; the actions bar is sticky.

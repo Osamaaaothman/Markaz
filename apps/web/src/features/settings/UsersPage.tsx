@@ -366,7 +366,7 @@ export function UsersPage(): React.JSX.Element {
                     ) : (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
                         {row.roles.map((r) => (
-                          <Tag key={r.id} value={r.name} severity="secondary" />
+                          <Tag key={r.id} value={r.name} severity="secondary" className="mk-tag--plain" />
                         ))}
                       </div>
                     )
@@ -458,7 +458,8 @@ export function UsersPage(): React.JSX.Element {
                       {groupPermissionsByResource(row.permissions).map((group) => (
                         <Tag
                           key={group.resource}
-                          severity="info"
+                          severity="secondary"
+                          className="mk-tag--plain"
                           value={`${t(`settings.usersRoles.resources.${group.resource}`, group.resource)}: ${listFormat.format(
                             group.actions.map((a) => t(`settings.usersRoles.actions.${a}`, a)),
                           )}`}
