@@ -955,5 +955,12 @@
     "kbdSlash": "Open it from anywhere that is not a text field",
     "kbdEnter": "Next field in a document line; the last field adds a line",
     "kbdEsc": "Close a dialog or the palette"
+  },
+  "exportProgress": {
+    "preparing": "Preparing the file…",
+    "downloading": "Downloading {{percent}}%",
+    "done": "Downloaded",
+    "failed": "The export failed. Try again.",
+    "dismiss": "Dismiss"
   }
 }

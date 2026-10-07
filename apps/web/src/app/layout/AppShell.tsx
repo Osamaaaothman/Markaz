@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
+import { ExportProgress } from "./ExportProgress";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { useLayoutStore } from "./layout-store";
@@ -43,6 +44,7 @@ export function AppShell(): React.JSX.Element {
         </main>
       </div>
       <CommandPalette />
+      <ExportProgress />
     </div>
   );
 }

@@ -8,8 +8,7 @@ import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
-import { apiClient } from "../../shared/api/client";
-import { downloadBlob } from "../../shared/lib/download-file";
+import { exportFile } from "./export-report";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryDetailDialog } from "./JournalEntryDetailDialog";
@@ -44,11 +43,7 @@ export function JournalEntriesPage(): React.JSX.Element {
             label={t("accounting.journalEntries.exportCsv")}
             icon="pi pi-file"
             outlined
-            onClick={() =>
-              void apiClient
-                .get<Blob>("/v1/journal-entries/export", { params: filter, responseType: "blob" })
-                .then((response) => downloadBlob(response.data, "journal-lines.csv"))
-            }
+            onClick={() => void exportFile("/v1/journal-entries/export", { ...filter }, "journal-lines.csv")}
           />
           <PermissionButton
             allowed={canAll(["journal_entry:create", "account:read", "fiscal_period:read"])}

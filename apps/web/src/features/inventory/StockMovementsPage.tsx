@@ -10,7 +10,7 @@ import { Tag } from "primereact/tag";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
-import { downloadBlob } from "../../shared/lib/download-file";
+import { exportFile } from "../accounting/export-report";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
@@ -80,8 +80,7 @@ export function StockMovementsPage(): React.JSX.Element {
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
   const exportCsv = async (): Promise<void> => {
-    const response = await apiClient.get<Blob>("/v1/stock-movements/export", { params: filters, responseType: "blob" });
-    downloadBlob(response.data, "stock-movements.csv");
+    await exportFile("/v1/stock-movements/export", { ...filters }, "stock-movements.csv");
   };
 
   return (
