@@ -1277,3 +1277,27 @@ html[dir="rtl"] .p-paginator .p-paginator-next svg,
 html[dir="rtl"] .p-paginator .p-paginator-last svg {
   transform: scaleX(-1);
 }
+
+/* ---- totals stay on screen: pinned to the bottom of the window while their table or form is in view ----
+   A sticky element stops at the end of its own section, so a statement with several sections shows each
+   section's total only while that section is on screen. In a form the actions bar is pinned at 0, so the
+   totals sit just above it. The "load more" bars (--center) are ordinary rows, not pinned. */
+.erp-table-footer:not(.erp-table-footer--center),
+.erp-lines__totals {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 6;
+  box-shadow: var(--mk-shadow-lg);
+  border-color: var(--mk-border-strong);
+}
+
+.erp-form .erp-table-footer:not(.erp-table-footer--center),
+.erp-form .erp-lines__totals {
+  bottom: 4.9rem;
+}
+
+.p-dialog .erp-table-footer:not(.erp-table-footer--center),
+.p-dialog .erp-lines__totals {
+  position: static;
+  box-shadow: none;
+}
