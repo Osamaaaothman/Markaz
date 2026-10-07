@@ -30,8 +30,12 @@ export function CompanyPage(): React.JSX.Element {
         <h2 className="erp-card__title">{t("company.details")}</h2>
         <dl className="mk-facts">
           <div>
-            <dt>{t("company.name")}</dt>
-            <dd>{user.companyName}</dd>
+            <dt>{t("company.nameEn")}</dt>
+            <dd dir="ltr">{user.companyName}</dd>
+          </div>
+          <div>
+            <dt>{t("company.nameAr")}</dt>
+            <dd dir="rtl">{user.companyNameAr ?? "—"}</dd>
           </div>
           <div>
             <dt>{t("company.currency")}</dt>

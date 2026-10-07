@@ -26,6 +26,7 @@ export interface CurrentUserProfile {
   readonly email: string;
   readonly companyId: string;
   readonly companyName: string;
+  readonly companyNameAr: string | null;
   readonly companyDefaultCurrency: string;
   // Permission codes ("<resource>:<action>") this user currently holds — the
   // frontend uses these ONLY to show/hide UI (docs/09-SECURITY-RULES.md §3:
@@ -143,7 +144,7 @@ export class UsersService {
         id: true,
         email: true,
         companyId: true,
-        company: { select: { name: true, defaultCurrency: true } },
+        company: { select: { name: true, nameAr: true, defaultCurrency: true } },
         roles: {
           select: {
             role: {
@@ -166,6 +167,7 @@ export class UsersService {
       email: user.email,
       companyId: user.companyId,
       companyName: user.company.name,
+      companyNameAr: user.company.nameAr,
       companyDefaultCurrency: user.company.defaultCurrency,
       permissions: [...permissions].sort(),
     };

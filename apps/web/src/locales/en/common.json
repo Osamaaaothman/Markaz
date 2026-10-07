@@ -1044,6 +1044,8 @@
     "name": "Company name",
     "currency": "Default currency",
     "logo": "Company logo",
-    "logoHint": "Shown in the side bar and at the top of invoices. A PNG with a transparent background, about 400 px wide, looks best."
+    "logoHint": "Shown in the side bar and at the top of invoices. A PNG with a transparent background, about 400 px wide, looks best.",
+    "nameEn": "Company name (English)",
+    "nameAr": "Company name (Arabic)"
   }
 }

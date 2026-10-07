@@ -5,6 +5,7 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import type { SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { stockLevelsToCsv, stockLevelsToPdfHtml } from "./exports/stock-levels-export.js";
+import { localizedCompanyName } from "../common/company-name.js";
 
 @Injectable()
 export class InventoryExportService {
@@ -23,7 +24,7 @@ export class InventoryExportService {
       this.stockLevels.list(companyId, query),
       this.prisma.company.findUniqueOrThrow({
         where: { id: companyId },
-        select: { name: true, defaultCurrency: true },
+        select: { name: true, nameAr: true, defaultCurrency: true },
       }),
     ]);
     if (format === "csv") {
@@ -36,7 +37,7 @@ export class InventoryExportService {
     const html = await stockLevelsToPdfHtml({
       entries,
       language: lang,
-      companyName: company.name,
+      companyName: localizedCompanyName(company, lang),
       currency: company.defaultCurrency,
     });
     return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "stock-levels.pdf" };

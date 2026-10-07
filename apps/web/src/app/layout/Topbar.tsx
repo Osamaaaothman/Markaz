@@ -9,6 +9,7 @@ import { useAuthStore } from "../../shared/auth/auth-store";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { NAV_ITEMS } from "./NavConfig";
 import { useLayoutStore } from "./layout-store";
+import { localizedName } from "../../shared/lib/localized-name";
 
 function initialsOf(email: string): string {
   return email.slice(0, 2).toUpperCase();
@@ -46,7 +47,7 @@ export function Topbar(): React.JSX.Element {
     { template: () => (
         <div className="erp-usermenu__head">
           <strong>{currentUser?.email}</strong>
-          <small>{currentUser?.companyName}</small>
+          <small>{currentUser ? localizedName({ name: currentUser.companyName, nameAr: currentUser.companyNameAr }, i18n.language) : null}</small>
         </div>
       ),
     },
