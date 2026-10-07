@@ -10,6 +10,7 @@ import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
 import { useDebouncedValue } from "../../shared/lib/use-debounced-value";
+import { CopyId } from "../../shared/ui/CopyId";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { PartyFormDialog } from "./PartyFormDialog";
@@ -115,6 +116,13 @@ export function PartiesPage(): React.JSX.Element {
               header={t("parties.kind")}
               style={{ width: "9rem" }}
               body={(row: PartySummary) => <Tag value={t(`parties.kinds.${row.kind}`, row.kind)} severity="secondary" />}
+            />
+            <Column
+              header={t("parties.id")}
+              style={{ width: "8rem" }}
+              headerClassName="coa-col-hide-sm"
+              bodyClassName="coa-col-hide-sm"
+              body={(row: PartySummary) => <CopyId value={row.ref} uuid={row.id} />}
             />
             <Column
               header={t("parties.phone")}

@@ -3,7 +3,7 @@
 // Conventions: docs/04-DATA-MODEL-RULES.md. Ledger integrity: docs/05-ACCOUNTING-INTEGRITY-RULES.md.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // "native" covers local dev (Windows/macOS) and CI. "debian-openssl-3.0.x" is
   // needed because the Docker build stage (node:22-alpine, musl) and the runtime
   // stage (node:22-bookworm-slim, glibc — switched in M3 for Playwright, which
@@ -34,15 +34,26 @@ model Company {
   users User[]
   roles Role[]
 
-  fiscalYears    FiscalYear[]
-  fiscalPeriods  FiscalPeriod[]
-  accounts       Account[]
-  parties        Party[]
-  journalEntries JournalEntry[]
-  exchangeRates  ExchangeRate[]
-  outboxMessages OutboxMessage[]
+  fiscalYears      FiscalYear[]
+  fiscalPeriods    FiscalPeriod[]
+  accounts         Account[]
+  parties          Party[]
+  journalEntries   JournalEntry[]
+  exchangeRates    ExchangeRate[]
+  outboxMessages   OutboxMessage[]
   approvalPolicies ApprovalPolicy[]
   approvalRequests ApprovalRequest[]
+
+  // M4 inventory
+  accountMappings    AccountMapping[]
+  warehouses         Warehouse[]
+  items              Item[]
+  itemWarehouseStock ItemWarehouseStock[]
+  stockMovements     StockMovement[]
+  costLayers         CostLayer[]
+  goodsReceipts      GoodsReceipt[]
+  stockIssues        StockIssue[]
+  stockCounts        StockCount[]
 
   @@map("companies")
 }
@@ -151,18 +162,18 @@ model RefreshToken {
 // on this table (docs/05-ACCOUNTING-INTEGRITY-RULES.md §9) — enforced in the M1
 // migration, not only by convention.
 model AuditLog {
-  id             String   @id
-  companyId      String?  @map("company_id")
-  actorId        String   @map("actor_id")
-  action         String
-  entityType     String   @map("entity_type")
-  entityId       String   @map("entity_id")
-  beforeJson     Json?    @map("before_json")
-  afterJson      Json?    @map("after_json")
-  correlationId  String   @map("correlation_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  ipAddress      String?  @map("ip_address")
-  userAgent      String?  @map("user_agent")
+  id            String   @id
+  companyId     String?  @map("company_id")
+  actorId       String   @map("actor_id")
+  action        String
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  beforeJson    Json?    @map("before_json")
+  afterJson     Json?    @map("after_json")
+  correlationId String   @map("correlation_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
 
   @@index([companyId])
   @@index([entityType, entityId])
@@ -174,13 +185,13 @@ model AuditLog {
 // it stays in the environment/secret store (docs/09-SECURITY-RULES.md §1) and is
 // read fresh at check-in time. This table only tracks outcomes.
 model LicenseState {
-  id                      String   @id @default("singleton")
-  status                  String   @default("UNCONFIGURED")
+  id                      String    @id @default("singleton")
+  status                  String    @default("UNCONFIGURED")
   lastSuccessfulCheckinAt DateTime? @map("last_successful_checkin_at")
   lastAttemptAt           DateTime? @map("last_attempt_at")
-  seatsAllowed            Int?     @map("seats_allowed")
-  seatsUsed               Int?     @map("seats_used")
-  updatedAt               DateTime @updatedAt @map("updated_at")
+  seatsAllowed            Int?      @map("seats_allowed")
+  seatsUsed               Int?      @map("seats_used")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
 
   @@map("license_state")
 }
@@ -300,6 +311,8 @@ model Account {
   children          Account[]          @relation("AccountTree")
   party             Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
   journalEntryLines JournalEntryLine[]
+  // M4 inventory: an account may be the target of a mapping key (INVENTORY, GRNI, ...).
+  accountMappings   AccountMapping[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -327,8 +340,10 @@ model Party {
   updatedBy String?  @map("updated_by")
   version   Int      @default(1)
 
-  company  Company   @relation(fields: [companyId], references: [id])
-  accounts Account[]
+  company       Company        @relation(fields: [companyId], references: [id])
+  accounts      Account[]
+  // M4 inventory: the supplier a goods receipt was received from, if recorded.
+  goodsReceipts GoodsReceipt[]
 
   @@unique([companyId, ref])
   @@index([companyId, kind])
@@ -379,11 +394,17 @@ model JournalEntry {
   reversalOfEntryId  String?  @map("reversal_of_entry_id")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  company      Company            @relation(fields: [companyId], references: [id])
-  fiscalPeriod FiscalPeriod       @relation(fields: [fiscalPeriodId], references: [id])
-  lines        JournalEntryLine[]
-  reversalOf   JournalEntry?      @relation("Reversal", fields: [reversalOfEntryId], references: [id])
-  reversedBy   JournalEntry[]     @relation("Reversal")
+  company         Company            @relation(fields: [companyId], references: [id])
+  fiscalPeriod    FiscalPeriod       @relation(fields: [fiscalPeriodId], references: [id])
+  lines           JournalEntryLine[]
+  reversalOf      JournalEntry?      @relation("Reversal", fields: [reversalOfEntryId], references: [id])
+  reversedBy      JournalEntry[]     @relation("Reversal")
+  // M4 inventory: the entry a stock movement / goods receipt / stock issue / stock count
+  // line was posted by.
+  stockMovements  StockMovement[]
+  goodsReceipts   GoodsReceipt[]
+  stockIssues     StockIssue[]
+  stockCountLines StockCountLine[]
 
   // The idempotencyKey unique constraint below IS the duplicate-posting guard
   // (docs/04-DATA-MODEL-RULES.md §6/§9) — a separate uniqueness constraint on the
@@ -404,15 +425,15 @@ model JournalEntry {
 // computed once at posting time from the entry's exchangeRate and stored — never
 // recomputed later (docs/04 §2).
 model JournalEntryLine {
-  id             String   @id
-  journalEntryId String   @map("journal_entry_id")
-  accountId      String   @map("account_id")
-  debit          Decimal  @default(0) @db.Decimal(19, 4)
-  credit         Decimal  @default(0) @db.Decimal(19, 4)
-  baseDebit      Decimal  @default(0) @map("base_debit") @db.Decimal(19, 4)
-  baseCredit     Decimal  @default(0) @map("base_credit") @db.Decimal(19, 4)
+  id             String  @id
+  journalEntryId String  @map("journal_entry_id")
+  accountId      String  @map("account_id")
+  debit          Decimal @default(0) @db.Decimal(19, 4)
+  credit         Decimal @default(0) @db.Decimal(19, 4)
+  baseDebit      Decimal @default(0) @map("base_debit") @db.Decimal(19, 4)
+  baseCredit     Decimal @default(0) @map("base_credit") @db.Decimal(19, 4)
   description    String?
-  lineNumber     Int      @map("line_number")
+  lineNumber     Int     @map("line_number")
 
   journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
   account      Account      @relation(fields: [accountId], references: [id])
@@ -503,4 +524,301 @@ model ApprovalRequest {
   @@unique([companyId, subjectType, subjectId])
   @@index([companyId, status])
   @@map("approval_requests")
+}
+
+// ─── M4: Inventory ──────────────────────────────────────────────────────────────
+// docs/14-MILESTONES.md M4. Valuation: weighted average (docs/01-OPEN-DECISIONS.md A3,
+// decided 2026-09). A module never writes journal entries itself (docs/02 §3.1) — every
+// posting command here goes through IAccountingEngine.postEntry inside the same
+// transaction as the stock movement, using the account each key below maps to.
+model AccountMapping {
+  id        String   @id
+  companyId String   @map("company_id")
+  // INVENTORY | GRNI | PROJECT_ISSUE_EXPENSE | COUNT_LOSS | COUNT_GAIN — what the amount
+  // means, not which account; the account is tenant configuration (docs/05 §4).
+  key       String
+  accountId String   @map("account_id")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  company Company @relation(fields: [companyId], references: [id])
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, key])
+  @@map("account_mappings")
+}
+
+model Warehouse {
+  id        String   @id
+  companyId String   @map("company_id")
+  ref       String
+  code      String
+  name      String
+  nameAr    String?  @map("name_ar")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+  version   Int      @default(1)
+
+  company        Company              @relation(fields: [companyId], references: [id])
+  stock          ItemWarehouseStock[]
+  stockMovements StockMovement[]
+  costLayers     CostLayer[]
+  goodsReceipts  GoodsReceipt[]
+  stockIssues    StockIssue[]
+  stockCounts    StockCount[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, ref])
+  @@map("warehouses")
+}
+
+model Item {
+  id           String   @id
+  companyId    String   @map("company_id")
+  ref          String
+  code         String
+  name         String
+  nameAr       String?  @map("name_ar")
+  unit         String
+  // Below this on-hand quantity, the item shows on the reorder list (docs/14 M4). No
+  // per-warehouse override in M4 — one point per item, company-wide.
+  reorderPoint Decimal  @default(0) @map("reorder_point") @db.Decimal(19, 4)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdBy    String?  @map("created_by")
+  updatedBy    String?  @map("updated_by")
+  version      Int      @default(1)
+
+  company           Company              @relation(fields: [companyId], references: [id])
+  stock             ItemWarehouseStock[]
+  stockMovements    StockMovement[]
+  costLayers        CostLayer[]
+  goodsReceiptLines GoodsReceiptLine[]
+  stockIssueLines   StockIssueLine[]
+  stockCountLines   StockCountLine[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, ref])
+  @@map("items")
+}
+
+// Current on-hand quantity and its total cost per item+warehouse — the weighted-average
+// source of truth. `value / quantity` is the average unit cost; it is never stored as its
+// own rounded figure (packages/core/src/inventory/weighted-average.util.ts), so repeated
+// receipts and issues never drift from the control account by accumulated rounding.
+// Updated in place, inside the same transaction as the stock movement that causes the
+// change — the CHECKs below are the database's own backstop against a negative issue or a
+// negative balance, not just an application-level check (docs/05 §9 principle).
+model ItemWarehouseStock {
+  id          String   @id
+  companyId   String   @map("company_id")
+  itemId      String   @map("item_id")
+  warehouseId String   @map("warehouse_id")
+  quantity    Decimal  @default(0) @db.Decimal(19, 4)
+  value       Decimal  @default(0) @db.Decimal(19, 4)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  version     Int      @default(1)
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@unique([itemId, warehouseId])
+  @@index([companyId])
+  @@map("item_warehouse_stock")
+}
+
+// Append-only, like journal_entry_lines — a correction is a new movement, never an edit
+// (docs/05 §2 principle extended to stock). `quantity` is signed: positive for a receipt or
+// a count surplus, negative for an issue or a count shortage. `journalEntryId` is always set:
+// every movement in M4 has a financial effect and is posted in the same transaction that
+// writes this row (docs/02 §5).
+model StockMovement {
+  id                 String   @id
+  companyId          String   @map("company_id")
+  itemId             String   @map("item_id")
+  warehouseId        String   @map("warehouse_id")
+  // RECEIPT | ISSUE | COUNT_ADJUSTMENT
+  movementType       String   @map("movement_type")
+  quantity           Decimal  @db.Decimal(19, 4)
+  unitCost           Decimal  @map("unit_cost") @db.Decimal(19, 4)
+  value              Decimal  @db.Decimal(19, 4)
+  sourceDocumentType String   @map("source_document_type")
+  sourceDocumentId   String   @map("source_document_id")
+  journalEntryId     String   @map("journal_entry_id")
+  actorId            String   @map("actor_id")
+  correlationId      String   @map("correlation_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  company      Company      @relation(fields: [companyId], references: [id])
+  item         Item         @relation(fields: [itemId], references: [id])
+  warehouse    Warehouse    @relation(fields: [warehouseId], references: [id])
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+
+  @@index([companyId, itemId, warehouseId])
+  @@index([companyId, sourceDocumentType, sourceDocumentId])
+  @@map("stock_movements")
+}
+
+// One row per receipt line, kept but not read for costing in M4 (weighted average pools
+// everything into item_warehouse_stock) — the table exists so a future FIFO tenant setting
+// (docs/01-OPEN-DECISIONS.md A3: "design the schema so both are possible") has real layers
+// to read instead of a schema migration. `quantityRemaining` starts equal to the received
+// quantity; nothing in M4 decrements it.
+model CostLayer {
+  id                String   @id
+  companyId         String   @map("company_id")
+  itemId            String   @map("item_id")
+  warehouseId       String   @map("warehouse_id")
+  receivedAt        DateTime @map("received_at")
+  quantityReceived  Decimal  @map("quantity_received") @db.Decimal(19, 4)
+  quantityRemaining Decimal  @map("quantity_remaining") @db.Decimal(19, 4)
+  unitCost          Decimal  @map("unit_cost") @db.Decimal(19, 4)
+  sourceDocumentId  String   @map("source_document_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@index([companyId, itemId, warehouseId])
+  @@map("cost_layers")
+}
+
+// A receipt not yet matched to a supplier invoice posts Inventory / GRNI (goods-received-
+// not-invoiced) — docs/14 M4. No PO link in M4 (purchasing is M5); `partyId` is the supplier,
+// optional because a tenant may not have parties set up for every source yet. Immutable once
+// posted, like a journal entry — a correction is a new document, never an edit.
+model GoodsReceipt {
+  id             String   @id
+  companyId      String   @map("company_id")
+  number         String
+  warehouseId    String   @map("warehouse_id")
+  partyId        String?  @map("party_id")
+  documentDate   DateTime @map("document_date") @db.Date
+  reference      String?
+  journalEntryId String   @map("journal_entry_id")
+  actorId        String   @map("actor_id")
+  correlationId  String   @map("correlation_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  company      Company            @relation(fields: [companyId], references: [id])
+  warehouse    Warehouse          @relation(fields: [warehouseId], references: [id])
+  party        Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry       @relation(fields: [journalEntryId], references: [id])
+  lines        GoodsReceiptLine[]
+
+  @@unique([companyId, number])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id             String  @id
+  goodsReceiptId String  @map("goods_receipt_id")
+  itemId         String  @map("item_id")
+  quantity       Decimal @db.Decimal(19, 4)
+  unitCost       Decimal @map("unit_cost") @db.Decimal(19, 4)
+  value          Decimal @db.Decimal(19, 4)
+  lineNumber     Int     @map("line_number")
+
+  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id])
+  item         Item         @relation(fields: [itemId], references: [id])
+
+  @@index([goodsReceiptId])
+  @@map("goods_receipt_lines")
+}
+
+// An issue to a project debits direct costs at the item's current weighted-average cost
+// (docs/14 M4 decision). `costCenterRef` is free text in M4 — no formal project/cost-center
+// module exists yet; it becomes a real link once one does. No negative stock
+// (docs/01-OPEN-DECISIONS.md A3 decision): the service rejects a line whose quantity exceeds
+// the warehouse's on-hand quantity, and item_warehouse_stock's own CHECK backstops it.
+model StockIssue {
+  id             String   @id
+  companyId      String   @map("company_id")
+  number         String
+  warehouseId    String   @map("warehouse_id")
+  costCenterRef  String   @map("cost_center_ref")
+  documentDate   DateTime @map("document_date") @db.Date
+  journalEntryId String   @map("journal_entry_id")
+  actorId        String   @map("actor_id")
+  correlationId  String   @map("correlation_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  company      Company          @relation(fields: [companyId], references: [id])
+  warehouse    Warehouse        @relation(fields: [warehouseId], references: [id])
+  journalEntry JournalEntry     @relation(fields: [journalEntryId], references: [id])
+  lines        StockIssueLine[]
+
+  @@unique([companyId, number])
+  @@map("stock_issues")
+}
+
+model StockIssueLine {
+  id           String  @id
+  stockIssueId String  @map("stock_issue_id")
+  itemId       String  @map("item_id")
+  quantity     Decimal @db.Decimal(19, 4)
+  // The weighted-average unit cost at the moment of posting — stored, never recomputed
+  // later (docs/04 §2 principle), so a past issue's cost never drifts.
+  unitCost     Decimal @map("unit_cost") @db.Decimal(19, 4)
+  value        Decimal @db.Decimal(19, 4)
+  lineNumber   Int     @map("line_number")
+
+  stockIssue StockIssue @relation(fields: [stockIssueId], references: [id])
+  item       Item       @relation(fields: [itemId], references: [id])
+
+  @@index([stockIssueId])
+  @@map("stock_issue_lines")
+}
+
+// A physical count compared to the book quantity: a shortage debits COUNT_LOSS, a surplus
+// debits Inventory and credits COUNT_GAIN (docs/14 M4 decision — the two accounts Osama
+// still needs to confirm with his accountant). `systemQuantity` and `unitCost` are the
+// warehouse's figures at the moment the count line was recorded, not read again at posting
+// time, so the variance stays reproducible even if other movements happen in between.
+model StockCount {
+  id            String    @id
+  companyId     String    @map("company_id")
+  number        String
+  warehouseId   String    @map("warehouse_id")
+  documentDate  DateTime  @map("document_date") @db.Date
+  // Set once the count is posted; a count is entered first (lines added, nothing posted
+  // yet) and posted as a single step once all lines are counted.
+  postedAt      DateTime? @map("posted_at")
+  actorId       String    @map("actor_id")
+  correlationId String    @map("correlation_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  company   Company          @relation(fields: [companyId], references: [id])
+  warehouse Warehouse        @relation(fields: [warehouseId], references: [id])
+  lines     StockCountLine[]
+
+  @@unique([companyId, number])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id              String  @id
+  stockCountId    String  @map("stock_count_id")
+  itemId          String  @map("item_id")
+  systemQuantity  Decimal @map("system_quantity") @db.Decimal(19, 4)
+  countedQuantity Decimal @map("counted_quantity") @db.Decimal(19, 4)
+  unitCost        Decimal @map("unit_cost") @db.Decimal(19, 4)
+  // One journal entry line per non-zero-variance item, not one entry per count — a count
+  // with 40 items and 3 variances posts one small entry, not forty. Null until the count
+  // (and this line) is posted.
+  journalEntryId  String? @map("journal_entry_id")
+  lineNumber      Int     @map("line_number")
+
+  stockCount   StockCount    @relation(fields: [stockCountId], references: [id])
+  item         Item          @relation(fields: [itemId], references: [id])
+  journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  @@index([stockCountId])
+  @@map("stock_count_lines")
 }

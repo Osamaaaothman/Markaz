@@ -7,6 +7,7 @@ import type {
   PostingResult,
   TransactionClient,
 } from "../contracts.js";
+import { findOpenFiscalPeriod } from "./fiscal-period.util.js";
 
 export class InvalidPostingCommandError extends Error {}
 export class AccountNotPostableError extends Error {}
@@ -22,98 +23,104 @@ export class PrismaAccountingEngine implements IAccountingEngine {
     private readonly numbering: INumberingService,
   ) {}
 
-  async postEntry(command: PostingCommand): Promise<PostingResult> {
+  async postEntry(command: PostingCommand, tx?: TransactionClient): Promise<PostingResult> {
     this.validateShape(command);
 
-    return this.prisma.$transaction(async (tx) => {
-      // Idempotency replay — docs/04-DATA-MODEL-RULES.md §6: "A replay returns the
-      // original result, does not re-post, and does not consume a document number."
-      const existing = await tx.journalEntry.findUnique({
-        where: { companyId_idempotencyKey: { companyId: command.companyId, idempotencyKey: command.idempotencyKey } },
-      });
-      if (existing) {
-        return { journalEntryId: existing.id, number: existing.number };
-      }
+    // A caller-supplied transaction is used as-is (no nested $transaction — Prisma does not
+    // support nesting one interactive transaction inside another); otherwise the engine opens
+    // its own, exactly as before. Either way the body below is identical.
+    if (tx) return this.postEntryIn(tx, command);
+    return this.prisma.$transaction((innerTx) => this.postEntryIn(innerTx, command));
+  }
 
-      const period = await tx.fiscalPeriod.findUnique({
-        where: { id: command.fiscalPeriodId },
-        include: { fiscalYear: true },
-      });
-      if (!period || period.companyId !== command.companyId) {
-        throw new FiscalPeriodNotFoundError(command.fiscalPeriodId);
+  private async postEntryIn(tx: TransactionClient, command: PostingCommand): Promise<PostingResult> {
+    // Idempotency replay — docs/04-DATA-MODEL-RULES.md §6: "A replay returns the
+    // original result, does not re-post, and does not consume a document number."
+    const existing = await tx.journalEntry.findUnique({
+      where: { companyId_idempotencyKey: { companyId: command.companyId, idempotencyKey: command.idempotencyKey } },
+    });
+    if (existing) {
+      return { journalEntryId: existing.id, number: existing.number };
+    }
+
+    const period = await tx.fiscalPeriod.findUnique({
+      where: { id: command.fiscalPeriodId },
+      include: { fiscalYear: true },
+    });
+    if (!period || period.companyId !== command.companyId) {
+      throw new FiscalPeriodNotFoundError(command.fiscalPeriodId);
+    }
+    // The database also rejects this (closed-period trigger) — this check exists
+    // to fail with a clear application-level error before hitting the DB, not as
+    // the real guarantee. The DB trigger is the real guarantee.
+    if (period.status !== "OPEN") {
+      throw new InvalidPostingCommandError(
+        `Fiscal period ${command.fiscalPeriodId} is not open (status=${period.status})`,
+      );
+    }
+
+    const accountIds = [...new Set(command.lines.map((l) => l.accountId))];
+    const accounts = await tx.account.findMany({ where: { id: { in: accountIds } } });
+    const accountsById = new Map(accounts.map((a) => [a.id, a]));
+    for (const accountId of accountIds) {
+      const account = accountsById.get(accountId);
+      if (!account || account.companyId !== command.companyId) {
+        throw new AccountNotPostableError(`Account ${accountId} not found in this company`);
       }
-      // The database also rejects this (closed-period trigger) — this check exists
-      // to fail with a clear application-level error before hitting the DB, not as
-      // the real guarantee. The DB trigger is the real guarantee.
-      if (period.status !== "OPEN") {
-        throw new InvalidPostingCommandError(
-          `Fiscal period ${command.fiscalPeriodId} is not open (status=${period.status})`,
+      if (!account.isPostable || !account.isActive) {
+        throw new AccountNotPostableError(
+          `Account ${account.code} (${account.name}) is not a postable leaf account`,
         );
       }
+    }
 
-      const accountIds = [...new Set(command.lines.map((l) => l.accountId))];
-      const accounts = await tx.account.findMany({ where: { id: { in: accountIds } } });
-      const accountsById = new Map(accounts.map((a) => [a.id, a]));
-      for (const accountId of accountIds) {
-        const account = accountsById.get(accountId);
-        if (!account || account.companyId !== command.companyId) {
-          throw new AccountNotPostableError(`Account ${accountId} not found in this company`);
-        }
-        if (!account.isPostable || !account.isActive) {
-          throw new AccountNotPostableError(
-            `Account ${account.code} (${account.name}) is not a postable leaf account`,
-          );
-        }
-      }
+    const rate = command.exchangeRate ? new Prisma.Decimal(command.exchangeRate) : new Prisma.Decimal(1);
 
-      const rate = command.exchangeRate ? new Prisma.Decimal(command.exchangeRate) : new Prisma.Decimal(1);
+    const number = await this.numbering.next(
+      command.sourceDocumentType,
+      { companyId: command.companyId, fiscalYear: period.fiscalYear.name },
+      tx,
+    );
 
-      const number = await this.numbering.next(
-        command.sourceDocumentType,
-        { companyId: command.companyId, fiscalYear: period.fiscalYear.name },
-        tx,
-      );
-
-      const journalEntryId = newId();
-      await tx.journalEntry.create({
-        data: {
-          id: journalEntryId,
-          companyId: command.companyId,
-          fiscalPeriodId: command.fiscalPeriodId,
-          number,
-          entryDate: command.entryDate,
-          postingDate: command.postingDate,
-          currency: command.currency,
-          exchangeRate: command.exchangeRate ?? null,
-          sourceModule: command.sourceModule,
-          sourceDocumentType: command.sourceDocumentType,
-          sourceDocumentId: command.sourceDocumentId,
-          actorId: command.actorId,
-          correlationId: command.correlationId,
-          idempotencyKey: command.idempotencyKey,
-        },
-      });
-
-      await tx.journalEntryLine.createMany({
-        data: command.lines.map((line, index) => {
-          const debit = new Prisma.Decimal(line.debit ?? "0");
-          const credit = new Prisma.Decimal(line.credit ?? "0");
-          return {
-            id: newId(),
-            journalEntryId,
-            accountId: line.accountId,
-            debit,
-            credit,
-            baseDebit: debit.times(rate),
-            baseCredit: credit.times(rate),
-            description: line.description ?? null,
-            lineNumber: index + 1,
-          };
-        }),
-      });
-
-      return { journalEntryId, number };
+    const journalEntryId = newId();
+    await tx.journalEntry.create({
+      data: {
+        id: journalEntryId,
+        companyId: command.companyId,
+        fiscalPeriodId: command.fiscalPeriodId,
+        number,
+        entryDate: command.entryDate,
+        postingDate: command.postingDate,
+        currency: command.currency,
+        exchangeRate: command.exchangeRate ?? null,
+        sourceModule: command.sourceModule,
+        sourceDocumentType: command.sourceDocumentType,
+        sourceDocumentId: command.sourceDocumentId,
+        actorId: command.actorId,
+        correlationId: command.correlationId,
+        idempotencyKey: command.idempotencyKey,
+      },
     });
+
+    await tx.journalEntryLine.createMany({
+      data: command.lines.map((line, index) => {
+        const debit = new Prisma.Decimal(line.debit ?? "0");
+        const credit = new Prisma.Decimal(line.credit ?? "0");
+        return {
+          id: newId(),
+          journalEntryId,
+          accountId: line.accountId,
+          debit,
+          credit,
+          baseDebit: debit.times(rate),
+          baseCredit: credit.times(rate),
+          description: line.description ?? null,
+          lineNumber: index + 1,
+        };
+      }),
+    });
+
+    return { journalEntryId, number };
   }
 
   async reverseEntry(
@@ -136,7 +143,7 @@ export class PrismaAccountingEngine implements IAccountingEngine {
       // a new, dated entry; it does not require the original period to still be
       // open (it usually is not, or there would be no need to reverse via a new
       // entry rather than just fixing the draft).
-      const targetPeriod = await this.findOpenPeriodContaining(tx, original.companyId, new Date());
+      const targetPeriod = await findOpenFiscalPeriod(tx, original.companyId, new Date());
       if (!targetPeriod) {
         throw new InvalidPostingCommandError(
           `No open fiscal period found to post the reversal of ${entryId}`,
@@ -188,13 +195,6 @@ export class PrismaAccountingEngine implements IAccountingEngine {
       });
 
       return { journalEntryId: reversalId, number };
-    });
-  }
-
-  private async findOpenPeriodContaining(tx: TransactionClient, companyId: string, date: Date) {
-    return tx.fiscalPeriod.findFirst({
-      where: { companyId, status: "OPEN", startDate: { lte: date }, endDate: { gte: date } },
-      include: { fiscalYear: true },
     });
   }
 

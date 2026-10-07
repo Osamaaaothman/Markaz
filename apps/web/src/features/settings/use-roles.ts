@@ -4,6 +4,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 
 export interface RoleSummary {
   readonly id: string;
+  readonly ref: string;
   readonly name: string;
   readonly permissions: readonly string[];
 }

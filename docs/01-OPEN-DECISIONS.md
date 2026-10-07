@@ -54,13 +54,26 @@ their own current documentation — do not assume from training data, it changes
 Customers who require in-Kingdom hosting and whose chosen provider can't offer it get
 routed to the on-premise path instead.
 
-### A3. Inventory valuation method
-**Blocks:** Milestone 4 (Inventory) posting logic — does **not** block Milestone 2
-(the accounting core engine is generic; it has no inventory-specific logic).
-**Options:** FIFO / weighted average / support both per tenant
-**Rule for now:** design the schema so both are possible (cost layers preserved,
-valuation method as tenant configuration). **Do not implement the posting logic until
-this is decided** — the journal entries differ.
+### A3. Inventory valuation method — DECIDED (2026-09, weighted average)
+
+Weighted average, company-wide (no per-tenant FIFO option built). The schema still keeps
+`cost_layers` (one row per receipt, quantity_remaining unused by valuation today) so FIFO
+remains addable later without a migration, per the "design the schema so both are possible"
+rule this decision used to carry.
+
+Implemented in `packages/core/src/inventory/weighted-average.util.ts` — per item+warehouse,
+the only state kept is quantity and value (`item_warehouse_stock`), never a separately stored
+rounded average; issuing the full remaining quantity takes the full remaining value rather than
+`quantity × rounded average`, which is what keeps the Inventory control account balance exactly
+equal to the sum of stock values (docs/05-ACCOUNTING-INTEGRITY-RULES.md §7), proven by a
+300-iteration property test and a real-database integration test.
+
+Posting rules (goods receipt, stock issue to a project, stock count gain/loss) and the "no
+negative stock" rule were confirmed with Osama in chat; `GoodsReceiptService`,
+`StockIssueService`, `StockCountService` in the same folder. Still open: the two stock-count
+gain/loss accounts (`COUNT_GAIN`/`COUNT_LOSS` in `account_mappings`) need the accountant's
+account codes before a real company can post a count — the keys exist, nothing is mapped to
+them by default.
 
 ### A4. ZATCA integration path
 **Blocks:** Milestone 6 (compliance)

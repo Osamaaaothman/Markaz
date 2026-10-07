@@ -9,6 +9,7 @@ export interface UserRoleSummary {
 
 export interface UserSummary {
   readonly id: string;
+  readonly ref: string;
   readonly email: string;
   readonly isActive: boolean;
   readonly roles: readonly UserRoleSummary[];

@@ -262,6 +262,81 @@ describeIfDb("ledger integrity — property-based", () => {
     expect(second.journalEntryId).toBe(first.journalEntryId);
     expect(second.number).toBe(first.number);
   });
+
+  // M4 (inventory) is the first real caller of the `tx` parameter added to `postEntry` —
+  // docs/02-ARCHITECTURE-RULES.md §5: "Business document + stock movement + journal entry +
+  // numbering + audit commit together or not at all." This proves the "or not at all" half:
+  // when the CALLER's transaction rolls back, nothing postEntry did survives — no entry, no
+  // lines, and no document number burned (a later post gets the same next number, not number+1).
+  it("leaves no entry and burns no number when the caller's own transaction rolls back", async () => {
+    const sourceDocumentType = "inventory_test_doc";
+    const period = await prisma.fiscalPeriod.findUniqueOrThrow({
+      where: { id: periodId },
+      include: { fiscalYear: true },
+    });
+    const fiscalYear = period.fiscalYear.name;
+    const idempotencyKey = newId();
+    const correlationId = newId();
+
+    class RollbackForTest extends Error {}
+
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await engine.postEntry(
+          {
+            companyId,
+            fiscalPeriodId: periodId,
+            entryDate: new Date(),
+            postingDate: new Date(),
+            currency: "SAR",
+            lines: [
+              { accountId: accountIds[0]!, debit: "10.00" },
+              { accountId: accountIds[1]!, credit: "10.00" },
+            ],
+            sourceModule: "inventory_test",
+            sourceDocumentType,
+            sourceDocumentId: newId(),
+            actorId: "test-actor",
+            correlationId,
+            idempotencyKey,
+          },
+          tx,
+        );
+        throw new RollbackForTest("simulating a failure after postEntry, inside the caller's transaction");
+      }),
+    ).rejects.toThrow(RollbackForTest);
+
+    const entry = await prisma.journalEntry.findUnique({
+      where: { companyId_idempotencyKey: { companyId, idempotencyKey } },
+    });
+    expect(entry).toBeNull();
+
+    // Posting the SAME logical document again (a real retry after the failure) must get the
+    // very next number, not next+1 — proving the rolled-back attempt never incremented the
+    // series. Fresh idempotency key: the point is the number, not idempotency replay.
+    const retry = await engine.postEntry({
+      companyId,
+      fiscalPeriodId: periodId,
+      entryDate: new Date(),
+      postingDate: new Date(),
+      currency: "SAR",
+      lines: [
+        { accountId: accountIds[0]!, debit: "10.00" },
+        { accountId: accountIds[1]!, credit: "10.00" },
+      ],
+      sourceModule: "inventory_test",
+      sourceDocumentType,
+      sourceDocumentId: newId(),
+      actorId: "test-actor",
+      correlationId,
+      idempotencyKey: newId(),
+    });
+    const series = await prisma.documentNumberSeries.findUniqueOrThrow({
+      where: { companyId_documentType_fiscalYear: { companyId, documentType: sourceDocumentType, fiscalYear } },
+    });
+    expect(series.lastNumber).toBe(1);
+    expect(retry.number).toBe(`${series.prefix}000001`);
+  });
 });
 
 function randomAmount(): number {

@@ -594,8 +594,11 @@ body {
   font-size: 0.78rem;
 }
 
+/* Unscoped (not just .erp-coa): the chart no longer hides any column at this width — see the
+   fixed min-width table above — but the parties table still uses this to drop secondary
+   columns on a phone screen. */
 @media (max-width: 640px) {
-  .erp-coa .coa-col-hide-sm {
+  .coa-col-hide-sm {
     display: none;
   }
 }
@@ -644,12 +647,6 @@ body {
 .erp-copy-id__text {
   white-space: nowrap;
   user-select: all;
-}
-
-/* The full id (in the edit dialog) may wrap on a narrow screen instead of overflowing. */
-.erp-copy-id--full .erp-copy-id__text {
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 .erp-table--clickable-rows .p-datatable-tbody > tr {

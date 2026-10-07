@@ -12,6 +12,13 @@ const RESOURCE_ORDER = [
   "fiscal_period",
   "user",
   "role",
+  "warehouse",
+  "item",
+  "stock",
+  "account_mapping",
+  "goods_receipt",
+  "stock_issue",
+  "stock_count",
 ] as const;
 
 export function splitPermissionCode(code: string): { resource: string; action: string } {

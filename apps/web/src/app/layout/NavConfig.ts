@@ -20,5 +20,12 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/accounting/balance-sheet", labelKey: "nav.balanceSheet", icon: "pi pi-wallet", permissions: ["balance_sheet:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/income-statement", labelKey: "nav.incomeStatement", icon: "pi pi-chart-line", permissions: ["income_statement:read"], groupKey: "nav.groups.accounting" },
   { to: "/parties", labelKey: "nav.parties", icon: "pi pi-address-book", permissions: ["party:read"], groupKey: "nav.groups.masterData" },
+  { to: "/inventory/warehouses", labelKey: "nav.warehouses", icon: "pi pi-building", permissions: ["warehouse:read"], groupKey: "nav.groups.inventory" },
+  { to: "/inventory/items", labelKey: "nav.items", icon: "pi pi-box", permissions: ["item:read"], groupKey: "nav.groups.inventory" },
+  { to: "/inventory/stock-levels", labelKey: "nav.stockLevels", icon: "pi pi-chart-bar", permissions: ["stock:read"], groupKey: "nav.groups.inventory" },
+  { to: "/inventory/goods-receipts/new", labelKey: "nav.goodsReceipt", icon: "pi pi-download", permissions: ["goods_receipt:create"], groupKey: "nav.groups.inventory" },
+  { to: "/inventory/stock-issues/new", labelKey: "nav.stockIssue", icon: "pi pi-upload", permissions: ["stock_issue:create"], groupKey: "nav.groups.inventory" },
+  { to: "/inventory/stock-counts", labelKey: "nav.stockCount", icon: "pi pi-check-square", permissions: ["stock_count:read"], groupKey: "nav.groups.inventory" },
   { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users", permissions: ["user:read", "role:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/account-mapping", labelKey: "nav.accountMapping", icon: "pi pi-link", permissions: ["account_mapping:read"], groupKey: "nav.groups.settings" },
 ];

@@ -12,6 +12,7 @@ export interface AccountPartyRef {
 
 export interface ChartOfAccountEntry {
   readonly id: string;
+  readonly ref: string;
   readonly code: string;
   readonly name: string;
   readonly nameAr: string | null;

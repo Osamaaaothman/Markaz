@@ -39,7 +39,13 @@ export interface PostingResult {
 }
 
 export interface IAccountingEngine {
-  postEntry(command: PostingCommand): Promise<PostingResult>;
+  // `tx`, when given, is the caller's own transaction (docs/02-ARCHITECTURE-RULES.md §5:
+  // "Business document + stock movement + journal entry + numbering + audit commit together or
+  // not at all") — the engine posts inside it instead of opening its own, so a document, its
+  // stock movement and its journal entry commit or roll back as one unit. First real caller:
+  // M4 inventory (goods receipt, issue, count). Omit it to keep the engine's own transaction,
+  // as every caller before M4 does.
+  postEntry(command: PostingCommand, tx?: TransactionClient): Promise<PostingResult>;
   reverseEntry(
     entryId: string,
     reason: string,
