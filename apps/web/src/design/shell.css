@@ -65,7 +65,7 @@
   inset: 0;
   z-index: 60;
   display: flex;
-  background: rgb(5 12 24 / 0.55);
+  background: rgb(18 17 15 / 0.55);
   backdrop-filter: blur(3px);
   animation: mk-fade var(--mk-dur) ease both;
 }
@@ -147,12 +147,13 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+  /* still scrolls with wheel, touch and keyboard; the bar itself is not drawn */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.erp-sidebar__nav::-webkit-scrollbar-thumb {
-  background-color: rgb(255 255 255 / 0.18);
+.erp-sidebar__nav::-webkit-scrollbar {
+  display: none;
 }
 
 .erp-sidebar__link {
@@ -529,7 +530,7 @@ html[dir="rtl"] .erp-breadcrumb__sep {
   align-items: flex-start;
   justify-content: center;
   padding: 12vh var(--mk-space-4) var(--mk-space-4);
-  background: rgb(5 12 24 / 0.5);
+  background: rgb(18 17 15 / 0.5);
   backdrop-filter: blur(4px);
   animation: mk-fade var(--mk-dur) ease both;
 }
@@ -638,3 +639,24 @@ html[dir="rtl"] .erp-breadcrumb__sep {
   color: var(--mk-text-muted);
   font-size: var(--mk-text-xs);
 }
+
+/* tooltips (sidebar labels and any other data-pr-tooltip) */
+html body .p-tooltip {
+  max-width: 18rem;
+}
+
+html body .p-tooltip .p-tooltip-text {
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--mk-radius-xs);
+  background: var(--mk-ink-950);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: var(--mk-shadow-md);
+}
+
+html body .p-tooltip.p-tooltip-left .p-tooltip-arrow { border-left-color: var(--mk-ink-950); }
+html body .p-tooltip.p-tooltip-right .p-tooltip-arrow { border-right-color: var(--mk-ink-950); }
+html body .p-tooltip.p-tooltip-top .p-tooltip-arrow { border-top-color: var(--mk-ink-950); }
+html body .p-tooltip.p-tooltip-bottom .p-tooltip-arrow { border-bottom-color: var(--mk-ink-950); }

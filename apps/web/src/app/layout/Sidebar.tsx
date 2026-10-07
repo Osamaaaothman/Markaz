@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
+import { Tooltip } from "primereact/tooltip";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { Logo } from "../../shared/ui/Logo";
@@ -12,9 +13,9 @@ export interface SidebarProps {
 
 // The dark navigation rail. Entries the user has no permission for are not drawn at all; a group heading
 // appears only where the group changes, so an empty group never shows one. Collapsed to icons it keeps
-// every label as a tooltip, so nothing becomes unreachable.
+// every label as a tooltip, so nothing becomes unreachable; expanded, the tooltip shows long labels in full.
 export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const closeMobileSidebar = useLayoutStore((state) => state.closeMobileSidebar);
   const collapsedPref = useLayoutStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useLayoutStore((state) => state.toggleSidebar);
@@ -29,6 +30,10 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
         <Logo variant="full" size={collapsed ? 40 : 42} name={t("app.name")} tagline={t("app.tagline")} className="erp-sidebar__logo" />
       </div>
 
+      {variant === "desktop" ? (
+        <Tooltip target=".erp-sidebar--desktop [data-pr-tooltip]" position={i18n.dir() === "rtl" ? "left" : "right"} showDelay={collapsed ? 150 : 700} />
+      ) : null}
+
       <ul className="erp-sidebar__nav">
         {visibleItems.map((item, index) => (
           <li key={item.to} className="erp-sidebar__item">
@@ -38,7 +43,7 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
             <NavLink
               to={item.to}
               end={item.to === "/"}
-              title={collapsed ? t(item.labelKey) : undefined}
+              data-pr-tooltip={t(item.labelKey)}
               className={({ isActive }) => `erp-sidebar__link${isActive ? " erp-sidebar__link--active" : ""}`}
               onClick={variant === "mobile-drawer" ? closeMobileSidebar : undefined}
             >
@@ -51,7 +56,7 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
 
       <div className="erp-sidebar__footer">
         {currentUser ? (
-          <div className="erp-sidebar__company" title={currentUser.companyName}>
+          <div className="erp-sidebar__company" data-pr-tooltip={`${currentUser.companyName} · ${currentUser.companyDefaultCurrency}`}>
             <span className="erp-sidebar__company-dot" aria-hidden="true" />
             <span className="erp-sidebar__label">
               <strong>{currentUser.companyName}</strong>
@@ -65,7 +70,7 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
             className="erp-sidebar__collapse"
             onClick={toggleSidebar}
             aria-label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
-            title={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
+            data-pr-tooltip={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
           >
             <i className="pi pi-angle-double-left" aria-hidden="true" />
           </button>
