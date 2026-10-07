@@ -16,6 +16,7 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { PartyFormDialog } from "./PartyFormDialog";
 import { partyKindIcon } from "./party-kind";
 import { PARTY_KINDS, useParties, type PartyKind, type PartySummary } from "./use-parties";
+import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL_KINDS = "ALL";
 
@@ -158,6 +159,7 @@ export function PartiesPage(): React.JSX.Element {
                 />
               )}
             />
+            <Column header="" style={{ width: "4rem" }} body={(row: PartySummary) => <AttachmentsButton ownerType="PARTY" ownerId={row.id} label={row.name} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">

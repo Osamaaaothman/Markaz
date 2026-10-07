@@ -18,6 +18,7 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
 import { useCreateCreditNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
+import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL = "ALL";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
@@ -75,6 +76,7 @@ export function SalesInvoicesPage(): React.JSX.Element {
             <Column header={t("purchasing.invoices.net")} align="right" body={(r: SalesInvoiceSummary) => formatMoney(r.totalNet, r.currency)} />
             <Column header={t("purchasing.invoices.tax")} align="right" body={(r: SalesInvoiceSummary) => formatMoney(r.totalTax, r.currency)} />
             <Column header={t("purchasing.invoices.gross")} align="right" body={(r: SalesInvoiceSummary) => <strong>{formatMoney(r.totalGross, r.currency)}</strong>} />
+            <Column header="" style={{ width: "4rem" }} body={(r: SalesInvoiceSummary) => <AttachmentsButton ownerType="SALES_INVOICE" ownerId={r.id} label={r.number} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
@@ -116,6 +118,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-page__header-actions">
           <Tag value={t(`sales.invoices.types.${invoice.documentType}`)} severity={invoice.documentType === "INVOICE" ? "info" : "warning"} />
+          <AttachmentsButton ownerType="SALES_INVOICE" ownerId={invoice.id} label={invoice.number} />
           <Button label={t("sales.invoices.downloadPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "pdf")} />
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("credit_note:create")} label={t("sales.invoices.creditNote")} icon="pi pi-minus-circle" outlined onClick={() => setCreditOpen(true)} /> : null}
           {invoice.originalInvoiceId ? <Button label={t("sales.invoices.openOriginal")} text onClick={() => void navigate(`/sales/invoices/${invoice.originalInvoiceId}`)} /> : null}
@@ -132,7 +135,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         </div>
       </div>
       {invoice.notes ? <p>{invoice.notes}</p> : null}
-      <DataGrid value={[...invoice.lines]} className="erp-table" stripedRows showGridlines size="small">
+      <DataGrid value={[...invoice.lines]} searchable={false} className="erp-table" stripedRows showGridlines size="small">
         <Column header={t("sales.description")} body={(l: (typeof invoice.lines)[number]) => l.description} />
         <Column header={t("purchasing.quantity")} align="right" body={(l: (typeof invoice.lines)[number]) => l.quantity} />
         <Column header={t("purchasing.unitPrice")} align="right" body={(l: (typeof invoice.lines)[number]) => formatMoney(l.unitPrice, invoice.currency)} />

@@ -137,6 +137,10 @@ matters at this product's scale:
 - RPO and RTO are **committed numbers per hosting path** (open decision B8), not
   vibes — Path A's numbers depend on the customer's own infrastructure and may be
   weaker than what Osama commits to on Path B.
+- **Attached documents are part of the backup.** With `ATTACHMENT_STORAGE=local` the scanned bills live in the
+  `attachments_data` Docker volume, not in the database: a backup of the database alone loses them. Back up the volume
+  in the same job and restore the two together (`docs/attachments.md`). With `cloudinary` the files are in the
+  customer's Cloudinary account and the database holds only their metadata.
 - A backup dump is that one customer's complete financial ledger — access-controlled
   as tightly as their production data, on whichever path holds it.
 

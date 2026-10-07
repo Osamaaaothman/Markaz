@@ -14,6 +14,7 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryDetailDialog } from "./JournalEntryDetailDialog";
 import { JournalEntryForm } from "./JournalEntryForm";
 import { useJournalEntries, type JournalEntrySummary } from "./use-journal-entries";
+import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 export function JournalEntriesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -120,6 +121,7 @@ export function JournalEntriesPage(): React.JSX.Element {
               }
               style={{ width: "8rem" }}
             />
+            <Column header="" style={{ width: "4rem" }} body={(row: JournalEntrySummary) => <AttachmentsButton ownerType="JOURNAL_ENTRY" ownerId={row.id} label={row.number} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">

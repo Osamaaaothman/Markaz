@@ -11,9 +11,9 @@ export interface LogoProps {
   readonly className?: string;
 }
 
-// The Markaz emblem: the Arabic letter meem (م) drawn as a ring with a tail, and a gold dot at its centre —
-// "markaz" means centre. Ink tile, green stroke, brass centre. Drawn with SVG strokes (pathLength = 1) so the
-// letter can be animated as if written: the ring, then the tail, then the dot drops in and a shine passes.
+// The Markaz emblem: an open ring with a brass dot at its centre — "markaz" means centre. Ink tile, green
+// stroke, brass centre. Drawn with an SVG stroke (pathLength = 1) so the ring can be animated as if drawn in,
+// then the dot drops into the middle and a shine passes.
 // The emblem itself never mirrors in right-to-left (a logo is not text direction).
 export function LogoMark({ size = 40, animate = false, className = "" }: Pick<LogoProps, "size" | "animate" | "className">): React.JSX.Element {
   const uid = useId().replace(/:/g, "");
@@ -41,12 +41,10 @@ export function LogoMark({ size = 40, animate = false, className = "" }: Pick<Lo
       </defs>
       <g clipPath={`url(#${uid}-clip)`}>
         <rect width="64" height="64" fill="#1b1a17" />
-        {/* the loop of the meem, upper right as in the written letter */}
-        <circle className="mk-logo__ring" cx="35" cy="25" r="10" fill="none" stroke="#7fc4a3" strokeWidth="6.2" strokeLinecap="round" pathLength="1" />
-        {/* its tail: down from the loop, then swept to the left */}
-        <path className="mk-logo__tail" d="M34 35.5 V45 Q34 52 26 52.5 H16.5" fill="none" stroke="#7fc4a3" strokeWidth="6.2" strokeLinecap="round" strokeLinejoin="round" pathLength="1" />
+        {/* an open ring: closed all round except a gap on the right, like the opening of the letter meem */}
+        <path className="mk-logo__ring" d="M45.24 39.04 A15 15 0 1 1 45.24 24.96" fill="none" stroke="#7fc4a3" strokeWidth="6.4" strokeLinecap="round" pathLength="1" />
         {/* the centre */}
-        <circle className="mk-logo__dot" cx="35" cy="25" r="3.6" fill="#c9aa5c" />
+        <circle className="mk-logo__dot" cx="32" cy="32" r="4.8" fill="#c9aa5c" />
         <rect className="mk-logo__shine" x="-40" y="-10" width="30" height="90" fill={`url(#${uid}-shine)`} transform="skewX(-18)" />
       </g>
       <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="15.25" fill="none" stroke="#fff" strokeOpacity="0.1" strokeWidth="1.5" />

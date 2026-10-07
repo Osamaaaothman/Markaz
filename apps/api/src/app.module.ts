@@ -14,6 +14,7 @@ import { DashboardModule } from "./dashboard/dashboard.module.js";
 import { PurchasingModule } from "./purchasing/purchasing.module.js";
 import { SalesModule } from "./sales/sales.module.js";
 import { JobsModule } from "./jobs/jobs.module.js";
+import { AttachmentsModule } from "./attachments/attachments.module.js";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { PermissionGuard } from "./identity/permission.guard.js";
 import { HttpExceptionFilter } from "./common/http-exception.filter.js";
@@ -44,6 +45,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
     SalesModule,
     PaymentsModule,
     DashboardModule,
+    AttachmentsModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -19,7 +19,8 @@
       "inventory": "Inventory",
       "purchasing": "Purchasing",
       "sales": "Sales",
-      "payments": "Payments"
+      "payments": "Payments",
+      "documents": "Documents"
     },
     "warehouses": "Warehouses",
     "items": "Items",
@@ -40,7 +41,8 @@
     "payments": "Payments",
     "aging": "Ageing",
     "partyStatement": "Customer / supplier statement",
-    "stockMovements": "Stock movements"
+    "stockMovements": "Stock movements",
+    "documents": "Documents"
   },
   "actions": {
     "save": "Save",
@@ -346,7 +348,8 @@
         "customer_receipt": "Customer receipts",
         "supplier_payment": "Supplier payments",
         "aging_report": "Ageing reports",
-        "party_statement": "Customer and supplier statements"
+        "party_statement": "Customer and supplier statements",
+        "attachment": "Attached documents"
       },
       "actions": {
         "create": "Create",
@@ -357,7 +360,8 @@
         "post": "Post",
         "reject": "Reject",
         "approve": "Approve",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "delete": "Delete"
       },
       "createUserSuccess": "User created.",
       "createUserError": "Couldn't create user.",
@@ -900,7 +904,7 @@
     "title": "Design system",
     "subtitle": "The colours, type, components and motion every Markaz screen is built from.",
     "logo": "Logo",
-    "logoNote": "The emblem is the Arabic letter meem drawn as a ring and a tail, with a brass dot at its centre: markaz means centre.",
+    "logoNote": "The emblem is an open ring with a brass dot at its centre: markaz means centre.",
     "replay": "Replay animation",
     "onDark": "On dark",
     "onLight": "On light",
@@ -977,8 +981,48 @@
   "table": {
     "search": "Search in this list…",
     "rowCount": "{{total}} rows",
+    "columns": "Columns",
+    "resetColumns": "Show all columns",
     "matches": "{{shown}} of {{total}} rows",
     "noMatch": "Nothing matches your search.",
     "report": "⁦{first}–{last}⁩ of {totalRecords}"
+  },
+  "attachments": {
+    "title": "Documents",
+    "pageTitle": "Documents",
+    "pageSubtitle": "Every scanned bill, receipt and supporting file attached to a record.",
+    "empty": "No documents attached yet.",
+    "dropTitle": "Drop files here",
+    "dropHint": "PDF, PNG, JPEG or WebP, up to 10 MB each.",
+    "choose": "Choose files",
+    "open": "Open",
+    "download": "Download",
+    "remove": "Remove",
+    "confirmRemove": "Remove it",
+    "file": "File",
+    "kind": "Kind",
+    "allKinds": "All kinds",
+    "record": "Record",
+    "size": "Size",
+    "uploaded": "Uploaded",
+    "by": "By",
+    "searchPlaceholder": "Search by file name",
+    "owners": {
+      "SALES_INVOICE": "Sales invoice",
+      "SUPPLIER_INVOICE": "Supplier invoice",
+      "PAYMENT": "Receipt or payment",
+      "JOURNAL_ENTRY": "Journal entry",
+      "PURCHASE_ORDER": "Purchase order",
+      "PARTY": "Party",
+      "ITEM": "Item"
+    },
+    "errors": {
+      "type": "Only PDF, PNG, JPEG and WebP files are accepted.",
+      "size": "The file is too large (10 MB at most).",
+      "empty": "The file is empty.",
+      "owner": "The record no longer exists.",
+      "forbidden": "You do not have access to this record.",
+      "generic": "Could not complete this. Try again."
+    }
   }
 }

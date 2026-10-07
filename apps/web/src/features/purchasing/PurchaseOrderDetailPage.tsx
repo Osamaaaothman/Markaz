@@ -17,6 +17,7 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { OrderStatusTag } from "./StatusTags";
 import { useOrderAction, usePurchaseOrder, useReceiveOrder, type PurchaseOrderDetail, type PurchaseOrderLine } from "./use-purchasing";
+import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const QTY = /^\d{1,15}(\.\d{1,4})?$/;
 
@@ -61,6 +62,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-page__header-actions">
           <OrderStatusTag status={order.status} />
+          <AttachmentsButton ownerType="PURCHASE_ORDER" ownerId={order.id} label={order.number} />
           {order.status === "PENDING_APPROVAL" ? (
             <>
               <PermissionButton allowed={can("purchase_order:approve")} label={t("purchasing.orders.approve")} icon="pi pi-check" loading={approve.isPending} onClick={() => approve.mutate(undefined)} />

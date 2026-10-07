@@ -10,6 +10,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useSupplierInvoices, type SupplierInvoiceSummary } from "./use-invoicing";
+import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 export function SupplierInvoicesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -48,6 +49,7 @@ export function SupplierInvoicesPage(): React.JSX.Element {
             <Column header={t("purchasing.invoices.net")} align="right" body={(r: SupplierInvoiceSummary) => formatMoney(r.totalNet, r.currency)} />
             <Column header={t("purchasing.invoices.tax")} align="right" body={(r: SupplierInvoiceSummary) => formatMoney(r.totalTax, r.currency)} />
             <Column header={t("purchasing.invoices.gross")} align="right" body={(r: SupplierInvoiceSummary) => <strong>{formatMoney(r.totalGross, r.currency)}</strong>} />
+            <Column header="" style={{ width: "4rem" }} body={(r: SupplierInvoiceSummary) => <AttachmentsButton ownerType="SUPPLIER_INVOICE" ownerId={r.id} label={r.number} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">

@@ -54,3 +54,10 @@ export * from "./payments/party-statement.service.js";
 // Dashboard
 export * from "./dashboard/dashboard.service.js";
 export * from "./inventory/stock-movement.service.js";
+
+// Attachments (scanned bills and supporting documents)
+export * from "./attachments/attachment-rules.js";
+export * from "./attachments/file-storage.js";
+export * from "./attachments/local-file-storage.js";
+export * from "./attachments/cloudinary-file-storage.js";
+export * from "./attachments/attachment.service.js";

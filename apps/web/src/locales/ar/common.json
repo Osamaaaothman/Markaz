@@ -19,7 +19,8 @@
       "inventory": "المخزون",
       "purchasing": "المشتريات",
       "sales": "المبيعات",
-      "payments": "المدفوعات"
+      "payments": "المدفوعات",
+      "documents": "المستندات"
     },
     "warehouses": "المستودعات",
     "items": "الأصناف",
@@ -40,7 +41,8 @@
     "payments": "المدفوعات",
     "aging": "أعمار الديون",
     "partyStatement": "كشف حساب عميل / مورد",
-    "stockMovements": "حركات المخزون"
+    "stockMovements": "حركات المخزون",
+    "documents": "المستندات"
   },
   "actions": {
     "save": "حفظ",
@@ -346,7 +348,8 @@
         "customer_receipt": "سندات قبض العملاء",
         "supplier_payment": "مدفوعات الموردين",
         "aging_report": "تقارير أعمار الديون",
-        "party_statement": "كشوف حساب العملاء والموردين"
+        "party_statement": "كشوف حساب العملاء والموردين",
+        "attachment": "المستندات المرفقة"
       },
       "actions": {
         "create": "إنشاء",
@@ -357,7 +360,8 @@
         "post": "ترحيل",
         "reject": "رفض",
         "approve": "اعتماد",
-        "cancel": "إلغاء"
+        "cancel": "إلغاء",
+        "delete": "حذف"
       },
       "createUserSuccess": "تم إنشاء المستخدم.",
       "createUserError": "تعذّر إنشاء المستخدم.",
@@ -900,7 +904,7 @@
     "title": "نظام التصميم",
     "subtitle": "الألوان والخطوط والمكوّنات والحركة التي تُبنى منها كل شاشة في مركز.",
     "logo": "الشعار",
-    "logoNote": "الشعار هو حرف الميم العربي مرسوماً بحلقة وذيل، وفي مركزه نقطة ذهبية: «مركز» تعني المركز.",
+    "logoNote": "الشعار حلقة مفتوحة وفي مركزها نقطة نحاسية: «مركز» تعني المركز.",
     "replay": "إعادة الحركة",
     "onDark": "على الداكن",
     "onLight": "على الفاتح",
@@ -977,8 +981,48 @@
   "table": {
     "search": "ابحث في هذه القائمة…",
     "rowCount": "{{total}} سجل",
+    "columns": "الأعمدة",
+    "resetColumns": "إظهار كل الأعمدة",
     "matches": "{{shown}} من {{total}} سجل",
     "noMatch": "لا يوجد ما يطابق بحثك.",
     "report": "⁦{first}–{last}⁩ من {totalRecords}"
+  },
+  "attachments": {
+    "title": "المستندات",
+    "pageTitle": "المستندات",
+    "pageSubtitle": "كل الفواتير الممسوحة والإيصالات والملفات المساندة المرفقة بالسجلات.",
+    "empty": "لا توجد مستندات مرفقة بعد.",
+    "dropTitle": "أفلت الملفات هنا",
+    "dropHint": "PDF أو PNG أو JPEG أو WebP، حتى 10 ميغابايت للملف.",
+    "choose": "اختيار ملفات",
+    "open": "فتح",
+    "download": "تنزيل",
+    "remove": "إزالة",
+    "confirmRemove": "أزِلها",
+    "file": "الملف",
+    "kind": "النوع",
+    "allKinds": "كل الأنواع",
+    "record": "السجل",
+    "size": "الحجم",
+    "uploaded": "تاريخ الرفع",
+    "by": "بواسطة",
+    "searchPlaceholder": "ابحث باسم الملف",
+    "owners": {
+      "SALES_INVOICE": "فاتورة مبيعات",
+      "SUPPLIER_INVOICE": "فاتورة مورد",
+      "PAYMENT": "سند قبض أو صرف",
+      "JOURNAL_ENTRY": "قيد يومية",
+      "PURCHASE_ORDER": "أمر شراء",
+      "PARTY": "جهة",
+      "ITEM": "صنف"
+    },
+    "errors": {
+      "type": "الملفات المقبولة: PDF وPNG وJPEG وWebP فقط.",
+      "size": "الملف كبير جدا (الحد الأقصى 10 ميغابايت).",
+      "empty": "الملف فارغ.",
+      "owner": "السجل لم يعد موجودا.",
+      "forbidden": "لا تملك صلاحية الوصول إلى هذا السجل.",
+      "generic": "تعذّر إتمام العملية. حاول مرة أخرى."
+    }
   }
 }

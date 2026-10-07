@@ -165,11 +165,11 @@
 
 .mk-logo--intro .mk-logo__dot,
 .mk-logo--loop .mk-logo__dot {
-  animation: mk-pop 0.55s var(--mk-ease-spring) 1.15s both;
+  animation: mk-pop 0.55s var(--mk-ease-spring) 0.75s both;
 }
 
 .mk-logo--intro .mk-logo__shine {
-  animation: mk-shine 1.1s var(--mk-ease) 1.55s both;
+  animation: mk-shine 1.1s var(--mk-ease) 1.2s both;
 }
 
 .mk-logo--loop {

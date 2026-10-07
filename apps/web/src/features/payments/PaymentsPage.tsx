@@ -14,6 +14,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { usePayments, type PaymentDirection, type PaymentSummary } from "./use-payments";
+import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL = "ALL";
 
@@ -73,6 +74,7 @@ export function PaymentsPage(): React.JSX.Element {
             <Column header={t("payments.reference")} body={(r: PaymentSummary) => r.reference ?? ""} />
             <Column header={t("payments.amount")} align="right" body={(r: PaymentSummary) => <strong>{formatMoney(r.amount, r.currency)}</strong>} />
             <Column header={t("payments.onAccount")} align="right" body={(r: PaymentSummary) => formatMoney(Money.of(r.amount, r.currency).subtract(Money.of(r.allocated, r.currency)).toDecimalString(4), r.currency)} />
+            <Column header="" style={{ width: "4rem" }} body={(r: PaymentSummary) => <AttachmentsButton ownerType="PAYMENT" ownerId={r.id} label={r.number} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">

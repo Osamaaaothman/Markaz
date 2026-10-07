@@ -64,6 +64,7 @@ model Company {
   salesOrders      SalesOrder[]
   salesInvoices    SalesInvoice[]
   payments         Payment[]
+  attachments      Attachment[]
 
   @@map("companies")
 }
@@ -1291,4 +1292,33 @@ model PaymentAllocation {
   @@index([salesInvoiceId])
   @@index([supplierInvoiceId])
   @@map("payment_allocations")
+}
+
+// Scanned bills, receipts and supporting documents linked to a business record. Insert-only for the runtime
+// role apart from the two deleted_* columns (migration 20261009090000). Visibility is PRIVATE for everything
+// except item pictures; a CHECK enforces that. The file lives in storage under `storageKey`, never in this table.
+model Attachment {
+  id              String    @id
+  companyId       String    @map("company_id")
+  ownerType       String    @map("owner_type") // SALES_INVOICE | SUPPLIER_INVOICE | PAYMENT | JOURNAL_ENTRY | PURCHASE_ORDER | PARTY | ITEM
+  ownerId         String    @map("owner_id")
+  visibility      String // PRIVATE | PUBLIC
+  originalName    String    @map("original_name")
+  contentType     String    @map("content_type")
+  sizeBytes       Int       @map("size_bytes")
+  sha256          String
+  storageProvider String    @map("storage_provider") // LOCAL | CLOUDINARY
+  storageKey      String    @map("storage_key")
+  publicUrl       String?   @map("public_url")
+  createdBy       String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  deletedAt       DateTime? @map("deleted_at")
+  deletedBy       String?   @map("deleted_by")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([storageProvider, storageKey])
+  @@index([companyId, ownerType, ownerId])
+  @@index([companyId, createdAt])
+  @@map("attachments")
 }

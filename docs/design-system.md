@@ -36,7 +36,7 @@ Ink `--mk-ink-*` (shell, hero), Forest `--mk-brand-*` (primary), Brass `--mk-bra
 
 ## Logo
 
-The Arabic letter meem (م) drawn as a ring with a tail, with a gold dot at its centre ("markaz" = centre). Ink tile, green stroke, brass dot. It never mirrors in RTL. Standalone favicon: `apps/web/public/favicon.svg` (keep in sync with `Logo.tsx`). The boot splash in `index.html` shows it until React mounts.
+An open ring with a brass dot at its centre ("markaz" = centre). Ink tile, green stroke, brass dot. (An earlier meem-shaped mark was dropped because it read as the digit 9 or a map pin.) It never mirrors in RTL. Standalone favicon: `apps/web/public/favicon.svg` (keep in sync with `Logo.tsx`). The boot splash in `index.html` shows it until React mounts.
 
 ## Known gaps
 

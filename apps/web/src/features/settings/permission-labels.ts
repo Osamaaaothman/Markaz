@@ -33,6 +33,7 @@ const RESOURCE_ORDER = [
   "supplier_payment",
   "aging_report",
   "party_statement",
+  "attachment",
 ] as const;
 
 export function splitPermissionCode(code: string): { resource: string; action: string } {

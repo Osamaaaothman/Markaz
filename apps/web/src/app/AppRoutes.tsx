@@ -38,6 +38,7 @@ import { AppShell } from "./layout/AppShell";
 import { NAV_ITEMS } from "./layout/NavConfig";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RequirePermission } from "./RequirePermission";
+import { DocumentsPage } from "../features/attachments/DocumentsPage";
 
 // The permissions a route needs come from NAV_ITEMS, so hiding a nav entry and guarding its
 // page can never disagree.
@@ -113,6 +114,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={["supplier_invoice:create"]} />}>
             <Route path="/purchasing/invoices/new" element={<SupplierInvoiceFormPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/documents")} />}>
+            <Route path="/documents" element={<DocumentsPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/tax-codes")} />}>
             <Route path="/settings/tax-codes" element={<TaxCodesPage />} />
