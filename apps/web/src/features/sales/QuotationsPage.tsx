@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
@@ -60,14 +60,14 @@ export function QuotationsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => setViewId((e.data as QuotationSummary).id)}>
+          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => setViewId((e.data as QuotationSummary).id)}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: QuotationSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("sales.customer")} body={(r: QuotationSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("sales.quotations.date")} style={{ width: "9rem" }} body={(r: QuotationSummary) => formatCalendarDate(r.quotationDate, i18n.language)} />
             <Column header={t("sales.quotations.validUntil")} style={{ width: "9rem" }} body={(r: QuotationSummary) => (r.validUntil ? formatCalendarDate(r.validUntil, i18n.language) : "")} />
             <Column header={t("purchasing.invoices.gross")} align="right" style={{ width: "11rem" }} body={(r: QuotationSummary) => formatMoney(r.totalGross, r.currency)} />
             <Column header={t("purchasing.status")} style={{ width: "10rem" }} body={(r: QuotationSummary) => <Tag value={t(`sales.quotations.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
@@ -98,13 +98,13 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
         <>
           <p>{localizedName({ name: data.customerName, nameAr: data.customerNameAr }, i18n.language)}</p>
           {data.notes ? <p>{data.notes}</p> : null}
-          <DataTable value={[...data.lines]} className="erp-table" size="small" showGridlines>
+          <DataGrid value={[...data.lines]} className="erp-table" size="small" showGridlines>
             <Column header={t("sales.description")} body={(l: SalesLineView) => l.description} />
             <Column header={t("purchasing.quantity")} align="right" body={(l: SalesLineView) => l.quantity} />
             <Column header={t("purchasing.unitPrice")} align="right" body={(l: SalesLineView) => formatMoney(l.unitPrice, data.currency)} />
             <Column header={t("purchasing.invoices.net")} align="right" body={(l: SalesLineView) => formatMoney(l.netAmount, data.currency)} />
             <Column header={t("purchasing.invoices.tax")} align="right" body={(l: SalesLineView) => formatMoney(l.taxAmount, data.currency)} />
-          </DataTable>
+          </DataGrid>
           <div className="erp-table-footer">
             <span>
               {t("purchasing.invoices.gross")}: <strong>{formatMoney(data.totalGross, data.currency)}</strong>

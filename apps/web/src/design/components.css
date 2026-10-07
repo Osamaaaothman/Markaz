@@ -1,0 +1,1303 @@
+/* ============================================================================
+   Markaz design system — components
+   Restyles every PrimeReact component the product uses so they read as one family.
+   The "html body" prefix lifts specificity above PrimeReact's runtime theme file, which is
+   appended to <head> after this bundle and would otherwise win on source order.
+   ============================================================================ */
+
+/* ---------- buttons ---------- */
+
+html body .p-button {
+  height: var(--mk-control-h);
+  padding-inline: 1.05rem;
+  gap: 0.5rem;
+  border-radius: var(--mk-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--mk-primary) 82%, #000);
+  background: var(--mk-primary);
+  color: var(--mk-on-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: var(--mk-shadow-xs), inset 0 1px 0 rgb(255 255 255 / 0.18);
+  transition: transform var(--mk-dur-fast) var(--mk-ease), box-shadow var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease, border-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease;
+}
+
+html body .p-button .p-button-label {
+  font-weight: inherit;
+}
+
+html body .p-button:enabled:hover {
+  background: var(--mk-primary-hover);
+  border-color: var(--mk-primary-hover);
+  color: var(--mk-on-primary);
+  box-shadow: var(--mk-shadow-md), inset 0 1px 0 rgb(255 255 255 / 0.18);
+  transform: translateY(-1px);
+}
+
+html body .p-button:enabled:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: var(--mk-shadow-xs);
+}
+
+html body .p-button:focus-visible,
+html body .p-button:focus {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-button.p-disabled,
+html body .p-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+}
+
+html body .p-button.p-button-outlined {
+  background: transparent;
+  color: var(--mk-primary);
+  border: 1px solid color-mix(in srgb, var(--mk-primary) 55%, transparent);
+  box-shadow: none;
+}
+
+html body .p-button.p-button-outlined:enabled:hover {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  border-color: var(--mk-primary);
+  box-shadow: none;
+  transform: none;
+}
+
+html body .p-button.p-button-text {
+  background: transparent;
+  border-color: transparent;
+  color: var(--mk-primary);
+  box-shadow: none;
+}
+
+html body .p-button.p-button-text:enabled:hover {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+/* secondary and danger share the same three looks */
+html body .p-button.p-button-secondary {
+  background: var(--mk-surface-3);
+  border-color: var(--mk-border-strong);
+  color: var(--mk-text);
+  box-shadow: var(--mk-shadow-xs);
+}
+
+html body .p-button.p-button-secondary:enabled:hover {
+  background: var(--mk-border);
+  color: var(--mk-text);
+  border-color: var(--mk-text-subtle);
+}
+
+html body .p-button.p-button-secondary.p-button-outlined,
+html body .p-button.p-button-secondary.p-button-text {
+  background: transparent;
+  color: var(--mk-text-muted);
+  border-color: var(--mk-border-strong);
+}
+
+html body .p-button.p-button-secondary.p-button-text {
+  border-color: transparent;
+}
+
+html body .p-button.p-button-secondary.p-button-outlined:enabled:hover,
+html body .p-button.p-button-secondary.p-button-text:enabled:hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+html body .p-button.p-button-danger {
+  background: var(--mk-danger);
+  border-color: var(--mk-danger);
+  color: #fff;
+}
+
+html body .p-button.p-button-danger:enabled:hover {
+  background: color-mix(in srgb, var(--mk-danger) 88%, #000);
+  border-color: color-mix(in srgb, var(--mk-danger) 88%, #000);
+  color: #fff;
+}
+
+html body .p-button.p-button-danger.p-button-outlined,
+html body .p-button.p-button-danger.p-button-text {
+  background: transparent;
+  color: var(--mk-danger);
+  border-color: color-mix(in srgb, var(--mk-danger) 50%, transparent);
+}
+
+html body .p-button.p-button-danger.p-button-text {
+  border-color: transparent;
+}
+
+html body .p-button.p-button-danger.p-button-outlined:enabled:hover,
+html body .p-button.p-button-danger.p-button-text:enabled:hover {
+  background: var(--mk-danger-soft);
+  color: var(--mk-danger);
+}
+
+html body .p-button.p-button-sm {
+  height: calc(var(--mk-control-h) - 0.5rem);
+  padding-inline: 0.8rem;
+  font-size: 0.82rem;
+}
+
+html body .p-button.p-button-icon-only {
+  width: var(--mk-control-h);
+  padding-inline: 0;
+}
+
+html body .p-button.p-button-icon-only.p-button-sm {
+  width: calc(var(--mk-control-h) - 0.5rem);
+}
+
+html body .p-button.p-button-rounded {
+  border-radius: 999px;
+}
+
+/* ---------- inputs ---------- */
+
+html body .p-inputtext,
+html body .p-inputtextarea,
+html body .p-dropdown,
+html body .p-multiselect,
+html body .p-password input {
+  min-height: var(--mk-control-h);
+  border-radius: var(--mk-radius-sm);
+  border: 1px solid var(--mk-border-strong);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease;
+}
+
+html body .p-inputtext,
+html body .p-inputtextarea {
+  padding: 0.5rem 0.8rem;
+}
+
+html body .p-inputtext::placeholder,
+html body .p-inputtextarea::placeholder {
+  color: var(--mk-text-subtle);
+}
+
+html body .p-inputtext:enabled:hover,
+html body .p-inputtextarea:enabled:hover,
+html body .p-dropdown:not(.p-disabled):hover,
+html body .p-multiselect:not(.p-disabled):hover {
+  border-color: var(--mk-text-subtle);
+}
+
+html body .p-inputtext:enabled:focus,
+html body .p-inputtextarea:enabled:focus,
+html body .p-dropdown:not(.p-disabled).p-focus,
+html body .p-multiselect:not(.p-disabled).p-focus,
+html body .p-password input:enabled:focus {
+  outline: 0;
+  border-color: var(--mk-primary);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-inputtext:disabled,
+html body .p-inputtextarea:disabled,
+html body .p-dropdown.p-disabled {
+  background: var(--mk-surface-3);
+  color: var(--mk-text-muted);
+  opacity: 0.8;
+}
+
+html body .p-inputtext.p-invalid,
+html body .p-dropdown.p-invalid,
+html body .p-inputtextarea.p-invalid,
+html body .p-password.p-invalid input {
+  border-color: var(--mk-danger);
+}
+
+html body .p-inputtext.p-invalid:enabled:focus,
+html body .p-dropdown.p-invalid.p-focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mk-danger) 30%, transparent);
+}
+
+html body .p-dropdown {
+  align-items: center;
+}
+
+html body .p-dropdown .p-dropdown-label {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+html body .p-dropdown .p-dropdown-trigger,
+html body .p-calendar .p-datepicker-trigger {
+  color: var(--mk-text-muted);
+}
+
+html body .p-calendar .p-datepicker-trigger {
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface-3);
+  border: 1px solid var(--mk-border-strong);
+  color: var(--mk-text-muted);
+  box-shadow: none;
+  transform: none;
+}
+
+html body .p-calendar .p-datepicker-trigger:enabled:hover {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  transform: none;
+}
+
+/* overlay panels: dropdown lists, calendars, menus */
+html body .p-dropdown-panel,
+html body .p-multiselect-panel,
+html body .p-datepicker,
+html body .p-menu {
+  border-radius: var(--mk-radius);
+  border: 1px solid var(--mk-border-strong);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  box-shadow: var(--mk-shadow-lg);
+  font-family: inherit;
+}
+
+html body .p-dropdown-panel .p-dropdown-header {
+  background: var(--mk-surface-2);
+  border-bottom: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius) var(--mk-radius) 0 0;
+}
+
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item {
+  margin: 2px 6px;
+  border-radius: var(--mk-radius-xs);
+  padding: 0.55rem 0.7rem;
+  color: var(--mk-text);
+  font-size: 0.9rem;
+}
+
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover,
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-focus {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+html body .p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  font-weight: 600;
+}
+
+html body .p-datepicker table td > span.p-highlight {
+  background: var(--mk-primary);
+  color: var(--mk-on-primary);
+}
+
+html body .p-menu .p-menuitem-link {
+  border-radius: var(--mk-radius-xs);
+  margin: 2px 4px;
+}
+
+html body .p-menu .p-menuitem:not(.p-highlight):not(.p-disabled) > .p-menuitem-content:hover {
+  background: var(--mk-surface-3);
+}
+
+/* switches, checkboxes, segmented selector */
+/* The switch: off = knob at the reading side, on = knob at the far side, in both directions.
+   The theme positions the knob with physical left and translateX, which is backwards in Arabic. */
+html body .p-inputswitch .p-inputswitch-slider {
+  background: var(--mk-border-strong);
+}
+
+html body .p-inputswitch .p-inputswitch-slider::before {
+  left: auto;
+  inset-inline-start: 0.25rem;
+  transform: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+}
+
+html body .p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:hover) .p-inputswitch-slider {
+  background: var(--mk-text-subtle);
+}
+
+html body .p-inputswitch.p-highlight .p-inputswitch-slider,
+html body .p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:hover).p-highlight .p-inputswitch-slider {
+  background: var(--mk-primary);
+}
+
+html body .p-inputswitch.p-highlight .p-inputswitch-slider::before {
+  transform: translateX(1.25rem);
+}
+
+html[dir="rtl"] body .p-inputswitch.p-highlight .p-inputswitch-slider::before {
+  transform: translateX(-1.25rem);
+}
+
+html body .p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:focus-visible) .p-inputswitch-slider {
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-checkbox .p-checkbox-box {
+  border-radius: 6px;
+  border-color: var(--mk-border-strong);
+  background: var(--mk-surface);
+}
+
+html body .p-checkbox .p-checkbox-box.p-highlight {
+  background: var(--mk-primary);
+  border-color: var(--mk-primary);
+}
+
+html body .p-selectbutton {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--mk-surface-3);
+  border: 1px solid var(--mk-border);
+}
+
+html body .p-selectbutton .p-button {
+  height: calc(var(--mk-control-h) - 0.55rem);
+  border: 0;
+  border-radius: 999px !important;
+  background: transparent;
+  color: var(--mk-text-muted);
+  box-shadow: none;
+  font-weight: 600;
+  transform: none;
+}
+
+html body .p-selectbutton .p-button:enabled:hover {
+  background: transparent;
+  color: var(--mk-text);
+  box-shadow: none;
+  transform: none;
+}
+
+html body .p-selectbutton .p-button.p-highlight {
+  background: var(--mk-surface);
+  color: var(--mk-primary);
+  box-shadow: var(--mk-shadow-sm);
+}
+
+/* ---------- status tags ---------- */
+
+html body .p-tag {
+  gap: 0.4rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+
+html body .p-tag::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+html body .p-tag.p-tag-success {
+  background: var(--mk-success-soft);
+  color: var(--mk-success);
+}
+
+html body .p-tag.p-tag-warning {
+  background: var(--mk-warning-soft);
+  color: var(--mk-warning);
+}
+
+html body .p-tag.p-tag-danger {
+  background: var(--mk-danger-soft);
+  color: var(--mk-danger);
+}
+
+html body .p-tag.p-tag-info {
+  background: var(--mk-info-soft);
+  color: var(--mk-info);
+}
+
+html body .p-tag.p-tag-secondary {
+  background: var(--mk-surface-3);
+  color: var(--mk-text-muted);
+}
+
+/* ---------- dialogs ---------- */
+
+html body .p-dialog-mask.p-component-overlay {
+  background: rgb(18 17 15 / 0.55);
+  backdrop-filter: blur(4px);
+}
+
+html body .p-dialog {
+  border-radius: var(--mk-radius-lg);
+  border: 1px solid var(--mk-border-strong);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  box-shadow: var(--mk-shadow-xl);
+  font-family: inherit;
+  animation: mk-scale-in var(--mk-dur) var(--mk-ease) both;
+}
+
+html body .p-dialog .p-dialog-header {
+  padding: 1.1rem 1.4rem;
+  background: transparent;
+  border-bottom: 1px solid var(--mk-border);
+  color: var(--mk-text);
+}
+
+html body .p-dialog .p-dialog-header .p-dialog-title {
+  font-size: var(--mk-text-lg);
+  font-weight: 700;
+}
+
+html body .p-dialog .p-dialog-content {
+  padding: 1.25rem 1.4rem 1.4rem;
+  background: transparent;
+  color: var(--mk-text);
+}
+
+html body .p-dialog .p-dialog-header-icon {
+  border-radius: 50%;
+  color: var(--mk-text-muted);
+}
+
+html body .p-dialog .p-dialog-header-icon:enabled:hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+  box-shadow: none;
+  transform: none;
+}
+
+/* PrimeReact's Dropdown/MultiSelect filter input ships with a -28px right margin that overflows its
+   panel; the search icon already sits inside the input's own padding. Physical margin-right on purpose:
+   PrimeReact's own rule is physical in both directions. */
+html body .p-dropdown-panel .p-dropdown-filter-container .p-dropdown-filter,
+html body .p-multiselect-panel .p-multiselect-filter-container .p-multiselect-filter {
+  margin-right: 0;
+}
+
+html body .p-message {
+  border-radius: var(--mk-radius-sm);
+}
+
+/* ---------- data tables ---------- */
+
+.erp-table {
+  border-radius: var(--mk-radius);
+  border: 1px solid var(--mk-border);
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-xs);
+  /* clip, not hidden: it rounds the corners without making the table a scroll box, so the header can stick
+     to the page scroll underneath the top bar. */
+  overflow: clip;
+}
+
+/* No scroll box inside the table: the page scrolls. Only a narrow screen scrolls a wide table sideways. */
+html body .erp-table .p-datatable-wrapper,
+html body .erp-table .p-treetable-wrapper {
+  /* !important on purpose: PrimeReact writes overflow:auto and max-height as an inline style on this element */
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 899px) {
+  .erp-table {
+    overflow: visible;
+  }
+
+  html body .erp-table .p-datatable-wrapper,
+  html body .erp-table .p-treetable-wrapper {
+    overflow-x: auto !important;
+  }
+
+  html body .erp-table .p-datatable-thead > tr > th,
+  html body .erp-table .p-treetable-thead > tr > th {
+    position: static;
+  }
+}
+
+html body .erp-table .p-datatable-thead > tr > th,
+html body .erp-table .p-treetable-thead > tr > th {
+  position: sticky;
+  top: var(--mk-topbar-h);
+  z-index: 2;
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  background: var(--mk-surface-2);
+  color: var(--mk-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 0;
+  border-block-end: 1px solid var(--mk-border-strong);
+  box-shadow: 0 1px 0 var(--mk-border);
+}
+
+html body .erp-table .p-datatable-tbody > tr > td,
+html body .erp-table .p-treetable-tbody > tr > td {
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  border: 0;
+  border-block-end: 1px solid var(--mk-border);
+  font-size: 0.88rem;
+  color: var(--mk-text);
+  transition: background-color var(--mk-dur-fast) ease;
+}
+
+html body .erp-table .p-datatable-tbody > tr,
+html body .erp-table .p-treetable-tbody > tr {
+  background: transparent;
+  color: var(--mk-text);
+}
+
+html body .erp-table .p-datatable-tbody > tr:last-child > td {
+  border-block-end: 0;
+}
+
+html body .erp-table .p-datatable-tbody > tr:hover > td,
+html body .erp-table .p-treetable-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--mk-primary) 6%, transparent);
+}
+
+html body .erp-table .p-datatable-tbody > tr.p-highlight > td {
+  background: var(--mk-primary-soft);
+  color: var(--mk-text);
+}
+
+html body .erp-table .p-datatable-tbody > tr.p-selectable-row {
+  cursor: pointer;
+}
+
+html body .erp-table .p-datatable-emptymessage > td {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--mk-text-muted);
+}
+
+/* the footer line of a table: totals and counts sit in a quiet bar under it */
+.erp-table-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+  align-items: center;
+  padding: 0.8rem 1.1rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-xs);
+  font-size: 0.88rem;
+  color: var(--mk-text-muted);
+}
+
+.erp-table-footer strong {
+  color: var(--mk-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-table-footer--center {
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.erp-table__account {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.erp-table__account-code {
+  font-family: var(--mk-font-mono);
+  font-size: 0.8rem;
+  color: var(--mk-text-muted);
+}
+
+/* ---------- forms ---------- */
+
+.erp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.erp-field > input,
+.erp-field > .p-inputtext,
+.erp-field > .p-password,
+.erp-field > .p-password .p-icon-field,
+.erp-field > .p-password input,
+.erp-field > .p-dropdown,
+.erp-field > .p-calendar,
+.erp-field > .p-calendar input,
+.erp-field > .p-inputtextarea {
+  width: 100%;
+}
+
+.erp-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mk-text-muted);
+}
+
+.erp-field__hint {
+  color: var(--mk-text-muted);
+  font-size: 0.8rem;
+}
+
+.erp-field__error {
+  color: var(--mk-danger);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.erp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.erp-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.erp-form__section-title {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.erp-form__section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--mk-border);
+}
+
+/* The actions bar of a form stays visible at the bottom while a long document is edited. */
+.erp-form__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-block-start: 0.5rem;
+  padding-block: 0.9rem;
+  background: linear-gradient(180deg, transparent, var(--mk-bg) 38%);
+}
+
+.p-dialog .erp-form__actions {
+  background: linear-gradient(180deg, transparent, var(--mk-surface) 38%);
+}
+
+/* document line grids */
+.erp-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.erp-lines__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface-2);
+  transition: border-color var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease;
+  animation: mk-rise var(--mk-dur) var(--mk-ease) both;
+}
+
+.erp-lines__row:hover {
+  border-color: var(--mk-border-strong);
+}
+
+.erp-lines__row:focus-within {
+  border-color: var(--mk-primary);
+  background: var(--mk-surface);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+.erp-lines__row--error {
+  border-color: var(--mk-danger);
+  background: var(--mk-danger-soft);
+}
+
+.erp-lines__account {
+  flex: 2;
+  min-width: 12rem;
+}
+
+.erp-lines__amount {
+  flex: 1;
+  min-width: 6rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-lines__description {
+  flex: 1.5;
+  min-width: 9rem;
+}
+
+.erp-lines__totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.75rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  font-size: 0.92rem;
+}
+
+.erp-lines__totals strong {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-dialog {
+  width: 90vw;
+  max-width: 760px;
+}
+
+.erp-dialog--wide {
+  max-width: 960px;
+}
+
+/* a row of buttons or inputs inside a table cell or a field */
+.erp-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.erp-button-link {
+  background: none;
+  border: none;
+  color: var(--mk-primary);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  align-self: flex-start;
+}
+
+.erp-no-permission {
+  display: inline-flex;
+  cursor: not-allowed;
+}
+
+/* ---------- cards ---------- */
+
+.erp-card {
+  padding: 1.15rem 1.3rem;
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-lg);
+  box-shadow: var(--mk-shadow-xs);
+}
+
+.erp-card__title {
+  margin: 0 0 0.85rem;
+  font-size: var(--mk-text-lg);
+  font-weight: 700;
+}
+
+.erp-card__empty {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--mk-text-muted);
+}
+
+.erp-card__empty .pi {
+  color: var(--mk-success);
+}
+
+/* amounts never wrap onto two lines */
+html body .erp-table .p-datatable-tbody > tr > td.p-align-right,
+html body .erp-table .p-datatable-thead > tr > th.p-align-right {
+  white-space: nowrap;
+}
+
+html body .erp-table .p-datatable-tbody > tr > td {
+  vertical-align: middle;
+}
+
+/* the label inside a dropdown / multiselect is itself an .p-inputtext: it must not draw a second box */
+html body .p-dropdown .p-inputtext,
+html body .p-multiselect .p-multiselect-label,
+html body .p-calendar-w-btn .p-inputtext {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  min-height: 0;
+  border-radius: 0;
+}
+
+html body .p-calendar-w-btn {
+  display: flex;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface);
+  overflow: hidden;
+  transition: border-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease;
+}
+
+html body .p-calendar-w-btn:focus-within {
+  border-color: var(--mk-primary);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-calendar-w-btn .p-datepicker-trigger {
+  border-radius: 0;
+  border-width: 0;
+  border-inline-start: 1px solid var(--mk-border);
+}
+
+html body .p-dropdown .p-dropdown-trigger {
+  width: 2.5rem;
+}
+
+/* a lone text button under a form (add line) keeps its natural width */
+.erp-form > .p-button,
+.erp-page > .p-button {
+  align-self: flex-start;
+}
+
+/* ---- table alignment: logical, so header and cells always agree in both directions ----
+   PrimeReact hard-codes text-align: left on cells and p-align-right/left on columns; in Arabic that put
+   the header at the right and the cell text at the left. Everything below follows the page direction:
+   "start" is the reading side, "end" (align="right" columns, i.e. amounts) is the opposite side. */
+html body .erp-table .p-datatable-thead > tr > th,
+html body .erp-table .p-datatable-tbody > tr > td,
+html body .erp-table .p-datatable-tfoot > tr > td,
+html body .erp-table .p-treetable-thead > tr > th,
+html body .erp-table .p-treetable-tbody > tr > td,
+html body .erp-table .p-treetable-tfoot > tr > td {
+  text-align: start;
+}
+
+html body .erp-table .p-datatable-thead > tr > th.p-align-right > .p-column-header-content,
+html body .erp-table .p-datatable-tbody > tr > td.p-align-right,
+html body .erp-table .p-datatable-tfoot > tr > td.p-align-right,
+html body .erp-table .p-treetable-thead > tr > th.p-align-right > .p-column-header-content,
+html body .erp-table .p-treetable-tbody > tr > td.p-align-right,
+html body .erp-table .p-treetable-tfoot > tr > td.p-align-right {
+  text-align: end;
+  justify-content: flex-end;
+}
+
+html body .erp-table .p-datatable-thead > tr > th.p-align-left > .p-column-header-content,
+html body .erp-table .p-datatable-tbody > tr > td.p-align-left,
+html body .erp-table .p-datatable-tfoot > tr > td.p-align-left,
+html body .erp-table .p-treetable-thead > tr > th.p-align-left > .p-column-header-content,
+html body .erp-table .p-treetable-tbody > tr > td.p-align-left,
+html body .erp-table .p-treetable-tfoot > tr > td.p-align-left {
+  text-align: start;
+  justify-content: flex-start;
+}
+
+html body .erp-table .p-datatable-thead > tr > th.p-align-center > .p-column-header-content,
+html body .erp-table .p-datatable-tbody > tr > td.p-align-center,
+html body .erp-table .p-datatable-tfoot > tr > td.p-align-center {
+  text-align: center;
+  justify-content: center;
+}
+
+/* Arabic letters join: no tracking, no upper-casing on headers */
+html[dir="rtl"] body .erp-table .p-datatable-thead > tr > th,
+html[dir="rtl"] body .erp-table .p-treetable-thead > tr > th {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.8rem;
+}
+
+/* numbers and dates keep their own direction inside an RTL cell */
+html body .erp-table td.p-align-right {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- export progress panel ---- */
+.mk-exports {
+  position: fixed;
+  inset-block-end: 1.25rem;
+  inset-inline-end: 1.25rem;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  inline-size: min(22rem, calc(100vw - 2rem));
+}
+
+.mk-export {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-lg);
+  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+}
+
+.mk-export > .pi {
+  margin-block-start: 0.15rem;
+  font-size: 1.15rem;
+  color: var(--mk-primary);
+}
+
+.mk-export--done > .pi {
+  color: var(--mk-success);
+}
+
+.mk-export--error > .pi {
+  color: var(--mk-danger);
+}
+
+.mk-export__body {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mk-export__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  text-align: start;
+}
+
+.mk-export__status {
+  color: var(--mk-text-muted);
+  font-size: 0.8rem;
+}
+
+.mk-export__bar {
+  position: relative;
+  block-size: 6px;
+  margin-block-start: 0.35rem;
+  border-radius: 999px;
+  background: var(--mk-surface-3);
+  overflow: hidden;
+}
+
+.mk-export__bar > span {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--mk-primary);
+  transition: inline-size var(--mk-dur) var(--mk-ease);
+}
+
+.mk-export__bar--indeterminate > span {
+  inline-size: 38%;
+  animation: mk-export-slide 1.1s var(--mk-ease) infinite;
+}
+
+html[dir="rtl"] .mk-export__bar--indeterminate > span {
+  animation-name: mk-export-slide-rtl;
+}
+
+@keyframes mk-export-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(270%); }
+}
+
+@keyframes mk-export-slide-rtl {
+  from { transform: translateX(100%); }
+  to { transform: translateX(-270%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-export__bar--indeterminate > span {
+    animation: none;
+    inline-size: 100%;
+    opacity: 0.5;
+  }
+}
+
+.mk-export__close {
+  border: 0;
+  background: transparent;
+  color: var(--mk-text-muted);
+  cursor: pointer;
+  padding: 0.2rem;
+}
+
+/* ---- tabs: flat, underline in the brand colour, panel on the surface (theme default is indigo on slate) ---- */
+html body .p-tabview .p-tabview-nav {
+  background: transparent;
+  border: 0;
+  border-block-end: 1px solid var(--mk-border);
+  gap: 0.25rem;
+}
+
+html body .p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  background: transparent;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  margin: 0 0 -1px;
+  padding: 0.8rem 1.1rem;
+  color: var(--mk-text-muted);
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 0;
+  box-shadow: none;
+  transition: color var(--mk-dur-fast) ease, border-color var(--mk-dur-fast) ease;
+}
+
+html body .p-tabview .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
+  background: transparent;
+  color: var(--mk-text);
+  border-color: var(--mk-border-strong);
+}
+
+html body .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  background: transparent;
+  color: var(--mk-primary);
+  border-color: var(--mk-primary);
+}
+
+html body .p-tabview .p-tabview-nav li .p-tabview-nav-link:focus-visible {
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+html body .p-tabview .p-tabview-panels {
+  background: transparent;
+  padding: 1.25rem 0 0;
+  color: var(--mk-text);
+}
+
+/* ---- sortable headers: the arrows sit after the title with a gap, never on top of it ---- */
+html body .erp-table .p-sortable-column .p-column-header-content {
+  gap: 0.4rem;
+}
+
+html body .erp-table .p-sortable-column .p-sortable-column-icon {
+  margin: 0;
+  color: var(--mk-text-subtle);
+}
+
+html body .erp-table .p-sortable-column.p-highlight,
+html body .erp-table .p-sortable-column.p-highlight .p-sortable-column-icon {
+  color: var(--mk-primary);
+}
+
+html body .erp-table .p-sortable-column:not(.p-highlight):hover {
+  background: var(--mk-surface-3);
+}
+
+/* ---- multiselect list: a gap between the box and its label, selected rows tinted ---- */
+html body .p-multiselect-panel .p-multiselect-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--mk-surface-2);
+  border-bottom: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius) var(--mk-radius) 0 0;
+}
+
+html body .p-multiselect-panel .p-multiselect-header .p-multiselect-filter-container {
+  flex: 1;
+}
+
+html body .p-multiselect-panel .p-multiselect-items .p-multiselect-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 2px 6px;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--mk-radius-xs);
+  color: var(--mk-text);
+  font-size: 0.9rem;
+}
+
+html body .p-multiselect-panel .p-multiselect-items .p-multiselect-item:not(.p-highlight):hover {
+  background: var(--mk-surface-3);
+}
+
+html body .p-multiselect-panel .p-multiselect-items .p-multiselect-item.p-highlight {
+  background: var(--mk-primary-soft);
+  color: var(--mk-text);
+}
+
+html body .p-multiselect-panel .p-multiselect-close {
+  color: var(--mk-text-muted);
+}
+
+/* chips inside the multiselect box */
+html body .p-multiselect .p-multiselect-token {
+  background: var(--mk-primary-soft);
+  color: var(--mk-text);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+/* a tag without the status dot, for roles and permission lists */
+html body .p-tag.mk-tag--plain::before {
+  display: none;
+}
+
+html body .p-tag.mk-tag--plain {
+  font-weight: 600;
+  border: 1px solid var(--mk-border);
+}
+
+/* ---- shared grid: toolbar and paginator ---- */
+.mk-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-3);
+}
+
+.mk-grid__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+}
+
+.mk-grid__search {
+  position: relative;
+  flex: 0 1 22rem;
+  min-inline-size: 13rem;
+}
+
+.mk-grid__search > i {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 0.8rem;
+  margin-block-start: -0.5rem;
+  color: var(--mk-text-subtle);
+  pointer-events: none;
+}
+
+html body .mk-grid__search .p-inputtext {
+  width: 100%;
+  padding-inline: 2.4rem 0.9rem;
+}
+
+.mk-grid__count {
+  margin-inline-start: auto;
+  color: var(--mk-text-muted);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+html body .erp-table .p-paginator {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--mk-surface);
+  border: 0;
+  border-block-start: 1px solid var(--mk-border);
+  color: var(--mk-text-muted);
+  font-size: 0.84rem;
+}
+
+html body .erp-table .p-paginator .p-paginator-first,
+html body .erp-table .p-paginator .p-paginator-prev,
+html body .erp-table .p-paginator .p-paginator-next,
+html body .erp-table .p-paginator .p-paginator-last,
+html body .erp-table .p-paginator .p-paginator-page {
+  min-width: 2.2rem;
+  height: 2.2rem;
+  margin: 0;
+  border: 0;
+  border-radius: var(--mk-radius-xs);
+  background: transparent;
+  color: var(--mk-text-muted);
+  font-weight: 600;
+}
+
+html body .erp-table .p-paginator .p-paginator-page:not(.p-highlight):hover,
+html body .erp-table .p-paginator button:not(.p-disabled):not(.p-highlight):hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+html body .erp-table .p-paginator .p-paginator-page.p-highlight {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+
+html body .erp-table .p-paginator .p-dropdown {
+  min-height: 2.2rem;
+  margin-inline-end: auto;
+}
+
+html body .erp-table .p-paginator .p-paginator-current {
+  color: var(--mk-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the first/prev/next/last arrows point the way the page reads */
+html[dir="rtl"] .p-paginator .p-paginator-first svg,
+html[dir="rtl"] .p-paginator .p-paginator-prev svg,
+html[dir="rtl"] .p-paginator .p-paginator-next svg,
+html[dir="rtl"] .p-paginator .p-paginator-last svg {
+  transform: scaleX(-1);
+}
+
+/* ---- totals stay on screen: pinned to the bottom of the window while their table or form is in view ----
+   A sticky element stops at the end of its own section, so a statement with several sections shows each
+   section's total only while that section is on screen. In a form the actions bar is pinned at 0, so the
+   totals sit just above it. The "load more" bars (--center) are ordinary rows, not pinned. */
+.erp-table-footer:not(.erp-table-footer--center),
+.erp-lines__totals {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 6;
+  box-shadow: var(--mk-shadow-lg);
+  border-color: var(--mk-border-strong);
+}
+
+.erp-form .erp-table-footer:not(.erp-table-footer--center),
+.erp-form .erp-lines__totals {
+  bottom: 4.9rem;
+}
+
+.p-dialog .erp-table-footer:not(.erp-table-footer--center),
+.p-dialog .erp-lines__totals {
+  position: static;
+  box-shadow: none;
+}

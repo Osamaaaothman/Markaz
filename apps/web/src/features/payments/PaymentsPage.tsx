@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
 import { Money } from "@erp/shared";
@@ -64,7 +64,7 @@ export function PaymentsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: PaymentSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("payments.direction")} style={{ width: "10rem" }} body={(r: PaymentSummary) => <Tag value={t(`payments.directions.${r.direction}`)} severity={r.direction === "RECEIPT" ? "success" : "info"} />} />
             <Column header={t("payments.party")} body={(r: PaymentSummary) => localizedName({ name: r.partyName, nameAr: r.partyNameAr }, i18n.language)} />
@@ -73,7 +73,7 @@ export function PaymentsPage(): React.JSX.Element {
             <Column header={t("payments.reference")} body={(r: PaymentSummary) => r.reference ?? ""} />
             <Column header={t("payments.amount")} align="right" body={(r: PaymentSummary) => <strong>{formatMoney(r.amount, r.currency)}</strong>} />
             <Column header={t("payments.onAccount")} align="right" body={(r: PaymentSummary) => formatMoney(Money.of(r.amount, r.currency).subtract(Money.of(r.allocated, r.currency)).toDecimalString(4), r.currency)} />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />

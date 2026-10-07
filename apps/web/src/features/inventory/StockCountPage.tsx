@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
@@ -151,7 +151,7 @@ export function StockCountPage(): React.JSX.Element {
             </div>
           ))}
         </div>
-        <Button type="button" label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
+        <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
 
         {errors.lines?.root?.message ? <p className="erp-field__error">{t(`validation.${errors.lines.root.message}`)}</p> : null}
         {recordCount.isError ? <p className="erp-auth-card__error">{t("inventory.stockCount.recordError")}</p> : null}
@@ -173,7 +173,7 @@ export function StockCountPage(): React.JSX.Element {
           </button>
         </div>
       ) : (
-        <DataTable value={counts ?? []} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+        <DataGrid value={counts ?? []} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
           <Column field="number" header={t("inventory.stockCount.number")} style={{ width: "10rem" }} body={(row: StockCountSummary) => <span className="coa-code">{row.number}</span>} />
           <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockCountSummary) => row.warehouseName} />
           <Column header={t("inventory.goodsReceipt.documentDate")} body={(row: StockCountSummary) => formatCalendarDate(row.documentDate, i18n.language)} />
@@ -192,7 +192,7 @@ export function StockCountPage(): React.JSX.Element {
               )
             }
           />
-        </DataTable>
+        </DataGrid>
       )}
     </div>
   );

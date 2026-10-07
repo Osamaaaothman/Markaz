@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
@@ -66,7 +66,7 @@ export function SalesInvoicesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/invoices/${(e.data as SalesInvoiceSummary).id}`)}>
+          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/invoices/${(e.data as SalesInvoiceSummary).id}`)}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("sales.invoices.documentType")} style={{ width: "10rem" }} body={(r: SalesInvoiceSummary) => <Tag value={t(`sales.invoices.types.${r.documentType}`)} severity={r.documentType === "INVOICE" ? "info" : "warning"} />} />
             <Column header={t("sales.customer")} body={(r: SalesInvoiceSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
@@ -75,7 +75,7 @@ export function SalesInvoicesPage(): React.JSX.Element {
             <Column header={t("purchasing.invoices.net")} align="right" body={(r: SalesInvoiceSummary) => formatMoney(r.totalNet, r.currency)} />
             <Column header={t("purchasing.invoices.tax")} align="right" body={(r: SalesInvoiceSummary) => formatMoney(r.totalTax, r.currency)} />
             <Column header={t("purchasing.invoices.gross")} align="right" body={(r: SalesInvoiceSummary) => <strong>{formatMoney(r.totalGross, r.currency)}</strong>} />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
@@ -132,13 +132,13 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         </div>
       </div>
       {invoice.notes ? <p>{invoice.notes}</p> : null}
-      <DataTable value={[...invoice.lines]} className="erp-table" stripedRows showGridlines size="small">
+      <DataGrid value={[...invoice.lines]} className="erp-table" stripedRows showGridlines size="small">
         <Column header={t("sales.description")} body={(l: (typeof invoice.lines)[number]) => l.description} />
         <Column header={t("purchasing.quantity")} align="right" body={(l: (typeof invoice.lines)[number]) => l.quantity} />
         <Column header={t("purchasing.unitPrice")} align="right" body={(l: (typeof invoice.lines)[number]) => formatMoney(l.unitPrice, invoice.currency)} />
         <Column header={t("purchasing.invoices.net")} align="right" body={(l: (typeof invoice.lines)[number]) => formatMoney(l.netAmount, invoice.currency)} />
         <Column header={t("purchasing.invoices.tax")} align="right" body={(l: (typeof invoice.lines)[number]) => `${formatMoney(l.taxAmount, invoice.currency)} (${Number(l.taxRate)}%)`} />
-      </DataTable>
+      </DataGrid>
       <div className="erp-table-footer">
         <span>
           {t("purchasing.invoices.net")}: <strong>{formatMoney(invoice.totalNet, invoice.currency)}</strong>

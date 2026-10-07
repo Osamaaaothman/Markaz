@@ -4,6 +4,7 @@ import { Button } from "primereact/button";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { formatMoney } from "../../shared/lib/money";
+import { AnimatedMoney } from "../../shared/ui/AnimatedMoney";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { MonthlyChart } from "./MonthlyChart";
 import { useDashboard } from "./use-dashboard";
@@ -11,9 +12,11 @@ import { useDashboard } from "./use-dashboard";
 interface Kpi {
   readonly key: string;
   readonly label: string;
-  readonly value: string;
+  readonly amount: string | null;
   readonly hint?: string;
-  readonly tone?: "warn" | "ok";
+  readonly tone?: "warn";
+  // For receivables and payables: the share of the figure that is overdue, 0-100, drawn as a ring.
+  readonly overduePercent?: number;
   readonly to: string;
   readonly icon: string;
 }
@@ -25,10 +28,20 @@ interface Attention {
   readonly icon: string;
 }
 
-// The first screen. Cards link to the report behind them; "needs attention" lists only what someone
-// has to act on; quick actions are the handful of things people do all day. Everything shown is
-// permission-aware — the API leaves out a section the user may not read, and a button the user may not
-// use is not drawn.
+function Ring({ percent }: { percent: number }): React.JSX.Element {
+  return (
+    <svg className="erp-kpi__ring" viewBox="0 0 36 36" aria-hidden="true" style={{ "--mk-ring-offset": 100 - Math.min(Math.max(percent, 0), 100) } as React.CSSProperties}>
+      <circle className="mk-ring__track" cx="18" cy="18" r="15.9155" />
+      <circle className="mk-ring__bar" cx="18" cy="18" r="15.9155" pathLength={100} />
+    </svg>
+  );
+}
+
+const share = (overdue: string, total: string): number => (Number(total) > 0 ? (Number(overdue) / Number(total)) * 100 : 0);
+
+// The first screen. Cards link to the report behind them; "needs attention" lists only what someone has to
+// act on; quick actions are the handful of things people do all day. Everything shown is permission-aware —
+// the API leaves out a section the user may not read, and a button the user may not use is not drawn.
 export function DashboardPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -55,8 +68,8 @@ export function DashboardPage(): React.JSX.Element {
     kpis.push({
       key: "ar",
       label: t("dashboard.kpi.receivables"),
-      value: formatMoney(data.receivables.total, cur),
-      ...(overdue ? { hint: t("dashboard.kpi.overdue", { amount: formatMoney(data.receivables.overdue, cur) }), tone: "warn" as const } : {}),
+      amount: data.receivables.total,
+      ...(overdue ? { hint: t("dashboard.kpi.overdue", { amount: formatMoney(data.receivables.overdue, cur) }), tone: "warn" as const, overduePercent: share(data.receivables.overdue, data.receivables.total) } : {}),
       to: "/accounting/aging",
       icon: "pi pi-arrow-down-left",
     });
@@ -66,8 +79,8 @@ export function DashboardPage(): React.JSX.Element {
     kpis.push({
       key: "ap",
       label: t("dashboard.kpi.payables"),
-      value: formatMoney(data.payables.total, cur),
-      ...(overdue ? { hint: t("dashboard.kpi.overdue", { amount: formatMoney(data.payables.overdue, cur) }), tone: "warn" as const } : {}),
+      amount: data.payables.total,
+      ...(overdue ? { hint: t("dashboard.kpi.overdue", { amount: formatMoney(data.payables.overdue, cur) }), tone: "warn" as const, overduePercent: share(data.payables.overdue, data.payables.total) } : {}),
       to: "/accounting/aging",
       icon: "pi pi-arrow-up-right",
     });
@@ -76,17 +89,17 @@ export function DashboardPage(): React.JSX.Element {
     kpis.push({
       key: "cash",
       label: t("dashboard.kpi.cash"),
-      value: data.cash.balance === null ? "—" : formatMoney(data.cash.balance, cur),
+      amount: data.cash.balance,
       hint: data.cash.balance === null ? t("dashboard.kpi.cashNone") : t("dashboard.kpi.cashHint"),
       to: "/accounting/balance-sheet",
       icon: "pi pi-wallet",
     });
   }
   if (data.sales) {
-    kpis.push({ key: "sales", label: t("dashboard.kpi.sales"), value: formatMoney(data.sales.thisMonthNet, cur), hint: t("dashboard.kpi.salesHint"), to: "/sales/invoices", icon: "pi pi-chart-line" });
+    kpis.push({ key: "sales", label: t("dashboard.kpi.sales"), amount: data.sales.thisMonthNet, hint: t("dashboard.kpi.salesHint"), to: "/sales/invoices", icon: "pi pi-chart-line" });
   }
   if (data.stock) {
-    kpis.push({ key: "stock", label: t("dashboard.kpi.stock"), value: formatMoney(data.stock.value, cur), to: "/inventory/stock-levels", icon: "pi pi-box" });
+    kpis.push({ key: "stock", label: t("dashboard.kpi.stock"), amount: data.stock.value, to: "/inventory/stock-levels", icon: "pi pi-box" });
   }
 
   const attention: Attention[] = [];
@@ -122,36 +135,37 @@ export function DashboardPage(): React.JSX.Element {
 
   return (
     <div className="erp-page erp-page--wide erp-dashboard">
-      <div className="erp-page__header">
+      <section className="mk-hero">
         <div>
-          <h1 className="erp-page__title">{t("dashboard.hello", { name })}</h1>
-          <p className="erp-page__subtitle">
+          <h1 className="mk-hero__title">{t("dashboard.hello", { name })}</h1>
+          <p className="mk-hero__sub">
             {currentUser?.companyName} · {today}
           </p>
         </div>
-      </div>
+        {actions.length > 0 ? (
+          <div className="mk-hero__actions">
+            {actions.map((a) => (
+              <Button key={a.key} label={a.label} icon={a.icon} onClick={() => void navigate(a.to)} />
+            ))}
+          </div>
+        ) : null}
+      </section>
 
-      {actions.length > 0 ? (
-        <div className="erp-dashboard__actions">
-          {actions.map((a) => (
-            <Button key={a.key} label={a.label} icon={a.icon} outlined onClick={() => void navigate(a.to)} />
-          ))}
-        </div>
-      ) : null}
-
-      {kpis.length === 0 && attention.length === 0 && !data.monthly ? (
-        <p className="erp-page__empty">{t("dashboard.nothingToShow")}</p>
-      ) : null}
+      {kpis.length === 0 && attention.length === 0 && !data.monthly ? <p className="erp-page__empty">{t("dashboard.nothingToShow")}</p> : null}
 
       {kpis.length > 0 ? (
-        <div className="erp-kpis">
-          {kpis.map((k) => (
-            <button key={k.key} type="button" className={`erp-kpi${k.tone === "warn" ? " erp-kpi--warn" : ""}`} onClick={() => void navigate(k.to)}>
-              <span className="erp-kpi__icon">
-                <i className={k.icon} aria-hidden="true" />
-              </span>
+        <div className="erp-kpis mk-stagger">
+          {kpis.map((k, index) => (
+            <button key={k.key} type="button" className={`erp-kpi${k.tone === "warn" ? " erp-kpi--warn" : ""}`} style={{ "--i": index } as React.CSSProperties} onClick={() => void navigate(k.to)}>
+              {k.overduePercent !== undefined ? (
+                <Ring percent={k.overduePercent} />
+              ) : (
+                <span className="erp-kpi__icon">
+                  <i className={k.icon} aria-hidden="true" />
+                </span>
+              )}
               <span className="erp-kpi__label">{k.label}</span>
-              <span className="erp-kpi__value">{k.value}</span>
+              <span className="erp-kpi__value">{k.amount === null ? "—" : <AnimatedMoney amount={k.amount} currency={cur} />}</span>
               {k.hint ? <span className="erp-kpi__hint">{k.hint}</span> : null}
             </button>
           ))}
@@ -174,9 +188,9 @@ export function DashboardPage(): React.JSX.Element {
                 <i className="pi pi-check-circle" aria-hidden="true" /> {t("dashboard.attention.allClear")}
               </p>
             ) : (
-              <ul className="erp-attention">
-                {attention.map((a) => (
-                  <li key={a.key}>
+              <ul className="erp-attention mk-stagger">
+                {attention.map((a, index) => (
+                  <li key={a.key} style={{ "--i": index + 3 } as React.CSSProperties}>
                     <button type="button" className="erp-attention__item" onClick={() => void navigate(a.to)}>
                       <i className={a.icon} aria-hidden="true" />
                       <span>{a.text}</span>

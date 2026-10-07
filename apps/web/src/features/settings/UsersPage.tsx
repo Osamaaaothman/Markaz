@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { MultiSelect } from "primereact/multiselect";
@@ -342,7 +342,7 @@ export function UsersPage(): React.JSX.Element {
                 </button>
               </div>
             ) : (
-              <DataTable
+              <DataGrid
                 value={users}
                 className="erp-table"
                 stripedRows
@@ -366,7 +366,7 @@ export function UsersPage(): React.JSX.Element {
                     ) : (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
                         {row.roles.map((r) => (
-                          <Tag key={r.id} value={r.name} severity="secondary" />
+                          <Tag key={r.id} value={r.name} severity="secondary" className="mk-tag--plain" />
                         ))}
                       </div>
                     )
@@ -401,7 +401,7 @@ export function UsersPage(): React.JSX.Element {
                   )}
                   style={{ width: "10rem" }}
                 />
-              </DataTable>
+              </DataGrid>
             )}
           </TabPanel>
         ) : null}
@@ -432,7 +432,7 @@ export function UsersPage(): React.JSX.Element {
                 </button>
               </div>
             ) : (
-              <DataTable
+              <DataGrid
                 value={roles}
                 className="erp-table"
                 stripedRows
@@ -458,7 +458,8 @@ export function UsersPage(): React.JSX.Element {
                       {groupPermissionsByResource(row.permissions).map((group) => (
                         <Tag
                           key={group.resource}
-                          severity="info"
+                          severity="secondary"
+                          className="mk-tag--plain"
                           value={`${t(`settings.usersRoles.resources.${group.resource}`, group.resource)}: ${listFormat.format(
                             group.actions.map((a) => t(`settings.usersRoles.actions.${a}`, a)),
                           )}`}
@@ -467,7 +468,7 @@ export function UsersPage(): React.JSX.Element {
                     </div>
                   )}
                 />
-              </DataTable>
+              </DataGrid>
             )}
           </TabPanel>
         ) : null}

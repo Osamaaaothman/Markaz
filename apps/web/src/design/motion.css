@@ -1,0 +1,212 @@
+/* ============================================================================
+   Markaz design system — motion
+   Short, purposeful, and always switched off for people who ask for less motion.
+   ============================================================================ */
+
+@keyframes mk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mk-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mk-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes mk-slide-in-start {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--mk-dir, 1) * -14px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes mk-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes mk-draw {
+  from {
+    stroke-dashoffset: var(--mk-len, 1);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes mk-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes mk-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes mk-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.78;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes mk-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes mk-spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- the page itself eases in when a route mounts ---- */
+.erp-page {
+  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+}
+
+/* ---- staggered entrance: set --i on a child (0, 1, 2 ...) ---- */
+.mk-stagger > * {
+  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+  animation-delay: calc(var(--i, 0) * 60ms + 60ms);
+}
+
+/* ---- skeleton shimmer ---- */
+.mk-shimmer {
+  background: linear-gradient(100deg, var(--mk-surface-3) 30%, color-mix(in srgb, var(--mk-surface) 70%, var(--mk-surface-3)) 50%, var(--mk-surface-3) 70%);
+  background-size: 200% 100%;
+  animation: mk-shimmer 1.6s linear infinite;
+}
+
+/* ---- the logo ---- */
+.mk-logo {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.mk-logo__ring,
+.mk-logo__tail {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.mk-logo--intro .mk-logo__ring,
+.mk-logo--loop .mk-logo__ring {
+  --mk-len: 1;
+  animation: mk-draw 0.8s var(--mk-ease) 0.1s both;
+}
+
+.mk-logo--intro .mk-logo__tail,
+.mk-logo--loop .mk-logo__tail {
+  --mk-len: 1;
+  animation: mk-draw 0.55s var(--mk-ease) 0.78s both;
+}
+
+.mk-logo__dot {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.mk-logo--intro .mk-logo__dot,
+.mk-logo--loop .mk-logo__dot {
+  animation: mk-pop 0.55s var(--mk-ease-spring) 1.15s both;
+}
+
+.mk-logo--intro .mk-logo__shine {
+  animation: mk-shine 1.1s var(--mk-ease) 1.55s both;
+}
+
+.mk-logo--loop {
+  animation: mk-pulse-soft 2.6s ease-in-out infinite;
+}
+
+.mk-logo--loop .mk-logo__ring {
+  animation: mk-draw 1.4s var(--mk-ease) 0.1s infinite alternate;
+}
+
+.mk-logo--loop .mk-logo__tail {
+  animation: mk-draw 1.4s var(--mk-ease) 0.5s infinite alternate;
+}
+
+@keyframes mk-shine {
+  from {
+    transform: translateX(0) skewX(-18deg);
+  }
+  to {
+    transform: translateX(150px) skewX(-18deg);
+  }
+}
+
+/* hovering the emblem replays a short shine */
+.mk-brand:hover .mk-logo__shine,
+.mk-logo:hover .mk-logo__shine {
+  animation: mk-shine 0.9s var(--mk-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

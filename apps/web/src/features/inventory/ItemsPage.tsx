@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
@@ -66,7 +66,7 @@ export function ItemsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={items} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid searchable={false} value={items} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column field="code" header={t("inventory.items.code")} style={{ width: "8rem" }} body={(row: ItemSummary) => <span className="coa-code">{row.code}</span>} />
             <Column header={t("inventory.items.name")} body={(row: ItemSummary) => <span className="coa-name">{localizedName(row, i18n.language)}</span>} />
             <Column field="unit" header={t("inventory.items.unit")} style={{ width: "6rem" }} />
@@ -84,7 +84,7 @@ export function ItemsPage(): React.JSX.Element {
                 <PermissionButton allowed={can("item:update")} icon="pi pi-pencil" rounded text severity="secondary" aria-label={t("inventory.items.edit")} onClick={() => openDialog(row)} />
               )}
             />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />

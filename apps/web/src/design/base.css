@@ -1,0 +1,128 @@
+/* ============================================================================
+   Markaz design system — base
+   Reset, typography, focus, scrollbars. Logical properties only: this file reads correctly whether
+   html[dir] is "ltr" or "rtl" (docs/08-FRONTEND-I18N-RULES.md §4).
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: var(--mk-bg);
+  color: var(--mk-text);
+  font-family: var(--mk-font);
+  font-size: var(--mk-text-base);
+  line-height: 1.6;
+  /* A safety net for genuinely wide content; real wide tables scroll inside their own wrapper. */
+  overflow-x: hidden;
+}
+
+/* The page behind everything has a faint depth rather than a flat grey. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin-block: 0;
+}
+
+a {
+  color: var(--mk-primary);
+}
+
+/* Amounts, codes and dates keep their numerals even and aligned. */
+.coa-code,
+.mk-num,
+.p-datatable td,
+.erp-kpi__value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- focus: always visible, never harsh ---- */
+:focus-visible {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  border-radius: var(--mk-radius-sm);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--mk-brand-500) 28%, transparent);
+}
+
+/* ---- scrollbars ---- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mk-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mk-border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mk-text-subtle);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+
+/* ---- tiny utilities the screens share ---- */
+.mk-muted {
+  color: var(--mk-text-muted);
+}
+
+.mk-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+kbd {
+  font-family: var(--mk-font-mono);
+  font-size: 0.72rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: var(--mk-radius-xs);
+  border: 1px solid var(--mk-border-strong);
+  border-block-end-width: 2px;
+  background: var(--mk-surface-2);
+  color: var(--mk-text-muted);
+}

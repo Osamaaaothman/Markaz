@@ -1,0 +1,662 @@
+/* ============================================================================
+   Markaz design system — application shell
+   Sidebar (dark rail), top bar (glass), command palette, brand lock-up.
+   Logical properties only; the sidebar sits at the inline-start edge in both directions.
+   ============================================================================ */
+
+/* ---------- layout ---------- */
+
+.erp-shell {
+  display: grid;
+  grid-template-columns: var(--mk-sidebar-w) 1fr;
+  min-height: 100vh;
+  transition: grid-template-columns var(--mk-dur-slow) var(--mk-ease);
+}
+
+.erp-shell--collapsed {
+  grid-template-columns: var(--mk-sidebar-w-collapsed) 1fr;
+}
+
+.erp-shell__desktop-sidebar {
+  display: none;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.erp-shell__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.erp-shell__content {
+  flex: 1;
+  padding: var(--mk-space-6) var(--mk-space-4) var(--mk-space-10);
+  max-width: 1320px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* A page holding a wide table (chart of accounts, stock) opts out of the width cap. */
+.erp-shell__content:has(.erp-page--wide) {
+  max-width: none;
+}
+
+@media (min-width: 900px) {
+  .erp-shell__desktop-sidebar {
+    display: block;
+    grid-column: 1;
+  }
+  .erp-shell__main {
+    grid-column: 2;
+  }
+  .erp-shell__content {
+    padding-inline: var(--mk-space-8);
+  }
+}
+
+.erp-shell__mobile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  background: rgb(18 17 15 / 0.55);
+  backdrop-filter: blur(3px);
+  animation: mk-fade var(--mk-dur) ease both;
+}
+
+.erp-shell__mobile-drawer {
+  width: var(--mk-sidebar-w);
+  max-width: 84vw;
+  height: 100%;
+  box-shadow: var(--mk-shadow-xl);
+  animation: mk-slide-in-start var(--mk-dur-slow) var(--mk-ease) both;
+}
+
+html[dir="rtl"] .erp-shell__mobile-drawer {
+  --mk-dir: -1;
+}
+
+/* ---------- brand lock-up ---------- */
+
+.mk-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: inherit;
+}
+
+.mk-brand--stacked {
+  flex-direction: column;
+  text-align: center;
+  gap: 0.9rem;
+}
+
+.mk-brand__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.mk-brand__name {
+  font-size: 1.28rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.mk-brand__tagline {
+  font-size: 0.72rem;
+  font-weight: 500;
+  opacity: 0.62;
+  margin-block-start: 0.15rem;
+}
+
+/* ---------- sidebar ---------- */
+
+.erp-sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--mk-space-5) var(--mk-space-3) var(--mk-space-3);
+  color: var(--mk-side-text);
+  background: var(--mk-side-bg-from);
+  overflow: hidden;
+}
+
+.erp-sidebar__brand {
+  padding-inline: var(--mk-space-2);
+  margin-block-end: var(--mk-space-5);
+  color: var(--mk-side-text-strong);
+}
+
+.erp-sidebar__nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--mk-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* still scrolls with wheel, touch and keyboard; the bar itself is not drawn */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.erp-sidebar__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.erp-sidebar__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.62rem 0.8rem;
+  border-radius: var(--mk-radius-sm);
+  color: var(--mk-side-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, transform var(--mk-dur-fast) ease;
+}
+
+.erp-sidebar__link i {
+  flex-shrink: 0;
+  width: 1.25rem;
+  text-align: center;
+  font-size: 1.02rem;
+  opacity: 0.78;
+  transition: transform var(--mk-dur) var(--mk-ease), color var(--mk-dur-fast) ease, opacity var(--mk-dur-fast) ease;
+}
+
+.erp-sidebar__link:hover {
+  background: var(--mk-side-hover);
+  color: var(--mk-side-text-strong);
+}
+
+.erp-sidebar__link:hover i {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.erp-sidebar__link--active {
+  background: var(--mk-side-active);
+  color: var(--mk-side-text-strong);
+  font-weight: 600;
+}
+
+.erp-sidebar__link--active i {
+  color: var(--mk-brand-300);
+  opacity: 1;
+}
+
+/* the gold marker on the active entry, at the inline-start edge */
+.erp-sidebar__link--active::before {
+  content: "";
+  position: absolute;
+  inset-block: 22%;
+  inset-inline-start: -0.75rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--mk-brass-400);
+  animation: mk-grow-y var(--mk-dur-slow) var(--mk-ease) both;
+}
+
+html[dir="rtl"] .erp-sidebar__link--active::before {
+  border-radius: 3px 0 0 3px;
+}
+
+.erp-sidebar__group {
+  display: block;
+  margin: var(--mk-space-4) var(--mk-space-3) var(--mk-space-2);
+  color: var(--mk-side-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.erp-sidebar__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--mk-space-2);
+  padding-block-start: var(--mk-space-3);
+  border-block-start: 1px solid rgb(255 255 255 / 0.09);
+}
+
+.erp-sidebar__company {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--mk-radius-sm);
+  background: rgb(255 255 255 / 0.05);
+}
+
+.erp-sidebar__company .erp-sidebar__label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.erp-sidebar__company strong {
+  color: var(--mk-side-text-strong);
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.erp-sidebar__company small {
+  color: var(--mk-side-muted);
+  font-size: 0.7rem;
+}
+
+.erp-sidebar__company-dot {
+  flex-shrink: 0;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--mk-brand-400);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.18);
+}
+
+.erp-sidebar__collapse {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 0;
+  border-radius: var(--mk-radius-sm);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--mk-side-text);
+  cursor: pointer;
+  transition: background-color var(--mk-dur-fast) ease;
+}
+
+.erp-sidebar__collapse:hover {
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+}
+
+.erp-sidebar__collapse i {
+  transition: transform var(--mk-dur-slow) var(--mk-ease);
+}
+
+html[dir="rtl"] .erp-sidebar__collapse i {
+  transform: scaleX(-1);
+}
+
+.erp-sidebar--collapsed .erp-sidebar__collapse i {
+  transform: rotate(180deg);
+}
+
+html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
+  transform: scaleX(-1) rotate(180deg);
+}
+
+/* collapsed rail: icons only */
+.erp-sidebar--collapsed .erp-sidebar__label,
+.erp-sidebar--collapsed .mk-brand__text,
+.erp-sidebar--collapsed .erp-sidebar__group,
+.erp-sidebar--collapsed .erp-sidebar__company .erp-sidebar__label {
+  display: none;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__brand {
+  display: grid;
+  place-items: center;
+  padding-inline: 0;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__link {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__link--active::before {
+  inset-inline-start: -0.75rem;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__footer {
+  flex-direction: column;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__company {
+  background: none;
+  padding: 0;
+  justify-content: center;
+}
+
+/* ---------- top bar ---------- */
+
+.erp-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--mk-topbar-h);
+  display: flex;
+  align-items: center;
+  gap: var(--mk-space-2);
+  padding-inline: var(--mk-space-4);
+  background: color-mix(in srgb, var(--mk-surface) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  border-block-end: 1px solid var(--mk-border);
+}
+
+@media (min-width: 900px) {
+  .erp-topbar {
+    padding-inline: var(--mk-space-8);
+  }
+}
+
+.erp-topbar__spacer {
+  flex: 1;
+}
+
+.erp-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  font-size: var(--mk-text-sm);
+}
+
+.erp-breadcrumb__group {
+  color: var(--mk-text-muted);
+  white-space: nowrap;
+}
+
+.erp-breadcrumb__sep {
+  font-size: 0.6rem;
+  color: var(--mk-text-subtle);
+}
+
+html[dir="rtl"] .erp-breadcrumb__sep {
+  transform: scaleX(-1);
+}
+
+.erp-breadcrumb__page {
+  color: var(--mk-text);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.erp-topbar__search {
+  display: none;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 15rem;
+  height: 2.5rem;
+  padding-inline: 0.85rem 0.6rem;
+  border: 1px solid var(--mk-border);
+  border-radius: 999px;
+  background: var(--mk-surface-2);
+  color: var(--mk-text-muted);
+  font: inherit;
+  font-size: var(--mk-text-sm);
+  cursor: pointer;
+  transition: border-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease;
+}
+
+.erp-topbar__search span {
+  flex: 1;
+  text-align: start;
+}
+
+.erp-topbar__search:hover {
+  border-color: var(--mk-primary);
+  background: var(--mk-surface);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+@media (min-width: 760px) {
+  .erp-topbar__search {
+    display: inline-flex;
+  }
+}
+
+.erp-topbar__icon-button,
+.erp-topbar__avatar-button,
+.erp-topbar__lang {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--mk-text-muted);
+  cursor: pointer;
+  font: inherit;
+  transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, transform var(--mk-dur-fast) ease;
+}
+
+.erp-topbar__icon-button,
+.erp-topbar__avatar-button {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+}
+
+.erp-topbar__lang {
+  height: 2.1rem;
+  padding-inline: 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--mk-border);
+  font-size: var(--mk-text-xs);
+  font-weight: 700;
+}
+
+.erp-topbar__icon-button:hover,
+.erp-topbar__avatar-button:hover,
+.erp-topbar__lang:hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+.erp-topbar__icon-button:active,
+.erp-topbar__lang:active {
+  transform: scale(0.94);
+}
+
+.erp-topbar__theme i {
+  animation: mk-spin-in var(--mk-dur-slow) var(--mk-ease) both;
+}
+
+@keyframes mk-spin-in {
+  from {
+    transform: rotate(-90deg) scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* The hamburger only exists below the sidebar breakpoint. */
+@media (min-width: 900px) {
+  .erp-topbar__menu-toggle {
+    display: none;
+  }
+}
+
+.erp-topbar__avatar {
+  background: var(--mk-brand-600) !important;
+  color: #fff !important;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.erp-usermenu__head {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  gap: 0.1rem;
+}
+
+.erp-usermenu__head small {
+  color: var(--mk-text-muted);
+}
+
+/* ---------- command palette ---------- */
+
+.mk-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh var(--mk-space-4) var(--mk-space-4);
+  background: rgb(18 17 15 / 0.5);
+  backdrop-filter: blur(4px);
+  animation: mk-fade var(--mk-dur) ease both;
+}
+
+.mk-palette {
+  width: min(40rem, 100%);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--mk-radius-lg);
+  border: 1px solid var(--mk-border-strong);
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-xl);
+  animation: mk-scale-in var(--mk-dur) var(--mk-ease) both;
+}
+
+.mk-palette__search {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-block-end: 1px solid var(--mk-border);
+  color: var(--mk-text-muted);
+}
+
+.mk-palette__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--mk-text);
+  font: inherit;
+  font-size: var(--mk-text-lg);
+}
+
+.mk-palette__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem;
+  overflow-y: auto;
+}
+
+.mk-palette__heading {
+  display: block;
+  padding: 0.7rem 0.75rem 0.3rem;
+  color: var(--mk-text-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mk-palette__item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.62rem 0.75rem;
+  border: 0;
+  border-radius: var(--mk-radius-sm);
+  background: transparent;
+  color: var(--mk-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.mk-palette__item i {
+  width: 1.2rem;
+  text-align: center;
+  color: var(--mk-text-muted);
+}
+
+.mk-palette__item--active {
+  background: var(--mk-primary-soft);
+}
+
+.mk-palette__item--active i {
+  color: var(--mk-primary);
+}
+
+.mk-palette__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.mk-palette__hint {
+  color: var(--mk-text-subtle);
+  font-size: var(--mk-text-xs);
+}
+
+.mk-palette__empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--mk-text-muted);
+}
+
+.mk-palette__foot {
+  display: flex;
+  gap: 1.1rem;
+  padding: 0.6rem 1rem;
+  border-block-start: 1px solid var(--mk-border);
+  background: var(--mk-surface-2);
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-xs);
+}
+
+/* tooltips (sidebar labels and any other data-pr-tooltip) */
+html body .p-tooltip {
+  max-width: 18rem;
+}
+
+html body .p-tooltip .p-tooltip-text {
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--mk-radius-xs);
+  background: var(--mk-ink-950);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: var(--mk-shadow-md);
+}
+
+html body .p-tooltip.p-tooltip-left .p-tooltip-arrow { border-left-color: var(--mk-ink-950); }
+html body .p-tooltip.p-tooltip-right .p-tooltip-arrow { border-right-color: var(--mk-ink-950); }
+html body .p-tooltip.p-tooltip-top .p-tooltip-arrow { border-top-color: var(--mk-ink-950); }
+html body .p-tooltip.p-tooltip-bottom .p-tooltip-arrow { border-bottom-color: var(--mk-ink-950); }

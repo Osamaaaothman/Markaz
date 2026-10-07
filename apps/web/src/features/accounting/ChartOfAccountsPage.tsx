@@ -666,6 +666,8 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             <Column
               header={t("accounting.chartOfAccounts.id")}
               style={{ width: "8rem" }}
+              className="coa-col-hide-lg"
+              headerClassName="coa-col-hide-lg"
               body={(node: TreeNode) => {
                 const account = node.data as ChartNodeData;
                 return <CopyId value={account.ref} uuid={account.id} />;
@@ -732,7 +734,9 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     align="right"
                     alignHeader="right"
                     style={{ width: "8rem" }}
-                                        body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
+                    className="coa-col-hide-sm2"
+                    headerClassName="coa-col-hide-sm2"
+                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
                   />,
                   <Column
                     key="credit"
@@ -740,7 +744,9 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                     align="right"
                     alignHeader="right"
                     style={{ width: "8rem" }}
-                                        body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
+                    className="coa-col-hide-sm2"
+                    headerClassName="coa-col-hide-sm2"
+                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
                   />,
                   <Column
                     key="balance"
@@ -765,6 +771,8 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             <Column
               header={t("accounting.chartOfAccounts.type")}
               style={{ width: "6rem" }}
+              className="coa-col-hide-md"
+              headerClassName="coa-col-hide-md"
               body={(node: TreeNode) => {
                 const account = node.data as ChartNodeData;
                 return (

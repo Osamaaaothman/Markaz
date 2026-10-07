@@ -124,7 +124,7 @@ export function StockIssuePage(): React.JSX.Element {
             </div>
           ))}
         </div>
-        <Button type="button" label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
+        <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
 
         {errors.lines?.root?.message ? <p className="erp-field__error">{t(`validation.${errors.lines.root.message}`)}</p> : null}
         {createIssue.isError ? <p className="erp-auth-card__error">{insufficientStockMessage ?? t("inventory.stockIssue.postError")}</p> : null}

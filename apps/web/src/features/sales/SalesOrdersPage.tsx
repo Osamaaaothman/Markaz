@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
@@ -58,13 +58,13 @@ export function SalesOrdersPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/orders/${(e.data as SalesOrderSummary).id}`)}>
+          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/orders/${(e.data as SalesOrderSummary).id}`)}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesOrderSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("sales.customer")} body={(r: SalesOrderSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("sales.orders.date")} style={{ width: "9rem" }} body={(r: SalesOrderSummary) => formatCalendarDate(r.orderDate, i18n.language)} />
             <Column header={t("purchasing.invoices.gross")} align="right" style={{ width: "11rem" }} body={(r: SalesOrderSummary) => formatMoney(r.totalGross, r.currency)} />
             <Column header={t("purchasing.status")} style={{ width: "11rem" }} body={(r: SalesOrderSummary) => <Tag value={t(`sales.orders.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
@@ -115,14 +115,14 @@ export function SalesOrderDetailPage(): React.JSX.Element {
       {cancel.isError ? <p className="erp-auth-card__error">{t("sales.errors.generic")}</p> : null}
       {order.notes ? <p>{order.notes}</p> : null}
 
-      <DataTable value={[...order.lines]} className="erp-table" stripedRows showGridlines size="small">
+      <DataGrid value={[...order.lines]} className="erp-table" stripedRows showGridlines size="small">
         <Column header={t("sales.description")} body={(l: SalesLineView) => l.description} />
         <Column header={t("purchasing.quantity")} align="right" body={(l: SalesLineView) => l.quantity} />
         <Column header={t("sales.invoiced")} align="right" body={(l: SalesLineView) => l.invoicedQuantity ?? "0.0000"} />
         <Column header={t("purchasing.unitPrice")} align="right" body={(l: SalesLineView) => formatMoney(l.unitPrice, order.currency)} />
         <Column header={t("purchasing.invoices.net")} align="right" body={(l: SalesLineView) => formatMoney(l.netAmount, order.currency)} />
         <Column header={t("purchasing.invoices.tax")} align="right" body={(l: SalesLineView) => formatMoney(l.taxAmount, order.currency)} />
-      </DataTable>
+      </DataGrid>
       <div className="erp-table-footer">
         <span>
           {t("purchasing.invoices.gross")}: <strong>{formatMoney(order.totalGross, order.currency)}</strong>

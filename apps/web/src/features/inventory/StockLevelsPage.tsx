@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
 import { Tag } from "primereact/tag";
@@ -79,7 +79,7 @@ export function StockLevelsPage(): React.JSX.Element {
           </button>
         </div>
       ) : (
-        <DataTable value={data ?? []} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+        <DataGrid value={data ?? []} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
           <Column field="itemCode" header={t("inventory.items.code")} style={{ width: "8rem" }} body={(row: StockLevelEntry) => <span className="coa-code">{row.itemCode}</span>} />
           <Column header={t("inventory.items.name")} body={(row: StockLevelEntry) => <span className="coa-name">{localizedName({ name: row.itemName, nameAr: row.itemNameAr }, i18n.language)}</span>} />
           <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockLevelEntry) => row.warehouseName} />
@@ -97,7 +97,7 @@ export function StockLevelsPage(): React.JSX.Element {
               )
             }
           />
-        </DataTable>
+        </DataGrid>
       )}
     </div>
   );

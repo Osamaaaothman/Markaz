@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
@@ -95,7 +95,8 @@ export function PartiesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable
+          <DataGrid
+            searchable={false}
             value={parties}
             className="erp-table"
             stripedRows
@@ -157,7 +158,7 @@ export function PartiesPage(): React.JSX.Element {
                 />
               )}
             />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button

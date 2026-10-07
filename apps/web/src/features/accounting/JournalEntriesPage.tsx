@@ -2,14 +2,13 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
-import { apiClient } from "../../shared/api/client";
-import { downloadBlob } from "../../shared/lib/download-file";
+import { exportFile } from "./export-report";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryDetailDialog } from "./JournalEntryDetailDialog";
@@ -44,11 +43,7 @@ export function JournalEntriesPage(): React.JSX.Element {
             label={t("accounting.journalEntries.exportCsv")}
             icon="pi pi-file"
             outlined
-            onClick={() =>
-              void apiClient
-                .get<Blob>("/v1/journal-entries/export", { params: filter, responseType: "blob" })
-                .then((response) => downloadBlob(response.data, "journal-lines.csv"))
-            }
+            onClick={() => void exportFile("/v1/journal-entries/export", { ...filter }, "journal-lines.csv")}
           />
           <PermissionButton
             allowed={canAll(["journal_entry:create", "account:read", "fiscal_period:read"])}
@@ -95,7 +90,7 @@ export function JournalEntriesPage(): React.JSX.Element {
         <p className="erp-page__empty">{t("status.empty")}</p>
       ) : (
         <>
-          <DataTable
+          <DataGrid
             value={entries}
             className="erp-table erp-table--clickable-rows"
             stripedRows
@@ -125,7 +120,7 @@ export function JournalEntriesPage(): React.JSX.Element {
               }
               style={{ width: "8rem" }}
             />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button

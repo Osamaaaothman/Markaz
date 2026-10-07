@@ -4,13 +4,13 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
-import { DataTable } from "primereact/datatable";
+import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
-import { downloadBlob } from "../../shared/lib/download-file";
+import { exportFile } from "../accounting/export-report";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
@@ -80,8 +80,7 @@ export function StockMovementsPage(): React.JSX.Element {
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
   const exportCsv = async (): Promise<void> => {
-    const response = await apiClient.get<Blob>("/v1/stock-movements/export", { params: filters, responseType: "blob" });
-    downloadBlob(response.data, "stock-movements.csv");
+    await exportFile("/v1/stock-movements/export", { ...filters }, "stock-movements.csv");
   };
 
   return (
@@ -146,7 +145,7 @@ export function StockMovementsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataTable value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("inventory.movements.date")} style={{ width: "9rem" }} body={(r: MovementEntry) => formatCalendarDate(r.date, i18n.language)} />
             <Column header={t("inventory.items.code")} style={{ width: "9rem" }} body={(r: MovementEntry) => <span className="coa-code">{r.itemCode}</span>} />
             <Column header={t("inventory.items.name")} body={(r: MovementEntry) => localizedName({ name: r.itemName, nameAr: r.itemNameAr }, i18n.language)} />
@@ -161,7 +160,7 @@ export function StockMovementsPage(): React.JSX.Element {
             <Column header={t("purchasing.quantity")} align="right" body={(r: MovementEntry) => <strong>{r.quantity}</strong>} />
             <Column header={t("inventory.movements.unitCost")} align="right" body={(r: MovementEntry) => formatMoney(r.unitCost, currency)} />
             <Column header={t("inventory.stockLevels.value")} align="right" body={(r: MovementEntry) => formatMoney(r.value, currency)} />
-          </DataTable>
+          </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">
               <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
