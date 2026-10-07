@@ -138,6 +138,11 @@ items: supplier payments and AP ageing, debit notes. Accounting defaults awaitin
 **Gate:** AR sub-ledger reconciles to the receivables control account; the aging report
 ties to the ledger.
 
+**Status (2026-10):** quotations, sales orders, sales invoices (revenue, output VAT, receivable, COGS out of stock
+at weighted-average cost) and credit notes are built and verified against a real database, with their screens.
+Open: customer payments and allocation, customer statement, aging report, invoice PDF and email. Accounting
+defaults awaiting an accountant: `docs/01-OPEN-DECISIONS.md` section E.
+
 ---
 
 ## M7 — ZATCA compliance pack

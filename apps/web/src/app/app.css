@@ -936,3 +936,10 @@ body {
   align-items: center;
   gap: 0.25rem;
 }
+
+/* A document line the server rejected (sales forms point at it). */
+.erp-lines__row--error {
+  outline: 1px solid var(--p-red-500, #e24c4c);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

@@ -37,3 +37,9 @@ export * from "./approvals/approval-policy.service.js";
 export * from "./purchasing/tax-code.service.js";
 export * from "./purchasing/supplier-invoice.util.js";
 export * from "./purchasing/supplier-invoice.service.js";
+
+// M6 sales
+export * from "./sales/sales-lines.js";
+export * from "./sales/quotation.service.js";
+export * from "./sales/sales-order.service.js";
+export * from "./sales/sales-invoice.service.js";

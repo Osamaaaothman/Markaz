@@ -17,7 +17,8 @@
       "masterData": "Master data",
       "settings": "Settings",
       "inventory": "Inventory",
-      "purchasing": "Purchasing"
+      "purchasing": "Purchasing",
+      "sales": "Sales"
     },
     "warehouses": "Warehouses",
     "items": "Items",
@@ -31,7 +32,10 @@
     "purchaseOrders": "Purchase orders",
     "approvalLimits": "Approval limits",
     "supplierInvoices": "Supplier invoices",
-    "taxCodes": "Tax codes"
+    "taxCodes": "Tax codes",
+    "quotations": "Quotations",
+    "salesOrders": "Sales orders",
+    "salesInvoices": "Sales invoices"
   },
   "actions": {
     "save": "Save",
@@ -285,7 +289,11 @@
         "purchase_order": "Purchase orders",
         "approval_policy": "Approval thresholds",
         "supplier_invoice": "Supplier invoices",
-        "tax_code": "Tax codes"
+        "tax_code": "Tax codes",
+        "quotation": "Quotations",
+        "sales_order": "Sales orders",
+        "sales_invoice": "Sales invoices",
+        "credit_note": "Credit notes"
       },
       "actions": {
         "create": "Create",
@@ -425,7 +433,11 @@
         "COUNT_GAIN": "Stock count gain",
         "ACCOUNTS_PAYABLE": "Accounts payable",
         "VAT_INPUT": "Input VAT",
-        "PURCHASE_PRICE_VARIANCE": "Purchase price variance"
+        "PURCHASE_PRICE_VARIANCE": "Purchase price variance",
+        "ACCOUNTS_RECEIVABLE": "Accounts receivable",
+        "SALES_REVENUE": "Sales revenue",
+        "VAT_OUTPUT": "Output VAT",
+        "COST_OF_GOODS_SOLD": "Cost of goods sold"
       },
       "keyHints": {
         "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
@@ -435,7 +447,11 @@
         "COUNT_GAIN": "Credited when a count finds more stock than the books.",
         "ACCOUNTS_PAYABLE": "Credited with the gross amount of every supplier invoice.",
         "VAT_INPUT": "Debited with the VAT on supplier invoices.",
-        "PURCHASE_PRICE_VARIANCE": "Debited (or credited) when a supplier invoice price differs from the order price."
+        "PURCHASE_PRICE_VARIANCE": "Debited (or credited) when a supplier invoice price differs from the order price.",
+        "ACCOUNTS_RECEIVABLE": "Debited with the gross amount of every sales invoice; credited by credit notes.",
+        "SALES_REVENUE": "Credited with the net of sales invoices (a line can name its own account instead).",
+        "VAT_OUTPUT": "Credited with the VAT charged on sales invoices.",
+        "COST_OF_GOODS_SOLD": "Debited with the cost of the stock sold, at weighted-average cost."
       }
     }
   },
@@ -575,6 +591,89 @@
       "deactivate": "Deactivate",
       "duplicate": "A tax code with this code already exists.",
       "saveError": "Could not save this tax code."
+    }
+  },
+  "sales": {
+    "customer": "Customer",
+    "lines": "Lines",
+    "description": "Description",
+    "serviceLine": "Service / no item",
+    "invoiced": "Invoiced",
+    "line": "line {{number}}",
+    "noTaxCodes": "No VAT codes exist yet. Add them under Settings > Tax codes first.",
+    "errors": {
+      "generic": "Could not save this document.",
+      "badRequest": "Check that Settings > Account mapping has the receivable, revenue, VAT and cost-of-goods accounts set, and that the date is in an open period.",
+      "INSUFFICIENT_STOCK": "Not enough stock in that warehouse for this line.",
+      "OVER_INVOICED": "More than the quantity still to invoice on the order.",
+      "CUSTOMER_MISMATCH": "An order line belongs to a different customer.",
+      "WAREHOUSE_REQUIRED": "A line with an item needs a warehouse.",
+      "DESCRIPTION_REQUIRED": "A line with no item needs a description.",
+      "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+      "ZERO_DOCUMENT": "A document with nothing to pay cannot be posted.",
+      "INVALID_STATE": "This document is no longer open for that action.",
+      "ACCOUNT_NOT_POSTABLE": "A revenue line uses a group account. Choose a postable account.",
+      "CREDIT_EXCEEDS_INVOICE": "The credit notes would be worth more than the invoice."
+    },
+    "quotations": {
+      "title": "Quotations",
+      "subtitle": "Offers to customers. An accepted offer becomes a sales order.",
+      "new": "New quotation",
+      "newTitle": "New quotation",
+      "newSubtitle": "Choose the customer, then the items or services and prices offered.",
+      "date": "Quotation date",
+      "validUntil": "Valid until",
+      "submit": "Create quotation",
+      "reject": "Mark rejected",
+      "cancel": "Withdraw",
+      "convert": "Convert to sales order",
+      "openOrder": "Open the sales order",
+      "status": {
+        "OPEN": "Open",
+        "CONVERTED": "Ordered",
+        "REJECTED": "Rejected",
+        "CANCELLED": "Withdrawn"
+      }
+    },
+    "orders": {
+      "title": "Sales orders",
+      "subtitle": "Confirmed customer orders and how much of each is invoiced.",
+      "new": "New sales order",
+      "newTitle": "New sales order",
+      "newSubtitle": "Choose the customer, then what was ordered and the agreed prices.",
+      "date": "Order date",
+      "submit": "Create order",
+      "createInvoice": "Create invoice",
+      "cancel": "Cancel order",
+      "back": "Back",
+      "status": {
+        "OPEN": "Open",
+        "PARTIALLY_INVOICED": "Partly invoiced",
+        "INVOICED": "Invoiced",
+        "CANCELLED": "Cancelled"
+      }
+    },
+    "invoices": {
+      "title": "Sales invoices",
+      "subtitle": "Invoices and credit notes. Posting an invoice also takes the goods out of stock at cost.",
+      "new": "New invoice",
+      "newTitle": "New sales invoice",
+      "newSubtitle": "Choose the customer, then what is being sold. Items leave the warehouse you pick.",
+      "fromOrder": "Invoicing what is left on order {{number}}.",
+      "date": "Invoice date",
+      "dueDate": "Due date",
+      "submit": "Post invoice",
+      "documentType": "Type",
+      "allTypes": "Invoices and credit notes",
+      "types": {
+        "INVOICE": "Invoice",
+        "CREDIT_NOTE": "Credit note"
+      },
+      "creditNote": "Credit note",
+      "creditNoteHint": "A credit note reduces what the customer owes. It does not put goods back in stock.",
+      "creditDate": "Credit note date",
+      "postCreditNote": "Post credit note",
+      "openOriginal": "Open the invoice"
     }
   }
 }

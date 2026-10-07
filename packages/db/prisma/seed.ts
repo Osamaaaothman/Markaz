@@ -98,6 +98,15 @@ const PERMISSION_CATALOG = [
   { code: "tax_code:read", description: "View tax codes" },
   { code: "tax_code:create", description: "Create tax codes" },
   { code: "tax_code:update", description: "Edit or deactivate tax codes" },
+  { code: "quotation:create", description: "Create a quotation" },
+  { code: "quotation:read", description: "View quotations" },
+  { code: "quotation:update", description: "Reject or cancel a quotation" },
+  { code: "sales_order:create", description: "Create a sales order" },
+  { code: "sales_order:read", description: "View sales orders" },
+  { code: "sales_order:cancel", description: "Cancel a sales order with nothing invoiced" },
+  { code: "sales_invoice:create", description: "Post a sales invoice" },
+  { code: "sales_invoice:read", description: "View sales invoices and credit notes" },
+  { code: "credit_note:create", description: "Post a credit note against an invoice" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);
