@@ -904,7 +904,7 @@
     "title": "Design system",
     "subtitle": "The colours, type, components and motion every Markaz screen is built from.",
     "logo": "Logo",
-    "logoNote": "The emblem is the Arabic letter meem drawn as a ring and a tail, with a brass dot at its centre: markaz means centre.",
+    "logoNote": "The emblem is an open ring with a brass dot at its centre: markaz means centre.",
     "replay": "Replay animation",
     "onDark": "On dark",
     "onLight": "On light",
@@ -981,6 +981,8 @@
   "table": {
     "search": "Search in this list…",
     "rowCount": "{{total}} rows",
+    "columns": "Columns",
+    "resetColumns": "Show all columns",
     "matches": "{{shown}} of {{total}} rows",
     "noMatch": "Nothing matches your search.",
     "report": "⁦{first}–{last}⁩ of {totalRecords}"

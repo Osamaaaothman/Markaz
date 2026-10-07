@@ -37,9 +37,9 @@ export function signCloudinaryDeliveryPath(path: string, apiSecret: string): str
 
 const EXTENSIONS: Readonly<Record<string, string>> = { "application/pdf": "pdf", "image/png": "png", "image/webp": "webp", "image/jpeg": "jpg" };
 
-// REVIEW: written from the public Cloudinary documentation and unit-tested against a fake fetch only. It has NOT
-// been run against a real Cloudinary account (no credentials existed when it was written). Run the check in
-// docs/attachments.md (Verifying Cloudinary) with real credentials before relying on it.
+// Written from the public Cloudinary documentation, unit-tested against a fake fetch, and verified against a real
+// account on 2026-10-07 with packages/core/scripts/check-cloudinary.mjs (private round trip, no unsigned access,
+// public picture, cleanup). Re-run that script after any change here or on a new Cloudinary account.
 //
 // Every file is stored as resource type "raw" so nothing is transformed or re-encoded, and the stored name carries
 // the extension. Private files use delivery type "authenticated": there is no public link at all; the API server

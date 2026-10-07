@@ -349,9 +349,17 @@ html body .p-checkbox .p-checkbox-box {
   background: var(--mk-surface);
 }
 
-html body .p-checkbox .p-checkbox-box.p-highlight {
+/* PrimeReact 10 marks the checked state on the root (.p-checkbox.p-highlight) and with a data attribute on the
+   box, not with a class on the box itself. */
+html body .p-checkbox.p-highlight .p-checkbox-box,
+html body .p-checkbox .p-checkbox-box[data-p-highlight="true"] {
   background: var(--mk-primary);
   border-color: var(--mk-primary);
+  color: var(--mk-on-primary);
+}
+
+html body .p-checkbox.p-highlight .p-checkbox-box svg {
+  color: var(--mk-on-primary);
 }
 
 html body .p-selectbutton {
@@ -1300,6 +1308,42 @@ html[dir="rtl"] .p-paginator .p-paginator-last svg {
 .p-dialog .erp-lines__totals {
   position: static;
   box-shadow: none;
+}
+
+/* ---- column chooser ---- */
+html body .mk-grid__columns {
+  border-radius: var(--mk-radius);
+}
+
+html body .mk-grid__columns .p-overlaypanel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  min-width: 13rem;
+}
+
+.mk-grid__columns ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mk-grid__columns label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: var(--mk-radius-xs);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.mk-grid__columns label:hover {
+  background: var(--mk-surface-3);
 }
 
 /* ---- attached documents ---- */

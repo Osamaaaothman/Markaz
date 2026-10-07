@@ -56,11 +56,17 @@ With Cloudinary, private files are stored as `authenticated` assets (no public U
 them through a signed URL on the user's behalf. The secret is read only in `apps/api/src/attachments/attachments.config.ts`,
 never logged and never sent to the browser. **Never put the three Cloudinary values in git or in chat; only in `.env`.**
 
-### Verifying Cloudinary (REQUIRED before relying on it)
+### Verifying Cloudinary (run it for every new Cloudinary account)
 
-The Cloudinary code (`cloudinary-file-storage.ts`) was written from Cloudinary's documentation and tested only against a
-fake network, because no credentials existed. Before a customer depends on it:
+The Cloudinary code (`cloudinary-file-storage.ts`) was written from Cloudinary's documentation and **verified on
+2026-10-07 against a real account** (all checks passed: private round trip with identical bytes, no access without a
+signature, public picture, cleanup). Run the check again for each customer's own Cloudinary account and after any change
+to that file:
 
+0. Automatic check against the real account (creates and then removes two test files; does not change the setting):
+   `npm run build -w packages/core` then `node --env-file=.env packages/core/scripts/check-cloudinary.mjs`.
+   It uploads a private PDF and reads it back through the signed path, checks the bytes, checks the private file is
+   refused without a signature, does the same for a public picture, and cleans up. Nothing secret is printed.
 1. Put the three values in `.env`, set `ATTACHMENT_STORAGE=cloudinary`, `docker compose up -d api`.
 2. Upload a PDF to any record in the app, then open it and download it. The bytes must open normally.
 3. In the Cloudinary console, confirm the file is under `markaz/` as `raw` / `authenticated`.
@@ -98,6 +104,7 @@ Errors carry a `code`: `UNSUPPORTED_FILE_TYPE` (415), `FILE_TOO_LARGE` (413), `E
 - Item pictures and the company logo have no screens (the rule and storage support them).
 - Uploading to a record that is created in the same screen (a new supplier invoice form) is not offered: save the
   invoice, then use the paperclip on its row.
-- The Cloudinary storage is untested against a real account (see above).
+- Cloudinary secrets sit in `.env`. Rotate the API secret in the Cloudinary console if it was ever pasted into a chat,
+  ticket or email, then update `.env` and restart the API.
 - If saving the database row fails after the file is stored, an unreferenced file remains in storage. Harmless and
   invisible; a cleanup job could list files with no row.
