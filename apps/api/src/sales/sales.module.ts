@@ -13,10 +13,12 @@ import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SALES_ENGINE, SALES_NUMBERING } from "./sales.tokens.js";
 import { SalesController } from "./sales.controller.js";
+import { AttachmentsModule } from "../attachments/attachments.module.js";
 
 // Same shape as the inventory and purchasing modules: stateless core services over PrismaService and
 // a module-local accounting engine.
 @Module({
+  imports: [AttachmentsModule],
   controllers: [SalesController],
   providers: [
     { provide: SALES_NUMBERING, useFactory: () => new PrismaNumberingService() },

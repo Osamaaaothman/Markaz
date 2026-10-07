@@ -15,6 +15,7 @@ import {
   type SalesOrderCreated,
   type SalesOrderDetail,
   type SalesOrderListPage,
+  AttachmentService,
 } from "@erp/core";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
@@ -24,6 +25,7 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
+import { localizedCompanyName } from "../common/company-name.js";
 import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
@@ -73,6 +75,7 @@ export class SalesController {
     private readonly orders: SalesOrderService,
     private readonly invoices: SalesInvoiceService,
     private readonly prisma: PrismaService,
+    private readonly attachments: AttachmentService,
   ) {}
 
   // ── Quotations ──────────────────────────────────────────────────────────────
@@ -187,8 +190,11 @@ export class SalesController {
   ): Promise<void> {
     const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
     const invoice = await mapSalesErrors(this.invoices.get(actor.companyId, id));
-    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true } });
-    const pdf = await renderHtmlToPdf(await salesInvoiceToPdfHtml({ invoice, language, companyName: company.name }));
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true } });
+    // The company logo, embedded as a data URI so the PDF never fetches anything. No logo is not an error.
+    const logo = await this.attachments.getCompanyLogo(actor.companyId).catch(() => null);
+    const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
+    const pdf = await renderHtmlToPdf(await salesInvoiceToPdfHtml({ invoice, language, companyName: localizedCompanyName(company, language), logoDataUri }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${invoice.number}.pdf"`);
     res.send(pdf);

@@ -135,6 +135,12 @@ export class AttachmentService {
     return this.permissions.can(actor.id, "read", OWNER_RULES[ownerType].readResource, actor.companyId);
   }
 
+  // Adding or removing the picture of an item, or the company logo, needs the right to change that record.
+  private async canManage(actor: AttachmentActor, ownerType: AttachmentOwnerType): Promise<boolean> {
+    const manage = OWNER_RULES[ownerType].manage;
+    return manage ? this.permissions.can(actor.id, manage.action, manage.resource, actor.companyId) : true;
+  }
+
   // The readable label of a record in the caller's company, or null when there is no such record.
   private async ownerLabels(companyId: string, ownerType: AttachmentOwnerType, ids: readonly string[]): Promise<Map<string, string>> {
     const where = { companyId, id: { in: [...ids] } };
@@ -158,6 +164,9 @@ export class AttachmentService {
         return put((await this.prisma.party.findMany({ where, select: { id: true, ref: true, name: true } })).map((r) => ({ id: r.id, label: `${r.ref} ${r.name}` })));
       case "ITEM":
         return put((await this.prisma.item.findMany({ where, select: { id: true, code: true, name: true } })).map((r) => ({ id: r.id, label: `${r.code} ${r.name}` })));
+      case "COMPANY":
+        // A company is its own record: the only valid id is the caller's own company.
+        return put((await this.prisma.company.findMany({ where: { id: companyId }, select: { id: true, name: true } })).map((r) => ({ id: r.id, label: r.name })));
     }
   }
 
@@ -196,8 +205,13 @@ export class AttachmentService {
     if (input.bytes.length > this.maxBytes) throw new AttachmentError("FILE_TOO_LARGE", `The file is larger than ${this.maxBytes} bytes`);
     const contentType = detectContentType(input.bytes);
     if (!contentType) throw new AttachmentError("UNSUPPORTED_FILE_TYPE", "Only PDF, PNG, JPEG and WebP files are accepted");
+    if (OWNER_RULES[ownerType].imageOnly && contentType === "application/pdf") {
+      throw new AttachmentError("UNSUPPORTED_FILE_TYPE", "A picture must be a PNG, JPEG or WebP image");
+    }
 
-    if (!(await this.canRead(actor, ownerType))) throw new AttachmentError("FORBIDDEN_OWNER", "No access to this kind of record");
+    if (!(await this.canRead(actor, ownerType)) || !(await this.canManage(actor, ownerType))) {
+      throw new AttachmentError("FORBIDDEN_OWNER", "No access to this kind of record");
+    }
     const labels = await this.ownerLabels(actor.companyId, ownerType, [input.ownerId]);
     if (!labels.has(input.ownerId)) throw new AttachmentError("OWNER_NOT_FOUND", "The record does not exist in this company");
 
@@ -277,14 +291,21 @@ export class AttachmentService {
 
   // The file itself, after the permission check and an integrity check against the SHA-256 taken at upload.
   async getContent(actor: AttachmentActor, id: string): Promise<AttachmentContent> {
-    const row = await this.prisma.attachment.findFirst({
-      where: { id, companyId: actor.companyId, deletedAt: null },
-      select: { ownerType: true, visibility: true, originalName: true, contentType: true, sha256: true, storageProvider: true, storageKey: true },
-    });
+    const row = await this.prisma.attachment.findFirst({ where: { id, companyId: actor.companyId, deletedAt: null }, select: { ownerType: true } });
     if (!row || !isOwnerType(row.ownerType)) throw new AttachmentError("NOT_FOUND", "Attachment not found");
     // Same answer as "not found" for someone who may not read the record, so existence is not revealed.
     if (!(await this.canRead(actor, row.ownerType))) throw new AttachmentError("NOT_FOUND", "Attachment not found");
+    return this.readVerified(actor.companyId, id);
+  }
 
+  // Reads a stored file and refuses it if its bytes no longer match the checksum recorded at upload. No permission
+  // check: callers decide who may see it.
+  private async readVerified(companyId: string, id: string): Promise<AttachmentContent> {
+    const row = await this.prisma.attachment.findFirst({
+      where: { id, companyId, deletedAt: null },
+      select: { visibility: true, originalName: true, contentType: true, sha256: true, storageProvider: true, storageKey: true },
+    });
+    if (!row) throw new AttachmentError("NOT_FOUND", "Attachment not found");
     const storage = this.storages.get(row.storageProvider);
     if (!storage) throw new AttachmentError("NOT_FOUND", "The storage that holds this file is not configured");
     const bytes = await storage.get(row.storageKey, row.visibility as AttachmentVisibility);
@@ -297,7 +318,7 @@ export class AttachmentService {
   // Marks the attachment removed. The row and the stored file are kept (retention); it just stops being listed.
   async remove(actor: AttachmentActor, id: string, correlationId: string): Promise<boolean> {
     const row = await this.prisma.attachment.findFirst({ where: { id, companyId: actor.companyId, deletedAt: null }, select: { id: true, ownerType: true, ownerId: true, originalName: true } });
-    if (!row || !isOwnerType(row.ownerType) || !(await this.canRead(actor, row.ownerType))) return false;
+    if (!row || !isOwnerType(row.ownerType) || !(await this.canRead(actor, row.ownerType)) || !(await this.canManage(actor, row.ownerType))) return false;
     const result = await this.prisma.attachment.updateMany({ where: { id, companyId: actor.companyId, deletedAt: null }, data: { deletedAt: new Date(), deletedBy: actor.id } });
     if (result.count === 0) return false;
     await this.audit.log({
@@ -309,5 +330,37 @@ export class AttachmentService {
       correlationId,
     });
     return true;
+  }
+
+  // The current company logo (the newest one not removed). Any signed-in user of the company may see it: it is
+  // printed on every document and shown in the app. Null when none has been uploaded.
+  async getCompanyLogo(companyId: string): Promise<AttachmentContent | null> {
+    const row = await this.prisma.attachment.findFirst({
+      where: { companyId, ownerType: "COMPANY", ownerId: companyId, deletedAt: null },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { id: true },
+    });
+    if (!row) return null;
+    // Reuse the same integrity-checked read path; the logo is not secret within the company.
+    return this.readVerified(companyId, row.id);
+  }
+
+  // The current picture of one item. The caller (the items endpoint) has already checked item:read.
+  async getItemPicture(companyId: string, itemId: string): Promise<AttachmentContent | null> {
+    const id = (await this.currentPictureIds(companyId, [itemId])).get(itemId);
+    return id ? this.readVerified(companyId, id) : null;
+  }
+
+  // The newest picture of each item, as an attachment id (null for items without one).
+  async currentPictureIds(companyId: string, itemIds: readonly string[]): Promise<Map<string, string>> {
+    if (itemIds.length === 0) return new Map();
+    const rows = await this.prisma.attachment.findMany({
+      where: { companyId, ownerType: "ITEM", ownerId: { in: [...itemIds] }, deletedAt: null },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { id: true, ownerId: true },
+    });
+    const newest = new Map<string, string>();
+    for (const row of rows) if (!newest.has(row.ownerId)) newest.set(row.ownerId, row.id);
+    return newest;
   }
 }

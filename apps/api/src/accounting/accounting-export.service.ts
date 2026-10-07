@@ -8,6 +8,7 @@ import { balanceSheetToCsv, balanceSheetToPdfHtml } from "./exports/balance-shee
 import { collectAccountIds, withAccountNames } from "./exports/localize-account-names.js";
 import { incomeStatementToCsv, incomeStatementToPdfHtml } from "./exports/income-statement-export.js";
 import { trialBalanceToCsv, trialBalanceToPdfHtml } from "./exports/trial-balance-export.js";
+import { localizedCompanyName } from "../common/company-name.js";
 
 export interface ExportedFile {
   readonly content: string | Buffer;
@@ -41,7 +42,7 @@ export class AccountingExportService {
     if (format === "csv") {
       return { content: trialBalanceToCsv(result), contentType: "text/csv; charset=utf-8", filename: "trial-balance.csv" };
     }
-    const html = await trialBalanceToPdfHtml({ result, language: lang, companyName: company.name, currency: company.defaultCurrency });
+    const html = await trialBalanceToPdfHtml({ result, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
     return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "trial-balance.pdf" };
   }
 
@@ -59,7 +60,7 @@ export class AccountingExportService {
     if (format === "csv") {
       return { content: balanceSheetToCsv(result), contentType: "text/csv; charset=utf-8", filename: "balance-sheet.csv" };
     }
-    const html = await balanceSheetToPdfHtml({ result, language: lang, companyName: company.name, currency: company.defaultCurrency });
+    const html = await balanceSheetToPdfHtml({ result, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
     return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "balance-sheet.pdf" };
   }
 
@@ -86,7 +87,7 @@ export class AccountingExportService {
     const html = await incomeStatementToPdfHtml({
       result,
       language: lang,
-      companyName: company.name,
+      companyName: localizedCompanyName(company, lang),
       currency: company.defaultCurrency,
     });
     return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "income-statement.pdf" };
@@ -108,10 +109,10 @@ export class AccountingExportService {
     return withAccountNames(result, nameById);
   }
 
-  private async getCompany(companyId: string): Promise<{ name: string; defaultCurrency: string }> {
+  private async getCompany(companyId: string): Promise<{ name: string; nameAr: string | null; defaultCurrency: string }> {
     return this.prisma.company.findUniqueOrThrow({
       where: { id: companyId },
-      select: { name: true, defaultCurrency: true },
+      select: { name: true, nameAr: true, defaultCurrency: true },
     });
   }
 }

@@ -8,6 +8,7 @@ import { AnimatedMoney } from "../../shared/ui/AnimatedMoney";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { MonthlyChart } from "./MonthlyChart";
 import { useDashboard } from "./use-dashboard";
+import { localizedName } from "../../shared/lib/localized-name";
 
 interface Kpi {
   readonly key: string;
@@ -139,7 +140,7 @@ export function DashboardPage(): React.JSX.Element {
         <div>
           <h1 className="mk-hero__title">{t("dashboard.hello", { name })}</h1>
           <p className="mk-hero__sub">
-            {currentUser?.companyName} · {today}
+            {currentUser ? localizedName({ name: currentUser.companyName, nameAr: currentUser.companyNameAr }, i18n.language) : ""} · {today}
           </p>
         </div>
         {actions.length > 0 ? (

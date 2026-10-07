@@ -29,6 +29,7 @@ import {
 } from "@erp/core";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
+import { AuthenticatedOnly } from "../identity/authenticated-only.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { AttachmentContentQueryDto, AttachmentsQueryDto, UploadAttachmentDto } from "./dto/attachment-dtos.js";
 import { parseAttachmentConfig } from "./attachments.config.js";
@@ -134,5 +135,41 @@ export class AttachmentsController {
     const removed = await mapAttachmentErrors(this.attachments.remove(actor, id, correlationId));
     if (!removed) throw new NotFoundException({ message: "Attachment not found", code: "NOT_FOUND" });
     return { removed: true };
+  }
+}
+
+function imageHeaders(file: { readonly bytes: Uint8Array; readonly contentType: string }): Record<string, string> {
+  return {
+    "Content-Type": file.contentType,
+    "Content-Length": String(file.bytes.length),
+    "Content-Disposition": "inline",
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "private, no-store",
+    "Content-Security-Policy": "default-src 'none'; sandbox",
+  };
+}
+
+// The two pictures the app shows without anyone needing the right to browse attachments: the company logo (for
+// every signed-in user of the company) and an item's picture (for whoever may read items).
+@Controller("v1")
+export class PicturesController {
+  constructor(private readonly attachments: AttachmentService) {}
+
+  @Get("company/logo")
+  @AuthenticatedOnly()
+  async logo(@CurrentUser() actor: CurrentUserPayload, @Res({ passthrough: true }) response: Response): Promise<StreamableFile> {
+    const file = await mapAttachmentErrors(this.attachments.getCompanyLogo(actor.companyId));
+    if (!file) throw new NotFoundException({ message: "No logo has been uploaded", code: "NO_LOGO" });
+    response.set(imageHeaders(file));
+    return new StreamableFile(Buffer.from(file.bytes));
+  }
+
+  @Get("items/:id/picture")
+  @RequirePermission("item", "read")
+  async itemPicture(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload, @Res({ passthrough: true }) response: Response): Promise<StreamableFile> {
+    const file = await mapAttachmentErrors(this.attachments.getItemPicture(actor.companyId, id));
+    if (!file) throw new NotFoundException({ message: "This item has no picture", code: "NO_PICTURE" });
+    response.set(imageHeaders(file));
+    return new StreamableFile(Buffer.from(file.bytes));
   }
 }

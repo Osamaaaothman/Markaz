@@ -10,6 +10,7 @@ export async function salesInvoiceToPdfHtml(params: {
   readonly invoice: SalesInvoiceDetail;
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
+  readonly logoDataUri?: string | undefined;
 }): Promise<string> {
   const t = await getDocumentTranslator(params.language);
   const { invoice } = params;
@@ -37,6 +38,7 @@ export async function salesInvoiceToPdfHtml(params: {
     language: params.language,
     documentTitle: `${title} ${invoice.number}`,
     companyName: params.companyName,
+    ...(params.logoDataUri ? { logoDataUri: params.logoDataUri } : {}),
     title,
     subtitle: invoice.number,
     bodyHtml: `<table style="width:60%">${meta}</table>

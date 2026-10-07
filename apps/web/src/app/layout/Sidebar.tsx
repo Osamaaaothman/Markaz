@@ -3,6 +3,8 @@ import { NavLink } from "react-router-dom";
 import { Tooltip } from "primereact/tooltip";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
+import { useApiImageUrl } from "../../shared/ui/ApiImage";
+import { localizedName } from "../../shared/lib/localized-name";
 import { Logo } from "../../shared/ui/Logo";
 import { NAV_ITEMS } from "./NavConfig";
 import { useLayoutStore } from "./layout-store";
@@ -21,6 +23,7 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
   const toggleSidebar = useLayoutStore((state) => state.toggleSidebar);
   const { data: currentUser } = useCurrentUser();
   const { canAny } = usePermissions();
+  const { url: companyLogo } = useApiImageUrl("/v1/company/logo", "current");
   const collapsed = variant === "desktop" && collapsedPref;
   const visibleItems = NAV_ITEMS.filter((item) => canAny(item.permissions ?? []));
 
@@ -56,10 +59,10 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
 
       <div className="erp-sidebar__footer">
         {currentUser ? (
-          <div className="erp-sidebar__company" data-pr-tooltip={`${currentUser.companyName} · ${currentUser.companyDefaultCurrency}`}>
-            <span className="erp-sidebar__company-dot" aria-hidden="true" />
+          <div className="erp-sidebar__company" data-pr-tooltip={`${localizedName({ name: currentUser.companyName, nameAr: currentUser.companyNameAr }, i18n.language)} · ${currentUser.companyDefaultCurrency}`}>
+            {companyLogo ? <img className="erp-sidebar__company-logo" src={companyLogo} alt="" /> : <span className="erp-sidebar__company-dot" aria-hidden="true" />}
             <span className="erp-sidebar__label">
-              <strong>{currentUser.companyName}</strong>
+              <strong>{localizedName({ name: currentUser.companyName, nameAr: currentUser.companyNameAr }, i18n.language)}</strong>
               <small>{currentUser.companyDefaultCurrency}</small>
             </span>
           </div>

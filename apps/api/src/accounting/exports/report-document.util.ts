@@ -15,6 +15,8 @@ export function renderReportShell(params: {
   readonly title: string;
   readonly subtitle: string;
   readonly bodyHtml: string;
+  // The company logo as a data: URI (never a remote URL: a PDF must not fetch anything). Optional.
+  readonly logoDataUri?: string;
   // Extra CSS appended after the shell's own (a dense table for a report with many columns).
   readonly extraCss?: string;
 }): string {
@@ -34,6 +36,9 @@ export function renderReportShell(params: {
   }
   h1 { font-size: 16pt; margin-block-end: 2pt; }
   .company-name { font-weight: 600; font-size: 11pt; margin-block-end: 10pt; }
+  .company-head { display: flex; align-items: center; gap: 10pt; margin-block-end: 10pt; }
+  .company-head .company-name { margin: 0; }
+  .company-logo { max-height: 16mm; max-width: 42mm; object-fit: contain; }
   .subtitle { color: #555; margin-block-end: 14pt; }
   h2 { font-size: 12pt; margin-block: 14pt 6pt; }
   table { width: 100%; border-collapse: collapse; margin-block-end: 4pt; }
@@ -46,7 +51,7 @@ export function renderReportShell(params: {
 </style>
 </head>
 <body>
-<p class="company-name">${escapeHtml(params.companyName)}</p>
+<div class="company-head">${params.logoDataUri ? `<img class="company-logo" src="${escapeHtml(params.logoDataUri)}" alt="" />` : ""}<p class="company-name">${escapeHtml(params.companyName)}</p></div>
 <h1>${escapeHtml(params.title)}</h1>
 <p class="subtitle">${escapeHtml(params.subtitle)}</p>
 ${params.bodyHtml}

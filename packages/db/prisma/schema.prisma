@@ -23,6 +23,8 @@ datasource db {
 model Company {
   id              String   @id
   name            String
+  // The name in Arabic, for Arabic documents and the Arabic interface. Null = use `name` everywhere.
+  nameAr          String?  @map("name_ar")
   defaultCurrency String   @default("SAR") @map("default_currency")
   timezone        String   @default("Asia/Riyadh")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -1300,7 +1302,7 @@ model PaymentAllocation {
 model Attachment {
   id              String    @id
   companyId       String    @map("company_id")
-  ownerType       String    @map("owner_type") // SALES_INVOICE | SUPPLIER_INVOICE | PAYMENT | JOURNAL_ENTRY | PURCHASE_ORDER | PARTY | ITEM
+  ownerType       String    @map("owner_type") // SALES_INVOICE | SUPPLIER_INVOICE | PAYMENT | JOURNAL_ENTRY | PURCHASE_ORDER | PARTY | ITEM | COMPANY
   ownerId         String    @map("owner_id")
   visibility      String // PRIVATE | PUBLIC
   originalName    String    @map("original_name")

@@ -3,12 +3,12 @@ import { useTranslation } from "react-i18next";
 import { AxiosError } from "axios";
 import { Button } from "primereact/button";
 import { usePermissions } from "../../shared/auth/use-permissions";
+import { AttachmentViewer, type ViewedFile } from "./AttachmentViewer";
 import {
   ACCEPTED_TYPES,
   MAX_UPLOAD_BYTES,
   downloadAttachment,
   formatBytes,
-  openAttachment,
   useOwnerAttachments,
   useRemoveAttachment,
   useUploadAttachment,
@@ -57,6 +57,7 @@ export function AttachmentsPanel({ ownerType, ownerId }: { readonly ownerType: A
   const [problem, setProblem] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<ViewedFile | null>(null);
 
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" });
 
@@ -180,7 +181,7 @@ export function AttachmentsPanel({ ownerType, ownerId }: { readonly ownerType: A
                 </small>
               </div>
               <div className="mk-attach__actions">
-                <Button type="button" icon="pi pi-eye" text rounded aria-label={t("attachments.open")} tooltip={t("attachments.open")} onClick={() => void act(() => openAttachment(file.id))} />
+                <Button type="button" icon="pi pi-eye" text rounded aria-label={t("attachments.open")} tooltip={t("attachments.open")} onClick={() => setViewing(file)} />
                 <Button type="button" icon="pi pi-download" text rounded aria-label={t("attachments.download")} tooltip={t("attachments.download")} onClick={() => void act(() => downloadAttachment(file.id, file.originalName))} />
                 {can("attachment:delete") ? (
                   confirming === file.id ? (
@@ -207,6 +208,7 @@ export function AttachmentsPanel({ ownerType, ownerId }: { readonly ownerType: A
           ))}
         </ul>
       )}
+      <AttachmentViewer file={viewing} onHide={() => setViewing(null)} />
     </div>
   );
 }
