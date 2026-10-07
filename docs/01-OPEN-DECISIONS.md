@@ -185,3 +185,33 @@ challenged. Every one of them must be confirmed by Osama.
    is a later concern.
 9. The local print/hardware agent is only installed on machines that actually need
    local device access — not on every employee's machine by default.
+
+---
+
+## D. Accounting treatments built with a stated default (M5 purchasing)
+
+These are **implemented**, but each is an accounting judgement made without an accountant. Every one
+is marked `// REVIEW:` in code (`packages/core/src/purchasing/`) so it is isolated and cheap to change.
+Confirm or change each before the first real customer posts a supplier invoice.
+
+- **D1. Price variance.** When a supplier invoice price differs from the order price, the difference
+  is booked to a *purchase price variance* account (mapping key `PURCHASE_PRICE_VARIANCE`) and stock
+  keeps the order price. Alternative: re-cost the stock on hand. Needs the buyer to accept it per invoice.
+- **D2. Input VAT.** Treated as fully recoverable: all VAT on a supplier invoice debits `VAT_INPUT`.
+  Partially or non-recoverable input VAT is not modelled.
+- **D3. VAT rounding.** Tax is rounded per invoice line to four decimals and summed. Some regimes
+  round on the invoice total instead.
+- **D4. Match tolerance.** None. Any quantity above received-and-not-yet-invoiced is refused; any price
+  difference needs explicit acceptance. A percentage tolerance would be a setting.
+- **D5. GRNI residue.** A receipt values each line at quantity x order price rounded to four decimals;
+  an invoice clears quantity x order price rounded once. Many tiny partial receipts can leave a residue
+  of at most 0.0001 per receipt line in GRNI. Not reconciled automatically yet.
+- **D6. Tax codes.** The standard Saudi codes (VAT 15% standard, 0% zero-rated, exempt, out of scope)
+  are offered by a button, never seeded silently. 15% matches ZATCA's published standard rate; the
+  accountant confirms the code list before use.
+- **D7. Approval segregation.** The user who creates a purchase order may also approve it. A rule
+  "requester cannot approve" would block a one-person company, so it is not enforced.
+
+**Known gaps, M5:** no debit notes or purchase returns; no supplier payments or AP ageing (arrive with the
+payments work); purchase orders cannot be edited (cancel and re-issue); a retried receipt or invoice is not
+replayed at document level (the ledger itself is protected by the idempotency key).

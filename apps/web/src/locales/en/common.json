@@ -29,7 +29,9 @@
     "accountStatement": "Account statement",
     "purchaseRequests": "Purchase requests",
     "purchaseOrders": "Purchase orders",
-    "approvalLimits": "Approval limits"
+    "approvalLimits": "Approval limits",
+    "supplierInvoices": "Supplier invoices",
+    "taxCodes": "Tax codes"
   },
   "actions": {
     "save": "Save",
@@ -281,7 +283,9 @@
         "stock_count": "Stock counts",
         "purchase_request": "Purchase requests",
         "purchase_order": "Purchase orders",
-        "approval_policy": "Approval thresholds"
+        "approval_policy": "Approval thresholds",
+        "supplier_invoice": "Supplier invoices",
+        "tax_code": "Tax codes"
       },
       "actions": {
         "create": "Create",
@@ -418,14 +422,20 @@
         "GRNI": "Goods received, not invoiced (GRNI)",
         "PROJECT_ISSUE_EXPENSE": "Project issue expense",
         "COUNT_LOSS": "Stock count loss",
-        "COUNT_GAIN": "Stock count gain"
+        "COUNT_GAIN": "Stock count gain",
+        "ACCOUNTS_PAYABLE": "Accounts payable",
+        "VAT_INPUT": "Input VAT",
+        "PURCHASE_PRICE_VARIANCE": "Purchase price variance"
       },
       "keyHints": {
         "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
         "GRNI": "Credited on receipt — stock received but not yet invoiced by the supplier.",
         "PROJECT_ISSUE_EXPENSE": "Debited when stock is issued to a project.",
         "COUNT_LOSS": "Debited when a count finds less stock than the books.",
-        "COUNT_GAIN": "Credited when a count finds more stock than the books."
+        "COUNT_GAIN": "Credited when a count finds more stock than the books.",
+        "ACCOUNTS_PAYABLE": "Credited with the gross amount of every supplier invoice.",
+        "VAT_INPUT": "Debited with the VAT on supplier invoices.",
+        "PURCHASE_PRICE_VARIANCE": "Debited (or credited) when a supplier invoice price differs from the order price."
       }
     }
   },
@@ -504,6 +514,67 @@
       "currentThreshold": "Orders above {{amount}} need approval.",
       "thresholdPlaceholder": "Amount in {{currency}}",
       "saveError": "Could not save this limit."
+    },
+    "invoices": {
+      "title": "Supplier invoices",
+      "subtitle": "Bills from suppliers, matched to the order and to what was received.",
+      "new": "New invoice",
+      "newTitle": "Enter a supplier invoice",
+      "newSubtitle": "Add the order lines the invoice covers, then review the match before posting.",
+      "supplierInvoiceNumber": "Supplier's invoice number",
+      "invoiceDate": "Invoice date",
+      "dueDate": "Due date",
+      "net": "Net",
+      "tax": "VAT",
+      "gross": "Total",
+      "description": "Description",
+      "orderPrice": "Order price",
+      "variance": "Price difference",
+      "taxCode": "VAT code",
+      "expenseAccount": "Expense account",
+      "addOrderLine": "Add a received order line",
+      "pickSupplierFirst": "Choose the supplier first",
+      "addExpenseLine": "Add an expense line (no order)",
+      "nothingToMatch": "Nothing received and not yet invoiced for this supplier. You can still add an expense line.",
+      "noTaxCodes": "No VAT codes exist yet. Add them under Settings > Tax codes before entering an invoice.",
+      "review": "Review the match",
+      "reviewTitle": "Match review",
+      "qtyExceeds": "Only {{max}} received and not yet invoiced.",
+      "acceptVariance": "I accept the price difference ({{amount}}) against the order and want it booked as a purchase price variance.",
+      "cannotPost": "Fix the highlighted lines before this invoice can be posted.",
+      "post": "Post invoice",
+      "errors": {
+        "generic": "Could not post this invoice.",
+        "badRequest": "Check that Settings > Account mapping has the payable, VAT and price-variance accounts set, and that the date is in an open period.",
+        "QTY_EXCEEDS_RECEIVED": "A line is for more than was received and not yet invoiced. Review it again.",
+        "PRICE_VARIANCE_NOT_ACCEPTED": "The price differs from the order. Tick the box to accept the difference.",
+        "DUPLICATE_INVOICE": "This supplier invoice number was already entered for this supplier.",
+        "SUPPLIER_MISMATCH": "An order line belongs to a different supplier.",
+        "ACCOUNT_NOT_POSTABLE": "An expense line uses a group account. Choose a postable account.",
+        "NO_OPEN_PERIOD": "No open fiscal period covers the invoice date.",
+        "ZERO_INVOICE": "An invoice with nothing to pay cannot be posted.",
+        "EMPTY_INVOICE": "Add at least one line."
+      }
+    },
+    "tax": {
+      "title": "Tax codes",
+      "subtitle": "The VAT treatments an invoice line can carry.",
+      "add": "Add tax code",
+      "addDefaults": "Add the standard Saudi codes",
+      "defaultsHint": "The standard Saudi codes (15% standard, zero-rated, exempt, out of scope) are added only when you ask. Have your accountant confirm them before first use.",
+      "empty": "No tax codes yet.",
+      "treatment": "Treatment",
+      "rate": "Rate",
+      "treatments": {
+        "STANDARD": "Standard rate",
+        "ZERO_RATED": "Zero-rated",
+        "EXEMPT": "Exempt",
+        "OUT_OF_SCOPE": "Out of scope"
+      },
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "duplicate": "A tax code with this code already exists.",
+      "saveError": "Could not save this tax code."
     }
   }
 }

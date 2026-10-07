@@ -2,7 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 
-export const ACCOUNT_MAPPING_KEYS = ["INVENTORY", "GRNI", "PROJECT_ISSUE_EXPENSE", "COUNT_LOSS", "COUNT_GAIN"] as const;
+export const ACCOUNT_MAPPING_KEYS = [
+  "INVENTORY",
+  "GRNI",
+  "PROJECT_ISSUE_EXPENSE",
+  "COUNT_LOSS",
+  "COUNT_GAIN",
+  "ACCOUNTS_PAYABLE",
+  "VAT_INPUT",
+  "PURCHASE_PRICE_VARIANCE",
+] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
 
 export interface AccountMappingEntry {

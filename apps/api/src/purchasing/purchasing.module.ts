@@ -9,18 +9,21 @@ import {
   PurchaseOrderService,
   PurchaseReceiptService,
   PurchaseRequestService,
+  SupplierInvoiceService,
+  TaxCodeService,
   type IAccountingEngine,
   type IAuditLogger,
 } from "@erp/core";
 import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { PURCHASING_ENGINE, PURCHASING_NUMBERING } from "./purchasing.tokens.js";
+import { InvoicingController } from "./invoicing.controller.js";
 import { PurchasingController } from "./purchasing.controller.js";
 
 // Same shape as InventoryModule: stateless core services over PrismaService, with a module-local
 // accounting engine so the receiving path does not depend on another module's providers.
 @Module({
-  controllers: [PurchasingController],
+  controllers: [PurchasingController, InvoicingController],
   providers: [
     { provide: PURCHASING_NUMBERING, useFactory: () => new PrismaNumberingService() },
     {
@@ -52,6 +55,17 @@ import { PurchasingController } from "./purchasing.controller.js";
         const mappings = new AccountMappingService(prisma, audit);
         return new PurchaseReceiptService(prisma, new GoodsReceiptService(prisma, engine, mappings, audit), audit);
       },
+      inject: [PrismaService, PURCHASING_ENGINE, AUDIT_LOGGER],
+    },
+    {
+      provide: TaxCodeService,
+      useFactory: (prisma: PrismaService, audit: IAuditLogger) => new TaxCodeService(prisma, audit),
+      inject: [PrismaService, AUDIT_LOGGER],
+    },
+    {
+      provide: SupplierInvoiceService,
+      useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger) =>
+        new SupplierInvoiceService(prisma, engine, new AccountMappingService(prisma, audit), audit),
       inject: [PrismaService, PURCHASING_ENGINE, AUDIT_LOGGER],
     },
   ],
