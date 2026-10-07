@@ -3,8 +3,8 @@ import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { downloadBlob } from "../../shared/lib/download-file";
 
-export type AttachmentOwnerType = "SALES_INVOICE" | "SUPPLIER_INVOICE" | "PAYMENT" | "JOURNAL_ENTRY" | "PURCHASE_ORDER" | "PARTY" | "ITEM";
-export const ATTACHMENT_OWNER_TYPES: readonly AttachmentOwnerType[] = ["SALES_INVOICE", "SUPPLIER_INVOICE", "PAYMENT", "JOURNAL_ENTRY", "PURCHASE_ORDER", "PARTY", "ITEM"];
+export type AttachmentOwnerType = "SALES_INVOICE" | "SUPPLIER_INVOICE" | "PAYMENT" | "JOURNAL_ENTRY" | "PURCHASE_ORDER" | "PARTY" | "ITEM" | "COMPANY";
+export const ATTACHMENT_OWNER_TYPES: readonly AttachmentOwnerType[] = ["SALES_INVOICE", "SUPPLIER_INVOICE", "PAYMENT", "JOURNAL_ENTRY", "PURCHASE_ORDER", "PARTY", "ITEM", "COMPANY"];
 
 export interface AttachmentSummary {
   readonly id: string;

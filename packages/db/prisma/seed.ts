@@ -115,6 +115,8 @@ const PERMISSION_CATALOG = [
   { code: "attachment:read", description: "View and download attached documents" },
   { code: "attachment:create", description: "Attach a document to a record" },
   { code: "attachment:delete", description: "Remove an attached document" },
+  { code: "company:read", description: "View the company settings and logo" },
+  { code: "company:update", description: "Change the company logo" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

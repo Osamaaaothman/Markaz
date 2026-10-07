@@ -7,6 +7,8 @@ import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
+import { usePermissions } from "../../shared/auth/use-permissions";
+import { PictureField } from "../attachments/PictureField";
 import { useCreateItem, useUpdateItem, type ItemSummary } from "./use-items";
 
 const itemSchema = z.object({
@@ -31,6 +33,7 @@ export function ItemFormDialog({
   onHide: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const { can } = usePermissions();
   const createItem = useCreateItem();
   const updateItem = useUpdateItem(item?.id ?? "");
   const mutation = item ? updateItem : createItem;
@@ -109,6 +112,20 @@ export function ItemFormDialog({
             <InputText id="itemReorderPoint" dir="ltr" {...register("reorderPoint")} />
           </div>
         </div>
+
+        {item ? (
+          <PictureField
+            key={`${item.id}:${item.pictureId ?? "none"}`}
+            ownerType="ITEM"
+            ownerId={item.id}
+            imagePath={`/v1/items/${item.id}/picture`}
+            currentPictureId={item.pictureId}
+            canChange={can("item:update")}
+            label={t("inventory.items.picture")}
+          />
+        ) : (
+          <p className="mk-picture__hint">{t("inventory.items.pictureAfterSave")}</p>
+        )}
 
         {item ? (
           <div className="erp-field" style={{ flexDirection: "row", alignItems: "center", gap: "0.75rem" }}>

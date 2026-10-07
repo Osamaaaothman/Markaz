@@ -1300,7 +1300,7 @@ model PaymentAllocation {
 model Attachment {
   id              String    @id
   companyId       String    @map("company_id")
-  ownerType       String    @map("owner_type") // SALES_INVOICE | SUPPLIER_INVOICE | PAYMENT | JOURNAL_ENTRY | PURCHASE_ORDER | PARTY | ITEM
+  ownerType       String    @map("owner_type") // SALES_INVOICE | SUPPLIER_INVOICE | PAYMENT | JOURNAL_ENTRY | PURCHASE_ORDER | PARTY | ITEM | COMPANY
   ownerId         String    @map("owner_id")
   visibility      String // PRIVATE | PUBLIC
   originalName    String    @map("original_name")

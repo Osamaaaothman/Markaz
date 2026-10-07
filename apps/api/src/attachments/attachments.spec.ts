@@ -16,10 +16,15 @@ describe("attachment DTOs", () => {
     expect(await fieldsWithErrors(UploadAttachmentDto, { ownerType: "SALES_INVOICE", ownerId: uuid })).toEqual([]);
   });
 
-  it("rejects an unknown record type, a missing id and a non-uuid id", async () => {
-    expect(await fieldsWithErrors(UploadAttachmentDto, { ownerType: "COMPANY", ownerId: uuid })).toEqual(["ownerType"]);
+  it("accepts the seeded company id, which is not a UUID", async () => {
+    expect(await fieldsWithErrors(UploadAttachmentDto, { ownerType: "COMPANY", ownerId: "default-company" })).toEqual([]);
+  });
+
+  it("rejects an unknown record type, a missing id and an id with unsafe characters", async () => {
+    expect(await fieldsWithErrors(UploadAttachmentDto, { ownerType: "WAREHOUSE", ownerId: uuid })).toEqual(["ownerType"]);
     expect(await fieldsWithErrors(UploadAttachmentDto, { ownerType: "PARTY" })).toEqual(["ownerId"]);
     expect(await fieldsWithErrors(UploadAttachmentDto, { ownerType: "PARTY", ownerId: "../../etc" })).toEqual(["ownerId"]);
+    expect(await fieldsWithErrors(UploadAttachmentDto, { ownerType: "PARTY", ownerId: "a b" })).toEqual(["ownerId"]);
   });
 
   it("refuses a visibility or company id sent by the client", async () => {
