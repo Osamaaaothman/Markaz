@@ -15,6 +15,7 @@ import { useFiscalPeriods } from "./use-fiscal-periods";
 import { usePostJournalEntry, type PostJournalEntryInput } from "./use-post-journal-entry";
 import { formatMoney } from "../../shared/lib/money";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
+import type { CreatedInfo } from "../../shared/ui/CreatedDialog";
 
 const lineSchema = z
   .object({
@@ -64,9 +65,11 @@ const EMPTY_LINE = { accountId: "", debit: "", credit: "", description: "" };
 export interface JournalEntryFormProps {
   readonly visible: boolean;
   readonly onHide: () => void;
+  // Called with a summary of the saved entry so the page can show it in a dialog.
+  readonly onCreated?: (info: CreatedInfo) => void;
 }
 
-export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): React.JSX.Element {
+export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFormProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data: accounts } = useAccounts();
   const { data: fiscalPeriods } = useFiscalPeriods();
@@ -131,7 +134,22 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
         ...(line.description.trim() ? { description: line.description } : {}),
       })),
     };
-    postEntry.mutate(input, { onSuccess: onHide });
+    postEntry.mutate(input, {
+      onSuccess: (saved) => {
+        onCreated?.({
+          title: t("accounting.journalEntries.new"),
+          headline: saved.number,
+          rows: [
+            { label: t("created.date"), value: input.entryDate, ltr: true },
+            { label: t("created.currency"), value: input.currency },
+            { label: t("created.debit"), value: formatMoney(totals.debit.toDecimalString(4), input.currency), ltr: true },
+            { label: t("created.credit"), value: formatMoney(totals.credit.toDecimalString(4), input.currency), ltr: true },
+            { label: t("created.lines"), value: String(input.lines.length) },
+          ],
+        });
+        onHide();
+      },
+    });
   });
 
   return (

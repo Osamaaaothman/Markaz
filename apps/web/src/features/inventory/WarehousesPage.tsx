@@ -13,12 +13,14 @@ import { CopyId } from "../../shared/ui/CopyId";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useWarehouses, type WarehouseSummary } from "./use-warehouses";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { WarehouseFormDialog } from "./WarehouseFormDialog";
 
 export function WarehousesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const [query, setQuery] = useState("");
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [dialogWarehouse, setDialogWarehouse] = useState<WarehouseSummary | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -111,7 +113,8 @@ export function WarehousesPage(): React.JSX.Element {
         </>
       )}
 
-      <WarehouseFormDialog warehouse={dialogWarehouse} visible={dialogOpen} onHide={() => setDialogOpen(false)} />
+      <WarehouseFormDialog warehouse={dialogWarehouse} visible={dialogOpen} onHide={() => setDialogOpen(false)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { MultiSelect } from "primereact/multiselect";
 import { TabPanel, TabView } from "primereact/tabview";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { CopyId } from "../../shared/ui/CopyId";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
@@ -28,7 +29,7 @@ const addUserSchema = z.object({
 });
 type AddUserValues = z.infer<typeof addUserSchema>;
 
-function AddUserDialog({ visible, onHide }: { visible: boolean; onHide: () => void }) {
+function AddUserDialog({ visible, onHide, onCreated }: { visible: boolean; onHide: () => void; onCreated: (info: CreatedInfo) => void }) {
   const { t } = useTranslation();
   const { data: roles } = useRoles();
   const createUser = useCreateUser();
@@ -53,7 +54,20 @@ function AddUserDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
   const onSubmit = handleSubmit((values) => {
     createUser.mutate(
       { email: values.email, password: values.password, roleIds: values.roleIds },
-      { onSuccess: onHideAndReset },
+      {
+        onSuccess: () => {
+          // The password is never echoed back: only who the user is and what they can do.
+          onCreated({
+            title: t("settings.usersRoles.addUser"),
+            headline: values.email,
+            rows: [
+              { label: t("created.email"), value: values.email, ltr: true },
+              { label: t("created.roles"), value: (roles ?? []).filter((r) => values.roleIds.includes(r.id)).map((r) => r.name).join(", ") },
+            ],
+          });
+          onHideAndReset();
+        },
+      },
     );
   });
 
@@ -190,7 +204,7 @@ const addRoleSchema = z.object({
 });
 type AddRoleValues = z.infer<typeof addRoleSchema>;
 
-function AddRoleDialog({ visible, onHide }: { visible: boolean; onHide: () => void }) {
+function AddRoleDialog({ visible, onHide, onCreated }: { visible: boolean; onHide: () => void; onCreated: (info: CreatedInfo) => void }) {
   const { t } = useTranslation();
   const { data: catalog } = usePermissionCatalog();
   const createRole = useCreateRole();
@@ -215,7 +229,16 @@ function AddRoleDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
   const onSubmit = handleSubmit((values) => {
     createRole.mutate(
       { name: values.name, permissionCodes: values.permissionCodes },
-      { onSuccess: onHideAndReset },
+      {
+        onSuccess: () => {
+          onCreated({
+            title: t("settings.usersRoles.addRole"),
+            headline: values.name,
+            rows: [{ label: t("created.permissions"), value: String(values.permissionCodes.length) }],
+          });
+          onHideAndReset();
+        },
+      },
     );
   });
 
@@ -285,6 +308,7 @@ function AddRoleDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
 
 export function UsersPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
   const listFormat = new Intl.ListFormat(i18n.language, { style: "narrow", type: "conjunction" });
   const {
     data: users,
@@ -474,8 +498,9 @@ export function UsersPage(): React.JSX.Element {
         ) : null}
       </TabView>
 
-      <AddUserDialog visible={addUserVisible} onHide={() => setAddUserVisible(false)} />
-      <AddRoleDialog visible={addRoleVisible} onHide={() => setAddRoleVisible(false)} />
+      <AddUserDialog visible={addUserVisible} onHide={() => setAddUserVisible(false)} onCreated={setCreated} />
+      <AddRoleDialog visible={addRoleVisible} onHide={() => setAddRoleVisible(false)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <AssignRolesDialog user={assignTarget} onHide={() => setAssignTarget(null)} />
     </div>
   );

@@ -11,6 +11,7 @@ import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyPicker } from "../accounting/PartyPicker";
 import { useAllItems } from "../inventory/use-items";
 import { useAllWarehouses } from "../inventory/use-warehouses";
@@ -71,6 +72,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const createQuotation = useCreateQuotation();
   const createOrder = useCreateSalesOrder();
   const createInvoice = useCreateSalesInvoice();
+  const [created, setCreated] = useState<{ info: CreatedInfo; to: string } | null>(null);
   const mutation = mode === "quotation" ? createQuotation : mode === "order" ? createOrder : createInvoice;
 
   const [customerId, setCustomerId] = useState("");
@@ -152,7 +154,25 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     const common = { customerId, ...(notes.trim() ? { notes: notes.trim() } : {}), lines: payloadLines };
     const dateIso = toDateOnlyIsoString(date);
     const secondIso = secondDate ? toDateOnlyIsoString(secondDate) : null;
-    const done = (): void => void navigate(mode === "quotation" ? "/sales/quotations" : mode === "order" ? "/sales/orders" : "/sales/invoices");
+    const listPath = mode === "quotation" ? "/sales/quotations" : mode === "order" ? "/sales/orders" : "/sales/invoices";
+    const done = (saved: { readonly number: string }): void => {
+      const gross = totals.net.add(totals.tax);
+      setCreated({
+        to: listPath,
+        info: {
+          title: t(`sales.${mode === "quotation" ? "quotations" : mode === "order" ? "orders" : "invoices"}.newTitle`),
+          headline: saved.number,
+          rows: [
+            { label: t("created.date"), value: dateIso, ltr: true },
+            { label: mode === "order" ? "" : t(mode === "quotation" ? "sales.quotations.validUntil" : "created.dueDate"), value: secondIso ?? "", ltr: true },
+            { label: t("created.net"), value: formatMoney(totals.net.toDecimalString(4), currency), ltr: true },
+            { label: t("created.tax"), value: formatMoney(totals.tax.toDecimalString(4), currency), ltr: true },
+            { label: t("created.gross"), value: formatMoney(gross.toDecimalString(4), currency), ltr: true },
+            { label: t("created.lines"), value: String(lines.length) },
+          ].filter((row) => row.label !== ""),
+        },
+      });
+    };
 
     if (mode === "quotation") createQuotation.mutate({ ...common, quotationDate: dateIso, ...(secondIso ? { validUntil: secondIso } : {}) }, { onSuccess: done });
     else if (mode === "order") createOrder.mutate({ ...common, orderDate: dateIso }, { onSuccess: done });
@@ -263,6 +283,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
           <Button type="button" label={t(`${prefix}.submit`)} icon="pi pi-check" disabled={!valid} loading={mutation.isPending} onClick={submit} />
         </div>
       </div>
+      <CreatedDialog info={created?.info ?? null} onHide={() => created && void navigate(created.to)} />
     </div>
   );
 }

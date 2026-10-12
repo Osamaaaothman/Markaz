@@ -7,6 +7,7 @@ import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
+import type { CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { useCreateWarehouse, useUpdateWarehouse, type WarehouseSummary } from "./use-warehouses";
 
 // Messages are translation-key suffixes under `validation.` (see LoginPage's schema).
@@ -25,10 +26,12 @@ export function WarehouseFormDialog({
   warehouse,
   visible,
   onHide,
+  onCreated,
 }: {
   warehouse: WarehouseSummary | null;
   visible: boolean;
   onHide: () => void;
+  onCreated?: (info: CreatedInfo) => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const createWarehouse = useCreateWarehouse();
@@ -64,7 +67,19 @@ export function WarehouseFormDialog({
     } else {
       createWarehouse.mutate(
         { code: values.code, name: values.name, ...(values.nameAr.trim() ? { nameAr: values.nameAr.trim() } : {}) },
-        { onSuccess: onHide },
+        {
+          onSuccess: (saved) => {
+            onCreated?.({
+              title: t("inventory.warehouses.add"),
+              headline: saved.code,
+              rows: [
+                { label: t("created.name"), value: saved.name },
+                { label: t("created.nameAr"), value: saved.nameAr ?? "" },
+              ],
+            });
+            onHide();
+          },
+        },
       );
     }
   });

@@ -9,6 +9,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { exportFile } from "./export-report";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryDetailDialog } from "./JournalEntryDetailDialog";
@@ -27,6 +28,7 @@ export function JournalEntriesPage(): React.JSX.Element {
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useJournalEntries(filter);
   const [formVisible, setFormVisible] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const entries = data?.pages.flatMap((page) => page.data) ?? [];
 
@@ -137,7 +139,8 @@ export function JournalEntriesPage(): React.JSX.Element {
         </>
       )}
 
-      <JournalEntryForm visible={formVisible} onHide={() => setFormVisible(false)} />
+      <JournalEntryForm visible={formVisible} onHide={() => setFormVisible(false)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <JournalEntryDetailDialog entryId={selectedEntryId} onHide={() => setSelectedEntryId(null)} />
     </div>
   );
