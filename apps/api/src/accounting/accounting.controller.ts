@@ -25,6 +25,7 @@ import {
   type AccountBalance,
   type BalanceSheetResult,
   type IncomeStatementResult,
+  type PeriodTrialBalanceResult,
   type TrialBalanceResult,
 } from "@erp/core";
 import { Money } from "@erp/shared";
@@ -40,6 +41,8 @@ import { PostJournalEntryDto } from "./dto/post-journal-entry.dto.js";
 import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
 import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
 import { ExportQueryDto } from "./dto/export-query.dto.js";
+import { PeriodTrialBalanceQueryDto, TrialBalanceExportQueryDto } from "./dto/trial-balance-query.dto.js";
+import { defaultTrialBalancePeriod } from "./trial-balance-period.js";
 import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-query.dto.js";
 import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
 import { CreateAccountDto } from "./dto/create-account.dto.js";
@@ -332,14 +335,23 @@ export class AccountingController {
   // docs/07-API-RULES.md §9: a single company's bounded report — not a batch or a
   // paginated export — so a synchronous response is fine; nothing here approaches
   // the "may exceed a few seconds" threshold that requires the 202+job-id pattern.
+  // The trial balance for a period: opening balance, movement and closing balance per account.
+  @Get("trial-balance/period")
+  @RequirePermission("trial_balance", "read")
+  trialBalanceForPeriod(@CurrentUser() actor: CurrentUserPayload, @Query() query: PeriodTrialBalanceQueryDto): Promise<PeriodTrialBalanceResult> {
+    const { from, to } = defaultTrialBalancePeriod(query);
+    return this.trialBalanceService.computeForPeriod(actor.companyId, from, to);
+  }
+
   @Get("trial-balance/export")
   @RequirePermission("trial_balance", "read")
   async exportTrialBalance(
     @CurrentUser() actor: CurrentUserPayload,
-    @Query() query: ExportQueryDto,
+    @Query() query: TrialBalanceExportQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    const file = await this.exportService.exportTrialBalance(actor.companyId, query.format, query.lang ?? "en");
+    const { from, to } = defaultTrialBalancePeriod(query);
+    const file = await this.exportService.exportTrialBalance(actor.companyId, query.format, query.lang ?? "en", from, to);
     this.sendFile(res, file);
   }
 

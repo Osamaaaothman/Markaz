@@ -14,7 +14,12 @@
     "debit": "مدين",
     "credit": "دائن",
     "totalDebit": "إجمالي المدين",
-    "totalCredit": "إجمالي الدائن"
+    "totalCredit": "إجمالي الدائن",
+    "opening": "الرصيد الافتتاحي",
+    "movement": "الحركة",
+    "closing": "الرصيد الختامي",
+    "total": "الإجمالي",
+    "periodSubtitle": "كل حساب مرحّل، من {{from}} إلى {{to}}."
   },
   "balanceSheet": {
     "title": "الميزانية العمومية",

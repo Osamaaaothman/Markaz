@@ -14,7 +14,12 @@
     "debit": "Debit",
     "credit": "Credit",
     "totalDebit": "Total Debit",
-    "totalCredit": "Total Credit"
+    "totalCredit": "Total Credit",
+    "opening": "Opening balance",
+    "movement": "Movement",
+    "closing": "Closing balance",
+    "total": "Total",
+    "periodSubtitle": "Every posted account, from {{from}} to {{to}}."
   },
   "balanceSheet": {
     "title": "Balance Sheet",
