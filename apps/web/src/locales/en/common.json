@@ -186,6 +186,24 @@
         "postableParent": "{{code}} takes postings, so accounts cannot go under it.",
         "noParent": "No existing group starts this code.",
         "full": "No more automatic codes under this parent — type one."
+      },
+      "move": {
+        "title": "Move account",
+        "current": "Currently under",
+        "newParent": "Move under",
+        "topLevel": "Top level",
+        "hint": "Only groups of the same type are listed. The account keeps its code and everything posted to it; only the grouping and the roll-up totals change.",
+        "confirm": "Move",
+        "button": "Move",
+        "dragHint": "Drag to move",
+        "errors": {
+          "TYPE_MISMATCH": "An account can only be moved under a group of the same type.",
+          "MOVE_INTO_SELF_OR_DESCENDANT": "An account cannot be moved under itself or one of its own sub-accounts.",
+          "PARENT_NOT_GROUP": "The new parent must be a group, not an account that accepts postings.",
+          "generic": "Could not move the account. Try again."
+        },
+        "movedTitle": "Account moved",
+        "movedTo": "Moved under"
       }
     },
     "trialBalance": {
@@ -1047,5 +1065,45 @@
     "logoHint": "Shown in the side bar and at the top of invoices. A PNG with a transparent background, about 400 px wide, looks best.",
     "nameEn": "Company name (English)",
     "nameAr": "Company name (Arabic)"
+  },
+  "created": {
+    "title": "Saved successfully",
+    "ok": "OK",
+    "number": "Number",
+    "date": "Date",
+    "total": "Total",
+    "status": "Status",
+    "lines": "Lines",
+    "warehouse": "Warehouse",
+    "party": "Party",
+    "reference": "Reference",
+    "code": "Code",
+    "name": "Name",
+    "type": "Type",
+    "parent": "Parent",
+    "postable": "Accepts postings",
+    "yes": "Yes",
+    "no": "No",
+    "email": "Email",
+    "roles": "Roles",
+    "phone": "Phone",
+    "currency": "Currency",
+    "debit": "Total debit",
+    "credit": "Total credit",
+    "rate": "Rate",
+    "treatment": "Treatment",
+    "topLevel": "Top level",
+    "notes": "Notes",
+    "amount": "Amount",
+    "method": "Method",
+    "supplier": "Supplier",
+    "customer": "Customer",
+    "unit": "Unit",
+    "reorder": "Reorder point",
+    "dueDate": "Due date",
+    "net": "Net",
+    "tax": "Tax",
+    "gross": "Gross",
+    "permissions": "Permissions"
   }
 }

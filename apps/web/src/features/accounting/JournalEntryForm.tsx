@@ -38,8 +38,6 @@ const formSchema = z
     entryDate: z.date(),
     postingDate: z.date(),
     currency: z.string().min(1, "required"),
-    sourceDocumentType: z.string().min(1, "required"),
-    sourceDocumentId: z.string().min(1, "required"),
     lines: z.array(lineSchema).min(2, "minLines"),
   })
   .refine(
@@ -88,8 +86,6 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
       entryDate: new Date(),
       postingDate: new Date(),
       currency: "SAR",
-      sourceDocumentType: "manual",
-      sourceDocumentId: "",
       lines: [EMPTY_LINE, EMPTY_LINE],
     },
   });
@@ -128,8 +124,6 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
       entryDate: toDateOnlyIsoString(values.entryDate),
       postingDate: toDateOnlyIsoString(values.postingDate),
       currency: values.currency,
-      sourceDocumentType: values.sourceDocumentType,
-      sourceDocumentId: values.sourceDocumentId,
       lines: values.lines.map((line) => ({
         accountId: line.accountId,
         ...(line.debit.trim() ? { debit: line.debit } : {}),
@@ -207,17 +201,6 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
                 <Calendar inputId="postingDate" value={field.value} onChange={(e) => field.onChange(e.value)} dateFormat="yy-mm-dd" />
               )}
             />
-          </div>
-        </div>
-
-        <div className="erp-form__row">
-          <div className="erp-field">
-            <label htmlFor="sourceDocumentType">{t("accounting.journalEntries.sourceDocumentType")}</label>
-            <InputText id="sourceDocumentType" {...register("sourceDocumentType")} />
-          </div>
-          <div className="erp-field">
-            <label htmlFor="sourceDocumentId">{t("accounting.journalEntries.sourceDocumentId")}</label>
-            <InputText id="sourceDocumentId" {...register("sourceDocumentId")} />
           </div>
         </div>
 

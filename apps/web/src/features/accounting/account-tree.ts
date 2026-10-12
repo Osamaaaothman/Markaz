@@ -131,3 +131,39 @@ export function filterAccountTree<A extends AccountLike>(
   const filtered = tree.map(filterNode).filter((node): node is AccountTreeNode<A> => node !== null);
   return { tree: filtered, expandedKeys };
 }
+
+// Every account below `id`, at any depth (not `id` itself).
+export function descendantIds(accounts: readonly AccountLike[], id: string): Set<string> {
+  const childrenOf = new Map<string, string[]>();
+  for (const account of accounts) {
+    if (account.parentId) childrenOf.set(account.parentId, [...(childrenOf.get(account.parentId) ?? []), account.id]);
+  }
+  const found = new Set<string>();
+  const stack = [...(childrenOf.get(id) ?? [])];
+  while (stack.length > 0) {
+    const next = stack.pop() as string;
+    if (found.has(next)) continue;
+    found.add(next);
+    stack.push(...(childrenOf.get(next) ?? []));
+  }
+  return found;
+}
+
+// The groups an account may be moved under: not postable, the same type, and neither itself nor anything below it.
+// The server enforces the same rules; this only keeps invalid choices out of the picker.
+export function validMoveTargets<A extends AccountLike>(accounts: readonly A[], account: AccountLike): A[] {
+  const below = descendantIds(accounts, account.id);
+  return accounts.filter((candidate) => !candidate.isPostable && candidate.type === account.type && candidate.id !== account.id && !below.has(candidate.id));
+}
+
+// The ids of every ancestor of an account, nearest first.
+export function ancestorIds(accounts: readonly AccountLike[], id: string): string[] {
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const chain: string[] = [];
+  let cursor = byId.get(id)?.parentId ?? null;
+  while (cursor !== null && !chain.includes(cursor)) {
+    chain.push(cursor);
+    cursor = byId.get(cursor)?.parentId ?? null;
+  }
+  return chain;
+}

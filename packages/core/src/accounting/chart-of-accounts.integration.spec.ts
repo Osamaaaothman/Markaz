@@ -1,5 +1,5 @@
 import { PrismaClient } from "@erp/db";
-import { newId } from "@erp/shared";
+import { ACCOUNT_COLORS, newId } from "@erp/shared";
 import { PrismaAuditLogger } from "../audit/audit-logger.js";
 import { PartyService } from "../parties/party.service.js";
 import { ChartOfAccountsError, ChartOfAccountsService, type ChartOfAccountsErrorCode } from "./chart-of-accounts.service.js";
@@ -45,6 +45,48 @@ describeIfDb("ChartOfAccountsService — real database", () => {
 
   afterAll(async () => {
     await prisma.$disconnect();
+  });
+
+  it("moves an account under another group of the same type, with its sub-accounts, and audits it", async () => {
+    const banks = await chart.create({ code: "M11", name: "Banks", type: "ASSET", isPostable: false, parentId: groupId }, actorA, cid());
+    const other = await chart.create({ code: "M12", name: "Other assets", type: "ASSET", isPostable: false, parentId: groupId }, actorA, cid());
+    const bank = await chart.create({ code: "M9001", name: "Bank Al Rajhi", type: "ASSET", isPostable: true, parentId: other.id }, actorA, cid());
+
+    const moved = await chart.move(bank.id, banks.id, actorA, cid());
+    expect(moved.parentId).toBe(banks.id);
+    expect(moved.code).toBe("M9001"); // the code is not touched
+
+    const events = await prisma.auditLog.findMany({ where: { entityId: bank.id, action: "account.moved" } });
+    expect(events).toHaveLength(1);
+
+    // moving a group moves its sub-accounts with it
+    const regrouped = await chart.move(banks.id, other.id, actorA, cid());
+    expect(regrouped.parentId).toBe(other.id);
+    expect((await prisma.account.findUniqueOrThrow({ where: { id: bank.id } })).parentId).toBe(banks.id);
+  });
+
+  it("refuses a move into a postable account, another type, itself, or its own descendant", async () => {
+    const top = await chart.create({ code: "M8", name: "Movable top", type: "ASSET", isPostable: false }, actorA, cid());
+    const child = await chart.create({ code: "M81", name: "Child group", type: "ASSET", isPostable: false, parentId: top.id }, actorA, cid());
+    const grand = await chart.create({ code: "M811", name: "Grandchild group", type: "ASSET", isPostable: false, parentId: child.id }, actorA, cid());
+    const liability = await chart.create({ code: "M2", name: "Liabilities", type: "LIABILITY", isPostable: false }, actorA, cid());
+
+    expect(await failsWith(chart.move(child.id, leafId, actorA, cid()))).toBe("PARENT_NOT_GROUP");
+    expect(await failsWith(chart.move(child.id, liability.id, actorA, cid()))).toBe("TYPE_MISMATCH");
+    expect(await failsWith(chart.move(child.id, child.id, actorA, cid()))).toBe("MOVE_INTO_SELF_OR_DESCENDANT");
+    expect(await failsWith(chart.move(top.id, grand.id, actorA, cid()))).toBe("MOVE_INTO_SELF_OR_DESCENDANT");
+    expect(await failsWith(chart.move(child.id, newId(), actorA, cid()))).toBe("PARENT_NOT_FOUND");
+    expect(await failsWith(chart.move(newId(), top.id, actorA, cid()))).toBe("ACCOUNT_NOT_FOUND");
+  });
+
+  it("keeps companies apart on a move and drops a colour when a top-level account goes under a parent", async () => {
+    const root = await chart.create({ code: "M7", name: "Coloured root", type: "ASSET", isPostable: false, color: ACCOUNT_COLORS[0] }, actorA, cid());
+    const target = await chart.create({ code: "M71", name: "Target group", type: "ASSET", isPostable: false, parentId: groupId }, actorA, cid());
+    expect(await failsWith(chart.move(root.id, target.id, actorB, cid()))).toBe("ACCOUNT_NOT_FOUND");
+    const moved = await chart.move(root.id, target.id, actorA, cid());
+    expect(moved.color).toBeNull();
+    const back = await chart.move(root.id, null, actorA, cid());
+    expect(back.parentId).toBeNull();
   });
 
   it("creates an account linked to a party, with the party's name in the result", async () => {

@@ -79,3 +79,16 @@ export function useUpdateAccount(accountId: string) {
     },
   });
 }
+
+// Moves an account, with everything under it, to another group of the same type (null = the top level).
+export function useMoveAccount(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (parentId: string | null) => (await apiClient.patch<ChartOfAccountEntry>(`/v1/accounts/${accountId}/parent`, { parentId })).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] });
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+      void qc.invalidateQueries({ queryKey: ["accountBalances"] });
+    },
+  });
+}

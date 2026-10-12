@@ -44,6 +44,7 @@ import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-que
 import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
 import { CreateAccountDto } from "./dto/create-account.dto.js";
 import { UpdateAccountDto } from "./dto/update-account.dto.js";
+import { MoveAccountDto } from "./dto/move-account.dto.js";
 import type {
   AccountSummary,
   ChartOfAccountEntry,
@@ -126,6 +127,18 @@ export class AccountingController {
     return this.mapChartErrors(this.chartOfAccounts.update(id, dto, actor, correlationId));
   }
 
+  // Moves an account, with everything under it, to another group of the same type (or to the top level).
+  @Patch("accounts/:id/parent")
+  @RequirePermission("account", "update")
+  moveAccount(
+    @Param("id") id: string,
+    @Body() dto: MoveAccountDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<ChartOfAccountEntry> {
+    return this.mapChartErrors(this.chartOfAccounts.move(id, dto.parentId ?? null, actor, correlationId));
+  }
+
   // The core service throws typed business-rule errors; without this they would surface as 500.
   private async mapChartErrors<T>(work: Promise<T>): Promise<T> {
     try {
@@ -141,7 +154,9 @@ export class AccountingController {
           throw new NotFoundException(error.message);
         case "PARENT_NOT_GROUP":
         case "COLOR_ON_CHILD":
-          throw new BadRequestException(error.message);
+        case "TYPE_MISMATCH":
+        case "MOVE_INTO_SELF_OR_DESCENDANT":
+          throw new BadRequestException({ message: error.message, code: error.code });
       }
     }
   }
@@ -388,8 +403,10 @@ export class AccountingController {
       ...(dto.exchangeRate !== undefined ? { exchangeRate: dto.exchangeRate } : {}),
       lines: dto.lines,
       sourceModule: "manual",
-      sourceDocumentType: dto.sourceDocumentType,
-      sourceDocumentId: dto.sourceDocumentId,
+      sourceDocumentType: dto.sourceDocumentType ?? "manual",
+      // The idempotency key is unique per genuine request and identical on a retry, so a retried manual entry is
+      // recognised as the same one.
+      sourceDocumentId: dto.sourceDocumentId ?? idempotencyKey,
       actorId: actor.id,
       correlationId,
       idempotencyKey,

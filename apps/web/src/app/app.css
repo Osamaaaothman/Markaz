@@ -364,3 +364,15 @@
   align-items: center;
 }
 
+
+/* a group row lights up while an account is dragged over it and may be dropped there */
+.coa-cell--drop {
+  outline: 2px dashed var(--mk-primary);
+  outline-offset: 2px;
+  border-radius: var(--mk-radius-xs);
+  background: var(--mk-primary-soft);
+}
+
+.coa-cell[draggable="true"] {
+  cursor: grab;
+}
