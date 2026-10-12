@@ -614,6 +614,52 @@ html body .erp-table .p-datatable-emptymessage > td {
   font-variant-numeric: tabular-nums;
 }
 
+/* trial balance: opening, movement and closing totals, each its own block with debit and credit */
+.erp-table-footer__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.1rem;
+  align-items: center;
+  padding-inline-end: 1.75rem;
+  border-inline-end: 1px solid var(--mk-border);
+}
+
+.erp-table-footer__group:last-child {
+  border-inline-end: 0;
+  padding-inline-end: 0;
+}
+
+.erp-table-footer__title {
+  color: var(--mk-text);
+  font-weight: 600;
+}
+
+.erp-table-footer--tb {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem 1.5rem;
+}
+
+@media (max-width: 760px) {
+  .erp-table-footer--tb {
+    grid-template-columns: 1fr;
+  }
+
+  .erp-table-footer__group {
+    border-inline-end: 0;
+    padding-inline-end: 0;
+  }
+}
+
+/* eight amount columns need room: below this the table scrolls sideways inside its card instead of squeezing */
+.erp-table--tb .p-datatable-table {
+  min-width: 60rem;
+}
+
+.erp-table--tb .p-datatable-thead > tr > th {
+  text-align: center;
+}
+
 .erp-table-footer--center {
   justify-content: center;
   border: 0;

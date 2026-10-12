@@ -62,7 +62,8 @@
     "exportPdf": "Export PDF",
     "exportCsv": "Export CSV",
     "copyId": "Copy ID",
-    "copied": "Copied"
+    "copied": "Copied",
+    "print": "Print"
   },
   "status": {
     "loading": "Loading…",
@@ -216,7 +217,13 @@
       "totalCredit": "Total credit",
       "balanced": "Balanced",
       "outOfBalance": "Out of balance",
-      "empty": "No posted activity yet."
+      "empty": "No posted activity yet.",
+      "opening": "Opening balance",
+      "movement": "Movement",
+      "closing": "Closing balance",
+      "from": "From",
+      "to": "To",
+      "periodSubtitle": "Opening balance, movement and closing balance of every posted account for the period."
     },
     "balanceSheet": {
       "title": "Balance sheet",
@@ -1106,6 +1113,7 @@
     "net": "Net",
     "tax": "Tax",
     "gross": "Gross",
-    "permissions": "Permissions"
+    "permissions": "Permissions",
+    "nameAr": "Arabic name"
   }
 }

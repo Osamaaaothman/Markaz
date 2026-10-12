@@ -36,6 +36,15 @@ export function ExportButtons({ onExport }: ExportButtonsProps): React.JSX.Eleme
       />
       <Button
         type="button"
+        label={t("actions.print")}
+        icon="pi pi-print"
+        outlined
+        loading={loadingFormat === "print"}
+        disabled={loadingFormat !== null && loadingFormat !== "print"}
+        onClick={() => void handleClick("print")}
+      />
+      <Button
+        type="button"
         label={t("actions.exportCsv")}
         icon="pi pi-file"
         outlined
