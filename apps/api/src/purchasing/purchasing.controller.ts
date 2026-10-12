@@ -68,7 +68,7 @@ export class PurchasingController {
     @CorrelationId() correlationId: string,
   ): Promise<PurchaseRequestSummary> {
     return this.mapRequestErrors(
-      this.requests.create({ ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines }, actor, correlationId),
+      this.requests.create({ warehouseId: dto.warehouseId, ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines }, actor, correlationId),
     );
   }
 
@@ -91,6 +91,7 @@ export class PurchasingController {
       switch (error.code) {
         case "REQUEST_NOT_FOUND":
         case "ITEM_NOT_FOUND":
+        case "WAREHOUSE_NOT_FOUND":
           throw new NotFoundException(error.message);
         case "NOT_PENDING":
           throw new ConflictException(error.message);
@@ -125,6 +126,7 @@ export class PurchasingController {
       this.orders.create(
         {
           supplierId: dto.supplierId,
+          warehouseId: dto.warehouseId,
           orderDate: new Date(dto.orderDate),
           ...(dto.expectedDate !== undefined ? { expectedDate: new Date(dto.expectedDate) } : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
@@ -178,6 +180,7 @@ export class PurchasingController {
       switch (error.code) {
         case "ORDER_NOT_FOUND":
         case "SUPPLIER_NOT_FOUND":
+        case "WAREHOUSE_NOT_FOUND":
         case "ITEM_NOT_FOUND":
         case "REQUEST_NOT_FOUND":
           throw new NotFoundException(error.message);

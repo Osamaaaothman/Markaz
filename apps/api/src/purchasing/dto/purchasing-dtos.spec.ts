@@ -16,10 +16,10 @@ async function fieldsWithErrors<T extends object>(cls: new () => T, plain: objec
 
 describe("purchase request DTOs", () => {
   it("accepts a request with positive quantities and rejects empty, zero or text quantities", async () => {
-    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { lines: [{ itemId: "i1", quantity: "5" }] })).toEqual([]);
-    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { lines: [] })).toEqual(["lines"]);
-    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { lines: [{ itemId: "i1", quantity: "0" }] })).toEqual(["lines"]);
-    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { lines: [{ itemId: "i1", quantity: "ten" }] })).toEqual(["lines"]);
+    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { warehouseId: "w1", lines: [{ itemId: "i1", quantity: "5" }] })).toEqual([]);
+    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { warehouseId: "w1", lines: [] })).toEqual(["lines"]);
+    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { warehouseId: "w1", lines: [{ itemId: "i1", quantity: "0" }] })).toEqual(["lines"]);
+    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { warehouseId: "w1", lines: [{ itemId: "i1", quantity: "ten" }] })).toEqual(["lines"]);
   });
 
   it("requires a reason to reject", async () => {
@@ -32,15 +32,17 @@ describe("purchase order DTOs", () => {
   const line = { itemId: "i1", quantity: "10", unitPrice: "12.5" };
 
   it("accepts an order and allows a zero price (a free sample) but not a negative one", async () => {
-    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", orderDate: "2026-01-01", lines: [line] })).toEqual([]);
-    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", orderDate: "2026-01-01", lines: [{ ...line, unitPrice: "0" }] })).toEqual([]);
-    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", orderDate: "2026-01-01", lines: [{ ...line, unitPrice: "-1" }] })).toEqual(["lines"]);
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", warehouseId: "w1", orderDate: "2026-01-01", lines: [line] })).toEqual([]);
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", warehouseId: "w1", orderDate: "2026-01-01", lines: [{ ...line, unitPrice: "0" }] })).toEqual([]);
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", warehouseId: "w1", orderDate: "2026-01-01", lines: [{ ...line, unitPrice: "-1" }] })).toEqual(["lines"]);
   });
 
   it("requires a supplier, a date and at least one line", async () => {
-    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { orderDate: "2026-01-01", lines: [line] })).toEqual(["supplierId"]);
-    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", orderDate: "soon", lines: [line] })).toEqual(["orderDate"]);
-    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", orderDate: "2026-01-01", lines: [] })).toEqual(["lines"]);
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { warehouseId: "w1", orderDate: "2026-01-01", lines: [line] })).toEqual(["supplierId"]);
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", orderDate: "2026-01-01", lines: [line] })).toEqual(["warehouseId"]);
+    expect(await fieldsWithErrors(CreatePurchaseRequestDto, { lines: [{ itemId: "i1", quantity: "5" }] })).toEqual(["warehouseId"]);
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", warehouseId: "w1", orderDate: "soon", lines: [line] })).toEqual(["orderDate"]);
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", warehouseId: "w1", orderDate: "2026-01-01", lines: [] })).toEqual(["lines"]);
   });
 
   it("validates a receipt against an order", async () => {

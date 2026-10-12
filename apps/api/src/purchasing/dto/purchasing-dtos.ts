@@ -29,6 +29,11 @@ export class PurchaseRequestLineDto {
 }
 
 export class CreatePurchaseRequestDto {
+  // The warehouse the goods are wanted in. Required.
+  @IsString()
+  @IsNotEmpty()
+  warehouseId!: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(1000)
@@ -78,6 +83,11 @@ export class PurchaseOrderLineDto {
 export class CreatePurchaseOrderDto {
   @IsString()
   supplierId!: string;
+
+  // The warehouse the goods are to be received into. Required.
+  @IsString()
+  @IsNotEmpty()
+  warehouseId!: string;
 
   @IsDateString()
   orderDate!: string;

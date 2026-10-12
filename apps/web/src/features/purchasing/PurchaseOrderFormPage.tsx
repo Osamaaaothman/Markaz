@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,8 @@ import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PartyPicker } from "../accounting/PartyPicker";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
+import { useAllWarehouses } from "../inventory/use-warehouses";
 import { useAllItems } from "../inventory/use-items";
 import { useCreatePurchaseOrder, usePurchaseRequest } from "./use-purchasing";
 
@@ -26,6 +28,7 @@ const lineSchema = z.object({
 });
 const formSchema = z.object({
   supplierId: z.string().min(1, "required"),
+  warehouseId: z.string().min(1, "required"),
   orderDate: z.date(),
   expectedDate: z.date().nullable(),
   notes: z.string(),
@@ -44,6 +47,8 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: items } = useAllItems();
+  const { data: warehouses } = useAllWarehouses();
+  const [created, setCreated] = useState<{ info: CreatedInfo; id: string } | null>(null);
   const { data: request } = usePurchaseRequest(requestId);
   const create = useCreatePurchaseOrder();
 
@@ -56,7 +61,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { supplierId: "", orderDate: new Date(), expectedDate: null, notes: "", lines: [EMPTY_LINE] },
+    defaultValues: { supplierId: "", warehouseId: "", orderDate: new Date(), expectedDate: null, notes: "", lines: [EMPTY_LINE] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
   const lines = watch("lines");
@@ -65,6 +70,8 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
     if (!request || request.status !== "PENDING") return;
     reset({
       supplierId: "",
+      // The request already says which warehouse the goods are for.
+      warehouseId: request.warehouseId ?? "",
       orderDate: new Date(),
       expectedDate: null,
       notes: request.notes ?? "",
@@ -86,13 +93,32 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
     create.mutate(
       {
         supplierId: values.supplierId,
+        warehouseId: values.warehouseId,
         orderDate: toDateOnlyIsoString(values.orderDate),
         ...(values.expectedDate ? { expectedDate: toDateOnlyIsoString(values.expectedDate) } : {}),
         ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
         ...(request?.status === "PENDING" && requestId ? { purchaseRequestId: requestId } : {}),
         lines: values.lines,
       },
-      { onSuccess: (created) => void navigate(`/purchasing/orders/${created.id}`) },
+      {
+        onSuccess: (saved) => {
+          const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
+          setCreated({
+            id: saved.id,
+            info: {
+              title: t("purchasing.orders.newTitle"),
+              headline: saved.number,
+              rows: [
+                { label: t("created.status"), value: t(`purchasing.orderStatus.${saved.status}`) },
+                { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+                { label: t("created.date"), value: toDateOnlyIsoString(values.orderDate), ltr: true },
+                { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
+                { label: t("created.lines"), value: String(values.lines.length) },
+              ],
+            },
+          });
+        },
+      },
     );
   });
 
@@ -115,6 +141,25 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
               render={({ field }) => <PartyPicker inputId="poSupplier" value={field.value || null} onChange={(party) => field.onChange(party?.id ?? "")} />}
             />
             {errors.supplierId ? <small className="erp-field__error">{t("validation.required")}</small> : null}
+          </div>
+          <div className="erp-field">
+            <label htmlFor="poWarehouse">{t("created.warehouse")}</label>
+            <Controller
+              control={control}
+              name="warehouseId"
+              render={({ field }) => (
+                <Dropdown
+                  inputId="poWarehouse"
+                  value={field.value || null}
+                  onChange={(e) => field.onChange((e.value as string | null) ?? "")}
+                  options={(warehouses ?? []).map((w) => ({ label: `${w.code} — ${localizedName(w, i18n.language)}`, value: w.id }))}
+                  filter
+                  placeholder={t("purchasing.requests.chooseWarehouse")}
+                  className={errors.warehouseId ? "p-invalid" : ""}
+                />
+              )}
+            />
+            {errors.warehouseId ? <small className="erp-field__error">{t("purchasing.requests.warehouseRequired")}</small> : null}
           </div>
           <div className="erp-field">
             <label htmlFor="poDate">{t("purchasing.orders.orderDate")}</label>
@@ -175,6 +220,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
           <Button type="submit" label={t("purchasing.orders.create")} loading={create.isPending} />
         </div>
       </form>
+      <CreatedDialog info={created?.info ?? null} onHide={() => (created ? void navigate(`/purchasing/orders/${created.id}`) : undefined)} />
     </div>
   );
 }

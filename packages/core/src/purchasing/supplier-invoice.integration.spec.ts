@@ -96,7 +96,7 @@ describeIfDb("Supplier invoices (M5, three-way match) — real database", () => 
     supplierId = (await party("S1")).id;
     otherSupplierId = (await party("S2")).id;
 
-    const order = await orders.create({ supplierId, orderDate: today, lines: [{ itemId, quantity: "10", unitPrice: "40" }] }, actor, cid());
+    const order = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId, quantity: "10", unitPrice: "40" }] }, actor, cid());
     poId = order.id;
     poLineId = (await orders.get(companyId, poId)).lines[0]!.id;
     await receiving.receive(poId, { warehouseId, documentDate: today, lines: [{ purchaseOrderLineId: poLineId, quantity: "6" }] }, actor, cid(), newId());

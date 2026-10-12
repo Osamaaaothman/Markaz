@@ -8,7 +8,7 @@ export type PurchaseRequestStatus = "PENDING" | "PROCESSED" | "REJECTED";
 
 export class PurchaseRequestError extends Error {
   constructor(
-    readonly code: "EMPTY_REQUEST" | "ITEM_NOT_FOUND" | "REQUEST_NOT_FOUND" | "NOT_PENDING",
+    readonly code: "EMPTY_REQUEST" | "ITEM_NOT_FOUND" | "REQUEST_NOT_FOUND" | "NOT_PENDING" | "WAREHOUSE_NOT_FOUND",
     message: string,
   ) {
     super(message);
@@ -23,6 +23,8 @@ export interface PurchaseRequestLineInput {
 }
 
 export interface CreatePurchaseRequestInput {
+  // The warehouse the goods are wanted in. Required.
+  readonly warehouseId: string;
   readonly notes?: string | undefined;
   readonly lines: readonly PurchaseRequestLineInput[];
 }
@@ -40,6 +42,9 @@ export interface PurchaseRequestSummary {
   readonly rejectionReason: string | null;
   readonly lineCount: number;
   readonly purchaseOrderId: string | null;
+  readonly warehouseId: string | null;
+  readonly warehouseName: string | null;
+  readonly warehouseNameAr: string | null;
   readonly createdAt: string;
 }
 
@@ -72,7 +77,7 @@ function blankToNull(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-type RequestRow = Prisma.PurchaseRequestGetPayload<{ include: { _count: { select: { lines: true } } } }>;
+type RequestRow = Prisma.PurchaseRequestGetPayload<{ include: { warehouse: true; _count: { select: { lines: true } } } }>;
 
 function toSummary(row: RequestRow): PurchaseRequestSummary {
   return {
@@ -83,6 +88,9 @@ function toSummary(row: RequestRow): PurchaseRequestSummary {
     rejectionReason: row.rejectionReason,
     lineCount: row._count.lines,
     purchaseOrderId: row.purchaseOrderId,
+    warehouseId: row.warehouseId,
+    warehouseName: row.warehouse?.name ?? null,
+    warehouseNameAr: row.warehouse?.nameAr ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -105,6 +113,9 @@ export class PurchaseRequestService {
       const items = await tx.item.findMany({ where: { id: { in: itemIds }, companyId: actor.companyId, isActive: true }, select: { id: true } });
       if (items.length !== itemIds.length) throw new PurchaseRequestError("ITEM_NOT_FOUND", "An item on the request was not found");
 
+      const warehouse = await tx.warehouse.findFirst({ where: { id: input.warehouseId, companyId: actor.companyId, isActive: true }, select: { id: true } });
+      if (!warehouse) throw new PurchaseRequestError("WAREHOUSE_NOT_FOUND", "The warehouse was not found or is not active");
+
       const now = new Date();
       const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, now);
       const number = await allocateDocumentNumber(tx, actor.companyId, "purchase_request", "PRQ", fiscalYear);
@@ -115,6 +126,7 @@ export class PurchaseRequestService {
           companyId: actor.companyId,
           number,
           status: "PENDING",
+          warehouseId: input.warehouseId,
           notes: blankToNull(input.notes),
           requestedBy: actor.id,
           correlationId,
@@ -128,7 +140,7 @@ export class PurchaseRequestService {
             })),
           },
         },
-        include: { _count: { select: { lines: true } } },
+        include: { warehouse: true, _count: { select: { lines: true } } },
       });
     });
 
@@ -141,7 +153,7 @@ export class PurchaseRequestService {
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 100);
     const rows = await this.prisma.purchaseRequest.findMany({
       where: { companyId, ...(query.status ? { status: query.status } : {}) },
-      include: { _count: { select: { lines: true } } },
+      include: { warehouse: true, _count: { select: { lines: true } } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(query.cursor !== undefined ? { cursor: { id: query.cursor }, skip: 1 } : {}),
@@ -158,6 +170,7 @@ export class PurchaseRequestService {
     const row = await this.prisma.purchaseRequest.findFirst({
       where: { id, companyId },
       include: {
+        warehouse: true,
         _count: { select: { lines: true } },
         lines: { orderBy: { lineNumber: "asc" }, include: { item: true } },
       },
@@ -189,7 +202,7 @@ export class PurchaseRequestService {
       return tx.purchaseRequest.update({
         where: { id },
         data: { status: "REJECTED", rejectionReason: reason.trim(), decidedBy: actor.id, decidedAt: new Date() },
-        include: { _count: { select: { lines: true } } },
+        include: { warehouse: true, _count: { select: { lines: true } } },
       });
     });
     const summary = toSummary(updated);

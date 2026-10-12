@@ -73,6 +73,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
           >
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(row: PurchaseOrderSummary) => <span className="coa-code">{row.number}</span>} />
             <Column header={t("purchasing.supplier")} body={(row: PurchaseOrderSummary) => localizedName({ name: row.supplierName, nameAr: row.supplierNameAr }, i18n.language)} />
+            <Column header={t("created.warehouse")} body={(row: PurchaseOrderSummary) => (row.warehouseName ? localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language) : "—")} />
             <Column header={t("purchasing.orders.orderDate")} style={{ width: "9rem" }} body={(row: PurchaseOrderSummary) => formatCalendarDate(row.orderDate, i18n.language)} />
             <Column header={t("purchasing.orders.expectedDate")} style={{ width: "9rem" }} body={(row: PurchaseOrderSummary) => (row.expectedDate ? formatCalendarDate(row.expectedDate, i18n.language) : "")} />
             <Column header={t("purchasing.total")} align="right" style={{ width: "11rem" }} body={(row: PurchaseOrderSummary) => formatMoney(row.totalAmount, row.currency)} />

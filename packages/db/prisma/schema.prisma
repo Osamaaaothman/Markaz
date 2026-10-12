@@ -595,6 +595,8 @@ model Warehouse {
   stockIssues       StockIssue[]
   stockCounts       StockCount[]
   salesInvoiceLines SalesInvoiceLine[]
+  purchaseRequests  PurchaseRequest[]
+  purchaseOrders    PurchaseOrder[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -879,11 +881,14 @@ model PurchaseRequest {
   decidedBy       String?   @map("decided_by")
   decidedAt       DateTime? @map("decided_at")
   purchaseOrderId String?   @map("purchase_order_id")
+  // The warehouse the goods are wanted in. Required for every new request; null only on requests made before it existed.
+  warehouseId     String?   @map("warehouse_id")
   correlationId   String    @map("correlation_id")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   company       Company               @relation(fields: [companyId], references: [id])
+  warehouse     Warehouse?            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   purchaseOrder PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
   lines         PurchaseRequestLine[]
 
@@ -924,6 +929,8 @@ model PurchaseOrder {
   totalAmount       Decimal   @map("total_amount") @db.Decimal(19, 4)
   notes             String?
   approvalRequestId String?   @map("approval_request_id")
+  // The warehouse the goods are to be received into. Required for every new order; null only on older orders.
+  warehouseId       String?   @map("warehouse_id")
   requestedBy       String    @map("requested_by")
   correlationId     String    @map("correlation_id")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -931,6 +938,7 @@ model PurchaseOrder {
   version           Int       @default(1)
 
   company          Company             @relation(fields: [companyId], references: [id])
+  warehouse        Warehouse?          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   supplier         Party               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   lines            PurchaseOrderLine[]
   purchaseRequests PurchaseRequest[]

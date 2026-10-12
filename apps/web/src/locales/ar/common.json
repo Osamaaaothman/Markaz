@@ -598,7 +598,9 @@
       "openOrder": "فتح الأمر",
       "rejectReason": "ما سبب الرفض؟",
       "rejectError": "تعذّر رفض هذا الطلب.",
-      "createError": "تعذّر حفظ هذا الطلب."
+      "createError": "تعذّر حفظ هذا الطلب.",
+      "chooseWarehouse": "اختر المستودع",
+      "warehouseRequired": "اختر المستودع الذي ستصل إليه البضاعة."
     },
     "orders": {
       "title": "أوامر الشراء",

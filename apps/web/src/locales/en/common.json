@@ -598,7 +598,9 @@
       "openOrder": "Open order",
       "rejectReason": "Why is it being rejected?",
       "rejectError": "Could not reject this request.",
-      "createError": "Could not save this request."
+      "createError": "Could not save this request.",
+      "chooseWarehouse": "Choose a warehouse",
+      "warehouseRequired": "Choose the warehouse the goods are for."
     },
     "orders": {
       "title": "Purchase orders",
