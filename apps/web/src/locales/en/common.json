@@ -527,7 +527,14 @@
         "ACCOUNTS_RECEIVABLE": "Accounts receivable",
         "SALES_REVENUE": "Sales revenue",
         "VAT_OUTPUT": "Output VAT",
-        "COST_OF_GOODS_SOLD": "Cost of goods sold"
+        "COST_OF_GOODS_SOLD": "Cost of goods sold",
+        "SALARY_EXPENSE": "Salary expense",
+        "GOSI_EMPLOYER_EXPENSE": "GOSI expense (employer share)",
+        "GOSI_PAYABLE": "GOSI payable",
+        "NET_PAY_PAYABLE": "Net pay payable",
+        "SALARY_ADVANCES_RECEIVABLE": "Salary advances receivable",
+        "EOSB_EXPENSE": "End-of-service expense",
+        "EOSB_PAYABLE": "End-of-service payable"
       },
       "keyHints": {
         "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
@@ -541,7 +548,14 @@
         "ACCOUNTS_RECEIVABLE": "Debited with the gross amount of every sales invoice; credited by credit notes.",
         "SALES_REVENUE": "Credited with the net of sales invoices (a line can name its own account instead).",
         "VAT_OUTPUT": "Credited with the VAT charged on sales invoices.",
-        "COST_OF_GOODS_SOLD": "Debited with the cost of the stock sold, at weighted-average cost."
+        "COST_OF_GOODS_SOLD": "Debited with the cost of the stock sold, at weighted-average cost.",
+        "SALARY_EXPENSE": "Debited with the gross salary of every payroll run.",
+        "GOSI_EMPLOYER_EXPENSE": "Debited with the employer's share of GOSI contributions.",
+        "GOSI_PAYABLE": "Credited with the combined GOSI liability (employee + employer) until remitted.",
+        "NET_PAY_PAYABLE": "Credited with what is owed to employees after a payroll run.",
+        "SALARY_ADVANCES_RECEIVABLE": "Debited when an advance is granted, credited as it is recovered.",
+        "EOSB_EXPENSE": "Debited when an end-of-service gratuity is accrued.",
+        "EOSB_PAYABLE": "Credited with the end-of-service amount owed until paid."
       }
     },
     "movements": {
