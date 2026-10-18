@@ -84,6 +84,7 @@ describeIfDb("Ageing and party statements — real database", () => {
       newId(),
     );
     await payments.create({ direction: "PAYMENT", partyId: supplierId, paymentDate: on(3, 10), amount: "150", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [{ invoiceId: s.id, amount: "150" }] }, actor, cid(), newId());
+    await purchases.createDebitNote({ originalInvoiceId: s.id, debitDate: on(3, 20), lines: [{ description: "Overcharge", quantity: "1", unitPrice: "50", taxCodeId: vat0, accountId: acc.rent! }] }, actor, cid(), newId());
   });
 
   afterAll(async () => {
@@ -113,10 +114,11 @@ describeIfDb("Ageing and party statements — real database", () => {
     expect(late.difference).toBe("0.0000");
   });
 
-  it("ages payables and ties to the ledger", async () => {
+  it("ages payables and ties to the ledger, net of a debit note", async () => {
     const report = await aging.report(companyId, "SUPPLIER", on(3, 31));
-    expect(report.parties[0]).toMatchObject({ days1to30: "250.0000", total: "250.0000" }); // 28 days overdue
-    expect(report.ledgerBalance).toBe("250.0000");
+    // 400 invoice - 150 paid - 50 debit note = 200, 28 days overdue.
+    expect(report.parties[0]).toMatchObject({ days1to30: "200.0000", total: "200.0000" });
+    expect(report.ledgerBalance).toBe("200.0000");
     expect(report.difference).toBe("0.0000");
   });
 
@@ -141,13 +143,14 @@ describeIfDb("Ageing and party statements — real database", () => {
     expect(statement.closingBalance).toBe("1050.0000");
   });
 
-  it("builds a supplier statement", async () => {
+  it("builds a supplier statement, with the debit note settling part of it", async () => {
     const statement = await statements.statement(companyId, supplierId, "SUPPLIER", on(1, 1), on(3, 31));
     expect(statement.lines.map((l) => [l.kind, l.reference, l.balance])).toEqual([
       ["INVOICE", "R-1", "400.0000"],
       ["PAYMENT", null, "250.0000"],
+      ["DEBIT_NOTE", null, "200.0000"],
     ]);
-    expect(statement.closingBalance).toBe("250.0000");
+    expect(statement.closingBalance).toBe("200.0000");
   });
 
   it("does not show another company's party", async () => {

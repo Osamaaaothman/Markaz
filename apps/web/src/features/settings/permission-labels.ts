@@ -23,6 +23,7 @@ const RESOURCE_ORDER = [
   "purchase_order",
   "approval_policy",
   "supplier_invoice",
+  "debit_note",
   "tax_code",
   "quotation",
   "sales_order",

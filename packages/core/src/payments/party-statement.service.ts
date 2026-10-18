@@ -2,7 +2,7 @@ import type { PrismaClient } from "@erp/db";
 import { fromScaledBigInt, toScaledBigInt } from "../accounting/decimal-sum.util.js";
 import type { InvoiceSide } from "./outstanding.js";
 
-export type StatementEntryKind = "INVOICE" | "CREDIT_NOTE" | "RECEIPT" | "PAYMENT";
+export type StatementEntryKind = "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | "RECEIPT" | "PAYMENT";
 
 export interface PartyStatementLine {
   readonly kind: StatementEntryKind;
@@ -76,8 +76,11 @@ export class PartyStatementService {
           `
         : await this.prisma.$queryRaw<Row[]>`
             SELECT kind, id, number, doc_date, reference, charge::text AS charge, settlement::text AS settlement FROM (
-              SELECT 'INVOICE' AS kind, si.id, si.number, si.invoice_date AS doc_date, si.supplier_invoice_number AS reference,
-                     si.total_gross AS charge, 0 AS settlement, si.created_at
+              SELECT CASE WHEN si.document_type = 'INVOICE' THEN 'INVOICE' ELSE 'DEBIT_NOTE' END AS kind,
+                     si.id, si.number, si.invoice_date AS doc_date, si.supplier_invoice_number AS reference,
+                     CASE WHEN si.document_type = 'INVOICE' THEN si.total_gross ELSE 0 END AS charge,
+                     CASE WHEN si.document_type = 'DEBIT_NOTE' THEN si.total_gross ELSE 0 END AS settlement,
+                     si.created_at
               FROM supplier_invoices si WHERE si.company_id = ${companyId} AND si.supplier_id = ${partyId} AND si.invoice_date <= ${to}::date
               UNION ALL
               SELECT 'PAYMENT', p.id, p.number, p.payment_date, p.reference, 0, p.amount, p.created_at

@@ -58,11 +58,13 @@ export function useAddSaudiTaxCodes() {
 
 export interface SupplierInvoiceSummary {
   readonly id: string;
+  readonly documentType: "INVOICE" | "DEBIT_NOTE";
   readonly number: string;
-  readonly supplierInvoiceNumber: string;
+  readonly supplierInvoiceNumber: string | null;
   readonly supplierId: string;
   readonly supplierName: string;
   readonly supplierNameAr: string | null;
+  readonly originalInvoiceId: string | null;
   readonly invoiceDate: string;
   readonly dueDate: string | null;
   readonly currency: string;
@@ -76,20 +78,42 @@ interface Page<T> {
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
 }
 
-export function useSupplierInvoices() {
+export function useSupplierInvoices(documentType: "INVOICE" | "DEBIT_NOTE" | null = null) {
   const { can } = usePermissions();
   return useInfiniteQuery({
-    queryKey: ["supplierInvoices", "list"],
+    queryKey: ["supplierInvoices", "list", documentType],
     queryFn: async ({ pageParam }) =>
       (
         await apiClient.get<Page<SupplierInvoiceSummary>>("/v1/supplier-invoices", {
-          params: { limit: "50", ...(pageParam ? { cursor: pageParam } : {}) },
+          params: { limit: "50", ...(documentType ? { documentType } : {}), ...(pageParam ? { cursor: pageParam } : {}) },
         })
       ).data,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
     staleTime: 10_000,
     enabled: can("supplier_invoice:read"),
+  });
+}
+
+export interface DebitNotePayload {
+  readonly debitDate: string;
+  readonly notes?: string;
+  readonly lines: readonly { readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string; readonly accountId: string }[];
+}
+
+export function useCreateDebitNote(invoiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: DebitNotePayload) =>
+      (
+        await apiClient.post<{ id: string; number: string }>(`/v1/supplier-invoices/${invoiceId}/debit-notes`, payload, {
+          headers: { "Idempotency-Key": newId() },
+        })
+      ).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["supplierInvoices"] });
+      void qc.invalidateQueries({ queryKey: ["accountBalances"] });
+    },
   });
 }
 

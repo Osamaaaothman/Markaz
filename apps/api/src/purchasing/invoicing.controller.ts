@@ -17,6 +17,7 @@ import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import {
+  CreateDebitNoteDto,
   CreateTaxCodeDto,
   InvoiceableQueryDto,
   SupplierInvoiceDto,
@@ -77,6 +78,25 @@ export class InvoicingController {
     return this.mapInvoiceErrors(this.invoices.create(toInput(dto), actor, correlationId, idempotencyKey));
   }
 
+  @Post("supplier-invoices/:id/debit-notes")
+  @RequirePermission("debit_note", "create")
+  createDebitNote(
+    @Param("id") id: string,
+    @Body() dto: CreateDebitNoteDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+    @IdempotencyKey() idempotencyKey: string,
+  ): Promise<SupplierInvoiceResult> {
+    return this.mapInvoiceErrors(
+      this.invoices.createDebitNote(
+        { originalInvoiceId: id, debitDate: new Date(dto.debitDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
+        actor,
+        correlationId,
+        idempotencyKey,
+      ),
+    );
+  }
+
   private async mapInvoiceErrors<T>(work: Promise<T>): Promise<T> {
     try {
       return await work;
@@ -96,11 +116,13 @@ export class InvoicingController {
         case "PRICE_VARIANCE_NOT_ACCEPTED":
         case "DUPLICATE_INVOICE":
         case "SUPPLIER_MISMATCH":
+        case "DEBIT_EXCEEDS_INVOICE":
           throw new ConflictException(body);
         case "EMPTY_INVOICE":
         case "ACCOUNT_NOT_POSTABLE":
         case "NO_OPEN_PERIOD":
         case "ZERO_INVOICE":
+        case "NOT_AN_INVOICE":
           throw new BadRequestException(body);
       }
     }

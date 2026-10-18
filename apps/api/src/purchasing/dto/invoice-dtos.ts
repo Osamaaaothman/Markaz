@@ -89,6 +89,45 @@ export class SupplierInvoicesQueryDto {
   @IsOptional()
   @IsString()
   supplierId?: string;
+
+  @IsOptional()
+  @IsIn(["INVOICE", "DEBIT_NOTE"])
+  documentType?: "INVOICE" | "DEBIT_NOTE";
+}
+
+export class DebitNoteLineDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  description!: string;
+
+  @IsDecimalString({ positive: true })
+  quantity!: string;
+
+  @IsDecimalString()
+  unitPrice!: string;
+
+  @IsString()
+  taxCodeId!: string;
+
+  @IsString()
+  accountId!: string;
+}
+
+export class CreateDebitNoteDto {
+  @IsDateString()
+  debitDate!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => DebitNoteLineDto)
+  lines!: DebitNoteLineDto[];
 }
 
 export class InvoiceableQueryDto {

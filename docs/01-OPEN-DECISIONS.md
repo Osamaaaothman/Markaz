@@ -211,10 +211,18 @@ Confirm or change each before the first real customer posts a supplier invoice.
   accountant confirms the code list before use.
 - **D7. Approval segregation.** The user who creates a purchase order may also approve it. A rule
   "requester cannot approve" would block a one-person company, so it is not enforced.
+- **D8. Debit notes (2026-10-18).** Built as the exact AP mirror of the sales credit note (E2 below):
+  free-typed lines against an expense account, posted as `Dr Accounts payable / Cr expense account /
+  Cr Input VAT`, gated so debit notes against one invoice never exceed its gross. It never touches the
+  purchase order's received/invoiced quantities, GRNI, or price variance — same choice E2 made for sales
+  credit notes not re-touching stock. `packages/core/src/purchasing/supplier-invoice.service.ts`'s
+  `createDebitNote`. Confirm before the first real debit note posts, same as D1-D7.
 
-**Known gaps, M5:** no debit notes or purchase returns; no supplier payments or AP ageing (arrive with the
-payments work); purchase orders cannot be edited (cancel and re-issue); a retried receipt or invoice is not
-replayed at document level (the ledger itself is protected by the idempotency key).
+**Known gaps, M5:** no purchase returns (goods physically sent back — debit notes above only correct the
+amount owed, they do not move stock); purchase orders cannot be edited (cancel and re-issue); a retried
+receipt or invoice is not replayed at document level (the ledger itself is protected by the idempotency
+key). Supplier payments and AP ageing are **done** — they are the generic `packages/core/src/payments/`
+module shared with sales (`direction: "PAYMENT"` / `side: "SUPPLIER"`), not a separate purchasing feature.
 
 ## E. Accounting treatments built with a stated default (M6 sales)
 

@@ -1022,13 +1022,19 @@ model TaxCode {
 // A posted supplier invoice. Immutable like a journal entry; a correction is a new document.
 // Posting: Dr GRNI at the order price for the matched quantity, Dr/Cr purchase price variance for
 // the difference, Dr expense for non-stock lines, Dr input VAT, Cr accounts payable for the gross.
+// A posted supplier document: an INVOICE, or a DEBIT_NOTE against one. Mirrors SalesInvoice's
+// INVOICE/CREDIT_NOTE shape exactly, reversed for the payable side.
 model SupplierInvoice {
   id                    String    @id
   companyId             String    @map("company_id")
+  documentType          String    @default("INVOICE") @map("document_type") // INVOICE | DEBIT_NOTE
   number                String
   supplierId            String    @map("supplier_id")
   // The number printed on the supplier's own invoice; unique per supplier so the same bill cannot be entered twice.
-  supplierInvoiceNumber String    @map("supplier_invoice_number")
+  // Null for a debit note (we raise it, not the supplier) — Postgres does not enforce uniqueness across nulls.
+  supplierInvoiceNumber String?   @map("supplier_invoice_number")
+  // DEBIT_NOTE only: the invoice it reduces.
+  originalInvoiceId     String?   @map("original_invoice_id")
   invoiceDate           DateTime  @map("invoice_date") @db.Date
   dueDate               DateTime? @map("due_date") @db.Date
   currency              String
@@ -1045,6 +1051,8 @@ model SupplierInvoice {
   company            Company               @relation(fields: [companyId], references: [id])
   supplier           Party                 @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   purchaseOrder      PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  originalInvoice    SupplierInvoice?      @relation("DebitNotes", fields: [originalInvoiceId], references: [id], onDelete: Restrict)
+  debitNotes         SupplierInvoice[]     @relation("DebitNotes")
   journalEntry       JournalEntry          @relation(fields: [journalEntryId], references: [id])
   lines              SupplierInvoiceLine[]
   paymentAllocations PaymentAllocation[]
@@ -1052,6 +1060,7 @@ model SupplierInvoice {
   @@unique([companyId, number])
   @@unique([companyId, supplierId, supplierInvoiceNumber])
   @@index([companyId, supplierId])
+  @@index([companyId, documentType])
   @@map("supplier_invoices")
 }
 

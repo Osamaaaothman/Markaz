@@ -368,6 +368,7 @@
         "purchase_order": "Purchase orders",
         "approval_policy": "Approval thresholds",
         "supplier_invoice": "Supplier invoices",
+        "debit_note": "Debit notes",
         "tax_code": "Tax codes",
         "quotation": "Quotations",
         "sales_order": "Sales orders",
@@ -688,6 +689,16 @@
       "acceptVariance": "I accept the price difference ({{amount}}) against the order and want it booked as a purchase price variance.",
       "cannotPost": "Fix the highlighted lines before this invoice can be posted.",
       "post": "Post invoice",
+      "documentType": "Type",
+      "allTypes": "Invoices and debit notes",
+      "types": {
+        "INVOICE": "Invoice",
+        "DEBIT_NOTE": "Debit note"
+      },
+      "debitNote": "Debit note",
+      "debitNoteHint": "A debit note reduces what you owe the supplier. It does not touch the purchase order or goods received.",
+      "debitDate": "Debit note date",
+      "postDebitNote": "Post debit note",
       "errors": {
         "generic": "Could not post this invoice.",
         "badRequest": "Check that Settings > Account mapping has the payable, VAT and price-variance accounts set, and that the date is in an open period.",
@@ -698,7 +709,8 @@
         "ACCOUNT_NOT_POSTABLE": "An expense line uses a group account. Choose a postable account.",
         "NO_OPEN_PERIOD": "No open fiscal period covers the invoice date.",
         "ZERO_INVOICE": "An invoice with nothing to pay cannot be posted.",
-        "EMPTY_INVOICE": "Add at least one line."
+        "EMPTY_INVOICE": "Add at least one line.",
+        "DEBIT_EXCEEDS_INVOICE": "The debit notes against this invoice would be worth more than the invoice itself."
       }
     },
     "tax": {

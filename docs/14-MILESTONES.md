@@ -116,10 +116,12 @@ concurrent issue of the last unit fails cleanly.
 **Gate:** full purchase cycle end to end; a quantity or price variance is surfaced and
 handled, not silently absorbed.
 
-**Status (2026-10):** built and verified against a real database - purchase requests, purchase orders with
-an approval threshold, receiving against an order, supplier invoices with three-way matching (quantity over
-received is refused, a price variance must be accepted), tax codes, and the screens for all of it. Open
-items: supplier payments and AP ageing, debit notes. Accounting defaults awaiting an accountant: see
+**Status (2026-10-18):** built and verified against a real database - purchase requests, purchase orders
+with an approval threshold, receiving against an order, supplier invoices with three-way matching (quantity
+over received is refused, a price variance must be accepted), tax codes, debit notes against an invoice, and
+the screens for all of it. Supplier payments and AP ageing are done too, as the side-agnostic
+`packages/core/src/payments/` module shared with sales (M6), not a separate purchasing feature. Open: no
+purchase returns (goods physically sent back). Accounting defaults awaiting an accountant: see
 `docs/01-OPEN-DECISIONS.md` section D.
 
 ---

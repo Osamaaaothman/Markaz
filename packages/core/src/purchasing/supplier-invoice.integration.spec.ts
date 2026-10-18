@@ -46,6 +46,8 @@ describeIfDb("Supplier invoices (M5, three-way match) — real database", () => 
   let vat0: string;
   let poId: string;
   let poLineId: string;
+  let rentInvoiceId: string;
+  let debitNoteId: string;
 
   async function balance(accountId: string): Promise<number> {
     const row = (await trialBalance.compute(companyId)).lines.find((l) => l.accountId === accountId);
@@ -184,6 +186,7 @@ describeIfDb("Supplier invoices (M5, three-way match) — real database", () => 
     expect(result.totalGross).toBe("1000.0000");
     expect(await balance(acc.rent!)).toBeCloseTo(rent + 1000, 4);
     expect(await balance(acc.ap!)).toBeCloseTo(ap - 1000, 4);
+    rentInvoiceId = result.id;
 
     await expect(
       invoices.create(
@@ -193,6 +196,43 @@ describeIfDb("Supplier invoices (M5, three-way match) — real database", () => 
         newId(),
       ),
     ).rejects.toMatchObject({ code: "ACCOUNT_NOT_POSTABLE" });
+  });
+
+  it("posts a debit note against the rent invoice: debits AP, credits the expense back", async () => {
+    const ap = await balance(acc.ap!);
+    const rent = await balance(acc.rent!);
+    const result = await invoices.createDebitNote(
+      { originalInvoiceId: rentInvoiceId, debitDate: today, lines: [{ description: "Partial rent reversal", quantity: "1", unitPrice: "200", taxCodeId: vat0, accountId: acc.rent! }] },
+      actor,
+      cid(),
+      newId(),
+    );
+    expect(result.number).toMatch(/^DN-.*-000001$/);
+    expect(result.totalGross).toBe("200.0000");
+    expect(await balance(acc.ap!)).toBeCloseTo(ap + 200, 4); // debiting the payable makes its (debit - credit) balance less negative
+    expect(await balance(acc.rent!)).toBeCloseTo(rent - 200, 4); // crediting the expense reverses part of what the invoice booked
+    expect((await trialBalance.compute(companyId)).isBalanced).toBe(true);
+    debitNoteId = result.id;
+  });
+
+  it("refuses a debit note that would exceed the invoice, or one raised against a non-invoice", async () => {
+    await expect(
+      invoices.createDebitNote(
+        { originalInvoiceId: rentInvoiceId, debitDate: today, lines: [{ description: "Too much", quantity: "1", unitPrice: "900", taxCodeId: vat0, accountId: acc.rent! }] },
+        actor,
+        cid(),
+        newId(),
+      ),
+    ).rejects.toMatchObject({ code: "DEBIT_EXCEEDS_INVOICE" });
+
+    await expect(
+      invoices.createDebitNote(
+        { originalInvoiceId: debitNoteId, debitDate: today, lines: [{ description: "Against a debit note", quantity: "1", unitPrice: "1", taxCodeId: vat0, accountId: acc.rent! }] },
+        actor,
+        cid(),
+        newId(),
+      ),
+    ).rejects.toMatchObject({ code: "NOT_AN_INVOICE" });
   });
 
   it("refuses the same supplier invoice number twice, and another supplier's order line", async () => {
@@ -210,10 +250,10 @@ describeIfDb("Supplier invoices (M5, three-way match) — real database", () => 
     ).rejects.toMatchObject({ code: "SUPPLIER_MISMATCH" });
   });
 
-  it("keeps the payable equal to the sum of the invoices", async () => {
+  it("keeps the payable equal to invoices minus debit notes", async () => {
     const page = await invoices.list(companyId, {});
-    const total = page.data.reduce((sum, i) => sum + Number(i.totalGross), 0);
-    expect(total).toBeCloseTo(184 + 96.6 + 1000, 4);
-    expect(await balance(acc.ap!)).toBeCloseTo(-total, 4);
+    const net = page.data.reduce((sum, i) => sum + (i.documentType === "DEBIT_NOTE" ? -Number(i.totalGross) : Number(i.totalGross)), 0);
+    expect(net).toBeCloseTo(184 + 96.6 + 1000 - 200, 4);
+    expect(await balance(acc.ap!)).toBeCloseTo(-net, 4);
   });
 });
