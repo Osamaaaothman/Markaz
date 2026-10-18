@@ -20,7 +20,8 @@
       "purchasing": "Purchasing",
       "sales": "Sales",
       "payments": "Payments",
-      "documents": "Documents"
+      "documents": "Documents",
+      "hr": "HR & payroll"
     },
     "warehouses": "Warehouses",
     "items": "Items",
@@ -43,7 +44,9 @@
     "partyStatement": "Customer / supplier statement",
     "stockMovements": "Stock movements",
     "documents": "Documents",
-    "company": "Company"
+    "company": "Company",
+    "employees": "Employees",
+    "payrollRuns": "Payroll runs"
   },
   "actions": {
     "save": "Save",
@@ -1115,5 +1118,92 @@
     "gross": "Gross",
     "permissions": "Permissions",
     "nameAr": "Arabic name"
+  },
+  "hr": {
+    "employees": {
+      "title": "Employees",
+      "subtitle": "The people on payroll.",
+      "add": "Add employee",
+      "name": "Name",
+      "nationality": "Nationality",
+      "saudi": "Saudi",
+      "expat": "Expatriate",
+      "basicSalary": "Basic salary",
+      "searchPlaceholder": "Search employees...",
+      "showInactive": "Show inactive",
+      "nationalId": "National ID / Iqama",
+      "hireDate": "Hire date",
+      "isSaudi": "Saudi national",
+      "bankIban": "Bank IBAN",
+      "bankName": "Bank name",
+      "housingAllowance": "Housing allowance",
+      "otherAllowances": "Other allowances",
+      "createError": "Could not add this employee.",
+      "details": "Details",
+      "deactivate": "Deactivate"
+    },
+    "payrollRuns": {
+      "title": "Payroll runs",
+      "subtitle": "One run per period -- posts straight to the ledger.",
+      "run": "Run payroll",
+      "number": "Number",
+      "period": "Period",
+      "year": "Year",
+      "month": "Month",
+      "totalNet": "Net pay",
+      "totalGross": "Gross",
+      "totalGosiEmployee": "GOSI (employee)",
+      "totalGosiEmployer": "GOSI (employer)",
+      "totalAdvanceDeduction": "Advances recovered",
+      "net": "Net",
+      "gross": "Gross",
+      "gosiEmployee": "GOSI (employee)",
+      "advanceDeduction": "Advance",
+      "downloadWps": "Download WPS file",
+      "months": {
+        "jan": "January",
+        "feb": "February",
+        "mar": "March",
+        "apr": "April",
+        "may": "May",
+        "jun": "June",
+        "jul": "July",
+        "aug": "August",
+        "sep": "September",
+        "oct": "October",
+        "nov": "November",
+        "dec": "December"
+      },
+      "errors": {
+        "alreadyRun": "Payroll for this period has already been run.",
+        "noEmployees": "No active employee is eligible for this run.",
+        "generic": "Could not run payroll."
+      }
+    },
+    "advances": {
+      "title": "Salary advances",
+      "grant": "Grant advance",
+      "installment": "Installment per run",
+      "remaining": "Remaining"
+    },
+    "eosb": {
+      "settle": "Settle end of service",
+      "terminationDate": "Termination date",
+      "reason": "Reason",
+      "reasons": {
+        "RESIGNATION": "Resignation",
+        "TERMINATION": "Employer termination",
+        "OTHER": "Other (death, force majeure)"
+      },
+      "years": "Years of service",
+      "fraction": "Entitlement fraction"
+    },
+    "wps": {
+      "title": "WPS (Mudad) settings",
+      "hint": "Needed to download a payroll run's wages file.",
+      "bankSarieId": "Bank SARIE ID",
+      "bankAccountNumber": "Bank account number",
+      "molEstablishmentId": "MoHR establishment ID"
+    }
   }
 }

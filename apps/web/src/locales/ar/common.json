@@ -20,7 +20,8 @@
       "purchasing": "المشتريات",
       "sales": "المبيعات",
       "payments": "المدفوعات",
-      "documents": "المستندات"
+      "documents": "المستندات",
+      "hr": "الموارد البشرية والرواتب"
     },
     "warehouses": "المستودعات",
     "items": "الأصناف",
@@ -43,7 +44,9 @@
     "partyStatement": "كشف حساب عميل / مورد",
     "stockMovements": "حركات المخزون",
     "documents": "المستندات",
-    "company": "الشركة"
+    "company": "الشركة",
+    "employees": "الموظفون",
+    "payrollRuns": "تشغيلات الرواتب"
   },
   "actions": {
     "save": "حفظ",
@@ -1115,5 +1118,92 @@
     "gross": "الإجمالي شامل الضريبة",
     "permissions": "الصلاحيات",
     "nameAr": "الاسم بالعربية"
+  },
+  "hr": {
+    "employees": {
+      "title": "الموظفون",
+      "subtitle": "الأشخاص على كشف الرواتب.",
+      "add": "إضافة موظف",
+      "name": "الاسم",
+      "nationality": "الجنسية",
+      "saudi": "سعودي",
+      "expat": "مقيم",
+      "basicSalary": "الراتب الأساسي",
+      "searchPlaceholder": "ابحث عن موظف...",
+      "showInactive": "إظهار غير النشطين",
+      "nationalId": "رقم الهوية / الإقامة",
+      "hireDate": "تاريخ الالتحاق",
+      "isSaudi": "سعودي الجنسية",
+      "bankIban": "آيبان الحساب البنكي",
+      "bankName": "اسم البنك",
+      "housingAllowance": "بدل السكن",
+      "otherAllowances": "بدلات أخرى",
+      "createError": "تعذّرت إضافة هذا الموظف.",
+      "details": "التفاصيل",
+      "deactivate": "إيقاف"
+    },
+    "payrollRuns": {
+      "title": "تشغيلات الرواتب",
+      "subtitle": "تشغيل واحد لكل فترة، يترحّل مباشرة في الدفتر.",
+      "run": "تشغيل الرواتب",
+      "number": "الرقم",
+      "period": "الفترة",
+      "year": "السنة",
+      "month": "الشهر",
+      "totalNet": "صافي الرواتب",
+      "totalGross": "الإجمالي",
+      "totalGosiEmployee": "التأمينات (الموظف)",
+      "totalGosiEmployer": "التأمينات (صاحب العمل)",
+      "totalAdvanceDeduction": "السلف المستردة",
+      "net": "الصافي",
+      "gross": "الإجمالي",
+      "gosiEmployee": "التأمينات (الموظف)",
+      "advanceDeduction": "السلفة",
+      "downloadWps": "تنزيل ملف مُدد",
+      "months": {
+        "jan": "يناير",
+        "feb": "فبراير",
+        "mar": "مارس",
+        "apr": "أبريل",
+        "may": "مايو",
+        "jun": "يونيو",
+        "jul": "يوليو",
+        "aug": "أغسطس",
+        "sep": "سبتمبر",
+        "oct": "أكتوبر",
+        "nov": "نوفمبر",
+        "dec": "ديسمبر"
+      },
+      "errors": {
+        "alreadyRun": "تم تشغيل رواتب هذه الفترة من قبل.",
+        "noEmployees": "لا يوجد موظف نشط مؤهل لهذا التشغيل.",
+        "generic": "تعذّر تشغيل الرواتب."
+      }
+    },
+    "advances": {
+      "title": "السلف",
+      "grant": "منح سلفة",
+      "installment": "القسط لكل تشغيل",
+      "remaining": "المتبقي"
+    },
+    "eosb": {
+      "settle": "تسوية نهاية الخدمة",
+      "terminationDate": "تاريخ انتهاء الخدمة",
+      "reason": "السبب",
+      "reasons": {
+        "RESIGNATION": "استقالة",
+        "TERMINATION": "إنهاء من صاحب العمل",
+        "OTHER": "أخرى (وفاة، قوة قاهرة)"
+      },
+      "years": "سنوات الخدمة",
+      "fraction": "نسبة الاستحقاق"
+    },
+    "wps": {
+      "title": "إعدادات مُدد (WPS)",
+      "hint": "مطلوبة لتنزيل ملف الأجور لتشغيل رواتب.",
+      "bankSarieId": "رمز البنك (SARIE)",
+      "bankAccountNumber": "رقم الحساب البنكي",
+      "molEstablishmentId": "رقم المنشأة بوزارة الموارد البشرية"
+    }
   }
 }

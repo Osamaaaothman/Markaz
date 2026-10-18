@@ -25,6 +25,10 @@ import { PurchaseOrderDetailPage } from "../features/purchasing/PurchaseOrderDet
 import { PurchaseOrderFormPage } from "../features/purchasing/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "../features/purchasing/PurchaseOrdersPage";
 import { PurchaseRequestsPage } from "../features/purchasing/PurchaseRequestsPage";
+import { EmployeeDetailPage } from "../features/hr/EmployeeDetailPage";
+import { EmployeesPage } from "../features/hr/EmployeesPage";
+import { PayrollRunDetailPage } from "../features/hr/PayrollRunDetailPage";
+import { PayrollRunsPage } from "../features/hr/PayrollRunsPage";
 import { QuotationsPage } from "../features/sales/QuotationsPage";
 import { QuotationFormPage, SalesInvoiceFormPage, SalesOrderFormPage } from "../features/sales/SalesDocumentFormPage";
 import { SalesInvoiceDetailPage, SalesInvoicesPage } from "../features/sales/SalesInvoicesPage";
@@ -99,6 +103,14 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-counts")} />}>
             <Route path="/inventory/stock-counts" element={<StockCountPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/hr/employees")} />}>
+            <Route path="/hr/employees" element={<EmployeesPage />} />
+            <Route path="/hr/employees/:id" element={<EmployeeDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/hr/payroll-runs")} />}>
+            <Route path="/hr/payroll-runs" element={<PayrollRunsPage />} />
+            <Route path="/hr/payroll-runs/:id" element={<PayrollRunDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/requests")} />}>
             <Route path="/purchasing/requests" element={<PurchaseRequestsPage />} />
