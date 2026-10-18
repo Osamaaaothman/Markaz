@@ -205,7 +205,13 @@ translated error, not a crash.
 
 **Gate:** every Tier-1 journey completable in both AR and EN; RTL verified on every screen.
 
----
+**Status (2026-10-18):** a full RTL/LTR sweep of every screen under `apps/web/src/features/` and the
+shared design CSS found the codebase already in good shape (logical CSS properties used almost
+everywhere, several PrimeReact physical-property quirks already patched with comments) and two real bugs,
+both fixed: `ItemFormDialog`'s unit field was pinned `dir="ltr"` despite legitimately holding Arabic text;
+`QuotationsPage`'s "convert to sales order" button used a fixed `pi-arrow-right`, which points backward
+in Arabic. Not done: a systematic click-through of every screen in a real browser in both languages (the
+sweep was a code audit, not a live walkthrough) — still worth doing once Tier-1 screens stop changing.
 
 ## M10 — Hardening & pre-launch
 **Branch:** `chore/pre-launch-hardening`
