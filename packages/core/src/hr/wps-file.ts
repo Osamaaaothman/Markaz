@@ -86,10 +86,12 @@ export function buildWpsWagesFile(params: BuildWpsFileParams): string {
       wpsDecimal(net.toFixed(2)),
       e.iban.toUpperCase(),
       e.name,
-      wpsDecimal(e.basicSalary),
-      wpsDecimal(e.housingAllowance),
-      wpsDecimal(e.otherEarnings),
-      wpsDecimal(e.deductions),
+      // Spec format conventions (section 5.4): every MOL-* amount is two decimal places, same as
+      // the header total -- the API's own figures carry four (NUMERIC(19,4)), so round here.
+      wpsDecimal(Number(e.basicSalary).toFixed(2)),
+      wpsDecimal(Number(e.housingAllowance).toFixed(2)),
+      wpsDecimal(Number(e.otherEarnings).toFixed(2)),
+      wpsDecimal(Number(e.deductions).toFixed(2)),
       e.nationalId,
     ].join(TAB);
   });
