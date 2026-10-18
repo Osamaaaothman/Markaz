@@ -118,7 +118,7 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
               <PermissionButton
                 allowed={can("sales_order:create")}
                 label={t("sales.quotations.convert")}
-                icon="pi pi-arrow-right"
+                icon={i18n.dir() === "rtl" ? "pi pi-arrow-left" : "pi pi-arrow-right"}
                 loading={convert.isPending}
                 onClick={() => convert.mutate(undefined, { onSuccess: (created) => void navigate(`/sales/orders/${created.id}`) })}
               />
