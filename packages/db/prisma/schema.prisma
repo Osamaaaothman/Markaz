@@ -21,17 +21,23 @@ datasource db {
 // §4 note: "per tenant" here means per company/branch within one customer's own
 // deployment, not a cross-customer SaaS tenant).
 model Company {
-  id              String   @id
-  name            String
+  id                    String   @id
+  name                  String
   // The name in Arabic, for Arabic documents and the Arabic interface. Null = use `name` everywhere.
-  nameAr          String?  @map("name_ar")
-  defaultCurrency String   @default("SAR") @map("default_currency")
-  timezone        String   @default("Asia/Riyadh")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  createdBy       String?  @map("created_by")
-  updatedBy       String?  @map("updated_by")
-  version         Int      @default(1)
+  nameAr                String?  @map("name_ar")
+  defaultCurrency       String   @default("SAR") @map("default_currency")
+  timezone              String   @default("Asia/Riyadh")
+  // M-HR1 WPS export (packages/core/src/hr, apps/api/src/hr/exports): the three header-group
+  // fields the HRSD wages-file spec needs that belong to the company, not any one payroll run --
+  // null until set, so the export endpoint can say exactly what is missing instead of guessing.
+  wpsBankSarieId        String?  @map("wps_bank_sarie_id")
+  wpsBankAccountNumber  String?  @map("wps_bank_account_number")
+  wpsMolEstablishmentId String?  @map("wps_mol_establishment_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  createdBy             String?  @map("created_by")
+  updatedBy             String?  @map("updated_by")
+  version               Int      @default(1)
 
   users User[]
   roles Role[]

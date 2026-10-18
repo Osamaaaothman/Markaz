@@ -157,6 +157,25 @@ export class GrantSalaryAdvanceDto {
 
 const END_OF_SERVICE_REASONS = ["RESIGNATION", "TERMINATION", "OTHER"] as const;
 
+// ── Company WPS settings ─────────────────────────────────────────────────────
+
+export class SetWpsSettingsDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  bankSarieId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(34)
+  bankAccountNumber!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  molEstablishmentId!: string;
+}
+
 export class SettleEndOfServiceDto {
   @IsString()
   @IsNotEmpty()

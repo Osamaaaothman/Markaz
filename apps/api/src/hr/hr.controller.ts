@@ -1,4 +1,5 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Query } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import {
   EmployeeService,
   EndOfServiceError,
@@ -8,6 +9,8 @@ import {
   SalaryAdvanceError,
   SalaryAdvanceService,
   UnmappedAccountError,
+  WpsFileError,
+  buildWpsWagesFile,
   type EmployeeListPage,
   type EmployeeSummary,
   type EndOfServiceResult,
@@ -19,7 +22,8 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
-import { CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
 
 @Controller("v1")
 export class HrController {
@@ -28,6 +32,7 @@ export class HrController {
     private readonly payrollRuns: PayrollRunService,
     private readonly salaryAdvances: SalaryAdvanceService,
     private readonly endOfService: EndOfServiceService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // ── Employees ────────────────────────────────────────────────────────────────
@@ -171,6 +176,73 @@ export class HrController {
     return this.mapEndOfServiceErrors(
       this.endOfService.settle({ employeeId: dto.employeeId, terminationDate: new Date(dto.terminationDate), reason: dto.reason }, actor, correlationId, idempotencyKey),
     );
+  }
+
+  // ── WPS (mudad) settings and export ──────────────────────────────────────────
+
+  @Get("company/wps-settings")
+  @RequirePermission("company", "read")
+  async getWpsSettings(@CurrentUser() actor: CurrentUserPayload) {
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: actor.companyId },
+      select: { wpsBankSarieId: true, wpsBankAccountNumber: true, wpsMolEstablishmentId: true },
+    });
+    return {
+      bankSarieId: company.wpsBankSarieId,
+      bankAccountNumber: company.wpsBankAccountNumber,
+      molEstablishmentId: company.wpsMolEstablishmentId,
+      isComplete: Boolean(company.wpsBankSarieId && company.wpsBankAccountNumber && company.wpsMolEstablishmentId),
+    };
+  }
+
+  @Put("company/wps-settings")
+  @RequirePermission("company", "update")
+  async setWpsSettings(@Body() dto: SetWpsSettingsDto, @CurrentUser() actor: CurrentUserPayload) {
+    await this.prisma.company.update({
+      where: { id: actor.companyId },
+      data: { wpsBankSarieId: dto.bankSarieId, wpsBankAccountNumber: dto.bankAccountNumber, wpsMolEstablishmentId: dto.molEstablishmentId, updatedBy: actor.id, version: { increment: 1 } },
+    });
+    return { bankSarieId: dto.bankSarieId, bankAccountNumber: dto.bankAccountNumber, molEstablishmentId: dto.molEstablishmentId, isComplete: true };
+  }
+
+  // The wages file for a run, built fresh from the stored payslip lines every time -- never
+  // stored, so there is nothing stale to serve.
+  @Get("payroll-runs/:id/wps-file")
+  @RequirePermission("payroll_run", "read")
+  async downloadWpsFile(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload, @Res({ passthrough: true }) res: Response): Promise<string> {
+    const run = await this.payrollRuns.get(id, actor.companyId);
+    if (!run) throw new NotFoundException("Payroll run not found");
+
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: actor.companyId },
+      select: { wpsBankSarieId: true, wpsBankAccountNumber: true, wpsMolEstablishmentId: true },
+    });
+    if (!company.wpsBankSarieId || !company.wpsBankAccountNumber || !company.wpsMolEstablishmentId) {
+      throw new BadRequestException("Set the company's WPS bank and establishment details (Settings) before exporting a wages file");
+    }
+
+    try {
+      const file = buildWpsWagesFile({
+        company: { bankSarieId: company.wpsBankSarieId, bankAccountNumber: company.wpsBankAccountNumber, molEstablishmentId: company.wpsMolEstablishmentId },
+        valueDate: new Date(run.runDate),
+        fileReference: run.number,
+        employees: run.lines.map((l) => ({
+          iban: l.bankIban,
+          name: l.employeeName,
+          nationalId: l.nationalId,
+          basicSalary: l.basicSalary,
+          housingAllowance: l.housingAllowance,
+          otherEarnings: l.otherAllowances,
+          deductions: (Number(l.gosiEmployeeShare) + Number(l.advanceDeduction)).toFixed(4),
+        })),
+      });
+      res.header("Content-Type", "text/plain; charset=utf-8");
+      res.header("Content-Disposition", `attachment; filename="${run.number}-wages.txt"`);
+      return file;
+    } catch (error) {
+      if (error instanceof WpsFileError) throw new BadRequestException(error.message);
+      throw error;
+    }
   }
 
   // ── Error mapping ────────────────────────────────────────────────────────────

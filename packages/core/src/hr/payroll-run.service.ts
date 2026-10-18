@@ -329,6 +329,7 @@ export class PayrollRunService {
         employeeRef: l.employee.ref,
         employeeName: l.employee.name,
         employeeNameAr: l.employee.nameAr,
+        nationalId: l.employee.nationalId,
         bankIban: l.employee.bankIban,
         basicSalary: l.basicSalary.toFixed(4),
         housingAllowance: l.housingAllowance.toFixed(4),

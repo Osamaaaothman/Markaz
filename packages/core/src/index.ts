@@ -67,3 +67,4 @@ export * from "./hr/employee.service.js";
 export * from "./hr/payroll-run.service.js";
 export * from "./hr/salary-advance.service.js";
 export * from "./hr/end-of-service.service.js";
+export * from "./hr/wps-file.js";
