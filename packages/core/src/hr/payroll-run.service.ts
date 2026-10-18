@@ -42,6 +42,41 @@ export interface PayrollRunLineResult {
   readonly net: string;
 }
 
+// One payslip line within a run's detail view -- adds the fields a payslip PDF needs
+// (employeeRef, nationalId, bankIban) that the posting-time result above does not carry.
+export interface PayrollRunLine {
+  readonly employeeId: string;
+  readonly employeeRef: string;
+  readonly employeeName: string;
+  readonly employeeNameAr: string | null;
+  readonly nationalId: string;
+  readonly bankIban: string;
+  readonly basicSalary: string;
+  readonly housingAllowance: string;
+  readonly otherAllowances: string;
+  readonly gross: string;
+  readonly gosiEmployeeShare: string;
+  readonly gosiEmployerShare: string;
+  readonly advanceDeduction: string;
+  readonly net: string;
+}
+
+export interface PayrollRunDetail {
+  readonly id: string;
+  readonly number: string;
+  readonly periodYear: number;
+  readonly periodMonth: number;
+  readonly runDate: string;
+  readonly currency: string;
+  readonly totalGross: string;
+  readonly totalGosiEmployee: string;
+  readonly totalGosiEmployer: string;
+  readonly totalAdvanceDeduction: string;
+  readonly totalNet: string;
+  readonly journalEntryId: string;
+  readonly lines: readonly PayrollRunLine[];
+}
+
 export interface PayrollRunResult {
   readonly id: string;
   readonly number: string;
@@ -305,7 +340,7 @@ export class PayrollRunService {
     return result;
   }
 
-  async get(id: string, companyId: string) {
+  async get(id: string, companyId: string): Promise<PayrollRunDetail | null> {
     const run = await this.prisma.payrollRun.findFirst({
       where: { id, companyId },
       include: { lines: { include: { employee: true }, orderBy: { employee: { name: "asc" } } } },

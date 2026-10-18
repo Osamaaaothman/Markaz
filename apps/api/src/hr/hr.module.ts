@@ -10,14 +10,17 @@ import {
   type IAccountingEngine,
   type IAuditLogger,
 } from "@erp/core";
+import { AttachmentsModule } from "../attachments/attachments.module.js";
 import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { HrController } from "./hr.controller.js";
 import { HR_ENGINE, HR_NUMBERING } from "./hr.tokens.js";
 
 // Same shape as PurchasingModule: stateless core services over PrismaService, with a module-local
-// accounting engine.
+// accounting engine. Imports AttachmentsModule for the company logo on the payslip PDF, the same
+// way SalesModule does for the sales invoice PDF.
 @Module({
+  imports: [AttachmentsModule],
   controllers: [HrController],
   providers: [
     { provide: HR_NUMBERING, useFactory: () => new PrismaNumberingService() },

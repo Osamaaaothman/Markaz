@@ -1192,7 +1192,8 @@
         "alreadyRun": "Payroll for this period has already been run.",
         "noEmployees": "No active employee is eligible for this run.",
         "generic": "Could not run payroll."
-      }
+      },
+      "downloadPayslip": "Download payslip"
     },
     "advances": {
       "title": "Salary advances",

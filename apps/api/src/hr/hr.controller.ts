@@ -1,6 +1,7 @@
 import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
+  AttachmentService,
   EmployeeService,
   EndOfServiceError,
   EndOfServiceService,
@@ -19,11 +20,15 @@ import {
   type SalaryAdvanceSummary,
 } from "@erp/core";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
+import { localizedCompanyName } from "../common/company-name.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
+import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
+import { payslipToPdfHtml } from "./exports/payslip-export.js";
 
 @Controller("v1")
 export class HrController {
@@ -32,6 +37,7 @@ export class HrController {
     private readonly payrollRuns: PayrollRunService,
     private readonly salaryAdvances: SalaryAdvanceService,
     private readonly endOfService: EndOfServiceService,
+    private readonly attachments: AttachmentService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -243,6 +249,44 @@ export class HrController {
       if (error instanceof WpsFileError) throw new BadRequestException(error.message);
       throw error;
     }
+  }
+
+  // The bilingual payslip PDF for one employee within one run (docs/14-MILESTONES.md M3: the
+  // same server-side Playwright rendering pipeline every other printable document uses).
+  @Get("payroll-runs/:id/employees/:employeeId/payslip")
+  @RequirePermission("payroll_run", "read")
+  async payslipPdf(
+    @Param("id") id: string,
+    @Param("employeeId") employeeId: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const run = await this.payrollRuns.get(id, actor.companyId);
+    if (!run) throw new NotFoundException("Payroll run not found");
+    const line = run.lines.find((l) => l.employeeId === employeeId);
+    if (!line) throw new NotFoundException("This employee is not on this payroll run");
+
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true } });
+    const logo = await this.attachments.getCompanyLogo(actor.companyId).catch(() => null);
+    const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
+
+    const html = await payslipToPdfHtml({
+      runNumber: run.number,
+      periodYear: run.periodYear,
+      periodMonth: run.periodMonth,
+      runDate: run.runDate,
+      currency: run.currency,
+      line,
+      language,
+      companyName: localizedCompanyName(company, language),
+      logoDataUri,
+    });
+    const pdf = await renderHtmlToPdf(html);
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${run.number}-${line.employeeRef}.pdf"`);
+    res.send(pdf);
   }
 
   // ── Error mapping ────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
+import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { usePermissions } from "../../shared/auth/use-permissions";
@@ -9,14 +10,14 @@ import { formatMoney } from "../../shared/lib/money";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { exportFile } from "../accounting/export-report";
 import { usePayrollRun, type PayrollRunLine } from "./use-hr";
 
-// The payroll run detail: totals, the full payslip table, and the Mudad/WPS wages-file download
-// (packages/core/src/hr/wps-file.ts). There is no bilingual payslip PDF yet -- a REVIEW-level gap,
-// listed in the project status report, not silently shipped as "done".
+// The payroll run detail: totals, the full payslip table with a bilingual PDF payslip per
+// employee, and the Mudad/WPS wages-file download (packages/core/src/hr/wps-file.ts).
 export function PayrollRunDetailPage(): React.JSX.Element {
   const { id = "" } = useParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
@@ -26,6 +27,9 @@ export function PayrollRunDetailPage(): React.JSX.Element {
     const response = await apiClient.get<Blob>(`/v1/payroll-runs/${id}/wps-file`, { responseType: "blob" });
     downloadBlob(response.data, `${data?.number ?? id}-wages.txt`);
   };
+
+  const payslipPath = (employeeId: string): string => `/v1/payroll-runs/${id}/employees/${employeeId}/payslip`;
+  const payslipFilename = (row: PayrollRunLine): string => `${data?.number ?? id}-${row.employeeRef}.pdf`;
 
   if (isPending) return <PageSkeleton />;
   if (isError || !data) {
@@ -81,6 +85,32 @@ export function PayrollRunDetailPage(): React.JSX.Element {
         <Column header={t("hr.payrollRuns.gosiEmployee")} align="right" body={(row: PayrollRunLine) => <span className="coa-amount">{formatMoney(row.gosiEmployeeShare, currency)}</span>} />
         <Column header={t("hr.payrollRuns.advanceDeduction")} align="right" body={(row: PayrollRunLine) => <span className="coa-amount">{formatMoney(row.advanceDeduction, currency)}</span>} />
         <Column header={t("hr.payrollRuns.net")} align="right" body={(row: PayrollRunLine) => <span className="coa-amount"><strong>{formatMoney(row.net, currency)}</strong></span>} />
+        <Column
+          header=""
+          style={{ width: "6rem" }}
+          body={(row: PayrollRunLine) => (
+            <div style={{ display: "flex", gap: "0.25rem" }}>
+              <Button
+                type="button"
+                icon="pi pi-print"
+                rounded
+                text
+                severity="secondary"
+                aria-label={t("actions.print")}
+                onClick={() => void exportFile(payslipPath(row.employeeId), { lang: i18n.language }, payslipFilename(row), "print")}
+              />
+              <Button
+                type="button"
+                icon="pi pi-download"
+                rounded
+                text
+                severity="secondary"
+                aria-label={t("hr.payrollRuns.downloadPayslip")}
+                onClick={() => void exportFile(payslipPath(row.employeeId), { lang: i18n.language }, payslipFilename(row), "download")}
+              />
+            </div>
+          )}
+        />
       </DataGrid>
     </div>
   );

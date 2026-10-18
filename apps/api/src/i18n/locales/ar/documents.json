@@ -121,5 +121,36 @@
     "taxRate": "الضريبة %",
     "tax": "الضريبة",
     "total": "الإجمالي"
+  },
+  "payslip": {
+    "title": "قسيمة راتب",
+    "employee": "الموظف",
+    "employeeRef": "رقم الموظف",
+    "period": "الفترة",
+    "runNumber": "تشغيل الرواتب",
+    "runDate": "تاريخ التشغيل",
+    "earnings": "الاستحقاقات",
+    "deductions": "الخصومات",
+    "basicSalary": "الراتب الأساسي",
+    "housingAllowance": "بدل السكن",
+    "otherAllowances": "بدلات أخرى",
+    "gross": "الإجمالي",
+    "gosiEmployee": "التأمينات الاجتماعية",
+    "advanceDeduction": "سلفة",
+    "net": "صافي الراتب",
+    "months": {
+      "jan": "يناير",
+      "feb": "فبراير",
+      "mar": "مارس",
+      "apr": "أبريل",
+      "may": "مايو",
+      "jun": "يونيو",
+      "jul": "يوليو",
+      "aug": "أغسطس",
+      "sep": "سبتمبر",
+      "oct": "أكتوبر",
+      "nov": "نوفمبر",
+      "dec": "ديسمبر"
+    }
   }
 }
