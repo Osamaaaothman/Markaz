@@ -117,6 +117,15 @@ const PERMISSION_CATALOG = [
   { code: "attachment:delete", description: "Remove an attached document" },
   { code: "company:read", description: "View the company settings and logo" },
   { code: "company:update", description: "Change the company logo" },
+  // M-HR1 — payroll
+  { code: "employee:read", description: "View employees" },
+  { code: "employee:create", description: "Add an employee" },
+  { code: "employee:update", description: "Edit an employee" },
+  { code: "payroll_run:create", description: "Run payroll for a period" },
+  { code: "payroll_run:read", description: "View payroll runs and payslips" },
+  { code: "salary_advance:create", description: "Grant a salary advance" },
+  { code: "salary_advance:read", description: "View salary advances" },
+  { code: "end_of_service:create", description: "Settle an employee's end-of-service gratuity" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);
