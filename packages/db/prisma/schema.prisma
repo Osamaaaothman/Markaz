@@ -58,15 +58,19 @@ model Company {
   stockCounts        StockCount[]
 
   // M5 purchasing
-  purchaseRequests PurchaseRequest[]
-  purchaseOrders   PurchaseOrder[]
-  taxCodes         TaxCode[]
-  supplierInvoices SupplierInvoice[]
-  quotations       Quotation[]
-  salesOrders      SalesOrder[]
-  salesInvoices    SalesInvoice[]
-  payments         Payment[]
-  attachments      Attachment[]
+  purchaseRequests        PurchaseRequest[]
+  purchaseOrders          PurchaseOrder[]
+  taxCodes                TaxCode[]
+  supplierInvoices        SupplierInvoice[]
+  quotations              Quotation[]
+  salesOrders             SalesOrder[]
+  salesInvoices           SalesInvoice[]
+  payments                Payment[]
+  attachments             Attachment[]
+  employees               Employee[]
+  payrollRuns             PayrollRun[]
+  salaryAdvances          SalaryAdvance[]
+  endOfServiceSettlements EndOfServiceSettlement[]
 
   @@map("companies")
 }
@@ -328,6 +332,7 @@ model Account {
   accountMappings      AccountMapping[]
   supplierInvoiceLines SupplierInvoiceLine[]
   payments             Payment[]
+  salaryAdvances       SalaryAdvance[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -416,20 +421,23 @@ model JournalEntry {
   reversalOfEntryId  String?  @map("reversal_of_entry_id")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  company          Company            @relation(fields: [companyId], references: [id])
-  fiscalPeriod     FiscalPeriod       @relation(fields: [fiscalPeriodId], references: [id])
-  lines            JournalEntryLine[]
-  reversalOf       JournalEntry?      @relation("Reversal", fields: [reversalOfEntryId], references: [id])
-  reversedBy       JournalEntry[]     @relation("Reversal")
+  company                 Company                  @relation(fields: [companyId], references: [id])
+  fiscalPeriod            FiscalPeriod             @relation(fields: [fiscalPeriodId], references: [id])
+  lines                   JournalEntryLine[]
+  reversalOf              JournalEntry?            @relation("Reversal", fields: [reversalOfEntryId], references: [id])
+  reversedBy              JournalEntry[]           @relation("Reversal")
   // M4 inventory: the entry a stock movement / goods receipt / stock issue / stock count
   // line was posted by.
-  stockMovements   StockMovement[]
-  goodsReceipts    GoodsReceipt[]
-  stockIssues      StockIssue[]
-  stockCountLines  StockCountLine[]
-  supplierInvoices SupplierInvoice[]
-  salesInvoices    SalesInvoice[]
-  payments         Payment[]
+  stockMovements          StockMovement[]
+  goodsReceipts           GoodsReceipt[]
+  stockIssues             StockIssue[]
+  stockCountLines         StockCountLine[]
+  supplierInvoices        SupplierInvoice[]
+  salesInvoices           SalesInvoice[]
+  payments                Payment[]
+  payrollRuns             PayrollRun[]
+  salaryAdvances          SalaryAdvance[]
+  endOfServiceSettlements EndOfServiceSettlement[]
 
   // The idempotencyKey unique constraint below IS the duplicate-posting guard
   // (docs/04-DATA-MODEL-RULES.md §6/§9) — a separate uniqueness constraint on the
@@ -894,6 +902,7 @@ model PurchaseRequest {
 
   @@unique([companyId, number])
   @@index([companyId, status])
+  @@index([warehouseId])
   @@map("purchase_requests")
 }
 
@@ -948,6 +957,7 @@ model PurchaseOrder {
   @@unique([companyId, number])
   @@index([companyId, status])
   @@index([companyId, supplierId])
+  @@index([warehouseId])
   @@map("purchase_orders")
 }
 
@@ -1331,4 +1341,167 @@ model Attachment {
   @@index([companyId, ownerType, ownerId])
   @@index([companyId, createdAt])
   @@map("attachments")
+}
+
+// M-HR1: payroll. Employee master, monthly payroll runs (insert-only, one balanced journal
+// entry per run -- docs/05-ACCOUNTING-INTEGRITY-RULES.md), salary advances and their recovery,
+// end-of-service settlements. KSA GOSI rates and the EOSB formula live in packages/core/src/hr,
+// not here -- this is storage only.
+model Employee {
+  id               String    @id
+  companyId        String    @map("company_id")
+  ref              String
+  name             String
+  nameAr           String?   @map("name_ar")
+  // National ID for a Saudi, Iqama number for an expatriate -- both the same shape GOSI and the
+  // WPS file expect.
+  nationalId       String    @map("national_id")
+  isSaudi          Boolean   @map("is_saudi")
+  // The narrow exception in Royal Decree M/273 (clause "second"): a subscriber with uncompensated
+  // prior contribution periods, or an existing pensioner, stays on the old GOSI law entirely.
+  // Set by hand per employee -- it is not something the system can infer. See packages/core/src/hr/gosi.ts.
+  gosiLegacyTrack  Boolean   @default(false) @map("gosi_legacy_track")
+  bankIban         String    @map("bank_iban")
+  bankName         String?   @map("bank_name")
+  hireDate         DateTime  @map("hire_date") @db.Date
+  terminationDate  DateTime? @map("termination_date") @db.Date
+  basicSalary      Decimal   @map("basic_salary") @db.Decimal(19, 4)
+  housingAllowance Decimal   @default(0) @map("housing_allowance") @db.Decimal(19, 4)
+  otherAllowances  Decimal   @default(0) @map("other_allowances") @db.Decimal(19, 4)
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdBy        String?   @map("created_by")
+  updatedBy        String?   @map("updated_by")
+  version          Int       @default(1)
+
+  company                 Company                  @relation(fields: [companyId], references: [id])
+  payrollRunLines         PayrollRunLine[]
+  salaryAdvances          SalaryAdvance[]
+  endOfServiceSettlements EndOfServiceSettlement[]
+
+  @@unique([companyId, ref])
+  @@index([companyId, isActive])
+  @@map("employees")
+}
+
+model PayrollRun {
+  id                    String   @id
+  companyId             String   @map("company_id")
+  number                String
+  periodYear            Int      @map("period_year")
+  periodMonth           Int      @map("period_month")
+  runDate               DateTime @map("run_date") @db.Date
+  currency              String
+  totalGross            Decimal  @map("total_gross") @db.Decimal(19, 4)
+  totalGosiEmployee     Decimal  @map("total_gosi_employee") @db.Decimal(19, 4)
+  totalGosiEmployer     Decimal  @map("total_gosi_employer") @db.Decimal(19, 4)
+  totalAdvanceDeduction Decimal  @map("total_advance_deduction") @db.Decimal(19, 4)
+  totalNet              Decimal  @map("total_net") @db.Decimal(19, 4)
+  journalEntryId        String   @map("journal_entry_id")
+  actorId               String   @map("actor_id")
+  correlationId         String   @map("correlation_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  company      Company          @relation(fields: [companyId], references: [id])
+  journalEntry JournalEntry     @relation(fields: [journalEntryId], references: [id])
+  lines        PayrollRunLine[]
+
+  @@unique([companyId, number])
+  @@unique([companyId, periodYear, periodMonth])
+  @@map("payroll_runs")
+}
+
+model PayrollRunLine {
+  id                String  @id
+  companyId         String  @map("company_id")
+  payrollRunId      String  @map("payroll_run_id")
+  employeeId        String  @map("employee_id")
+  basicSalary       Decimal @map("basic_salary") @db.Decimal(19, 4)
+  housingAllowance  Decimal @map("housing_allowance") @db.Decimal(19, 4)
+  otherAllowances   Decimal @map("other_allowances") @db.Decimal(19, 4)
+  gross             Decimal @db.Decimal(19, 4)
+  gosiEmployeeShare Decimal @map("gosi_employee_share") @db.Decimal(19, 4)
+  gosiEmployerShare Decimal @map("gosi_employer_share") @db.Decimal(19, 4)
+  advanceDeduction  Decimal @default(0) @map("advance_deduction") @db.Decimal(19, 4)
+  net               Decimal @db.Decimal(19, 4)
+
+  payrollRun        PayrollRun               @relation(fields: [payrollRunId], references: [id])
+  employee          Employee                 @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  advanceDeductions SalaryAdvanceDeduction[]
+
+  @@unique([payrollRunId, employeeId])
+  @@index([companyId, employeeId])
+  @@map("payroll_run_lines")
+}
+
+// A cash advance against future salary. Insert-only, like a payment -- its remaining balance is
+// never stored, only ever computed as amount minus the sum of SalaryAdvanceDeduction rows, the
+// same way every other balance in this system is computed from immutable rows, never stored.
+model SalaryAdvance {
+  id                String   @id
+  companyId         String   @map("company_id")
+  employeeId        String   @map("employee_id")
+  number            String
+  grantDate         DateTime @map("grant_date") @db.Date
+  amount            Decimal  @db.Decimal(19, 4)
+  installmentAmount Decimal  @map("installment_amount") @db.Decimal(19, 4)
+  cashAccountId     String   @map("cash_account_id")
+  journalEntryId    String   @map("journal_entry_id")
+  actorId           String   @map("actor_id")
+  correlationId     String   @map("correlation_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  company      Company                  @relation(fields: [companyId], references: [id])
+  employee     Employee                 @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  cashAccount  Account                  @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry             @relation(fields: [journalEntryId], references: [id])
+  deductions   SalaryAdvanceDeduction[]
+
+  @@unique([companyId, number])
+  @@index([companyId, employeeId])
+  @@map("salary_advances")
+}
+
+model SalaryAdvanceDeduction {
+  id               String  @id
+  companyId        String  @map("company_id")
+  salaryAdvanceId  String  @map("salary_advance_id")
+  payrollRunLineId String  @map("payroll_run_line_id")
+  amount           Decimal @db.Decimal(19, 4)
+
+  salaryAdvance  SalaryAdvance  @relation(fields: [salaryAdvanceId], references: [id])
+  payrollRunLine PayrollRunLine @relation(fields: [payrollRunLineId], references: [id])
+
+  @@index([salaryAdvanceId])
+  @@index([payrollRunLineId])
+  @@map("salary_advance_deductions")
+}
+
+// One per employee exit. Wage base is basic + fixed allowances (packages/core/src/hr/eosb.ts),
+// confirmed against the Ministry of Human Resources' own published wording. Insert-only, like
+// every posted document in this system.
+model EndOfServiceSettlement {
+  id                  String   @id
+  companyId           String   @map("company_id")
+  employeeId          String   @map("employee_id")
+  number              String
+  terminationDate     DateTime @map("termination_date") @db.Date
+  reason              String // RESIGNATION | TERMINATION | OTHER
+  yearsOfService      Decimal  @map("years_of_service") @db.Decimal(6, 3)
+  grossEntitlement    Decimal  @map("gross_entitlement") @db.Decimal(19, 4)
+  entitlementFraction Decimal  @map("entitlement_fraction") @db.Decimal(6, 4)
+  netEntitlement      Decimal  @map("net_entitlement") @db.Decimal(19, 4)
+  journalEntryId      String   @map("journal_entry_id")
+  actorId             String   @map("actor_id")
+  correlationId       String   @map("correlation_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  company      Company      @relation(fields: [companyId], references: [id])
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+
+  @@unique([companyId, number])
+  @@index([companyId, employeeId])
+  @@map("end_of_service_settlements")
 }
