@@ -457,6 +457,7 @@ model JournalEntry {
   @@unique([companyId, idempotencyKey])
   @@index([companyId, fiscalPeriodId])
   @@index([companyId, number])
+  @@index([companyId, entryDate])
   @@index([companyId, sourceModule, sourceDocumentType, sourceDocumentId])
   @@map("journal_entries")
 }
