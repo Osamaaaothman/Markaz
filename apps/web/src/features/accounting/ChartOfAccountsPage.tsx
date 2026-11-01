@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -714,11 +715,53 @@ export function ChartOfAccountsPage(): React.JSX.Element {
     setManualKeys(opened);
   };
   // Whether the dragged account may be dropped on this group (the same rules the server enforces).
-  const canDropOn = (target: ChartNodeData): boolean => {
+  const canDropOn = (target: Pick<ChartOfAccountEntry, "id" | "type" | "isPostable">): boolean => {
     if (!data || !draggingId || draggingId === target.id || target.isPostable) return false;
     const dragged = data.find((a) => a.id === draggingId);
     if (!dragged || dragged.type !== target.type || dragged.parentId === target.id) return false;
     return !descendantIds(data, dragged.id).has(target.id);
+  };
+  // While an account is dragged, the page scrolls by itself when the pointer nears the top or bottom of the window,
+  // faster the closer it gets, so an account can be carried a long way without letting go. The pointer position is
+  // remembered from the drag events and acted on every frame, because a browser sends none while the mouse is still.
+  const pointerY = useRef(0);
+  useEffect(() => {
+    if (!draggingId) return;
+    const TOP_ZONE = 170; // below the top bar and the sticky table header
+    const BOTTOM_ZONE = 120;
+    const MAX_STEP = 28;
+    const remember = (e: DragEvent): void => {
+      pointerY.current = e.clientY;
+    };
+    let frame = 0;
+    const step = (): void => {
+      const y = pointerY.current;
+      const bottomEdge = window.innerHeight - BOTTOM_ZONE;
+      if (y > 0 && y < TOP_ZONE) window.scrollBy(0, -Math.max(2, Math.round(((TOP_ZONE - y) / TOP_ZONE) * MAX_STEP)));
+      else if (y > bottomEdge) window.scrollBy(0, Math.max(2, Math.round(((y - bottomEdge) / BOTTOM_ZONE) * MAX_STEP)));
+      frame = requestAnimationFrame(step);
+    };
+    window.addEventListener("dragover", remember);
+    frame = requestAnimationFrame(step);
+    return () => {
+      window.removeEventListener("dragover", remember);
+      cancelAnimationFrame(frame);
+    };
+  }, [draggingId]);
+
+  // Resting over a closed folder for a moment opens it, so an account can be dropped into something nested.
+  useEffect(() => {
+    if (!dropKey || !draggingId || !data) return;
+    const isClosedFolder = !expandedKeys[dropKey] && data.some((a) => a.parentId === dropKey);
+    if (!isClosedFolder) return;
+    const timer = window.setTimeout(() => openGroups([dropKey]), 800);
+    return () => window.clearTimeout(timer);
+  }, [dropKey, draggingId, Boolean(dropKey && expandedKeys[dropKey])]);
+
+  // Which account a drag event is over: the whole row counts, not only the name text.
+  const accountUnder = (e: React.DragEvent): ChartOfAccountEntry | null => {
+    const id = (e.target as HTMLElement).closest("tr")?.querySelector("[data-account-id]")?.getAttribute("data-account-id");
+    return (id && data?.find((a) => a.id === id)) || null;
   };
   const changeQuery = (value: string): void => {
     setQuery(value);
@@ -801,6 +844,32 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             </div>
           </div>
 
+          <div
+            className="coa-dnd"
+            onDragOver={(e) => {
+              if (!draggingId) return;
+              const target = accountUnder(e);
+              if (target && canDropOn(target)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dropKey !== target.id) setDropKey(target.id);
+              } else {
+                e.dataTransfer.dropEffect = "none";
+                if (dropKey !== null) setDropKey(null);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropKey(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const target = accountUnder(e);
+              const dragged = data.find((a) => a.id === draggingId);
+              setDropKey(null);
+              setDraggingId(null);
+              if (dragged && target && canDropOn(target)) setMoving({ account: dragged, parentId: target.id });
+            }}
+          >
           <TreeTable
             value={visibleTree}
             className="erp-table erp-coa"
@@ -817,6 +886,10 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 [`coa-row--${account.type.toLowerCase()}`]: true,
                 // The branch's colour (from its top-level account) arrives as a CSS variable on the row.
                 "coa-row--colored": account.branchColor !== null,
+                // Drag feedback: the row being carried, the folders it may go into, and the one it is over.
+                "coa-row--dragging": draggingId === account.id,
+                "coa-row--droppable": draggingId !== null && canDropOn(account),
+                "coa-row--drop": dropKey === account.id,
               };
             }}
             emptyMessage={query.trim() ? t("accounting.chartOfAccounts.noResults") : t("status.empty")}
@@ -850,30 +923,26 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                   // Indented with a logical padding driven by --depth, so it nests toward the
                   // correct side under both html[dir=ltr] and html[dir=rtl].
                   <div
-                    className={`coa-cell${dropKey === key ? " coa-cell--drop" : ""}`}
+                    className="coa-cell"
+                    data-account-id={account.id}
                     style={{ "--depth": account.depth } as CSSProperties}
                     draggable={can("account:update")}
                     onDragStart={(e) => {
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", account.id);
+                      // A small label that follows the pointer, instead of the browser's faded copy of the row.
+                      const chip = document.createElement("div");
+                      chip.className = "coa-drag-chip";
+                      chip.textContent = `${account.code} — ${localizedName(account, i18n.language)}`;
+                      document.body.appendChild(chip);
+                      e.dataTransfer.setDragImage(chip, 14, 14);
+                      requestAnimationFrame(() => chip.remove());
+                      pointerY.current = e.clientY;
                       setDraggingId(account.id);
                     }}
                     onDragEnd={() => {
                       setDraggingId(null);
                       setDropKey(null);
-                    }}
-                    onDragOver={(e) => {
-                      if (!canDropOn(account)) return;
-                      e.preventDefault();
-                      if (dropKey !== key) setDropKey(key);
-                    }}
-                    onDragLeave={() => setDropKey((current) => (current === key ? null : current))}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDropKey(null);
-                      const dragged = data.find((a) => a.id === draggingId);
-                      setDraggingId(null);
-                      if (dragged && canDropOn(account)) setMoving({ account: dragged, parentId: account.id });
                     }}
                   >
                     {isGroup ? (
@@ -989,6 +1058,22 @@ export function ChartOfAccountsPage(): React.JSX.Element {
               )}
             />
           </TreeTable>
+          </div>
+          {draggingId
+            ? createPortal(
+                <div className={`coa-drag-hint${dropKey ? " coa-drag-hint--over" : ""}`} role="status">
+                  {(() => {
+                    const dragged = data.find((a) => a.id === draggingId);
+                    const target = dropKey ? data.find((a) => a.id === dropKey) : undefined;
+                    const draggedName = dragged ? localizedName(dragged, i18n.language) : "";
+                    return target
+                      ? t("accounting.chartOfAccounts.dnd.over", { name: draggedName, target: localizedName(target, i18n.language) })
+                      : t("accounting.chartOfAccounts.dnd.hint", { name: draggedName });
+                  })()}
+                </div>,
+                document.body,
+              )
+            : null}
         </>
       )}
 

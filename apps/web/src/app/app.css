@@ -396,12 +396,60 @@
 }
 
 
-/* a group row lights up while an account is dragged over it and may be dropped there */
-.coa-cell--drop {
-  outline: 2px dashed var(--mk-primary);
-  outline-offset: 2px;
-  border-radius: var(--mk-radius-xs);
-  background: var(--mk-primary-soft);
+/* Drag and drop: the row being carried fades, every folder it may go into is tinted, and the one under the
+   pointer is outlined and tinted strongly, so it is always clear where the account will land. */
+.erp-coa .p-treetable-tbody > tr.coa-row--dragging > td {
+  opacity: 0.4;
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--droppable > td {
+  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--mk-primary) 8%, transparent);
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--drop > td {
+  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--mk-primary) 22%, transparent);
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--drop {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: -2px;
+}
+
+/* a label that follows the pointer while dragging (used as the browser's drag image; kept off screen) */
+.coa-drag-chip {
+  position: fixed;
+  inset-block-start: -300px;
+  inset-inline-start: 0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: var(--mk-primary);
+  color: #fff;
+  font: 600 0.85rem system-ui, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+}
+
+/* what to do now, and where it will land; never blocks the pointer */
+.coa-drag-hint {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 1.25rem;
+  z-index: 1300;
+  width: fit-content;
+  max-width: min(42rem, 92vw);
+  margin-inline: auto;
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  background: #1f1d19;
+  color: #fff;
+  font-size: 0.9rem;
+  text-align: center;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
+  pointer-events: none;
+}
+
+.coa-drag-hint--over {
+  background: var(--mk-primary);
 }
 
 .coa-cell[draggable="true"] {

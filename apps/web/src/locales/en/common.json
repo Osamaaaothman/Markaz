@@ -223,7 +223,11 @@
       "makeGroupConfirm": "This account will become a folder and can no longer receive entries. This cannot be undone. Continue?",
       "makeGroupYes": "Yes, turn into a folder",
       "makeGroupInUse": "This account is already used (entries, a linked person, or a setting point to it), so it cannot become a folder. Create a new folder and put the accounts under it.",
-      "makeGroupError": "Could not turn this account into a folder."
+      "makeGroupError": "Could not turn this account into a folder.",
+      "dnd": {
+        "hint": "Drag «{{name}}» onto a folder of the same type. Move to the top or bottom edge of the window to scroll.",
+        "over": "Release to move «{{name}}» into «{{target}}»"
+      }
     },
     "trialBalance": {
       "title": "Trial balance",
