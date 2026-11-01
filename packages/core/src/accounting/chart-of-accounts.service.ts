@@ -62,7 +62,8 @@ export type ChartOfAccountsErrorCode =
   | "COLOR_ON_CHILD"
   | "PARTY_NOT_FOUND"
   | "TYPE_MISMATCH"
-  | "MOVE_INTO_SELF_OR_DESCENDANT";
+  | "MOVE_INTO_SELF_OR_DESCENDANT"
+  | "ACCOUNT_IN_USE";
 
 // Typed business-rule failure; the API maps each code to an HTTP status.
 export class ChartOfAccountsError extends Error {
@@ -179,6 +180,41 @@ export class ChartOfAccountsService {
     });
 
     await this.audit.log({ actorId: actor.id, action: "account.updated", entityType: "Account", entityId: id, before, after, correlationId });
+    return after;
+  }
+
+  // Turns an account that takes postings into a folder (group) that can hold other accounts. Only for an account
+  // nothing has used yet: no ledger line, no account mapping, no supplier-invoice line, payment or salary advance
+  // points at it, and no party is linked. A used account keeps its postings (docs/05 section 4), so it is refused.
+  // REVIEW: the check and the update are not one atomic step against a posting made at the same instant to an
+  // account that has never been used; the posting engine would still accept that one line. Very narrow, but a
+  // database trigger refusing lines on a non-postable account would close it. Confirm with the accountant too that
+  // restructuring an unused account is acceptable.
+  async makeGroup(id: string, actor: AccountActor, correlationId: string): Promise<ChartOfAccountEntry> {
+    const before = await this.prisma.account.findFirst({
+      where: { id, companyId: actor.companyId },
+      select: CHART_ENTRY_SELECT,
+    });
+    if (!before) throw new ChartOfAccountsError("ACCOUNT_NOT_FOUND", "Account not found");
+    if (!before.isPostable) return before; // already a folder: nothing to do
+
+    const [ledgerLines, mappings, invoiceLines, payments, advances] = await Promise.all([
+      this.prisma.journalEntryLine.count({ where: { accountId: id } }),
+      this.prisma.accountMapping.count({ where: { accountId: id } }),
+      this.prisma.supplierInvoiceLine.count({ where: { accountId: id } }),
+      this.prisma.payment.count({ where: { cashAccountId: id } }),
+      this.prisma.salaryAdvance.count({ where: { cashAccountId: id } }),
+    ]);
+    if (ledgerLines + mappings + invoiceLines + payments + advances > 0 || before.partyId !== null) {
+      throw new ChartOfAccountsError("ACCOUNT_IN_USE", "This account is already used, so it cannot become a folder");
+    }
+
+    const after = await this.prisma.account.update({
+      where: { id },
+      data: { isPostable: false, updatedBy: actor.id, version: { increment: 1 } },
+      select: CHART_ENTRY_SELECT,
+    });
+    await this.audit.log({ actorId: actor.id, action: "account.made_group", entityType: "Account", entityId: id, before, after, correlationId });
     return after;
   }
 

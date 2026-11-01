@@ -142,6 +142,17 @@ export class AccountingController {
     return this.mapChartErrors(this.chartOfAccounts.move(id, dto.parentId ?? null, actor, correlationId));
   }
 
+  // Turns an account nothing has used yet into a folder that can hold other accounts.
+  @Post("accounts/:id/make-group")
+  @RequirePermission("account", "update")
+  makeAccountGroup(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<ChartOfAccountEntry> {
+    return this.mapChartErrors(this.chartOfAccounts.makeGroup(id, actor, correlationId));
+  }
+
   // The core service throws typed business-rule errors; without this they would surface as 500.
   private async mapChartErrors<T>(work: Promise<T>): Promise<T> {
     try {
@@ -151,6 +162,8 @@ export class AccountingController {
       switch (error.code) {
         case "DUPLICATE_CODE":
           throw new ConflictException(error.message);
+        case "ACCOUNT_IN_USE":
+          throw new ConflictException({ message: error.message, code: error.code });
         case "ACCOUNT_NOT_FOUND":
         case "PARENT_NOT_FOUND":
         case "PARTY_NOT_FOUND":
