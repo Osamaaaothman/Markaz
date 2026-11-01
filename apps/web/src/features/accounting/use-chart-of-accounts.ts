@@ -80,6 +80,18 @@ export function useUpdateAccount(accountId: string) {
   });
 }
 
+// Turns an account nothing has used yet into a folder that can hold other accounts. A used account is refused (409).
+export function useMakeAccountGroup(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await apiClient.post<ChartOfAccountEntry>(`/v1/accounts/${accountId}/make-group`)).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] });
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
+}
+
 // Moves an account, with everything under it, to another group of the same type (null = the top level).
 export function useMoveAccount(accountId: string) {
   const qc = useQueryClient();

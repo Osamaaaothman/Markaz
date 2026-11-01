@@ -212,7 +212,18 @@
       },
       "details": "Account figures",
       "detailsTitle": "Account totals",
-      "openStatement": "Open account statement"
+      "openStatement": "Open account statement",
+      "kind": "What are you adding?",
+      "kindAccount": "Account",
+      "kindGroup": "Folder",
+      "kindAccountHint": "An account receives entries (a bank account, a cash box, an expense). It cannot hold other accounts.",
+      "kindGroupHint": "A folder holds other accounts and shows their total (for example a bank, with its own accounts inside). You cannot post entries to it.",
+      "makeGroup": "Turn into a folder",
+      "makeGroupHint": "So this account can hold sub-accounts. Only possible while nothing has been posted to it or linked to it.",
+      "makeGroupConfirm": "This account will become a folder and can no longer receive entries. This cannot be undone. Continue?",
+      "makeGroupYes": "Yes, turn into a folder",
+      "makeGroupInUse": "This account is already used (entries, a linked person, or a setting point to it), so it cannot become a folder. Create a new folder and put the accounts under it.",
+      "makeGroupError": "Could not turn this account into a folder."
     },
     "trialBalance": {
       "title": "Trial balance",

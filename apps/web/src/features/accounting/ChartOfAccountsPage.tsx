@@ -8,7 +8,6 @@ import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
-import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import { SelectButton } from "primereact/selectbutton";
 import { Tag } from "primereact/tag";
@@ -42,6 +41,7 @@ import { useAccountBalances, type AccountBalance } from "./use-account-balances"
 import {
   useChartOfAccounts,
   useCreateAccount,
+  useMakeAccountGroup,
   useUpdateAccount,
   type ChartOfAccountEntry,
 } from "./use-chart-of-accounts";
@@ -182,6 +182,7 @@ function AddAccountDialog({
   const selectedType = useWatch({ control, name: "type" });
   const selectedParentId = useWatch({ control, name: "parentId" });
   const typedCode = useWatch({ control, name: "code" });
+  const isPostableNow = useWatch({ control, name: "isPostable" });
   const typedHint = useMemo(() => inferFromCode(accounts, typedCode), [accounts, typedCode]);
   // With a parent chosen on purpose, the only thing worth saying about the code is that it is already used.
   const codeHint = selectedParentId !== null && typedHint.kind !== "duplicate" ? ({ kind: "empty" } as const) : typedHint;
@@ -338,22 +339,31 @@ function AddAccountDialog({
           />
         </div>
 
-        {/* isPostable toggle */}
-        <div className="erp-field" style={{ flexDirection: "row", alignItems: "center", gap: "0.75rem" }}>
+        {/* Folder or account: a folder holds other accounts, an account receives entries. A postable account can
+            never have sub-accounts, so this choice is made here, in plain words, and not as a technical switch. */}
+        <div className="erp-field">
+          <label htmlFor="acctKind">{t("accounting.chartOfAccounts.kind")}</label>
           <Controller
             control={control}
             name="isPostable"
             render={({ field }) => (
-              <InputSwitch
-                inputId="acctPostable"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.value)}
+              <SelectButton
+                id="acctKind"
+                value={field.value}
+                onChange={(e) => {
+                  if (e.value !== null && e.value !== undefined) field.onChange(e.value as boolean);
+                }}
+                allowEmpty={false}
+                options={[
+                  { label: t("accounting.chartOfAccounts.kindAccount"), value: true },
+                  { label: t("accounting.chartOfAccounts.kindGroup"), value: false },
+                ]}
               />
             )}
           />
-          <label htmlFor="acctPostable" style={{ marginBlockEnd: 0 }}>
-            {t("accounting.chartOfAccounts.isPostable")}
-          </label>
+          <small className="erp-field__hint">
+            {t(isPostableNow ? "accounting.chartOfAccounts.kindAccountHint" : "accounting.chartOfAccounts.kindGroupHint")}
+          </small>
         </div>
 
         {/* Linked party — offered only to users who may read parties. */}
@@ -434,6 +444,8 @@ function EditAccountDialog({
   const { t } = useTranslation();
   const { can } = usePermissions();
   const updateAccount = useUpdateAccount(account?.id ?? "");
+  const makeGroup = useMakeAccountGroup(account?.id ?? "");
+  const [confirmingGroup, setConfirmingGroup] = useState(false);
   const isTopLevel = account?.parentId === null;
 
   const {
@@ -450,6 +462,8 @@ function EditAccountDialog({
   useEffect(() => {
     if (!account) return;
     updateAccount.reset();
+    makeGroup.reset();
+    setConfirmingGroup(false);
     reset({ name: account.name, nameAr: account.nameAr ?? "", partyId: account.partyId, color: account.color });
     // Reload the form only when another account is opened, not on every re-render.
   }, [account?.id]);
@@ -479,6 +493,41 @@ function EditAccountDialog({
           <div className="erp-field">
             <label>{t("accounting.chartOfAccounts.id")}</label>
             <CopyId value={account.ref} uuid={account.id} />
+          </div>
+        ) : null}
+
+        {/* An account nothing has used yet can become a folder, so it can hold sub-accounts. A used one cannot. */}
+        {account?.isPostable && can("account:update") ? (
+          <div className="erp-field">
+            <label>{t("accounting.chartOfAccounts.makeGroup")}</label>
+            {confirmingGroup ? (
+              <>
+                <small className="erp-field__hint">{t("accounting.chartOfAccounts.makeGroupConfirm")}</small>
+                <div className="erp-form__actions">
+                  <Button type="button" text label={t("actions.cancel")} onClick={() => setConfirmingGroup(false)} />
+                  <Button
+                    type="button"
+                    severity="warning"
+                    icon="pi pi-folder"
+                    label={t("accounting.chartOfAccounts.makeGroupYes")}
+                    loading={makeGroup.isPending}
+                    onClick={() => makeGroup.mutate(undefined, { onSuccess: onHide })}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <small className="erp-field__hint">{t("accounting.chartOfAccounts.makeGroupHint")}</small>
+                <Button type="button" outlined severity="secondary" icon="pi pi-folder" label={t("accounting.chartOfAccounts.makeGroup")} onClick={() => setConfirmingGroup(true)} />
+              </>
+            )}
+            {makeGroup.isError ? (
+              <small className="erp-auth-card__error">
+                {(makeGroup.error as { response?: { status?: number } } | null)?.response?.status === 409
+                  ? t("accounting.chartOfAccounts.makeGroupInUse")
+                  : t("accounting.chartOfAccounts.makeGroupError")}
+              </small>
+            ) : null}
           </div>
         ) : null}
 
