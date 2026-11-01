@@ -8,11 +8,11 @@ import { Row } from "primereact/row";
 import { Tag } from "primereact/tag";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
-import { formatMoney } from "../../shared/lib/money";
+import { formatAmount, formatMoney } from "../../shared/lib/money";
 import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { exportReport, type ExportFormat } from "./export-report";
-import { useAccountLabel } from "./use-account-label";
+import { useAccountLabel, useAccountLabelKey } from "./use-account-label";
 import { useTrialBalance, type TrialBalanceLine } from "./use-trial-balance";
 
 // The first day of this year and today: the period the screen opens on.
@@ -27,6 +27,7 @@ export function TrialBalancePage(): React.JSX.Element {
   const { t } = useTranslation();
   const i18n = useTranslation().i18n;
   const accountLabel = useAccountLabel();
+  const labelKey = useAccountLabelKey();
   const { data: currentUser } = useCurrentUser();
   const [period, setPeriod] = useState(defaultPeriod);
   const from = toDateOnlyIsoString(period.from);
@@ -36,7 +37,7 @@ export function TrialBalancePage(): React.JSX.Element {
 
   const handleExport = (format: ExportFormat) => exportReport("/v1/trial-balance/export", { lang: i18n.language, from, to }, "trial-balance", format);
   const money = (value: string): string => formatMoney(value, currency);
-  const cell = (value: string): React.ReactNode => (Number(value) === 0 ? <span className="coa-amount coa-amount--zero">—</span> : <span className="coa-amount">{money(value)}</span>);
+  const cell = (value: string): React.ReactNode => (Number(value) === 0 ? <span className="coa-amount coa-amount--zero">—</span> : <span className="coa-amount">{formatAmount(value, currency)}</span>);
 
   const headerGroup = (
     <ColumnGroup>
@@ -83,6 +84,8 @@ export function TrialBalancePage(): React.JSX.Element {
         </div>
       </div>
 
+      <p className="erp-field__hint">{t("accounting.trialBalance.amountsIn", { currency })}</p>
+
       {isPending ? (
         <PageSkeleton />
       ) : isError || !data ? (
@@ -96,7 +99,7 @@ export function TrialBalancePage(): React.JSX.Element {
         <p className="erp-page__empty">{t("accounting.trialBalance.empty")}</p>
       ) : (
         <>
-          <DataTable value={[...data.lines]} className="erp-table erp-table--tb" stripedRows showGridlines size="small" headerColumnGroup={headerGroup}>
+          <DataTable key={labelKey} value={[...data.lines]} className="erp-table erp-table--tb" stripedRows showGridlines size="small" headerColumnGroup={headerGroup}>
             <Column
               body={(line: TrialBalanceLine) => (
                 <span className="erp-table__account">

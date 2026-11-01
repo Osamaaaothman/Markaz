@@ -10,6 +10,7 @@ export interface StockLevelEntry {
   readonly itemNameAr: string | null;
   readonly warehouseId: string;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly quantity: string;
   readonly value: string;
   readonly averageUnitCost: string;

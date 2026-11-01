@@ -28,6 +28,7 @@ interface MovementEntry {
   readonly itemName: string;
   readonly itemNameAr: string | null;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly movementType: MovementType;
   readonly quantity: string;
   readonly unitCost: string;
@@ -148,8 +149,8 @@ export function StockMovementsPage(): React.JSX.Element {
           <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("inventory.movements.date")} style={{ width: "9rem" }} body={(r: MovementEntry) => formatCalendarDate(r.date, i18n.language)} />
             <Column header={t("inventory.items.code")} style={{ width: "9rem" }} body={(r: MovementEntry) => <span className="coa-code">{r.itemCode}</span>} />
-            <Column header={t("inventory.items.name")} body={(r: MovementEntry) => localizedName({ name: r.itemName, nameAr: r.itemNameAr }, i18n.language)} />
-            <Column header={t("inventory.stockLevels.warehouse")} body={(r: MovementEntry) => r.warehouseName} />
+            <Column header={t("inventory.items.displayName")} body={(r: MovementEntry) => localizedName({ name: r.itemName, nameAr: r.itemNameAr }, i18n.language)} />
+            <Column header={t("inventory.stockLevels.warehouse")} body={(r: MovementEntry) => localizedName({ name: r.warehouseName, nameAr: r.warehouseNameAr }, i18n.language)} />
             <Column
               header={t("inventory.movements.type")}
               style={{ width: "10rem" }}

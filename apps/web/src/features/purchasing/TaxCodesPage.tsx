@@ -76,7 +76,7 @@ export function TaxCodesPage(): React.JSX.Element {
       ) : (
         <DataGrid value={data} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.tax.empty")}>
           <Column header={t("inventory.items.code")} style={{ width: "10rem" }} body={(row: TaxCodeSummary) => <span className="coa-code">{row.code}</span>} />
-          <Column header={t("inventory.items.name")} body={(row: TaxCodeSummary) => localizedName(row, i18n.language)} />
+          <Column header={t("inventory.items.displayName")} body={(row: TaxCodeSummary) => localizedName(row, i18n.language)} />
           <Column header={t("purchasing.tax.treatment")} body={(row: TaxCodeSummary) => t(`purchasing.tax.treatments.${row.treatment}`)} />
           <Column header={t("purchasing.tax.rate")} align="right" style={{ width: "8rem" }} body={(row: TaxCodeSummary) => `${Number(row.rate)}%`} />
           <Column

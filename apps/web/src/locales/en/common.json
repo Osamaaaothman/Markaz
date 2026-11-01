@@ -245,7 +245,8 @@
       "closing": "Closing balance",
       "from": "From",
       "to": "To",
-      "periodSubtitle": "Opening balance, movement and closing balance of every posted account for the period."
+      "periodSubtitle": "Opening balance, movement and closing balance of every posted account for the period.",
+      "amountsIn": "All amounts are in {{currency}}"
     },
     "balanceSheet": {
       "title": "Balance sheet",
@@ -302,7 +303,23 @@
       "exchangeRate": "Exchange rate",
       "reversalOf": "Reverses entry {{number}}",
       "loadError": "Couldn't load this entry.",
-      "exportCsv": "Export lines (CSV)"
+      "exportCsv": "Export lines (CSV)",
+      "sourceTypes": {
+        "manual": "Manual entry",
+        "goods_receipt": "Goods receipt",
+        "goods_return": "Purchase return",
+        "stock_issue": "Stock issue",
+        "stock_count": "Stock count",
+        "supplier_invoice": "Supplier invoice",
+        "supplier_debit_note": "Supplier debit note",
+        "sales_invoice": "Sales invoice",
+        "sales_credit_note": "Sales credit note",
+        "customer_receipt": "Customer receipt",
+        "supplier_payment": "Supplier payment",
+        "payroll_run": "Payroll run",
+        "salary_advance": "Salary advance",
+        "end_of_service_settlement": "End-of-service settlement"
+      }
     },
     "accountStatement": {
       "title": "Account statement",
@@ -475,7 +492,8 @@
       "duplicateCode": "An item with this code already exists.",
       "picture": "Item picture",
       "pictureAfterSave": "Save the item first; you can add a picture right after.",
-      "savedAddPicture": "The item is saved. You can add a picture now, then press Save to close."
+      "savedAddPicture": "The item is saved. You can add a picture now, then press Save to close.",
+      "displayName": "Name"
     },
     "stockLevels": {
       "title": "Stock levels",

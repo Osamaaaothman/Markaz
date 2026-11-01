@@ -81,8 +81,8 @@ export function StockLevelsPage(): React.JSX.Element {
       ) : (
         <DataGrid value={data ?? []} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
           <Column field="itemCode" header={t("inventory.items.code")} style={{ width: "8rem" }} body={(row: StockLevelEntry) => <span className="coa-code">{row.itemCode}</span>} />
-          <Column header={t("inventory.items.name")} body={(row: StockLevelEntry) => <span className="coa-name">{localizedName({ name: row.itemName, nameAr: row.itemNameAr }, i18n.language)}</span>} />
-          <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockLevelEntry) => row.warehouseName} />
+          <Column header={t("inventory.items.displayName")} body={(row: StockLevelEntry) => <span className="coa-name">{localizedName({ name: row.itemName, nameAr: row.itemNameAr }, i18n.language)}</span>} />
+          <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockLevelEntry) => localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language)} />
           <Column header={t("inventory.stockLevels.quantity")} align="right" body={(row: StockLevelEntry) => <span className="coa-amount">{row.quantity}</span>} />
           <Column header={t("inventory.stockLevels.averageUnitCost")} align="right" body={(row: StockLevelEntry) => <span className="coa-amount">{formatMoney(row.averageUnitCost, currency)}</span>} />
           <Column header={t("inventory.stockLevels.value")} align="right" body={(row: StockLevelEntry) => <span className="coa-amount">{formatMoney(row.value, currency)}</span>} />

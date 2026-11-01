@@ -59,6 +59,7 @@ export interface StockCountSummary {
   readonly number: string;
   readonly warehouseId: string;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly documentDate: string;
   readonly isPosted: boolean;
   readonly lineCount: number;
@@ -94,7 +95,7 @@ export class StockCountService {
         ...(query.warehouseId ? { warehouseId: query.warehouseId } : {}),
         ...(query.unpostedOnly === "true" ? { postedAt: null } : {}),
       },
-      include: { warehouse: { select: { name: true } }, _count: { select: { lines: true } } },
+      include: { warehouse: { select: { name: true, nameAr: true } }, _count: { select: { lines: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
@@ -103,6 +104,7 @@ export class StockCountService {
       number: c.number,
       warehouseId: c.warehouseId,
       warehouseName: c.warehouse.name,
+      warehouseNameAr: c.warehouse.nameAr,
       documentDate: c.documentDate.toISOString(),
       isPosted: c.postedAt !== null,
       lineCount: c._count.lines,

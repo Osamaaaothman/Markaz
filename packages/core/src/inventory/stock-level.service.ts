@@ -9,6 +9,7 @@ export interface StockLevelEntry {
   readonly itemNameAr: string | null;
   readonly warehouseId: string;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly quantity: string;
   readonly value: string;
   readonly averageUnitCost: string;
@@ -49,6 +50,7 @@ export class StockLevelService {
         itemNameAr: row.item.nameAr,
         warehouseId: row.warehouseId,
         warehouseName: row.warehouse.name,
+        warehouseNameAr: row.warehouse.nameAr,
         quantity: row.quantity.toFixed(4),
         value: row.value.toFixed(4),
         averageUnitCost: averageUnitCost(row).toFixed(4),

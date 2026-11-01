@@ -4,6 +4,7 @@ import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { formatCalendarDate } from "../../shared/lib/format-date";
+import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { useGoodsReturns, type GoodsReturnSummary } from "./use-goods-returns";
@@ -48,9 +49,9 @@ export function GoodsReturnsPage(): React.JSX.Element {
           >
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(row: GoodsReturnSummary) => <span className="coa-code">{row.number}</span>} />
             <Column header={t("purchasing.returns.documentDate")} style={{ width: "9rem" }} body={(row: GoodsReturnSummary) => formatCalendarDate(row.documentDate, i18n.language)} />
-            <Column header={t("purchasing.supplier")} field="supplierName" />
+            <Column header={t("purchasing.supplier")} body={(row: GoodsReturnSummary) => localizedName({ name: row.supplierName, nameAr: row.supplierNameAr }, i18n.language)} />
             <Column header={t("purchasing.returns.order")} style={{ width: "12rem" }} body={(row: GoodsReturnSummary) => <span className="coa-code">{row.purchaseOrderNumber}</span>} />
-            <Column header={t("purchasing.returns.warehouse")} field="warehouseName" style={{ width: "10rem" }} />
+            <Column header={t("purchasing.returns.warehouse")} body={(row: GoodsReturnSummary) => localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language)} style={{ width: "10rem" }} />
             <Column header={t("purchasing.returns.reference")} body={(row: GoodsReturnSummary) => row.reference ?? ""} style={{ width: "10rem" }} />
             <Column header={t("purchasing.returns.value")} align="right" style={{ width: "12rem" }} body={(row: GoodsReturnSummary) => formatMoney(row.totalValue, row.currency)} />
           </DataGrid>

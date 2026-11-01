@@ -115,7 +115,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
       <h3 className="erp-form__section-title">{t("purchasing.lines")}</h3>
       <DataTable value={[...order.lines]} className="erp-table" stripedRows showGridlines size="small">
         <Column header={t("inventory.items.code")} style={{ width: "8rem" }} body={(l: PurchaseOrderLine) => <span className="coa-code">{l.itemCode}</span>} />
-        <Column header={t("inventory.items.name")} body={(l: PurchaseOrderLine) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
+        <Column header={t("inventory.items.displayName")} body={(l: PurchaseOrderLine) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
         <Column header={t("purchasing.quantity")} align="right" body={(l: PurchaseOrderLine) => `${l.quantity} ${l.unit}`} />
         <Column header={t("purchasing.received")} align="right" body={(l: PurchaseOrderLine) => l.receivedQuantity} />
         <Column header={t("purchasing.unitPrice")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.unitPrice, order.currency)} />
@@ -205,7 +205,7 @@ function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail;
         </div>
 
         <DataTable value={[...order.lines]} className="erp-table" size="small" showGridlines>
-          <Column header={t("inventory.items.name")} body={(l: PurchaseOrderLine) => `${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)}`} />
+          <Column header={t("inventory.items.displayName")} body={(l: PurchaseOrderLine) => `${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)}`} />
           <Column header={t("purchasing.outstanding")} align="right" style={{ width: "8rem" }} body={(l: PurchaseOrderLine) => outstanding(l)} />
           <Column
             header={t("purchasing.receiveNow")}
@@ -306,7 +306,7 @@ function ReturnDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; 
         </div>
 
         <DataTable value={[...order.lines]} className="erp-table" size="small" showGridlines>
-          <Column header={t("inventory.items.name")} body={(l: PurchaseOrderLine) => `${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)}`} />
+          <Column header={t("inventory.items.displayName")} body={(l: PurchaseOrderLine) => `${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)}`} />
           <Column header={t("purchasing.returnable")} align="right" style={{ width: "8rem" }} body={(l: PurchaseOrderLine) => returnable(l)} />
           <Column
             header={t("purchasing.returnNow")}

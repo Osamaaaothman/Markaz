@@ -107,7 +107,11 @@ export function JournalEntriesPage(): React.JSX.Element {
               header={t("accounting.journalEntries.entryDate")}
               body={(row: JournalEntrySummary) => formatCalendarDate(row.entryDate, i18n.language)}
             />
-            <Column field="sourceDocumentType" header={t("accounting.journalEntries.sourceDocumentType")} />
+            <Column
+              field="sourceDocumentType"
+              header={t("accounting.journalEntries.sourceDocumentType")}
+              body={(row: JournalEntrySummary) => t(`accounting.journalEntries.sourceTypes.${row.sourceDocumentType}`, { defaultValue: row.sourceDocumentType })}
+            />
             <Column
               field="totalDebit"
               header={t("accounting.journalEntries.totalDebit")}

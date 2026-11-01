@@ -69,8 +69,10 @@ export interface GoodsReturnSummary {
   readonly purchaseOrderNumber: string;
   readonly supplierId: string;
   readonly supplierName: string;
+  readonly supplierNameAr: string | null;
   readonly warehouseId: string;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly reference: string | null;
   readonly reason: string | null;
   readonly currency: string;
@@ -330,8 +332,8 @@ export class GoodsReturnService {
       take: limit + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       include: {
-        party: { select: { name: true } },
-        warehouse: { select: { name: true } },
+        party: { select: { name: true, nameAr: true } },
+        warehouse: { select: { name: true, nameAr: true } },
         purchaseOrder: { select: { number: true } },
         lines: { orderBy: { lineNumber: "asc" }, include: { item: { select: { code: true, name: true, nameAr: true } } } },
       },
@@ -350,8 +352,10 @@ export class GoodsReturnService {
       purchaseOrderNumber: r.purchaseOrder.number,
       supplierId: r.partyId,
       supplierName: r.party.name,
+      supplierNameAr: r.party.nameAr,
       warehouseId: r.warehouseId,
       warehouseName: r.warehouse.name,
+      warehouseNameAr: r.warehouse.nameAr,
       reference: r.reference,
       reason: r.reason,
       currency,

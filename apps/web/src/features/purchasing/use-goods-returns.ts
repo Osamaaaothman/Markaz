@@ -21,8 +21,10 @@ export interface GoodsReturnSummary {
   readonly purchaseOrderNumber: string;
   readonly supplierId: string;
   readonly supplierName: string;
+  readonly supplierNameAr: string | null;
   readonly warehouseId: string;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly reference: string | null;
   readonly reason: string | null;
   readonly currency: string;

@@ -245,7 +245,8 @@
       "closing": "الرصيد الختامي",
       "from": "من",
       "to": "إلى",
-      "periodSubtitle": "الرصيد الافتتاحي والحركة والرصيد الختامي لكل حساب مرحّل خلال الفترة."
+      "periodSubtitle": "الرصيد الافتتاحي والحركة والرصيد الختامي لكل حساب مرحّل خلال الفترة.",
+      "amountsIn": "جميع المبالغ بـ {{currency}}"
     },
     "balanceSheet": {
       "title": "الميزانية العمومية",
@@ -302,7 +303,23 @@
       "exchangeRate": "سعر الصرف",
       "reversalOf": "قيد عكسي للقيد رقم {{number}}",
       "loadError": "تعذّر تحميل هذا القيد.",
-      "exportCsv": "تصدير السطور (CSV)"
+      "exportCsv": "تصدير السطور (CSV)",
+      "sourceTypes": {
+        "manual": "قيد يدوي",
+        "goods_receipt": "استلام مخزون",
+        "goods_return": "مردود مشتريات",
+        "stock_issue": "صرف مخزون",
+        "stock_count": "جرد مخزون",
+        "supplier_invoice": "فاتورة مورد",
+        "supplier_debit_note": "إشعار خصم مورد",
+        "sales_invoice": "فاتورة مبيعات",
+        "sales_credit_note": "إشعار دائن مبيعات",
+        "customer_receipt": "سند قبض عميل",
+        "supplier_payment": "دفعة مورد",
+        "payroll_run": "دورة رواتب",
+        "salary_advance": "سلفة راتب",
+        "end_of_service_settlement": "تسوية نهاية الخدمة"
+      }
     },
     "accountStatement": {
       "title": "كشف حساب",
@@ -475,7 +492,8 @@
       "duplicateCode": "يوجد صنف بهذا الرمز مسبقاً.",
       "picture": "صورة الصنف",
       "pictureAfterSave": "احفظ الصنف أولاً، وبعدها تقدر تضيف صورة مباشرة.",
-      "savedAddPicture": "تم حفظ الصنف. تقدر تضيف صورة الآن، ثم اضغط حفظ للإغلاق."
+      "savedAddPicture": "تم حفظ الصنف. تقدر تضيف صورة الآن، ثم اضغط حفظ للإغلاق.",
+      "displayName": "الاسم"
     },
     "stockLevels": {
       "title": "أرصدة المخزون",

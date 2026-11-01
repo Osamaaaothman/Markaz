@@ -153,6 +153,7 @@
 /* Codes read left-to-right even inside an RTL row (digits and Latin letters). */
 .coa-code {
   display: inline-block;
+  white-space: nowrap;
   direction: ltr;
   unicode-bidi: isolate;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

@@ -11,6 +11,7 @@ export interface StockMovementEntry {
   readonly itemNameAr: string | null;
   readonly warehouseId: string;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly movementType: MovementType;
   // Signed: positive in (receipt, count surplus), negative out (issue, sale, count shortage).
   readonly quantity: string;
@@ -51,6 +52,7 @@ function toEntry(row: Row): StockMovementEntry {
     itemNameAr: row.item.nameAr,
     warehouseId: row.warehouseId,
     warehouseName: row.warehouse.name,
+    warehouseNameAr: row.warehouse.nameAr,
     movementType: row.movementType as MovementType,
     quantity: row.quantity.toFixed(4),
     unitCost: row.unitCost.toFixed(4),
