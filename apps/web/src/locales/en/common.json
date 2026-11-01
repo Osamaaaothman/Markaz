@@ -43,7 +43,8 @@
     "partyStatement": "Customer / supplier statement",
     "stockMovements": "Stock movements",
     "documents": "Documents",
-    "company": "Company"
+    "company": "Company",
+    "goodsReturns": "Purchase returns"
   },
   "actions": {
     "save": "Save",
@@ -334,6 +335,7 @@
         "stock": "Stock levels",
         "account_mapping": "Inventory account mapping",
         "goods_receipt": "Goods receipts",
+        "goods_return": "Purchase returns",
         "stock_issue": "Stock issues",
         "stock_count": "Stock counts",
         "purchase_request": "Purchase requests",
@@ -530,13 +532,15 @@
       "types": {
         "RECEIPT": "Receipt",
         "ISSUE": "Issue",
-        "COUNT_ADJUSTMENT": "Count adjustment"
+        "COUNT_ADJUSTMENT": "Count adjustment",
+        "RETURN": "Return to supplier"
       },
       "sources": {
         "goods_receipt": "Goods receipt",
         "stock_issue": "Stock issue",
         "stock_count": "Stock count",
-        "sales_invoice": "Sales invoice"
+        "sales_invoice": "Sales invoice",
+        "goods_return": "Purchase return"
       }
     }
   },
@@ -603,7 +607,14 @@
       "receiveTitle": "Receive goods",
       "receiveConflict": "More than the outstanding quantity, or the order is no longer open for receiving.",
       "receiveError": "Could not post this receipt.",
-      "postReceipt": "Post receipt"
+      "postReceipt": "Post receipt",
+      "returnGoods": "Return goods",
+      "returnTitle": "Return goods to the supplier",
+      "returnHint": "Only goods that were received and not yet matched to a supplier invoice can be returned here. Goods already invoiced need a debit note, which is not available yet.",
+      "postReturn": "Post return",
+      "returnConflict": "More than can be returned, no stock in that warehouse, or the order has changed. Reload and try again.",
+      "returnError": "Could not post this return.",
+      "noReturnable": "Nothing on this order can be returned: everything received has already been invoiced."
     },
     "approvals": {
       "title": "Approval limits",
@@ -676,6 +687,21 @@
       "deactivate": "Deactivate",
       "duplicate": "A tax code with this code already exists.",
       "saveError": "Could not save this tax code."
+    },
+    "returnable": "Can return",
+    "returnNow": "Return now",
+    "returns": {
+      "title": "Purchase returns",
+      "subtitle": "Goods sent back to suppliers before their invoice was matched.",
+      "order": "Order",
+      "warehouse": "Warehouse",
+      "reference": "Reference",
+      "reason": "Reason (optional)",
+      "value": "Value out of stock",
+      "documentDate": "Return date",
+      "lines": "Returned items",
+      "unitCost": "Cost",
+      "empty": "No purchase returns yet. Start one from a purchase order that has received goods."
     }
   },
   "sales": {

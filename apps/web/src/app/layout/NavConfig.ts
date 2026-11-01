@@ -32,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/inventory/stock-counts", labelKey: "nav.stockCount", icon: "pi pi-check-square", permissions: ["stock_count:read"], groupKey: "nav.groups.inventory" },
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing" },
+  { to: "/purchasing/returns", labelKey: "nav.goodsReturns", icon: "pi pi-replay", permissions: ["goods_return:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/invoices", labelKey: "nav.supplierInvoices", icon: "pi pi-receipt", permissions: ["supplier_invoice:read"], groupKey: "nav.groups.purchasing" },
   { to: "/sales/quotations", labelKey: "nav.quotations", icon: "pi pi-file-edit", permissions: ["quotation:read"], groupKey: "nav.groups.sales" },
   { to: "/sales/orders", labelKey: "nav.salesOrders", icon: "pi pi-shopping-bag", permissions: ["sales_order:read"], groupKey: "nav.groups.sales" },
