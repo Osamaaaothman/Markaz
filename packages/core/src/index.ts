@@ -25,6 +25,7 @@ export * from "./parties/party.service.js";
 export * from "./accounting/balance-sheet.service.js";
 export * from "./accounting/income-statement.service.js";
 export * from "./accounting/general-ledger.service.js";
+export * from "./accounting/cash-flow.service.js";
 export * from "./outbox/outbox-writer.js";
 export * from "./approvals/approval-policy.js";
 export * from "./approvals/approval.service.js";

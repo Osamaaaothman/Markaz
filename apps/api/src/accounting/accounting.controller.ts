@@ -17,6 +17,7 @@ import type { IAccountingEngine, PostingResult } from "@erp/core";
 import {
   AccountBalancesService,
   BalanceSheetService,
+  CashFlowService,
   CHART_ENTRY_SELECT,
   ChartOfAccountsError,
   ChartOfAccountsService,
@@ -24,6 +25,7 @@ import {
   TrialBalanceService,
   type AccountBalance,
   type BalanceSheetResult,
+  type CashFlowResult,
   type IncomeStatementResult,
   type PeriodTrialBalanceResult,
   type TrialBalanceResult,
@@ -64,6 +66,7 @@ export class AccountingController {
     private readonly trialBalanceService: TrialBalanceService,
     private readonly balanceSheetService: BalanceSheetService,
     private readonly incomeStatementService: IncomeStatementService,
+    private readonly cashFlowService: CashFlowService,
     private readonly exportService: AccountingExportService,
     private readonly journalExport: JournalExportService,
     private readonly prisma: PrismaService,
@@ -383,6 +386,15 @@ export class AccountingController {
   ): Promise<void> {
     const file = await this.exportService.exportBalanceSheet(actor.companyId, query.format, query.lang ?? "en");
     this.sendFile(res, file);
+  }
+
+  @Get("cash-flow")
+  @RequirePermission("income_statement", "read")
+  cashFlow(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query() query: IncomeStatementQueryDto,
+  ): Promise<CashFlowResult> {
+    return this.cashFlowService.compute(actor.companyId, new Date(query.from), new Date(query.to));
   }
 
   @Get("income-statement")

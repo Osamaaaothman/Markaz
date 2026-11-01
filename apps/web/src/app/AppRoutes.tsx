@@ -7,6 +7,7 @@ import { AccountStatementPage } from "../features/accounting/AccountStatementPag
 import { TrialBalancePage } from "../features/accounting/TrialBalancePage";
 import { BalanceSheetPage } from "../features/accounting/BalanceSheetPage";
 import { IncomeStatementPage } from "../features/accounting/IncomeStatementPage";
+import { CashFlowPage } from "../features/accounting/CashFlowPage";
 import { JournalEntriesPage } from "../features/accounting/JournalEntriesPage";
 import { PartiesPage } from "../features/parties/PartiesPage";
 import { AccountMappingPage } from "../features/inventory/AccountMappingPage";
@@ -77,6 +78,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/income-statement")} />}>
             <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/accounting/cash-flow")} />}>
+            <Route path="/accounting/cash-flow" element={<CashFlowPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/journal-entries")} />}>
             <Route path="/accounting/journal-entries" element={<JournalEntriesPage />} />

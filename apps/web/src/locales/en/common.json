@@ -9,6 +9,7 @@
     "trialBalance": "Trial balance",
     "balanceSheet": "Balance sheet",
     "incomeStatement": "Income statement",
+    "cashFlow": "Cash flow",
     "journalEntries": "Journal entries",
     "usersRoles": "Users & roles",
     "parties": "Parties",
@@ -276,6 +277,20 @@
       "netIncome": "Net income",
       "netLoss": "Net loss",
       "empty": "No activity in this period."
+    },
+    "cashFlow": {
+      "title": "Cash flow statement",
+      "subtitle": "Indirect method — IAS 7. Cash and cash equivalents movement for the selected period.",
+      "operating": "Operating activities",
+      "investing": "Investing activities",
+      "financing": "Financing activities",
+      "netOperating": "Net cash from operating activities",
+      "netInvesting": "Net cash from investing activities",
+      "netFinancing": "Net cash from financing activities",
+      "netChange": "Net change in cash",
+      "beginningCash": "Beginning cash balance",
+      "endingCash": "Ending cash balance",
+      "unbalancedWarning": "Warning: net change does not equal the movement in cash accounts. Review account classification."
     },
     "journalEntries": {
       "title": "Journal entries",

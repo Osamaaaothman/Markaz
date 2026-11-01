@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import {
   AccountBalancesService,
   BalanceSheetService,
+  CashFlowService,
   ChartOfAccountsService,
   GeneralLedgerService,
   IncomeStatementService,
@@ -52,6 +53,11 @@ import { ACCOUNTING_ENGINE, NUMBERING_SERVICE } from "./accounting.tokens.js";
     {
       provide: IncomeStatementService,
       useFactory: (prisma: PrismaService) => new IncomeStatementService(prisma),
+      inject: [PrismaService],
+    },
+    {
+      provide: CashFlowService,
+      useFactory: (prisma: PrismaService) => new CashFlowService(prisma),
       inject: [PrismaService],
     },
     {

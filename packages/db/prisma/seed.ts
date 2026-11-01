@@ -59,7 +59,7 @@ const PERMISSION_CATALOG = [
   { code: "journal_entry:reverse", description: "Reverse a posted journal entry" },
   { code: "trial_balance:read", description: "View the trial balance" },
   { code: "balance_sheet:read", description: "View the balance sheet" },
-  { code: "income_statement:read", description: "View the income statement" },
+  { code: "income_statement:read", description: "View the income statement and cash flow statement" },
   { code: "account:read", description: "View the chart of accounts" },
   { code: "account:create", description: "Add an account to the chart of accounts" },
   { code: "account:update", description: "Edit an account's names, linked party and colour" },
