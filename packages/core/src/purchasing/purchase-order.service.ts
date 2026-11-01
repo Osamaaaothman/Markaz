@@ -82,6 +82,8 @@ export interface PurchaseOrderDetail extends PurchaseOrderSummary {
     readonly quantity: string;
     readonly unitPrice: string;
     readonly receivedQuantity: string;
+    // Quantity already matched to supplier invoices; received minus this is what can still be returned.
+    readonly invoicedQuantity: string;
     readonly lineTotal: string;
   }[];
 }
@@ -268,6 +270,7 @@ export class PurchaseOrderService {
         quantity: l.quantity.toFixed(4),
         unitPrice: l.unitPrice.toFixed(4),
         receivedQuantity: l.receivedQuantity.toFixed(4),
+        invoicedQuantity: l.invoicedQuantity.toFixed(4),
         lineTotal: l.quantity.times(l.unitPrice).toDecimalPlaces(4).toFixed(4),
       })),
     };

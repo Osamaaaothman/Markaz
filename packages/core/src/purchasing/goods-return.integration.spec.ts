@@ -235,11 +235,11 @@ describeIfDb("Purchase returns (M5) — real database", () => {
 
   it("lists returns with their lines for the company only", async () => {
     const page = await returns.list(companyId, { limit: "100" });
-    expect(page.items.length).toBeGreaterThanOrEqual(3);
-    const first = page.items[0]!;
+    expect(page.data.length).toBeGreaterThanOrEqual(3);
+    const first = page.data[0]!;
     expect(first.supplierName).toBe("Supplier Co");
     expect(first.lines.length).toBeGreaterThan(0);
-    expect((await returns.list(newId(), {})).items).toHaveLength(0);
-    expect((await returns.list(companyId, { limit: "1" })).nextCursor).not.toBeNull();
+    expect((await returns.list(newId(), {})).data).toHaveLength(0);
+    expect((await returns.list(companyId, { limit: "1" })).pageInfo.nextCursor).not.toBeNull();
   });
 });

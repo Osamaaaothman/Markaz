@@ -85,8 +85,8 @@ export interface GoodsReturnListQuery {
 }
 
 export interface GoodsReturnListPage {
-  readonly items: readonly GoodsReturnSummary[];
-  readonly nextCursor: string | null;
+  readonly data: readonly GoodsReturnSummary[];
+  readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
 }
 
 const DEFAULT_LIMIT = 50;
@@ -335,8 +335,9 @@ export class GoodsReturnService {
         lines: { orderBy: { lineNumber: "asc" }, include: { item: { select: { code: true, name: true, nameAr: true } } } },
       },
     });
-    const page = rows.slice(0, limit);
-    const items: GoodsReturnSummary[] = page.map((r) => ({
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const data: GoodsReturnSummary[] = page.map((r) => ({
       id: r.id,
       number: r.number,
       documentDate: r.documentDate.toISOString().slice(0, 10),
@@ -359,7 +360,6 @@ export class GoodsReturnService {
         value: l.value.toFixed(4),
       })),
     }));
-    const last = page[page.length - 1];
-    return { items, nextCursor: rows.length > limit && last ? last.id : null };
+    return { data, pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
   }
 }
