@@ -249,6 +249,18 @@ html[dir="rtl"] .erp-sidebar__link--active::before {
   background: rgb(255 255 255 / 0.06);
 }
 
+.erp-sidebar__group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mk-space-2);
+  min-width: 0;
+}
+
+.erp-sidebar__group-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
 .erp-sidebar__group-chevron {
   flex-shrink: 0;
   font-size: 0.75rem;
@@ -355,9 +367,20 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
 /* collapsed rail: icons only */
 .erp-sidebar--collapsed .erp-sidebar__label,
 .erp-sidebar--collapsed .mk-brand__text,
-.erp-sidebar--collapsed .erp-sidebar__group,
+.erp-sidebar--collapsed .erp-sidebar__group-text,
+.erp-sidebar--collapsed .erp-sidebar__group-chevron,
 .erp-sidebar--collapsed .erp-sidebar__company .erp-sidebar__label {
   display: none;
+}
+
+/* collapsed rail: the section heading becomes its icon, still clickable to fold the section */
+.erp-sidebar--collapsed .erp-sidebar__group {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__group-icon {
+  font-size: 1.05rem;
 }
 
 .erp-sidebar--collapsed .erp-sidebar__brand {
