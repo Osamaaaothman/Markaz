@@ -113,6 +113,16 @@ describeIfDb("Inventory (M4) — real database", () => {
     await prisma.$disconnect();
   });
 
+  it("finds a warehouse or an item by its ref, not only by code or name", async () => {
+    const warehouseRef = (await prisma.warehouse.findUniqueOrThrow({ where: { id: warehouseId }, select: { ref: true } })).ref;
+    const byRef = await warehouses.list(companyId, { q: warehouseRef });
+    expect(byRef.data.map((w) => w.id)).toContain(warehouseId);
+
+    const itemRef = (await prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { ref: true } })).ref;
+    const itemByRef = await items.list(companyId, { q: itemRef });
+    expect(itemByRef.data.map((i) => i.id)).toContain(itemId);
+  });
+
   it("receiving stock debits Inventory and credits GRNI for exactly quantity * unit cost", async () => {
     const before = await inventoryAccountBalance();
 

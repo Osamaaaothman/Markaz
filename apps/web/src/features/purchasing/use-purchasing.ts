@@ -15,6 +15,9 @@ export interface PurchaseRequestSummary {
   readonly rejectionReason: string | null;
   readonly lineCount: number;
   readonly purchaseOrderId: string | null;
+  readonly warehouseId: string | null;
+  readonly warehouseName: string | null;
+  readonly warehouseNameAr: string | null;
   readonly createdAt: string;
 }
 
@@ -63,6 +66,7 @@ export function usePurchaseRequest(id: string | null) {
 }
 
 export interface CreatePurchaseRequestPayload {
+  readonly warehouseId: string;
   readonly notes?: string;
   readonly lines: readonly { readonly itemId: string; readonly quantity: string; readonly notes?: string }[];
 }
@@ -96,6 +100,9 @@ export interface PurchaseOrderSummary {
   readonly supplierId: string;
   readonly supplierName: string;
   readonly supplierNameAr: string | null;
+  readonly warehouseId: string | null;
+  readonly warehouseName: string | null;
+  readonly warehouseNameAr: string | null;
   readonly orderDate: string;
   readonly expectedDate: string | null;
   readonly currency: string;
@@ -150,6 +157,7 @@ export function usePurchaseOrder(id: string) {
 
 export interface CreatePurchaseOrderPayload {
   readonly supplierId: string;
+  readonly warehouseId: string;
   readonly orderDate: string;
   readonly expectedDate?: string;
   readonly notes?: string;

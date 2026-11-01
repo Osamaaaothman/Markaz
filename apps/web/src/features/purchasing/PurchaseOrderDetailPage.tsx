@@ -58,7 +58,10 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
       <div className="erp-page__header">
         <div>
           <h1 className="erp-page__title">{order.number}</h1>
-          <p className="erp-page__subtitle">{localizedName({ name: order.supplierName, nameAr: order.supplierNameAr }, i18n.language)}</p>
+          <p className="erp-page__subtitle">
+            {localizedName({ name: order.supplierName, nameAr: order.supplierNameAr }, i18n.language)}
+            {order.warehouseName ? ` · ${t("created.warehouse")}: ${localizedName({ name: order.warehouseName, nameAr: order.warehouseNameAr }, i18n.language)}` : ""}
+          </p>
         </div>
         <div className="erp-page__header-actions">
           <OrderStatusTag status={order.status} />
@@ -120,7 +123,8 @@ function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail;
   const { t, i18n } = useTranslation();
   const { data: warehouses } = useAllWarehouses();
   const receive = useReceiveOrder(order.id);
-  const [warehouseId, setWarehouseId] = useState("");
+  // The order already names the warehouse the goods are for; it is offered first and can still be changed.
+  const [warehouseId, setWarehouseId] = useState(order.warehouseId ?? "");
   const [date, setDate] = useState<Date>(new Date());
   const [reference, setReference] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});

@@ -14,6 +14,7 @@ export const REF_PREFIXES = {
   account: "ACC",
   warehouse: "WHS",
   item: "ITM",
+  employee: "EMP",
 } as const;
 
 export type RefKind = keyof typeof REF_PREFIXES;

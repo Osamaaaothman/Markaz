@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -8,6 +9,7 @@ import { InputText } from "primereact/inputtext";
 import { z } from "zod";
 import { localizedName } from "../../shared/lib/localized-name";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { useAllItems } from "./use-items";
 import { useAllWarehouses } from "./use-warehouses";
 import { useCreateStockIssue } from "./use-stock-issues";
@@ -32,6 +34,7 @@ export function StockIssuePage(): React.JSX.Element {
   const { data: warehouses } = useAllWarehouses();
   const { data: items } = useAllItems();
   const createIssue = useCreateStockIssue();
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const {
     control,
@@ -50,7 +53,20 @@ export function StockIssuePage(): React.JSX.Element {
     createIssue.mutate(
       { warehouseId: values.warehouseId, costCenterRef: values.costCenterRef.trim(), documentDate: toDateOnlyIsoString(values.documentDate), lines: values.lines },
       {
-        onSuccess: () => reset({ warehouseId: values.warehouseId, costCenterRef: "", documentDate: new Date(), lines: [EMPTY_LINE] }),
+        onSuccess: (saved) => {
+          const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
+          setCreated({
+            title: t("inventory.stockIssue.title"),
+            headline: saved.number,
+            rows: [
+              { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+              { label: t("created.date"), value: toDateOnlyIsoString(values.documentDate), ltr: true },
+              { label: t("created.reference"), value: values.costCenterRef.trim() },
+              { label: t("created.lines"), value: String(values.lines.length) },
+            ],
+          });
+          reset({ warehouseId: values.warehouseId, costCenterRef: "", documentDate: new Date(), lines: [EMPTY_LINE] });
+        },
       },
     );
   });
@@ -134,6 +150,7 @@ export function StockIssuePage(): React.JSX.Element {
           <Button type="submit" label={t("inventory.stockIssue.submit")} loading={createIssue.isPending} />
         </div>
       </form>
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }

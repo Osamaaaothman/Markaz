@@ -69,7 +69,7 @@ function headerOf(child: React.ReactNode): string | null {
 // choice, and no scroll box of its own — the whole page scrolls, and the header row sticks under the top bar.
 // Reports and totals tables do not use it (they must show every row).
 export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, className = "", children, emptyMessage, ...rest }: DataGridProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(pageSize);
@@ -159,9 +159,11 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
         </div>
       ) : null}
 
-      {/* keyed by the hidden set: PrimeReact memoises body rows and would otherwise keep drawing the old columns */}
+      {/* keyed by the hidden set and the language: PrimeReact memoises body rows and would otherwise keep
+          drawing the old columns, or the old language's text inside a Column body (e.g. a status Tag), after
+          toggling a column's visibility or switching AR/EN without a full page navigation in between. */}
       <DataTable
-        key={[...hidden].sort().join("|")}
+        key={`${[...hidden].sort().join("|")}:${i18n.language}`}
         {...rest}
         value={filtered as unknown as DataTableValueArray}
         className={className.includes("erp-table") ? className : `erp-table ${className}`.trim()}

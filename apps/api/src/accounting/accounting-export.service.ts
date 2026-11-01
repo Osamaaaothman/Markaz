@@ -32,9 +32,11 @@ export class AccountingExportService {
     companyId: string,
     format: ExportFormat,
     lang: SupportedDocumentLanguage,
+    from: Date,
+    to: Date,
   ): Promise<ExportedFile> {
     const [computed, company] = await Promise.all([
-      this.trialBalanceService.compute(companyId),
+      this.trialBalanceService.computeForPeriod(companyId, from, to),
       this.getCompany(companyId),
     ]);
     const result = await this.localizeAccountNames(companyId, lang, computed);

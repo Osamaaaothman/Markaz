@@ -21,6 +21,7 @@ export class PurchaseOrderError extends Error {
     readonly code:
       | "EMPTY_ORDER"
       | "SUPPLIER_NOT_FOUND"
+      | "WAREHOUSE_NOT_FOUND"
       | "ITEM_NOT_FOUND"
       | "ORDER_NOT_FOUND"
       | "REQUEST_NOT_FOUND"
@@ -42,6 +43,8 @@ export interface PurchaseOrderLineInput {
 
 export interface CreatePurchaseOrderInput {
   readonly supplierId: string;
+  // The warehouse the goods are to be received into. Required.
+  readonly warehouseId: string;
   readonly orderDate: Date;
   readonly expectedDate?: Date | undefined;
   readonly notes?: string | undefined;
@@ -62,6 +65,9 @@ export interface PurchaseOrderSummary {
   readonly supplierId: string;
   readonly supplierName: string;
   readonly supplierNameAr: string | null;
+  readonly warehouseId: string | null;
+  readonly warehouseName: string | null;
+  readonly warehouseNameAr: string | null;
   readonly orderDate: string;
   readonly expectedDate: string | null;
   readonly currency: string;
@@ -111,7 +117,7 @@ function blankToNull(value: string | null | undefined): string | null {
 
 const dateOnly = (d: Date): string => d.toISOString().slice(0, 10);
 
-type OrderRow = Prisma.PurchaseOrderGetPayload<{ include: { supplier: true; _count: { select: { lines: true } } } }>;
+type OrderRow = Prisma.PurchaseOrderGetPayload<{ include: { supplier: true; warehouse: true; _count: { select: { lines: true } } } }>;
 
 function toSummary(row: OrderRow): PurchaseOrderSummary {
   return {
@@ -121,6 +127,9 @@ function toSummary(row: OrderRow): PurchaseOrderSummary {
     supplierId: row.supplierId,
     supplierName: row.supplier.name,
     supplierNameAr: row.supplier.nameAr,
+    warehouseId: row.warehouseId,
+    warehouseName: row.warehouse?.name ?? null,
+    warehouseNameAr: row.warehouse?.nameAr ?? null,
     orderDate: dateOnly(row.orderDate),
     expectedDate: row.expectedDate ? dateOnly(row.expectedDate) : null,
     currency: row.currency,
@@ -154,6 +163,9 @@ export class PurchaseOrderService {
       });
       if (!supplier) throw new PurchaseOrderError("SUPPLIER_NOT_FOUND", "Supplier not found");
 
+      const warehouse = await tx.warehouse.findFirst({ where: { id: input.warehouseId, companyId: actor.companyId, isActive: true }, select: { id: true } });
+      if (!warehouse) throw new PurchaseOrderError("WAREHOUSE_NOT_FOUND", "The warehouse was not found or is not active");
+
       const itemIds = [...new Set(input.lines.map((l) => l.itemId))];
       const items = await tx.item.findMany({ where: { id: { in: itemIds }, companyId: actor.companyId, isActive: true }, select: { id: true } });
       if (items.length !== itemIds.length) throw new PurchaseOrderError("ITEM_NOT_FOUND", "An item on the order was not found");
@@ -186,6 +198,7 @@ export class PurchaseOrderService {
           companyId: actor.companyId,
           number,
           supplierId: input.supplierId,
+          warehouseId: input.warehouseId,
           status,
           orderDate: input.orderDate,
           expectedDate: input.expectedDate ?? null,
@@ -235,7 +248,7 @@ export class PurchaseOrderService {
         ...(query.status ? { status: query.status } : {}),
         ...(query.supplierId ? { supplierId: query.supplierId } : {}),
       },
-      include: { supplier: true, _count: { select: { lines: true } } },
+      include: { supplier: true, warehouse: true, _count: { select: { lines: true } } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(query.cursor !== undefined ? { cursor: { id: query.cursor }, skip: 1 } : {}),
@@ -250,6 +263,7 @@ export class PurchaseOrderService {
       where: { id, companyId },
       include: {
         supplier: true,
+        warehouse: true,
         _count: { select: { lines: true } },
         lines: { orderBy: { lineNumber: "asc" }, include: { item: true } },
       },

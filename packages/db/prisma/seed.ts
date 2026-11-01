@@ -94,7 +94,8 @@ const PERMISSION_CATALOG = [
   { code: "approval_policy:read", description: "View approval thresholds" },
   { code: "approval_policy:update", description: "Change approval thresholds" },
   { code: "supplier_invoice:create", description: "Post a supplier invoice" },
-  { code: "supplier_invoice:read", description: "View supplier invoices" },
+  { code: "supplier_invoice:read", description: "View supplier invoices and debit notes" },
+  { code: "debit_note:create", description: "Post a debit note against a supplier invoice" },
   { code: "tax_code:read", description: "View tax codes" },
   { code: "tax_code:create", description: "Create tax codes" },
   { code: "tax_code:update", description: "Edit or deactivate tax codes" },
@@ -117,6 +118,15 @@ const PERMISSION_CATALOG = [
   { code: "attachment:delete", description: "Remove an attached document" },
   { code: "company:read", description: "View the company settings and logo" },
   { code: "company:update", description: "Change the company logo" },
+  // M-HR1 — payroll
+  { code: "employee:read", description: "View employees" },
+  { code: "employee:create", description: "Add an employee" },
+  { code: "employee:update", description: "Edit an employee" },
+  { code: "payroll_run:create", description: "Run payroll for a period" },
+  { code: "payroll_run:read", description: "View payroll runs and payslips" },
+  { code: "salary_advance:create", description: "Grant a salary advance" },
+  { code: "salary_advance:read", description: "View salary advances" },
+  { code: "end_of_service:create", description: "Settle an employee's end-of-service gratuity" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

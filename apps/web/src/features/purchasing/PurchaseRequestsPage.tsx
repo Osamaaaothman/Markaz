@@ -16,7 +16,9 @@ import { formatCalendarDate } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { useAllItems } from "../inventory/use-items";
+import { useAllWarehouses } from "../inventory/use-warehouses";
 import { RequestStatusTag } from "./StatusTags";
 import {
   useCreatePurchaseRequest,
@@ -38,6 +40,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
   const [newOpen, setNewOpen] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseRequests(status);
   const requests = data?.pages.flatMap((page) => page.data) ?? [];
@@ -80,6 +83,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
           <DataGrid value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(row: PurchaseRequestSummary) => <span className="coa-code">{row.number}</span>} />
             <Column header={t("purchasing.date")} style={{ width: "8rem" }} body={(row: PurchaseRequestSummary) => formatCalendarDate(row.createdAt, i18n.language)} />
+            <Column header={t("created.warehouse")} body={(row: PurchaseRequestSummary) => (row.warehouseName ? localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language) : "—")} />
             <Column header={t("purchasing.requests.notes")} body={(row: PurchaseRequestSummary) => row.rejectionReason ?? row.notes ?? ""} />
             <Column header={t("purchasing.lineCount")} style={{ width: "6rem" }} align="right" body={(row: PurchaseRequestSummary) => row.lineCount} />
             <Column header={t("purchasing.status")} style={{ width: "9rem" }} body={(row: PurchaseRequestSummary) => <RequestStatusTag status={row.status} />} />
@@ -123,7 +127,8 @@ export function PurchaseRequestsPage(): React.JSX.Element {
         </>
       )}
 
-      <NewRequestDialog visible={newOpen} onHide={() => setNewOpen(false)} />
+      <NewRequestDialog visible={newOpen} onHide={() => setNewOpen(false)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <RequestDetailDialog id={viewId} onHide={() => setViewId(null)} />
       <RejectDialog id={rejectId} onHide={() => setRejectId(null)} />
     </div>
@@ -135,15 +140,17 @@ const lineSchema = z.object({
   quantity: z.string().regex(/^\d{1,15}(\.\d{1,4})?$/, "positiveAmount").refine((v) => /[1-9]/.test(v), "positiveAmount"),
 });
 const requestSchema = z.object({
+  warehouseId: z.string().min(1, "required"),
   notes: z.string(),
   lines: z.array(lineSchema).min(1, "atLeastOneLine"),
 });
 type RequestFormValues = z.infer<typeof requestSchema>;
 const EMPTY_LINE = { itemId: "", quantity: "" };
 
-function NewRequestDialog({ visible, onHide }: { visible: boolean; onHide: () => void }): React.JSX.Element {
+function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; onHide: () => void; onCreated: (info: CreatedInfo) => void }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data: items } = useAllItems();
+  const { data: warehouses } = useAllWarehouses();
   const create = useCreatePurchaseRequest();
   const {
     control,
@@ -151,26 +158,60 @@ function NewRequestDialog({ visible, onHide }: { visible: boolean; onHide: () =>
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<RequestFormValues>({ resolver: zodResolver(requestSchema), defaultValues: { notes: "", lines: [EMPTY_LINE] } });
+  } = useForm<RequestFormValues>({ resolver: zodResolver(requestSchema), defaultValues: { warehouseId: "", notes: "", lines: [EMPTY_LINE] } });
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
 
   useEffect(() => {
     if (!visible) return;
     create.reset();
-    reset({ notes: "", lines: [EMPTY_LINE] });
+    reset({ warehouseId: "", notes: "", lines: [EMPTY_LINE] });
     // Reset only when the dialog opens.
   }, [visible]);
 
   const onSubmit = handleSubmit((values) => {
     create.mutate(
-      { ...(values.notes.trim() ? { notes: values.notes.trim() } : {}), lines: values.lines },
-      { onSuccess: onHide },
+      { warehouseId: values.warehouseId, ...(values.notes.trim() ? { notes: values.notes.trim() } : {}), lines: values.lines },
+      {
+        onSuccess: (saved) => {
+          const warehouse = warehouses?.find((w) => w.id === saved.warehouseId);
+          onCreated({
+            title: t("purchasing.requests.new"),
+            headline: saved.number,
+            rows: [
+              { label: t("created.status"), value: t(`purchasing.requestStatus.${saved.status}`) },
+              { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+              { label: t("created.lines"), value: String(saved.lineCount) },
+              { label: t("created.notes"), value: saved.notes ?? "" },
+            ],
+          });
+          onHide();
+        },
+      },
     );
   });
 
   return (
     <Dialog header={t("purchasing.requests.new")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(46rem, 96vw)" }}>
       <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+        <div className="erp-field">
+          <label htmlFor="prWarehouse">{t("created.warehouse")}</label>
+          <Controller
+            control={control}
+            name="warehouseId"
+            render={({ field }) => (
+              <Dropdown
+                inputId="prWarehouse"
+                value={field.value || null}
+                onChange={(e) => field.onChange((e.value as string | null) ?? "")}
+                options={(warehouses ?? []).map((w) => ({ label: `${w.code} — ${localizedName(w, i18n.language)}`, value: w.id }))}
+                filter
+                placeholder={t("purchasing.requests.chooseWarehouse")}
+                className={errors.warehouseId ? "p-invalid" : ""}
+              />
+            )}
+          />
+          {errors.warehouseId ? <small className="erp-field__error">{t("purchasing.requests.warehouseRequired")}</small> : null}
+        </div>
         <div className="erp-field">
           <label htmlFor="prNotes">{t("purchasing.requests.notes")}</label>
           <InputTextarea id="prNotes" rows={2} {...register("notes")} />
@@ -219,9 +260,12 @@ function RequestDetailDialog({ id, onHide }: { id: string | null; onHide: () => 
         <PageSkeleton />
       ) : (
         <>
+          <p>
+            <strong>{t("created.warehouse")}:</strong> {data.warehouseName ? localizedName({ name: data.warehouseName, nameAr: data.warehouseNameAr }, i18n.language) : "—"}
+          </p>
           {data.notes ? <p>{data.notes}</p> : null}
           {data.rejectionReason ? <p className="erp-page__error">{data.rejectionReason}</p> : null}
-          <DataGrid value={[...data.lines]} className="erp-table" stripedRows showGridlines size="small">
+          <DataGrid value={[...data.lines]} searchable={false} className="erp-table" stripedRows showGridlines size="small">
             <Column header={t("inventory.items.code")} body={(l: (typeof data.lines)[number]) => <span className="coa-code">{l.itemCode}</span>} />
             <Column header={t("inventory.items.name")} body={(l: (typeof data.lines)[number]) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
             <Column header={t("purchasing.quantity")} align="right" body={(l: (typeof data.lines)[number]) => `${l.quantity} ${l.unit}`} />

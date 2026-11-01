@@ -13,6 +13,7 @@ import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useAddSaudiTaxCodes, useCreateTaxCode, useTaxCodes, useUpdateTaxCode, type TaxCodeSummary, type TaxTreatment } from "./use-invoicing";
@@ -36,6 +37,7 @@ export function TaxCodesPage(): React.JSX.Element {
   const { can } = usePermissions();
   const [includeInactive, setIncludeInactive] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
   const { data, isPending, isError, refetch } = useTaxCodes(includeInactive);
   const addDefaults = useAddSaudiTaxCodes();
   const update = useUpdateTaxCode();
@@ -100,12 +102,13 @@ export function TaxCodesPage(): React.JSX.Element {
       )}
       {addDefaults.isError || update.isError ? <p className="erp-auth-card__error">{t("purchasing.tax.saveError")}</p> : null}
 
-      <TaxCodeDialog visible={dialogOpen} onHide={() => setDialogOpen(false)} />
+      <TaxCodeDialog visible={dialogOpen} onHide={() => setDialogOpen(false)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }
 
-function TaxCodeDialog({ visible, onHide }: { visible: boolean; onHide: () => void }): React.JSX.Element {
+function TaxCodeDialog({ visible, onHide, onCreated }: { visible: boolean; onHide: () => void; onCreated: (info: CreatedInfo) => void }): React.JSX.Element {
   const { t } = useTranslation();
   const create = useCreateTaxCode();
   const {
@@ -128,7 +131,17 @@ function TaxCodeDialog({ visible, onHide }: { visible: boolean; onHide: () => vo
         treatment: values.treatment,
       },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
+          onCreated({
+            title: t("purchasing.tax.add"),
+            headline: saved.code,
+            rows: [
+              { label: t("created.name"), value: saved.name },
+              { label: t("created.nameAr"), value: saved.nameAr ?? "" },
+              { label: t("created.treatment"), value: t(`purchasing.tax.treatments.${saved.treatment}`) },
+              { label: t("created.rate"), value: `${saved.rate}%`, ltr: true },
+            ],
+          });
           reset();
           onHide();
         },

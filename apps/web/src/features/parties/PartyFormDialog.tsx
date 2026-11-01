@@ -8,6 +8,7 @@ import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
+import type { CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PARTY_KINDS, useCreateParty, useUpdateParty, type PartySummary } from "./use-parties";
 
 // Messages are translation-key suffixes under `validation.` (see LoginPage's schema).
@@ -28,10 +29,12 @@ export function PartyFormDialog({
   party,
   visible,
   onHide,
+  onCreated,
 }: {
   party: PartySummary | null;
   visible: boolean;
   onHide: () => void;
+  onCreated?: (info: CreatedInfo) => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const createParty = useCreateParty();
@@ -88,7 +91,22 @@ export function PartyFormDialog({
           ...(values.phone.trim() ? { phone: values.phone.trim() } : {}),
           ...(values.email.trim() ? { email: values.email.trim() } : {}),
         },
-        { onSuccess: onHide },
+        {
+          onSuccess: (saved) => {
+            onCreated?.({
+              title: t("parties.add"),
+              headline: saved.ref,
+              rows: [
+                { label: t("created.name"), value: saved.name },
+                { label: t("created.nameAr"), value: saved.nameAr ?? "" },
+                { label: t("created.type"), value: t(`parties.kinds.${saved.kind}`) },
+                { label: t("created.phone"), value: saved.phone ?? "", ltr: true },
+                { label: t("created.email"), value: saved.email ?? "", ltr: true },
+              ],
+            });
+            onHide();
+          },
+        },
       );
     }
   });

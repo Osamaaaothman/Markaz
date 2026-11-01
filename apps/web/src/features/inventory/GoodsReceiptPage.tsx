@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ import { useAllItems } from "./use-items";
 import { useAllWarehouses } from "./use-warehouses";
 import { useCreateGoodsReceipt } from "./use-goods-receipts";
 import { Money } from "@erp/shared";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 
 const lineSchema = z.object({
   itemId: z.string().min(1, "required"),
@@ -40,6 +42,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
   const { data: warehouses } = useAllWarehouses();
   const { data: items } = useAllItems();
   const createReceipt = useCreateGoodsReceipt();
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const {
     control,
@@ -77,7 +80,21 @@ export function GoodsReceiptPage(): React.JSX.Element {
         lines: values.lines,
       },
       {
-        onSuccess: () => reset({ warehouseId: values.warehouseId, partyId: null, documentDate: new Date(), reference: "", lines: [EMPTY_LINE] }),
+        onSuccess: (saved) => {
+          const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
+          setCreated({
+            title: t("inventory.goodsReceipt.title"),
+            headline: saved.number,
+            rows: [
+              { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+              { label: t("created.date"), value: toDateOnlyIsoString(values.documentDate), ltr: true },
+              { label: t("created.reference"), value: values.reference.trim() },
+              { label: t("created.lines"), value: String(values.lines.length) },
+              { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
+            ],
+          });
+          reset({ warehouseId: values.warehouseId, partyId: null, documentDate: new Date(), reference: "", lines: [EMPTY_LINE] });
+        },
       },
     );
   });
@@ -171,6 +188,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
           <Button type="submit" label={t("inventory.goodsReceipt.submit")} loading={createReceipt.isPending} />
         </div>
       </form>
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }

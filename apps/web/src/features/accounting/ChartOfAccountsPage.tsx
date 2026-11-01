@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
@@ -19,19 +19,23 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { CopyId } from "../../shared/ui/CopyId";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { partyKindIcon } from "../parties/party-kind";
 import { inferFromCode, suggestNextCode } from "./account-code";
 import {
+  ancestorIds,
   buildAccountTree,
   expandedKeysForLevel,
   filterAccountTree,
   toggleExpandedKey,
+  descendantIds,
   type AccountNodeData,
   type ExpandedKeys,
   type LevelChoice,
 } from "./account-tree";
 import { ColorSwatches } from "./ColorSwatches";
+import { MoveAccountDialog } from "./MoveAccountDialog";
 import { PartyPicker } from "./PartyPicker";
 import { useAccountBalances, type AccountBalance } from "./use-account-balances";
 import {
@@ -69,14 +73,20 @@ function AddAccountDialog({
   visible,
   onHide,
   accounts,
+  onCreated,
 }: {
   visible: boolean;
   onHide: () => void;
   accounts: ChartOfAccountEntry[];
+  // Called with the saved account and what to show about it, before the dialog closes.
+  onCreated: (account: ChartOfAccountEntry, info: CreatedInfo) => void;
 }) {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const createAccount = useCreateAccount();
+  // Once the person has picked a parent (or "no parent") by hand, typing a code must never change it: the code is
+  // only a suggestion. Typing a code decides the parent only while no parent has been chosen yet.
+  const parentChosen = useRef(false);
   // The code and the parent/type keep each other in step: choosing a parent (or the suggest
   // button) fills the code in; typing a code sets the parent and type from it.
 
@@ -103,6 +113,7 @@ function AddAccountDialog({
   });
 
   const onHideAndReset = () => {
+    parentChosen.current = false;
     reset();
     createAccount.reset();
     onHide();
@@ -115,6 +126,7 @@ function AddAccountDialog({
 
   // The code was typed: let it decide the parent and type.
   const followTypedCode = (code: string): void => {
+    if (parentChosen.current) return;
     const inferred = inferFromCode(accounts, code);
     if (inferred.kind === "parent") {
       setValue("parentId", inferred.parent.id);
@@ -139,7 +151,25 @@ function AddAccountDialog({
         // Only a top-level account has a colour (its branch is drawn in it).
         ...(values.parentId === null && values.color ? { color: values.color } : {}),
       },
-      { onSuccess: onHideAndReset },
+      {
+        onSuccess: (response) => {
+          const account = response.data;
+          const parent = accounts.find((a) => a.id === account.parentId);
+          onCreated(account, {
+            title: t("accounting.chartOfAccounts.addAccount"),
+            headline: account.code,
+            rows: [
+              { label: t("created.name"), value: account.name },
+              { label: t("accounting.chartOfAccounts.nameAr"), value: account.nameAr ?? "" },
+              { label: t("created.type"), value: t(`accounting.chartOfAccounts.type${account.type.charAt(0) + account.type.slice(1).toLowerCase()}`) },
+              { label: t("created.parent"), value: parent ? `${parent.code} — ${localizedName(parent, i18n.language)}` : t("created.topLevel") },
+              { label: t("created.postable"), value: account.isPostable ? t("created.yes") : t("created.no") },
+              { label: t("accounting.chartOfAccounts.id"), value: account.ref, ltr: true },
+            ],
+          });
+          onHideAndReset();
+        },
+      },
     );
   });
 
@@ -151,7 +181,9 @@ function AddAccountDialog({
   const selectedType = useWatch({ control, name: "type" });
   const selectedParentId = useWatch({ control, name: "parentId" });
   const typedCode = useWatch({ control, name: "code" });
-  const codeHint = useMemo(() => inferFromCode(accounts, typedCode), [accounts, typedCode]);
+  const typedHint = useMemo(() => inferFromCode(accounts, typedCode), [accounts, typedCode]);
+  // With a parent chosen on purpose, the only thing worth saying about the code is that it is already used.
+  const codeHint = selectedParentId !== null && typedHint.kind !== "duplicate" ? ({ kind: "empty" } as const) : typedHint;
   const noRoomForCode =
     !typedCode.trim() && selectedParentId !== null && suggestNextCode(accounts, selectedParentId, selectedType) === null;
 
@@ -267,6 +299,7 @@ function AddAccountDialog({
                 disabled={selectedParentId !== null}
                 onChange={(e) => {
                   field.onChange(e.value);
+                  parentChosen.current = false;
                   setValue("parentId", null);
                   setValue("code", "");
                 }}
@@ -289,6 +322,7 @@ function AddAccountDialog({
                 onChange={(e) => {
                   const parentId = e.value === NO_PARENT ? null : (e.value as string);
                   const parent = parentId === null ? null : accounts.find((a) => a.id === parentId);
+                  parentChosen.current = true;
                   field.onChange(parentId);
                   if (parent) {
                     setValue("type", parent.type as AddAccountValues["type"]);
@@ -545,6 +579,11 @@ export function ChartOfAccountsPage(): React.JSX.Element {
   );
   const [addVisible, setAddVisible] = useState(false);
   const [editAccount, setEditAccount] = useState<ChartOfAccountEntry | null>(null);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
+  // The account being moved and, when it was dropped onto a group, that group.
+  const [moving, setMoving] = useState<{ account: ChartOfAccountEntry; parentId: string | null | undefined } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropKey, setDropKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<LevelChoice | null>(DEFAULT_LEVEL);
   // Set once the user opens/closes a single row by hand; null means "follow the level
@@ -561,6 +600,27 @@ export function ChartOfAccountsPage(): React.JSX.Element {
   const toggleNode = (key: string): void => {
     setManualKeys(toggleExpandedKey(expandedKeys, key));
     setLevel(null);
+  };
+  // Opens every group above the given groups so an account inside them is on screen (a new or moved account would
+  // otherwise sit inside a collapsed group, looking as if it had not been put under it).
+  const openGroups = (groupIds: readonly (string | null)[]): void => {
+    if (!data) return;
+    const opened: ExpandedKeys = { ...expandedKeys };
+    for (const groupId of groupIds) {
+      if (!groupId) continue;
+      opened[groupId] = true;
+      for (const id of ancestorIds(data, groupId)) opened[id] = true;
+    }
+    setQuery("");
+    setLevel(null);
+    setManualKeys(opened);
+  };
+  // Whether the dragged account may be dropped on this group (the same rules the server enforces).
+  const canDropOn = (target: ChartNodeData): boolean => {
+    if (!data || !draggingId || draggingId === target.id || target.isPostable) return false;
+    const dragged = data.find((a) => a.id === draggingId);
+    if (!dragged || dragged.type !== target.type || dragged.parentId === target.id) return false;
+    return !descendantIds(data, dragged.id).has(target.id);
   };
   const changeQuery = (value: string): void => {
     setQuery(value);
@@ -691,7 +751,33 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 return (
                   // Indented with a logical padding driven by --depth, so it nests toward the
                   // correct side under both html[dir=ltr] and html[dir=rtl].
-                  <div className="coa-cell" style={{ "--depth": account.depth } as CSSProperties}>
+                  <div
+                    className={`coa-cell${dropKey === key ? " coa-cell--drop" : ""}`}
+                    style={{ "--depth": account.depth } as CSSProperties}
+                    draggable={can("account:update")}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", account.id);
+                      setDraggingId(account.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggingId(null);
+                      setDropKey(null);
+                    }}
+                    onDragOver={(e) => {
+                      if (!canDropOn(account)) return;
+                      e.preventDefault();
+                      if (dropKey !== key) setDropKey(key);
+                    }}
+                    onDragLeave={() => setDropKey((current) => (current === key ? null : current))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDropKey(null);
+                      const dragged = data.find((a) => a.id === draggingId);
+                      setDraggingId(null);
+                      if (dragged && canDropOn(account)) setMoving({ account: dragged, parentId: account.id });
+                    }}
+                  >
                     {isGroup ? (
                       <button
                         type="button"
@@ -787,17 +873,29 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 account:update, like the other action buttons. */}
             <Column
               header=""
-              style={{ width: "3.5rem" }}
+              style={{ width: "7rem" }}
               body={(node: TreeNode) => (
-                <PermissionButton
-                  allowed={can("account:update")}
-                  icon="pi pi-pencil"
-                  rounded
-                  text
-                  severity="secondary"
-                  aria-label={t("accounting.chartOfAccounts.edit")}
-                  onClick={() => setEditAccount(node.data as ChartNodeData)}
-                />
+                <div style={{ display: "flex", gap: "0.15rem" }}>
+                  <PermissionButton
+                    allowed={can("account:update")}
+                    icon="pi pi-pencil"
+                    rounded
+                    text
+                    severity="secondary"
+                    aria-label={t("accounting.chartOfAccounts.edit")}
+                    onClick={() => setEditAccount(node.data as ChartNodeData)}
+                  />
+                  <PermissionButton
+                    allowed={can("account:update")}
+                    icon="pi pi-arrows-alt"
+                    rounded
+                    text
+                    severity="secondary"
+                    aria-label={t("accounting.chartOfAccounts.move.button")}
+                    tooltip={t("accounting.chartOfAccounts.move.button")}
+                    onClick={() => setMoving({ account: node.data as ChartNodeData, parentId: undefined })}
+                  />
+                </div>
               )}
             />
           </TreeTable>
@@ -808,6 +906,30 @@ export function ChartOfAccountsPage(): React.JSX.Element {
         visible={addVisible}
         onHide={() => setAddVisible(false)}
         accounts={data}
+        onCreated={(account, info) => {
+          setCreated(info);
+          openGroups([account.parentId]);
+        }}
+      />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
+      <MoveAccountDialog
+        account={moving?.account ?? null}
+        initialParentId={moving?.parentId}
+        chart={data}
+        onHide={() => setMoving(null)}
+        onMoved={(moved) => {
+          setMoving(null);
+          const parent = moved.parentId ? data.find((a) => a.id === moved.parentId) : undefined;
+          setCreated({
+            title: t("accounting.chartOfAccounts.move.movedTitle"),
+            headline: moved.code,
+            rows: [
+              { label: t("created.name"), value: localizedName(moved, i18n.language) },
+              { label: t("accounting.chartOfAccounts.move.movedTo"), value: parent ? `${parent.code} — ${localizedName(parent, i18n.language)}` : t("accounting.chartOfAccounts.move.topLevel") },
+            ],
+          });
+          openGroups([moved.parentId]);
+        }}
       />
       <EditAccountDialog account={editAccount} onHide={() => setEditAccount(null)} />
     </div>

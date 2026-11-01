@@ -30,6 +30,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/inventory/goods-receipts/new", labelKey: "nav.goodsReceipt", icon: "pi pi-download", permissions: ["goods_receipt:create"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/stock-issues/new", labelKey: "nav.stockIssue", icon: "pi pi-upload", permissions: ["stock_issue:create"], groupKey: "nav.groups.inventory" },
   { to: "/inventory/stock-counts", labelKey: "nav.stockCount", icon: "pi pi-check-square", permissions: ["stock_count:read"], groupKey: "nav.groups.inventory" },
+  { to: "/hr/employees", labelKey: "nav.employees", icon: "pi pi-id-card", permissions: ["employee:read"], groupKey: "nav.groups.hr" },
+  { to: "/hr/payroll-runs", labelKey: "nav.payrollRuns", icon: "pi pi-wallet", permissions: ["payroll_run:read"], groupKey: "nav.groups.hr" },
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/invoices", labelKey: "nav.supplierInvoices", icon: "pi pi-receipt", permissions: ["supplier_invoice:read"], groupKey: "nav.groups.purchasing" },

@@ -15,8 +15,6 @@ export interface PostJournalEntryInput {
   readonly postingDate: string;
   readonly currency: string;
   readonly lines: PostJournalEntryLine[];
-  readonly sourceDocumentType: string;
-  readonly sourceDocumentId: string;
 }
 
 interface PostingResult {

@@ -21,6 +21,16 @@ export const ACCOUNT_MAPPING_KEYS = [
   "SALES_REVENUE",
   "VAT_OUTPUT",
   "COST_OF_GOODS_SOLD",
+  // M-HR1 payroll: gross salary expense, the employer's GOSI share (also an expense), the
+  // combined GOSI liability until remitted, net pay owed to employees, the receivable for
+  // advances outstanding, and the end-of-service accrual.
+  "SALARY_EXPENSE",
+  "GOSI_EMPLOYER_EXPENSE",
+  "GOSI_PAYABLE",
+  "NET_PAY_PAYABLE",
+  "SALARY_ADVANCES_RECEIVABLE",
+  "EOSB_EXPENSE",
+  "EOSB_PAYABLE",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
 

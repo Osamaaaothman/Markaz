@@ -88,6 +88,7 @@ export class WarehouseService {
                 { code: { contains: q, mode: "insensitive" } },
                 { name: { contains: q, mode: "insensitive" } },
                 { nameAr: { contains: q, mode: "insensitive" } },
+                { ref: { contains: q, mode: "insensitive" } },
               ],
             }
           : {}),

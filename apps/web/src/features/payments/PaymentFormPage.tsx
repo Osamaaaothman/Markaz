@@ -12,6 +12,7 @@ import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyPicker } from "../accounting/PartyPicker";
 import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
 import {
@@ -37,6 +38,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: accounts } = useChartOfAccounts();
   const create = useCreatePayment(direction);
+  const [created, setCreated] = useState<{ info: CreatedInfo } | null>(null);
 
   const [partyId, setPartyId] = useState("");
   const [date, setDate] = useState<Date>(new Date());
@@ -94,7 +96,26 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
           .filter(([, v]) => DECIMAL.test(v) && /[1-9]/.test(v))
           .map(([invoiceId, v]) => ({ invoiceId, amount: v })),
       },
-      { onSuccess: () => void navigate("/payments") },
+      {
+        onSuccess: (saved) => {
+          const account = accounts?.find((a) => a.id === cashAccountId);
+          setCreated({
+            info: {
+              title: t(`payments.${direction === "RECEIPT" ? "receipt" : "payment"}.title`),
+              headline: saved.number,
+              rows: [
+                { label: t("payments.date"), value: toDateOnlyIsoString(date), ltr: true },
+                { label: t("created.amount"), value: formatMoney(amount, currency), ltr: true },
+                { label: t("created.method"), value: t(`payments.methods.${method}`) },
+                { label: t("payments.bankAccount"), value: account ? `${account.code} — ${localizedName(account, i18n.language)}` : "" },
+                { label: t("payments.allocated"), value: formatMoney(allocated.toDecimalString(4), currency), ltr: true },
+                { label: t("payments.onAccount"), value: formatMoney(saved.unallocated, currency), ltr: true },
+                { label: t("created.reference"), value: reference.trim() },
+              ],
+            },
+          });
+        },
+      },
     );
   };
 
@@ -201,6 +222,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
           <Button type="button" label={t(`payments.${kind}.submit`)} icon="pi pi-check" disabled={!valid} loading={create.isPending} onClick={submit} />
         </div>
       </div>
+      <CreatedDialog info={created?.info ?? null} onHide={() => void navigate("/payments")} />
     </div>
   );
 }
