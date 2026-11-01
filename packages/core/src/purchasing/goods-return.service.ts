@@ -73,6 +73,7 @@ export interface GoodsReturnSummary {
   readonly warehouseName: string;
   readonly reference: string | null;
   readonly reason: string | null;
+  readonly currency: string;
   // Sum of what left stock (the Inventory credit).
   readonly totalValue: string;
   readonly lines: readonly GoodsReturnLineSummary[];
@@ -335,6 +336,10 @@ export class GoodsReturnService {
         lines: { orderBy: { lineNumber: "asc" }, include: { item: { select: { code: true, name: true, nameAr: true } } } },
       },
     });
+    if (rows.length === 0) return { data: [], pageInfo: { hasMore: false, nextCursor: null } };
+    const currency = await this.prisma.company
+      .findUniqueOrThrow({ where: { id: companyId }, select: { defaultCurrency: true } })
+      .then((c) => c.defaultCurrency);
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const data: GoodsReturnSummary[] = page.map((r) => ({
@@ -349,6 +354,7 @@ export class GoodsReturnService {
       warehouseName: r.warehouse.name,
       reference: r.reference,
       reason: r.reason,
+      currency,
       totalValue: r.lines.reduce((sum, l) => sum.plus(l.value), new Prisma.Decimal(0)).toFixed(4),
       lines: r.lines.map((l) => ({
         itemId: l.itemId,
