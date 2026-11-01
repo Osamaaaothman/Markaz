@@ -50,9 +50,13 @@ export class PostJournalEntryDto {
   @Type(() => JournalLineDto)
   lines!: JournalLineDto[];
 
+  // A manual entry has no source document: the number the system generates is its only identifier. Optional here for
+  // older clients; when missing the server uses "manual" and the request's idempotency key.
+  @IsOptional()
   @IsString()
-  sourceDocumentType!: string;
+  sourceDocumentType?: string;
 
+  @IsOptional()
   @IsString()
-  sourceDocumentId!: string;
+  sourceDocumentId?: string;
 }

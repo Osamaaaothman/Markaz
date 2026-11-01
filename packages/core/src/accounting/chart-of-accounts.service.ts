@@ -60,7 +60,9 @@ export type ChartOfAccountsErrorCode =
   | "PARENT_NOT_FOUND"
   | "PARENT_NOT_GROUP"
   | "COLOR_ON_CHILD"
-  | "PARTY_NOT_FOUND";
+  | "PARTY_NOT_FOUND"
+  | "TYPE_MISMATCH"
+  | "MOVE_INTO_SELF_OR_DESCENDANT";
 
 // Typed business-rule failure; the API maps each code to an HTTP status.
 export class ChartOfAccountsError extends Error {
@@ -177,6 +179,62 @@ export class ChartOfAccountsService {
     });
 
     await this.audit.log({ actorId: actor.id, action: "account.updated", entityType: "Account", entityId: id, before, after, correlationId });
+    return after;
+  }
+
+  // Moves an account (with everything under it) to another group, or to the top level when `newParentId` is null.
+  // Nothing that was posted changes: a move only changes how the tree groups accounts and how the totals roll up.
+  // REVIEW: the accounting rule in docs/05 section 4 forbids deleting or retyping an account that has postings and
+  // says nothing about moving it; a move is therefore allowed only inside the same account type, never into a postable
+  // account, and never into itself or one of its own descendants. The code is NOT changed (a code that no longer starts
+  // with its parent's code is allowed). Confirm with the accountant that regrouping a used account is acceptable.
+  async move(id: string, newParentId: string | null, actor: AccountActor, correlationId: string): Promise<ChartOfAccountEntry> {
+    const before = await this.prisma.account.findFirst({ where: { id, companyId: actor.companyId }, select: CHART_ENTRY_SELECT });
+    if (!before) throw new ChartOfAccountsError("ACCOUNT_NOT_FOUND", "Account not found");
+    if (before.parentId === newParentId) return before;
+
+    if (newParentId !== null) {
+      if (newParentId === id) throw new ChartOfAccountsError("MOVE_INTO_SELF_OR_DESCENDANT", "An account cannot be moved under itself");
+      const parent = await this.prisma.account.findFirst({
+        where: { id: newParentId, companyId: actor.companyId },
+        select: { id: true, type: true, isPostable: true, parentId: true },
+      });
+      if (!parent) throw new ChartOfAccountsError("PARENT_NOT_FOUND", "Parent account not found");
+      if (parent.isPostable) throw new ChartOfAccountsError("PARENT_NOT_GROUP", "Parent must be a group account, not a postable one");
+      if (parent.type !== before.type) {
+        throw new ChartOfAccountsError("TYPE_MISMATCH", "An account can only be moved under a group of the same type");
+      }
+      // Walk up from the new parent: meeting the moved account means the new parent is one of its descendants.
+      let cursor: string | null = parent.parentId;
+      const seen = new Set<string>([parent.id]);
+      while (cursor !== null && !seen.has(cursor)) {
+        if (cursor === id) throw new ChartOfAccountsError("MOVE_INTO_SELF_OR_DESCENDANT", "An account cannot be moved under one of its own sub-accounts");
+        seen.add(cursor);
+        const up: { parentId: string | null } | null = await this.prisma.account.findFirst({ where: { id: cursor, companyId: actor.companyId }, select: { parentId: true } });
+        cursor = up?.parentId ?? null;
+      }
+    }
+
+    const after = await this.prisma.account.update({
+      where: { id },
+      data: {
+        parentId: newParentId,
+        // Only a top-level account has a colour; under a parent it takes the branch colour.
+        ...(newParentId !== null ? { color: null } : {}),
+        updatedBy: actor.id,
+        version: { increment: 1 },
+      },
+      select: CHART_ENTRY_SELECT,
+    });
+    await this.audit.log({
+      actorId: actor.id,
+      action: "account.moved",
+      entityType: "Account",
+      entityId: id,
+      before: { parentId: before.parentId },
+      after: { parentId: after.parentId },
+      correlationId,
+    });
     return after;
   }
 

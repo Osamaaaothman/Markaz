@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { AxiosError } from "axios";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
@@ -40,6 +42,7 @@ export function StockCountPage(): React.JSX.Element {
   const postCount = usePostStockCount();
   const { data: counts, isPending, isError, refetch } = useStockCounts(false);
   const [postingId, setPostingId] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const {
     control,
@@ -64,7 +67,21 @@ export function StockCountPage(): React.JSX.Element {
           ...(line.unitCostIfNoStock.trim() ? { unitCostIfNoStock: line.unitCostIfNoStock.trim() } : {}),
         })),
       },
-      { onSuccess: () => reset({ warehouseId: values.warehouseId, documentDate: new Date(), lines: [EMPTY_LINE] }) },
+      {
+        onSuccess: (saved) => {
+          const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
+          setCreated({
+            title: t("inventory.stockCount.title"),
+            headline: saved.number,
+            rows: [
+              { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+              { label: t("created.date"), value: toDateOnlyIsoString(values.documentDate), ltr: true },
+              { label: t("created.lines"), value: String(values.lines.length) },
+            ],
+          });
+          reset({ warehouseId: values.warehouseId, documentDate: new Date(), lines: [EMPTY_LINE] });
+        },
+      },
     );
   });
 
@@ -154,7 +171,19 @@ export function StockCountPage(): React.JSX.Element {
         <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
 
         {errors.lines?.root?.message ? <p className="erp-field__error">{t(`validation.${errors.lines.root.message}`)}</p> : null}
-        {recordCount.isError ? <p className="erp-auth-card__error">{t("inventory.stockCount.recordError")}</p> : null}
+        {recordCount.isError ? (
+          <p className="erp-auth-card__error">
+            {(() => {
+              if (recordCount.error instanceof AxiosError && recordCount.error.response?.status === 400) {
+                const msg: string = (recordCount.error.response.data as { message?: string })?.message ?? "";
+                if (msg.toLowerCase().includes("unit cost")) return t("inventory.stockCount.unitCostRequired");
+                if (msg.toLowerCase().includes("open") && msg.toLowerCase().includes("period")) return t("inventory.stockCount.noOpenPeriod");
+              }
+              return t("inventory.stockCount.recordError");
+            })()}
+          </p>
+        ) : null}
+        {postCount.isError ? <p className="erp-auth-card__error">{t("inventory.stockCount.postError")}</p> : null}
         {recordCount.isSuccess ? <p className="erp-field__hint">{t("inventory.stockCount.recordedSuccess", { number: recordCount.data?.number })}</p> : null}
 
         <div className="erp-form__actions">
@@ -194,6 +223,7 @@ export function StockCountPage(): React.JSX.Element {
           />
         </DataGrid>
       )}
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }

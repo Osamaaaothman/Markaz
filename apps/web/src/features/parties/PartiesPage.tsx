@@ -13,6 +13,7 @@ import { useDebouncedValue } from "../../shared/lib/use-debounced-value";
 import { CopyId } from "../../shared/ui/CopyId";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyFormDialog } from "./PartyFormDialog";
 import { partyKindIcon } from "./party-kind";
 import { PARTY_KINDS, useParties, type PartyKind, type PartySummary } from "./use-parties";
@@ -24,6 +25,7 @@ export function PartiesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const [query, setQuery] = useState("");
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
   const [kind, setKind] = useState<PartyKind | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [dialogParty, setDialogParty] = useState<PartySummary | null>(null);
@@ -175,7 +177,8 @@ export function PartiesPage(): React.JSX.Element {
         </>
       )}
 
-      <PartyFormDialog party={dialogParty} visible={dialogOpen} onHide={() => setDialogOpen(false)} />
+      <PartyFormDialog party={dialogParty} visible={dialogOpen} onHide={() => setDialogOpen(false)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }

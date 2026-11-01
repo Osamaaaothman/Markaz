@@ -1,13 +1,15 @@
 import { apiClient } from "../../shared/api/client";
 import { downloadBlob } from "../../shared/lib/download-file";
+import { printBlob } from "../../shared/lib/print-file";
 import { useExportStore } from "../../shared/lib/export-store";
 
-export type ExportFormat = "csv" | "pdf";
+// "print" asks for the PDF and sends it to the printer dialog instead of saving it.
+export type ExportFormat = "csv" | "pdf" | "print";
 
 // Downloads a file from an authenticated endpoint and reports it to the progress panel the whole way:
 // "preparing" while the server builds it, a percentage once it starts sending. Every export in the app goes
 // through here, so the user always sees that something is happening.
-export async function exportFile(path: string, params: Record<string, unknown>, filename: string): Promise<void> {
+export async function exportFile(path: string, params: Record<string, unknown>, filename: string, deliver: "download" | "print" = "download"): Promise<void> {
   const store = useExportStore.getState();
   const id = store.start(filename);
   try {
@@ -18,7 +20,8 @@ export async function exportFile(path: string, params: Record<string, unknown>, 
         if (event.total && event.total > 0) store.progress(id, Math.min(99, Math.round((event.loaded / event.total) * 100)));
       },
     });
-    downloadBlob(response.data, filename);
+    if (deliver === "print") printBlob(response.data);
+    else downloadBlob(response.data, filename);
     store.finish(id);
   } catch (error) {
     store.fail(id);
@@ -27,5 +30,9 @@ export async function exportFile(path: string, params: Record<string, unknown>, 
 }
 
 export async function exportReport(path: string, params: Record<string, string>, filenameBase: string, format: ExportFormat): Promise<void> {
+  if (format === "print") {
+    await exportFile(path, { ...params, format: "pdf" }, `${filenameBase}.pdf`, "print");
+    return;
+  }
   await exportFile(path, { ...params, format }, `${filenameBase}.${format}`);
 }

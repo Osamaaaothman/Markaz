@@ -1,16 +1,17 @@
-import type { BalanceSheetResult, IncomeStatementResult, TrialBalanceResult } from "@erp/core";
+import type { BalanceSheetResult, IncomeStatementResult, PeriodTrialBalanceResult } from "@erp/core";
 import { closePdfRenderer, renderHtmlToPdf } from "../../documents/pdf-renderer.js";
 import { balanceSheetToCsv, balanceSheetToPdfHtml } from "./balance-sheet-export.js";
 import { incomeStatementToCsv, incomeStatementToPdfHtml } from "./income-statement-export.js";
 import { trialBalanceToCsv, trialBalanceToPdfHtml } from "./trial-balance-export.js";
 
-const trialBalanceFixture: TrialBalanceResult = {
+const trialBalanceFixture: PeriodTrialBalanceResult = {
+  from: "2026-01-01",
+  to: "2026-12-31",
   lines: [
-    { accountId: "a1", accountCode: "1100", accountName: "Cash", accountType: "ASSET", debitTotal: "1000.0000", creditTotal: "0.0000" },
-    { accountId: "a2", accountCode: "4100", accountName: "Sales Revenue", accountType: "REVENUE", debitTotal: "0.0000", creditTotal: "1000.0000" },
+    { accountId: "a1", accountCode: "1100", accountName: "Cash", accountType: "ASSET", openingDebit: "0.0000", openingCredit: "0.0000", movementDebit: "1000.0000", movementCredit: "0.0000", closingDebit: "1000.0000", closingCredit: "0.0000" },
+    { accountId: "a2", accountCode: "4100", accountName: "Sales Revenue", accountType: "REVENUE", openingDebit: "0.0000", openingCredit: "0.0000", movementDebit: "0.0000", movementCredit: "1000.0000", closingDebit: "0.0000", closingCredit: "1000.0000" },
   ],
-  totalDebit: "1000.0000",
-  totalCredit: "1000.0000",
+  totals: { openingDebit: "0.0000", openingCredit: "0.0000", movementDebit: "1000.0000", movementCredit: "1000.0000", closingDebit: "1000.0000", closingCredit: "1000.0000" },
   isBalanced: true,
 };
 
@@ -40,6 +41,8 @@ describe("accounting report exports — CSV", () => {
     expect(csv).toContain("1100");
     expect(csv).toContain("Cash");
     expect(csv).toContain("Total");
+    expect(csv).toContain("Opening Debit");
+    expect(csv).toContain("Closing Credit");
   });
 
   it("balance sheet CSV includes every section and the grand total", () => {
@@ -55,7 +58,7 @@ describe("accounting report exports — CSV", () => {
   });
 
   it("quotes a CSV field containing a comma so it survives a spreadsheet re-import", () => {
-    const withComma: TrialBalanceResult = {
+    const withComma: PeriodTrialBalanceResult = {
       ...trialBalanceFixture,
       lines: [{ ...trialBalanceFixture.lines[0]!, accountName: "Cash, Petty" }],
     };
@@ -74,6 +77,8 @@ describe("accounting report exports — PDF HTML", () => {
     });
     expect(html).toContain(`dir="${language === "ar" ? "rtl" : "ltr"}"`);
     expect(html).toContain("1100");
+    expect(html).toContain("A4 landscape");
+    expect(html).toContain("2026-12-31");
   });
 
   it.each(["en", "ar"] as const)("balance sheet HTML sets dir=%s correctly", async (language) => {

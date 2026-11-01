@@ -20,7 +20,9 @@ export type SupplierInvoiceErrorCode =
   | "DUPLICATE_INVOICE"
   | "NO_OPEN_PERIOD"
   | "ZERO_INVOICE"
-  | "INVOICE_NOT_FOUND";
+  | "INVOICE_NOT_FOUND"
+  | "NOT_AN_INVOICE"
+  | "DEBIT_EXCEEDS_INVOICE";
 
 export class SupplierInvoiceError extends Error {
   constructor(
@@ -95,17 +97,34 @@ export interface SupplierInvoiceResult {
 
 export interface SupplierInvoiceSummary {
   readonly id: string;
+  readonly documentType: "INVOICE" | "DEBIT_NOTE";
   readonly number: string;
-  readonly supplierInvoiceNumber: string;
+  readonly supplierInvoiceNumber: string | null;
   readonly supplierId: string;
   readonly supplierName: string;
   readonly supplierNameAr: string | null;
+  readonly originalInvoiceId: string | null;
   readonly invoiceDate: string;
   readonly dueDate: string | null;
   readonly currency: string;
   readonly totalNet: string;
   readonly totalTax: string;
   readonly totalGross: string;
+}
+
+export interface DebitNoteLineInput {
+  readonly description: string;
+  readonly quantity: string;
+  readonly unitPrice: string;
+  readonly taxCodeId: string;
+  readonly accountId: string;
+}
+
+export interface CreateDebitNoteInput {
+  readonly originalInvoiceId: string;
+  readonly debitDate: Date;
+  readonly notes?: string | undefined;
+  readonly lines: readonly DebitNoteLineInput[];
 }
 
 export interface SupplierInvoiceListPage {
@@ -117,6 +136,7 @@ export interface SupplierInvoiceListQuery {
   readonly cursor?: string | undefined;
   readonly limit?: string | undefined;
   readonly supplierId?: string | undefined;
+  readonly documentType?: "INVOICE" | "DEBIT_NOTE" | undefined;
 }
 
 export interface InvoiceableLine {
@@ -278,6 +298,7 @@ export class SupplierInvoiceService {
         data: {
           id: invoiceId,
           companyId: actor.companyId,
+          documentType: "INVOICE",
           number,
           supplierId: input.supplierId,
           supplierInvoiceNumber: input.supplierInvoiceNumber.trim(),
@@ -328,10 +349,160 @@ export class SupplierInvoiceService {
     return result;
   }
 
+  // The AP mirror of SalesInvoiceService.createCreditNote: free-typed lines against an expense
+  // account, like a supplier invoice's EXPENSE lines — never touching a purchase order's
+  // received/invoiced quantities or GRNI, the payable's mirror of "credit notes don't return stock"
+  // (docs/01-OPEN-DECISIONS.md E2). Posting:
+  //   Dr Accounts payable   gross   (reduces what's owed to the supplier)
+  //   Cr expense account    net     (reverses the expense the original invoice booked)
+  //   Cr Input VAT          tax
+  //
+  // REVIEW (accounting judgement, for the accountant): mirrors the credit-note default exactly — no
+  // link back to the purchase order, no re-costing, no stock movement. Confirm before the first real
+  // debit note posts, same as D1-D7/E1-E6.
+  async createDebitNote(
+    input: CreateDebitNoteInput,
+    actor: SupplierInvoiceActor,
+    correlationId: string,
+    idempotencyKey: string,
+  ): Promise<SupplierInvoiceResult> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const original = await tx.supplierInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId } });
+      if (!original) throw new SupplierInvoiceError("INVOICE_NOT_FOUND", "Invoice not found");
+      if (original.documentType !== "INVOICE") throw new SupplierInvoiceError("NOT_AN_INVOICE", "A debit note can only be raised against an invoice");
+      if (input.lines.length === 0) throw new SupplierInvoiceError("EMPTY_INVOICE", "A debit note needs at least one line");
+
+      const taxIds = [...new Set(input.lines.map((l) => l.taxCodeId))];
+      const taxCodes = await tx.taxCode.findMany({ where: { id: { in: taxIds }, companyId: actor.companyId, isActive: true } });
+      const taxById = new Map(taxCodes.map((t) => [t.id, t]));
+
+      const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
+      const accounts = await tx.account.findMany({ where: { id: { in: accountIds }, companyId: actor.companyId } });
+      const accountById = new Map(accounts.map((a) => [a.id, a]));
+
+      const evaluated = input.lines.map((line, index) => {
+        const lineNumber = index + 1;
+        const taxCode = taxById.get(line.taxCodeId);
+        if (!taxCode) throw new SupplierInvoiceError("TAX_CODE_NOT_FOUND", "A tax code on the debit note was not found or is inactive", lineNumber);
+        const account = accountById.get(line.accountId);
+        if (!account) throw new SupplierInvoiceError("ACCOUNT_NOT_FOUND", "An expense account on the debit note was not found", lineNumber);
+        if (!account.isPostable) throw new SupplierInvoiceError("ACCOUNT_NOT_POSTABLE", "An expense account on the debit note is a group, not a postable account", lineNumber);
+        const description = line.description.trim();
+        if (!description) throw new SupplierInvoiceError("EMPTY_INVOICE", "A debit note line needs a description", lineNumber);
+        const quantity = new Prisma.Decimal(line.quantity);
+        const unitPrice = new Prisma.Decimal(line.unitPrice);
+        const math = expenseLineMath(quantity, unitPrice, taxCode.rate);
+        return { lineNumber, description, quantity, unitPrice, taxCode, account, net: math.net, tax: math.tax };
+      });
+
+      const totalNet = evaluated.reduce((sum, l) => sum.plus(l.net), new Prisma.Decimal(0));
+      const totalTax = evaluated.reduce((sum, l) => sum.plus(l.tax), new Prisma.Decimal(0));
+      const gross = totalNet.plus(totalTax);
+      if (gross.isZero()) throw new SupplierInvoiceError("ZERO_INVOICE", "A debit note with nothing to debit cannot be posted");
+
+      // Debit notes already raised against this invoice, plus this one, never exceed the invoice.
+      const debited = await tx.supplierInvoice.aggregate({
+        where: { companyId: actor.companyId, originalInvoiceId: original.id },
+        _sum: { totalGross: true },
+      });
+      const already = debited._sum.totalGross ?? new Prisma.Decimal(0);
+      if (already.plus(gross).greaterThan(original.totalGross)) {
+        throw new SupplierInvoiceError("DEBIT_EXCEEDS_INVOICE", "The debit notes would be worth more than the invoice");
+      }
+
+      const period = await findOpenFiscalPeriod(tx, actor.companyId, input.debitDate);
+      if (!period) throw new SupplierInvoiceError("NO_OPEN_PERIOD", "No open fiscal period covers the debit note date");
+      const currency = await companyCurrency(tx, actor.companyId);
+
+      const journalLines: JournalLineInput[] = [
+        { accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_PAYABLE"), debit: gross.toFixed(4), description: "Debit note" },
+      ];
+      const netByAccount = new Map<string, Prisma.Decimal>();
+      for (const l of evaluated) {
+        netByAccount.set(l.account.id, (netByAccount.get(l.account.id) ?? new Prisma.Decimal(0)).plus(l.net));
+      }
+      for (const [accountId, amount] of netByAccount) {
+        if (!amount.isZero()) journalLines.push({ accountId, credit: amount.toFixed(4), description: "Debit note: expense reversed" });
+      }
+      if (!totalTax.isZero()) {
+        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_INPUT"), credit: totalTax.toFixed(4), description: "Debit note: input VAT" });
+      }
+
+      const noteId = newId();
+      const posting = await this.engine.postEntry(
+        {
+          companyId: actor.companyId,
+          fiscalPeriodId: period.id,
+          entryDate: input.debitDate,
+          postingDate: input.debitDate,
+          currency,
+          lines: journalLines,
+          sourceModule: "purchasing",
+          sourceDocumentType: "supplier_debit_note",
+          sourceDocumentId: noteId,
+          actorId: actor.id,
+          correlationId,
+          idempotencyKey,
+        },
+        tx,
+      );
+
+      const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.debitDate);
+      const number = await allocateDocumentNumber(tx, actor.companyId, "supplier_debit_note_no", "DN", fiscalYear);
+
+      await tx.supplierInvoice.create({
+        data: {
+          id: noteId,
+          companyId: actor.companyId,
+          documentType: "DEBIT_NOTE",
+          number,
+          supplierId: original.supplierId,
+          supplierInvoiceNumber: null,
+          originalInvoiceId: original.id,
+          invoiceDate: input.debitDate,
+          dueDate: null,
+          currency,
+          totalNet,
+          totalTax,
+          totalGross: gross,
+          journalEntryId: posting.journalEntryId,
+          notes: blankToNull(input.notes),
+          actorId: actor.id,
+          correlationId,
+          lines: {
+            create: evaluated.map((l) => ({
+              id: newId(),
+              kind: "EXPENSE",
+              accountId: l.account.id,
+              description: l.description,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice,
+              netAmount: l.net,
+              taxCodeId: l.taxCode.id,
+              taxRate: l.taxCode.rate,
+              taxAmount: l.tax,
+              priceVariance: new Prisma.Decimal(0),
+              lineNumber: l.lineNumber,
+            })),
+          },
+        },
+      });
+
+      return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: gross.toFixed(4) };
+    });
+
+    await this.audit.log({ actorId: actor.id, action: "supplier_debit_note.posted", entityType: "SupplierInvoice", entityId: result.id, after: { ...result }, correlationId });
+    return result;
+  }
+
   async list(companyId: string, query: SupplierInvoiceListQuery): Promise<SupplierInvoiceListPage> {
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 100);
     const rows = await this.prisma.supplierInvoice.findMany({
-      where: { companyId, ...(query.supplierId ? { supplierId: query.supplierId } : {}) },
+      where: {
+        companyId,
+        ...(query.supplierId ? { supplierId: query.supplierId } : {}),
+        ...(query.documentType ? { documentType: query.documentType } : {}),
+      },
       include: { supplier: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
@@ -342,11 +513,13 @@ export class SupplierInvoiceService {
     return {
       data: page.map((r) => ({
         id: r.id,
+        documentType: r.documentType as "INVOICE" | "DEBIT_NOTE",
         number: r.number,
         supplierInvoiceNumber: r.supplierInvoiceNumber,
         supplierId: r.supplierId,
         supplierName: r.supplier.name,
         supplierNameAr: r.supplier.nameAr,
+        originalInvoiceId: r.originalInvoiceId,
         invoiceDate: dateOnly(r.invoiceDate),
         dueDate: r.dueDate ? dateOnly(r.dueDate) : null,
         currency: r.currency,

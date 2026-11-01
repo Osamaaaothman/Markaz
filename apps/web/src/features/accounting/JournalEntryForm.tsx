@@ -15,6 +15,7 @@ import { useFiscalPeriods } from "./use-fiscal-periods";
 import { usePostJournalEntry, type PostJournalEntryInput } from "./use-post-journal-entry";
 import { formatMoney } from "../../shared/lib/money";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
+import type { CreatedInfo } from "../../shared/ui/CreatedDialog";
 
 const lineSchema = z
   .object({
@@ -38,8 +39,6 @@ const formSchema = z
     entryDate: z.date(),
     postingDate: z.date(),
     currency: z.string().min(1, "required"),
-    sourceDocumentType: z.string().min(1, "required"),
-    sourceDocumentId: z.string().min(1, "required"),
     lines: z.array(lineSchema).min(2, "minLines"),
   })
   .refine(
@@ -66,9 +65,11 @@ const EMPTY_LINE = { accountId: "", debit: "", credit: "", description: "" };
 export interface JournalEntryFormProps {
   readonly visible: boolean;
   readonly onHide: () => void;
+  // Called with a summary of the saved entry so the page can show it in a dialog.
+  readonly onCreated?: (info: CreatedInfo) => void;
 }
 
-export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): React.JSX.Element {
+export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFormProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data: accounts } = useAccounts();
   const { data: fiscalPeriods } = useFiscalPeriods();
@@ -88,8 +89,6 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
       entryDate: new Date(),
       postingDate: new Date(),
       currency: "SAR",
-      sourceDocumentType: "manual",
-      sourceDocumentId: "",
       lines: [EMPTY_LINE, EMPTY_LINE],
     },
   });
@@ -128,8 +127,6 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
       entryDate: toDateOnlyIsoString(values.entryDate),
       postingDate: toDateOnlyIsoString(values.postingDate),
       currency: values.currency,
-      sourceDocumentType: values.sourceDocumentType,
-      sourceDocumentId: values.sourceDocumentId,
       lines: values.lines.map((line) => ({
         accountId: line.accountId,
         ...(line.debit.trim() ? { debit: line.debit } : {}),
@@ -137,7 +134,22 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
         ...(line.description.trim() ? { description: line.description } : {}),
       })),
     };
-    postEntry.mutate(input, { onSuccess: onHide });
+    postEntry.mutate(input, {
+      onSuccess: (saved) => {
+        onCreated?.({
+          title: t("accounting.journalEntries.new"),
+          headline: saved.number,
+          rows: [
+            { label: t("created.date"), value: input.entryDate, ltr: true },
+            { label: t("created.currency"), value: input.currency },
+            { label: t("created.debit"), value: formatMoney(totals.debit.toDecimalString(4), input.currency), ltr: true },
+            { label: t("created.credit"), value: formatMoney(totals.credit.toDecimalString(4), input.currency), ltr: true },
+            { label: t("created.lines"), value: String(input.lines.length) },
+          ],
+        });
+        onHide();
+      },
+    });
   });
 
   return (
@@ -207,17 +219,6 @@ export function JournalEntryForm({ visible, onHide }: JournalEntryFormProps): Re
                 <Calendar inputId="postingDate" value={field.value} onChange={(e) => field.onChange(e.value)} dateFormat="yy-mm-dd" />
               )}
             />
-          </div>
-        </div>
-
-        <div className="erp-form__row">
-          <div className="erp-field">
-            <label htmlFor="sourceDocumentType">{t("accounting.journalEntries.sourceDocumentType")}</label>
-            <InputText id="sourceDocumentType" {...register("sourceDocumentType")} />
-          </div>
-          <div className="erp-field">
-            <label htmlFor="sourceDocumentId">{t("accounting.journalEntries.sourceDocumentId")}</label>
-            <InputText id="sourceDocumentId" {...register("sourceDocumentId")} />
           </div>
         </div>
 

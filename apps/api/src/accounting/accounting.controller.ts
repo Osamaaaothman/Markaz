@@ -25,6 +25,7 @@ import {
   type AccountBalance,
   type BalanceSheetResult,
   type IncomeStatementResult,
+  type PeriodTrialBalanceResult,
   type TrialBalanceResult,
 } from "@erp/core";
 import { Money } from "@erp/shared";
@@ -40,10 +41,13 @@ import { PostJournalEntryDto } from "./dto/post-journal-entry.dto.js";
 import { ReverseJournalEntryDto } from "./dto/reverse-journal-entry.dto.js";
 import { IncomeStatementQueryDto } from "./dto/income-statement-query.dto.js";
 import { ExportQueryDto } from "./dto/export-query.dto.js";
+import { PeriodTrialBalanceQueryDto, TrialBalanceExportQueryDto } from "./dto/trial-balance-query.dto.js";
+import { defaultTrialBalancePeriod } from "./trial-balance-period.js";
 import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-query.dto.js";
 import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
 import { CreateAccountDto } from "./dto/create-account.dto.js";
 import { UpdateAccountDto } from "./dto/update-account.dto.js";
+import { MoveAccountDto } from "./dto/move-account.dto.js";
 import type {
   AccountSummary,
   ChartOfAccountEntry,
@@ -126,6 +130,18 @@ export class AccountingController {
     return this.mapChartErrors(this.chartOfAccounts.update(id, dto, actor, correlationId));
   }
 
+  // Moves an account, with everything under it, to another group of the same type (or to the top level).
+  @Patch("accounts/:id/parent")
+  @RequirePermission("account", "update")
+  moveAccount(
+    @Param("id") id: string,
+    @Body() dto: MoveAccountDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<ChartOfAccountEntry> {
+    return this.mapChartErrors(this.chartOfAccounts.move(id, dto.parentId ?? null, actor, correlationId));
+  }
+
   // The core service throws typed business-rule errors; without this they would surface as 500.
   private async mapChartErrors<T>(work: Promise<T>): Promise<T> {
     try {
@@ -141,7 +157,9 @@ export class AccountingController {
           throw new NotFoundException(error.message);
         case "PARENT_NOT_GROUP":
         case "COLOR_ON_CHILD":
-          throw new BadRequestException(error.message);
+        case "TYPE_MISMATCH":
+        case "MOVE_INTO_SELF_OR_DESCENDANT":
+          throw new BadRequestException({ message: error.message, code: error.code });
       }
     }
   }
@@ -317,14 +335,23 @@ export class AccountingController {
   // docs/07-API-RULES.md §9: a single company's bounded report — not a batch or a
   // paginated export — so a synchronous response is fine; nothing here approaches
   // the "may exceed a few seconds" threshold that requires the 202+job-id pattern.
+  // The trial balance for a period: opening balance, movement and closing balance per account.
+  @Get("trial-balance/period")
+  @RequirePermission("trial_balance", "read")
+  trialBalanceForPeriod(@CurrentUser() actor: CurrentUserPayload, @Query() query: PeriodTrialBalanceQueryDto): Promise<PeriodTrialBalanceResult> {
+    const { from, to } = defaultTrialBalancePeriod(query);
+    return this.trialBalanceService.computeForPeriod(actor.companyId, from, to);
+  }
+
   @Get("trial-balance/export")
   @RequirePermission("trial_balance", "read")
   async exportTrialBalance(
     @CurrentUser() actor: CurrentUserPayload,
-    @Query() query: ExportQueryDto,
+    @Query() query: TrialBalanceExportQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    const file = await this.exportService.exportTrialBalance(actor.companyId, query.format, query.lang ?? "en");
+    const { from, to } = defaultTrialBalancePeriod(query);
+    const file = await this.exportService.exportTrialBalance(actor.companyId, query.format, query.lang ?? "en", from, to);
     this.sendFile(res, file);
   }
 
@@ -388,8 +415,10 @@ export class AccountingController {
       ...(dto.exchangeRate !== undefined ? { exchangeRate: dto.exchangeRate } : {}),
       lines: dto.lines,
       sourceModule: "manual",
-      sourceDocumentType: dto.sourceDocumentType,
-      sourceDocumentId: dto.sourceDocumentId,
+      sourceDocumentType: dto.sourceDocumentType ?? "manual",
+      // The idempotency key is unique per genuine request and identical on a retry, so a retried manual entry is
+      // recognised as the same one.
+      sourceDocumentId: dto.sourceDocumentId ?? idempotencyKey,
       actorId: actor.id,
       correlationId,
       idempotencyKey,

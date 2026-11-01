@@ -13,6 +13,7 @@ import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyPicker } from "../accounting/PartyPicker";
 import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
 import {
@@ -75,6 +76,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<readonly LineState[]>([]);
   const [accept, setAccept] = useState(false);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const { data: invoiceable } = useInvoiceableLines(supplierId);
   const defaultTaxId = useMemo(() => (taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "", [taxCodes]);
@@ -306,13 +308,31 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                 icon="pi pi-check"
                 disabled={!canPost}
                 loading={post.isPending}
-                onClick={() => post.mutate(payload, { onSuccess: () => void navigate("/purchasing/invoices") })}
+                onClick={() =>
+                  post.mutate(payload, {
+                    onSuccess: (saved) =>
+                      setCreated({
+                        title: t("purchasing.invoices.title"),
+                        headline: saved.number,
+                        rows: [
+                          { label: t("purchasing.invoices.supplierInvoiceNumber"), value: number.trim(), ltr: true },
+                          { label: t("created.date"), value: toDateOnlyIsoString(invoiceDate), ltr: true },
+                          { label: t("created.dueDate"), value: dueDate ? toDateOnlyIsoString(dueDate) : "", ltr: true },
+                          { label: t("created.net"), value: formatMoney(result.totalNet, currency), ltr: true },
+                          { label: t("created.tax"), value: formatMoney(result.totalTax, currency), ltr: true },
+                          { label: t("created.gross"), value: formatMoney(saved.totalGross, currency), ltr: true },
+                          { label: t("created.lines"), value: String(lines.length) },
+                        ],
+                      }),
+                  })
+                }
               />
             </div>
           </>
         ) : null}
         {!result && post.isError && postErrorKey ? <p className="erp-auth-card__error">{t(postErrorKey)}</p> : null}
       </div>
+      <CreatedDialog info={created} onHide={() => void navigate("/purchasing/invoices")} />
     </div>
   );
 }

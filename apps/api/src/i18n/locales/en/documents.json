@@ -14,7 +14,12 @@
     "debit": "Debit",
     "credit": "Credit",
     "totalDebit": "Total Debit",
-    "totalCredit": "Total Credit"
+    "totalCredit": "Total Credit",
+    "opening": "Opening balance",
+    "movement": "Movement",
+    "closing": "Closing balance",
+    "total": "Total",
+    "periodSubtitle": "Every posted account, from {{from}} to {{to}}."
   },
   "balanceSheet": {
     "title": "Balance Sheet",
@@ -116,5 +121,36 @@
     "taxRate": "VAT %",
     "tax": "VAT",
     "total": "Total"
+  },
+  "payslip": {
+    "title": "Payslip",
+    "employee": "Employee",
+    "employeeRef": "Employee ID",
+    "period": "Period",
+    "runNumber": "Payroll run",
+    "runDate": "Run date",
+    "earnings": "Earnings",
+    "deductions": "Deductions",
+    "basicSalary": "Basic salary",
+    "housingAllowance": "Housing allowance",
+    "otherAllowances": "Other allowances",
+    "gross": "Gross",
+    "gosiEmployee": "GOSI",
+    "advanceDeduction": "Salary advance",
+    "net": "Net pay",
+    "months": {
+      "jan": "January",
+      "feb": "February",
+      "mar": "March",
+      "apr": "April",
+      "may": "May",
+      "jun": "June",
+      "jul": "July",
+      "aug": "August",
+      "sep": "September",
+      "oct": "October",
+      "nov": "November",
+      "dec": "December"
+    }
   }
 }

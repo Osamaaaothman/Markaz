@@ -142,3 +142,22 @@ test("branches keep their own colours independently", () => {
   assert.equal(two[0].children[0].data.branchColor, "#22C55E");
   assert.equal(two[1].children[0].data.branchColor, "#EF4444");
 });
+
+import { ancestorIds, descendantIds, validMoveTargets } from "./account-tree.ts";
+
+test("descendantIds finds everything below an account at any depth, and not the account itself", () => {
+  assert.deepEqual([...descendantIds(accounts, "a11")].sort(), ["a11101", "a1110101", "a1110102", "a11102"]);
+  assert.deepEqual([...descendantIds(accounts, "a1110101")], []);
+});
+
+test("validMoveTargets offers same-type groups, never the account, its descendants or a postable account", () => {
+  const moving = accounts.find((a) => a.id === "a11101");
+  assert.deepEqual(validMoveTargets(accounts, moving).map((a) => a.id).sort(), ["a1", "a11", "a11102", "a2"]);
+  const other = [...accounts, { ...account("l1", "3", "Equity", null, null), type: "EQUITY" }];
+  assert.ok(!validMoveTargets(other, moving).some((a) => a.id === "l1"));
+});
+
+test("ancestorIds lists the parents nearest first", () => {
+  assert.deepEqual(ancestorIds(accounts, "a1110101"), ["a11101", "a11", "a1"]);
+  assert.deepEqual(ancestorIds(accounts, "a1"), []);
+});

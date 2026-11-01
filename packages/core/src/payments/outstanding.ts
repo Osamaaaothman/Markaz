@@ -31,8 +31,8 @@ const day = (d: Date): string => d.toISOString().slice(0, 10);
 
 // One place that knows what "still owed on an invoice" means, so payments, the open-items list and
 // the ageing reports can never disagree (the ageing report must tie to the ledger — docs/14 M6 gate).
-//   sales invoice  : gross - allocated receipts - credit notes raised against it
-//   supplier invoice: gross - allocated payments
+//   sales invoice   : gross - allocated receipts - credit notes raised against it
+//   supplier invoice: gross - allocated payments - debit notes raised against it
 // `asOf` rolls the position back to a past date: only documents dated on or before it count.
 // Pass `ids` to look at specific invoices, `partyId` for one party, neither for all of them.
 export async function loadOutstanding(
@@ -66,9 +66,11 @@ export async function loadOutstanding(
                  si.total_gross::text AS gross,
                  (si.total_gross
                    - COALESCE((SELECT SUM(a.amount) FROM payment_allocations a JOIN payments p ON p.id = a.payment_id
-                               WHERE a.supplier_invoice_id = si.id AND p.payment_date <= ${asOf}::date), 0))::text AS outstanding
+                               WHERE a.supplier_invoice_id = si.id AND p.payment_date <= ${asOf}::date), 0)
+                   - COALESCE((SELECT SUM(dn.total_gross) FROM supplier_invoices dn
+                               WHERE dn.original_invoice_id = si.id AND dn.invoice_date <= ${asOf}::date), 0))::text AS outstanding
           FROM supplier_invoices si
-          WHERE si.company_id = ${companyId} AND si.invoice_date <= ${asOf}::date
+          WHERE si.company_id = ${companyId} AND si.document_type = 'INVOICE' AND si.invoice_date <= ${asOf}::date
             AND (${ids}::text[] IS NULL OR si.id = ANY(${ids}::text[]))
             AND (${partyId}::text IS NULL OR si.supplier_id = ${partyId})
           ORDER BY si.invoice_date, si.number

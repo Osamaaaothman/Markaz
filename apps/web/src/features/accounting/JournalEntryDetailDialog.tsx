@@ -63,16 +63,16 @@ export function JournalEntryDetailDialog({
             ) : null}
           </div>
 
-          <div className="erp-form__row">
-            <div className="erp-field">
-              <label>{t("accounting.journalEntries.sourceDocumentType")}</label>
-              <p>{entry.sourceDocumentType}</p>
+          {/* A manual entry has only its own number. The source document is shown only when the entry came from one
+              (an invoice, a receipt...), never as a second raw id. */}
+          {entry.sourceDocumentType !== "manual" ? (
+            <div className="erp-form__row">
+              <div className="erp-field">
+                <label>{t("accounting.journalEntries.sourceDocumentType")}</label>
+                <p>{entry.sourceDocumentType}</p>
+              </div>
             </div>
-            <div className="erp-field">
-              <label>{t("accounting.journalEntries.sourceDocumentId")}</label>
-              <p>{entry.sourceDocumentId}</p>
-            </div>
-          </div>
+          ) : null}
 
           <DataTable value={[...entry.lines]} className="erp-table" size="small" showGridlines>
             <Column

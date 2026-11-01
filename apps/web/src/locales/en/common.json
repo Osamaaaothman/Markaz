@@ -20,7 +20,8 @@
       "purchasing": "Purchasing",
       "sales": "Sales",
       "payments": "Payments",
-      "documents": "Documents"
+      "documents": "Documents",
+      "hr": "HR & payroll"
     },
     "warehouses": "Warehouses",
     "items": "Items",
@@ -43,7 +44,9 @@
     "partyStatement": "Customer / supplier statement",
     "stockMovements": "Stock movements",
     "documents": "Documents",
-    "company": "Company"
+    "company": "Company",
+    "employees": "Employees",
+    "payrollRuns": "Payroll runs"
   },
   "actions": {
     "save": "Save",
@@ -62,7 +65,8 @@
     "exportPdf": "Export PDF",
     "exportCsv": "Export CSV",
     "copyId": "Copy ID",
-    "copied": "Copied"
+    "copied": "Copied",
+    "print": "Print"
   },
   "status": {
     "loading": "Loading…",
@@ -186,6 +190,24 @@
         "postableParent": "{{code}} takes postings, so accounts cannot go under it.",
         "noParent": "No existing group starts this code.",
         "full": "No more automatic codes under this parent — type one."
+      },
+      "move": {
+        "title": "Move account",
+        "current": "Currently under",
+        "newParent": "Move under",
+        "topLevel": "Top level",
+        "hint": "Only groups of the same type are listed. The account keeps its code and everything posted to it; only the grouping and the roll-up totals change.",
+        "confirm": "Move",
+        "button": "Move",
+        "dragHint": "Drag to move",
+        "errors": {
+          "TYPE_MISMATCH": "An account can only be moved under a group of the same type.",
+          "MOVE_INTO_SELF_OR_DESCENDANT": "An account cannot be moved under itself or one of its own sub-accounts.",
+          "PARENT_NOT_GROUP": "The new parent must be a group, not an account that accepts postings.",
+          "generic": "Could not move the account. Try again."
+        },
+        "movedTitle": "Account moved",
+        "movedTo": "Moved under"
       }
     },
     "trialBalance": {
@@ -198,7 +220,13 @@
       "totalCredit": "Total credit",
       "balanced": "Balanced",
       "outOfBalance": "Out of balance",
-      "empty": "No posted activity yet."
+      "empty": "No posted activity yet.",
+      "opening": "Opening balance",
+      "movement": "Movement",
+      "closing": "Closing balance",
+      "from": "From",
+      "to": "To",
+      "periodSubtitle": "Opening balance, movement and closing balance of every posted account for the period."
     },
     "balanceSheet": {
       "title": "Balance sheet",
@@ -340,6 +368,7 @@
         "purchase_order": "Purchase orders",
         "approval_policy": "Approval thresholds",
         "supplier_invoice": "Supplier invoices",
+        "debit_note": "Debit notes",
         "tax_code": "Tax codes",
         "quotation": "Quotations",
         "sales_order": "Sales orders",
@@ -473,6 +502,9 @@
       "unitCostIfNoStock": "Unit cost (if nothing on hand)",
       "record": "Record count",
       "recordError": "Could not record this count.",
+      "unitCostRequired": "One or more items have no stock in this warehouse — enter a unit cost in the dedicated column before recording.",
+      "noOpenPeriod": "No open fiscal period covers this document date.",
+      "postError": "Could not post this count.",
       "recordedSuccess": "Count {{number}} recorded — post it below once you're ready.",
       "recent": "Recent counts",
       "number": "Number",
@@ -499,7 +531,14 @@
         "ACCOUNTS_RECEIVABLE": "Accounts receivable",
         "SALES_REVENUE": "Sales revenue",
         "VAT_OUTPUT": "Output VAT",
-        "COST_OF_GOODS_SOLD": "Cost of goods sold"
+        "COST_OF_GOODS_SOLD": "Cost of goods sold",
+        "SALARY_EXPENSE": "Salary expense",
+        "GOSI_EMPLOYER_EXPENSE": "GOSI expense (employer share)",
+        "GOSI_PAYABLE": "GOSI payable",
+        "NET_PAY_PAYABLE": "Net pay payable",
+        "SALARY_ADVANCES_RECEIVABLE": "Salary advances receivable",
+        "EOSB_EXPENSE": "End-of-service expense",
+        "EOSB_PAYABLE": "End-of-service payable"
       },
       "keyHints": {
         "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
@@ -513,7 +552,14 @@
         "ACCOUNTS_RECEIVABLE": "Debited with the gross amount of every sales invoice; credited by credit notes.",
         "SALES_REVENUE": "Credited with the net of sales invoices (a line can name its own account instead).",
         "VAT_OUTPUT": "Credited with the VAT charged on sales invoices.",
-        "COST_OF_GOODS_SOLD": "Debited with the cost of the stock sold, at weighted-average cost."
+        "COST_OF_GOODS_SOLD": "Debited with the cost of the stock sold, at weighted-average cost.",
+        "SALARY_EXPENSE": "Debited with the gross salary of every payroll run.",
+        "GOSI_EMPLOYER_EXPENSE": "Debited with the employer's share of GOSI contributions.",
+        "GOSI_PAYABLE": "Credited with the combined GOSI liability (employee + employer) until remitted.",
+        "NET_PAY_PAYABLE": "Credited with what is owed to employees after a payroll run.",
+        "SALARY_ADVANCES_RECEIVABLE": "Debited when an advance is granted, credited as it is recovered.",
+        "EOSB_EXPENSE": "Debited when an end-of-service gratuity is accrued.",
+        "EOSB_PAYABLE": "Credited with the end-of-service amount owed until paid."
       }
     },
     "movements": {
@@ -580,7 +626,9 @@
       "openOrder": "Open order",
       "rejectReason": "Why is it being rejected?",
       "rejectError": "Could not reject this request.",
-      "createError": "Could not save this request."
+      "createError": "Could not save this request.",
+      "chooseWarehouse": "Choose a warehouse",
+      "warehouseRequired": "Choose the warehouse the goods are for."
     },
     "orders": {
       "title": "Purchase orders",
@@ -644,6 +692,16 @@
       "acceptVariance": "I accept the price difference ({{amount}}) against the order and want it booked as a purchase price variance.",
       "cannotPost": "Fix the highlighted lines before this invoice can be posted.",
       "post": "Post invoice",
+      "documentType": "Type",
+      "allTypes": "Invoices and debit notes",
+      "types": {
+        "INVOICE": "Invoice",
+        "DEBIT_NOTE": "Debit note"
+      },
+      "debitNote": "Debit note",
+      "debitNoteHint": "A debit note reduces what you owe the supplier. It does not touch the purchase order or goods received.",
+      "debitDate": "Debit note date",
+      "postDebitNote": "Post debit note",
       "errors": {
         "generic": "Could not post this invoice.",
         "badRequest": "Check that Settings > Account mapping has the payable, VAT and price-variance accounts set, and that the date is in an open period.",
@@ -654,7 +712,8 @@
         "ACCOUNT_NOT_POSTABLE": "An expense line uses a group account. Choose a postable account.",
         "NO_OPEN_PERIOD": "No open fiscal period covers the invoice date.",
         "ZERO_INVOICE": "An invoice with nothing to pay cannot be posted.",
-        "EMPTY_INVOICE": "Add at least one line."
+        "EMPTY_INVOICE": "Add at least one line.",
+        "DEBIT_EXCEEDS_INVOICE": "The debit notes against this invoice would be worth more than the invoice itself."
       }
     },
     "tax": {
@@ -875,6 +934,8 @@
     },
     "collapseSidebar": "Collapse menu",
     "expandSidebar": "Expand menu",
+    "collapseSection": "Collapse {{section}}",
+    "expandSection": "Expand {{section}}",
     "openMenu": "Open menu",
     "breadcrumb": "You are here",
     "density": "Row density",
@@ -1047,5 +1108,134 @@
     "logoHint": "Shown in the side bar and at the top of invoices. A PNG with a transparent background, about 400 px wide, looks best.",
     "nameEn": "Company name (English)",
     "nameAr": "Company name (Arabic)"
+  },
+  "created": {
+    "title": "Saved successfully",
+    "ok": "OK",
+    "number": "Number",
+    "date": "Date",
+    "total": "Total",
+    "status": "Status",
+    "lines": "Lines",
+    "warehouse": "Warehouse",
+    "party": "Party",
+    "reference": "Reference",
+    "code": "Code",
+    "name": "Name",
+    "type": "Type",
+    "parent": "Parent",
+    "postable": "Accepts postings",
+    "yes": "Yes",
+    "no": "No",
+    "email": "Email",
+    "roles": "Roles",
+    "phone": "Phone",
+    "currency": "Currency",
+    "debit": "Total debit",
+    "credit": "Total credit",
+    "rate": "Rate",
+    "treatment": "Treatment",
+    "topLevel": "Top level",
+    "notes": "Notes",
+    "amount": "Amount",
+    "method": "Method",
+    "supplier": "Supplier",
+    "customer": "Customer",
+    "unit": "Unit",
+    "reorder": "Reorder point",
+    "dueDate": "Due date",
+    "net": "Net",
+    "tax": "Tax",
+    "gross": "Gross",
+    "permissions": "Permissions",
+    "nameAr": "Arabic name"
+  },
+  "hr": {
+    "employees": {
+      "title": "Employees",
+      "subtitle": "The people on payroll.",
+      "add": "Add employee",
+      "name": "Name",
+      "nationality": "Nationality",
+      "saudi": "Saudi",
+      "expat": "Expatriate",
+      "basicSalary": "Basic salary",
+      "searchPlaceholder": "Search employees...",
+      "showInactive": "Show inactive",
+      "nationalId": "National ID / Iqama",
+      "hireDate": "Hire date",
+      "isSaudi": "Saudi national",
+      "bankIban": "Bank IBAN",
+      "bankName": "Bank name",
+      "housingAllowance": "Housing allowance",
+      "otherAllowances": "Other allowances",
+      "createError": "Could not add this employee.",
+      "details": "Details",
+      "deactivate": "Deactivate"
+    },
+    "payrollRuns": {
+      "title": "Payroll runs",
+      "subtitle": "One run per period -- posts straight to the ledger.",
+      "run": "Run payroll",
+      "number": "Number",
+      "period": "Period",
+      "year": "Year",
+      "month": "Month",
+      "totalNet": "Net pay",
+      "totalGross": "Gross",
+      "totalGosiEmployee": "GOSI (employee)",
+      "totalGosiEmployer": "GOSI (employer)",
+      "totalAdvanceDeduction": "Advances recovered",
+      "net": "Net",
+      "gross": "Gross",
+      "gosiEmployee": "GOSI (employee)",
+      "advanceDeduction": "Advance",
+      "downloadWps": "Download WPS file",
+      "months": {
+        "jan": "January",
+        "feb": "February",
+        "mar": "March",
+        "apr": "April",
+        "may": "May",
+        "jun": "June",
+        "jul": "July",
+        "aug": "August",
+        "sep": "September",
+        "oct": "October",
+        "nov": "November",
+        "dec": "December"
+      },
+      "errors": {
+        "alreadyRun": "Payroll for this period has already been run.",
+        "noEmployees": "No active employee is eligible for this run.",
+        "generic": "Could not run payroll."
+      },
+      "downloadPayslip": "Download payslip"
+    },
+    "advances": {
+      "title": "Salary advances",
+      "grant": "Grant advance",
+      "installment": "Installment per run",
+      "remaining": "Remaining"
+    },
+    "eosb": {
+      "settle": "Settle end of service",
+      "terminationDate": "Termination date",
+      "reason": "Reason",
+      "reasons": {
+        "RESIGNATION": "Resignation",
+        "TERMINATION": "Employer termination",
+        "OTHER": "Other (death, force majeure)"
+      },
+      "years": "Years of service",
+      "fraction": "Entitlement fraction"
+    },
+    "wps": {
+      "title": "WPS (Mudad) settings",
+      "hint": "Needed to download a payroll run's wages file.",
+      "bankSarieId": "Bank SARIE ID",
+      "bankAccountNumber": "Bank account number",
+      "molEstablishmentId": "MoHR establishment ID"
+    }
   }
 }

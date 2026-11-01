@@ -110,7 +110,7 @@ export function ItemFormDialog({
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="itemUnit">{t("inventory.items.unit")}</label>
-            <InputText id="itemUnit" dir="ltr" {...register("unit")} className={errors.unit ? "p-invalid" : ""} placeholder={t("inventory.items.unitPlaceholder")} />
+            <InputText id="itemUnit" {...register("unit")} className={errors.unit ? "p-invalid" : ""} placeholder={t("inventory.items.unitPlaceholder")} />
             {errors.unit ? <small className="erp-field__error">{t("validation.required")}</small> : null}
           </div>
           <div className="erp-field">
