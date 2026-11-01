@@ -155,6 +155,7 @@ export class EmployeeService {
                 { name: { contains: q, mode: "insensitive" } },
                 { nameAr: { contains: q, mode: "insensitive" } },
                 { nationalId: { contains: q } },
+                { ref: { contains: q, mode: "insensitive" } },
               ],
             }
           : {}),

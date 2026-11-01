@@ -31,11 +31,12 @@ describeIfDb("PartyService — real database", () => {
     expect(party).toMatchObject({ name: "Ammar", nameAr: null, kind: "EMPLOYEE", phone: null, email: null, isActive: true });
   });
 
-  it("searches by English name, Arabic name and filters by kind", async () => {
-    await service.create({ name: "Acme Supplies", nameAr: "أكمي للتوريد", kind: "COMPANY" }, actorA, newId());
+  it("searches by English name, Arabic name, ref and filters by kind", async () => {
+    const acme = await service.create({ name: "Acme Supplies", nameAr: "أكمي للتوريد", kind: "COMPANY" }, actorA, newId());
 
     expect((await service.list(companyA, { q: "acme" })).data.map((p) => p.name)).toEqual(["Acme Supplies"]);
     expect((await service.list(companyA, { q: "للتوريد" })).data.map((p) => p.name)).toEqual(["Acme Supplies"]);
+    expect((await service.list(companyA, { q: acme.ref })).data.map((p) => p.id)).toEqual([acme.id]);
     expect((await service.list(companyA, { kind: "EMPLOYEE" })).data.map((p) => p.name)).toEqual(["Ammar"]);
   });
 

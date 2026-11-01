@@ -93,6 +93,7 @@ export class PartyService {
                 { nameAr: { contains: q, mode: "insensitive" } },
                 { phone: { contains: q } },
                 { email: { contains: q, mode: "insensitive" } },
+                { ref: { contains: q, mode: "insensitive" } },
               ],
             }
           : {}),
