@@ -217,15 +217,55 @@ html[dir="rtl"] .erp-sidebar__link--active::before {
   border-radius: 3px 0 0 3px;
 }
 
+.erp-sidebar__item:not(:first-child) > .erp-sidebar__group {
+  margin-block-start: var(--mk-space-2);
+  padding-block-start: var(--mk-space-3);
+  border-block-start: 1px solid rgb(255 255 255 / 0.08);
+}
+
 .erp-sidebar__group {
-  display: block;
-  margin: var(--mk-space-4) var(--mk-space-3) var(--mk-space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mk-space-2);
+  width: 100%;
+  margin-block-end: var(--mk-space-1);
+  padding: 0.4rem var(--mk-space-3);
+  border: 0;
+  background: none;
   color: var(--mk-side-muted);
-  font-size: 0.7rem;
+  font: inherit;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   white-space: nowrap;
+  cursor: pointer;
+  border-radius: var(--mk-radius-sm);
+  transition: color var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease;
+}
+
+.erp-sidebar__group:hover {
+  color: var(--mk-side-text);
+  background: rgb(255 255 255 / 0.06);
+}
+
+.erp-sidebar__group-chevron {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  transition: transform var(--mk-dur-fast) var(--mk-ease), opacity var(--mk-dur-fast) ease;
+}
+
+.erp-sidebar__group:hover .erp-sidebar__group-chevron {
+  opacity: 1;
+}
+
+.erp-sidebar__group-chevron--folded {
+  transform: rotate(-90deg);
+}
+
+html[dir="rtl"] .erp-sidebar__group-chevron--folded {
+  transform: rotate(90deg);
 }
 
 .erp-sidebar__footer {

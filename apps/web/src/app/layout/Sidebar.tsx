@@ -21,6 +21,8 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
   const closeMobileSidebar = useLayoutStore((state) => state.closeMobileSidebar);
   const collapsedPref = useLayoutStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useLayoutStore((state) => state.toggleSidebar);
+  const collapsedGroups = useLayoutStore((state) => state.collapsedGroups);
+  const toggleGroup = useLayoutStore((state) => state.toggleGroup);
   const { data: currentUser } = useCurrentUser();
   const { canAny } = usePermissions();
   const { url: companyLogo } = useApiImageUrl("/v1/company/logo", "current");
@@ -38,23 +40,39 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
       ) : null}
 
       <ul className="erp-sidebar__nav">
-        {visibleItems.map((item, index) => (
-          <li key={item.to} className="erp-sidebar__item">
-            {item.groupKey && item.groupKey !== visibleItems[index - 1]?.groupKey ? (
-              <span className="erp-sidebar__group">{t(item.groupKey)}</span>
-            ) : null}
-            <NavLink
-              to={item.to}
-              end={item.to === "/"}
-              data-pr-tooltip={t(item.labelKey)}
-              className={({ isActive }) => `erp-sidebar__link${isActive ? " erp-sidebar__link--active" : ""}`}
-              onClick={variant === "mobile-drawer" ? closeMobileSidebar : undefined}
-            >
-              <i className={item.icon} aria-hidden="true" />
-              <span className="erp-sidebar__label">{t(item.labelKey)}</span>
-            </NavLink>
-          </li>
-        ))}
+        {visibleItems.map((item, index) => {
+          const groupKey = item.groupKey;
+          const groupStarts = groupKey !== undefined && groupKey !== visibleItems[index - 1]?.groupKey;
+          const groupFolded = groupKey !== undefined && Boolean(collapsedGroups[groupKey]);
+          return (
+            <li key={item.to} className="erp-sidebar__item">
+              {groupStarts ? (
+                <button
+                  type="button"
+                  className="erp-sidebar__group"
+                  onClick={() => toggleGroup(groupKey)}
+                  aria-expanded={!groupFolded}
+                  aria-label={t(groupFolded ? "shell.expandSection" : "shell.collapseSection", { section: t(groupKey) })}
+                >
+                  <span>{t(groupKey)}</span>
+                  <i className={`pi pi-chevron-down erp-sidebar__group-chevron${groupFolded ? " erp-sidebar__group-chevron--folded" : ""}`} aria-hidden="true" />
+                </button>
+              ) : null}
+              {groupFolded ? null : (
+                <NavLink
+                  to={item.to}
+                  end={item.to === "/"}
+                  data-pr-tooltip={t(item.labelKey)}
+                  className={({ isActive }) => `erp-sidebar__link${isActive ? " erp-sidebar__link--active" : ""}`}
+                  onClick={variant === "mobile-drawer" ? closeMobileSidebar : undefined}
+                >
+                  <i className={item.icon} aria-hidden="true" />
+                  <span className="erp-sidebar__label">{t(item.labelKey)}</span>
+                </NavLink>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       <div className="erp-sidebar__footer">
