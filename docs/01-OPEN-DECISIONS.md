@@ -98,9 +98,10 @@ per employee seat. **What's still open is the actual numbers and edge behavior:*
   support event and may not be worth the enforcement benefit).
 - What a sub-key revocation actually restricts (can't log in vs. a visible admin
   warning) when an employee leaves and a seat is freed or reassigned.
-- Whether license terms ever change post-purchase (e.g. an optional paid annual
-  support/update subscription layered on top of the one-time purchase) — linked to
-  B1 below, deliberately deferred with it.
+- Whether license terms ever change post-purchase — **decided with B1 (2026-10-21):**
+  yes, an optional paid annual maintenance/support subscription on top of the one-time
+  purchase. What that subscription actually gates (updates only? support SLA? both?)
+  and how the Activation Service enforces its lapse are still open.
 **Recommendation:** favor generous grace periods and soft warnings over hard lockouts
 — the commercial risk of over-enforcing against a paying customer's live accounting
 system outweighs the piracy risk this system realistically faces at this stage.
@@ -109,13 +110,17 @@ system outweighs the piracy risk this system realistically faces at this stage.
 
 ## B. Pending — decide before the relevant milestone
 
-### B1. Pricing and packaging model
-Subscription per company / per user / per module / usage-based. Determines the
-entitlements model in the billing module.
+### B1. Pricing and packaging model — **DECIDED (2026-10-21)**
+One-time purchase per customer deployment, with an **optional annual maintenance/support
+subscription** layered on top (linked to A5's "whether license terms ever change
+post-purchase" question — this is that change). No per-seat or usage-based billing within
+the one-time-purchase price; seat limits are a packaging question (B2) independent of the
+pricing model itself.
 
 ### B2. Plan tiers and feature gating
 Which modules and limits belong to which plan. Needed before the entitlement checks
-are written.
+are written. Still open — B1 fixes *how* the system is sold (one-time + optional annual
+maintenance), not *what's bundled* at each price point.
 
 ### B3. On-premise offering — **DECIDED**
 On-premise (customer's own hardware) is one of two standard hosting paths offered to
@@ -138,9 +143,12 @@ the simpler version.
 Per-tenant fiscal year start, number of periods, and whether 13-period or adjustment
 periods are needed.
 
-### B8. Backup, RPO, and RTO targets
-What recovery point and recovery time do we commit to customers? Drives the database
-plan and the backup design.
+### B8. Backup, RPO, and RTO targets — **RPO decided (2026-10-21)**
+**RPO: 1 hour maximum data loss.** Drives the backup design toward hourly (or continuous
+WAL-archiving) backups rather than a daily snapshot — a daily-only backup cannot meet this
+on its own. **RTO (how long a customer can stay down before service is restored) is still
+open** — needs its own number before M10's "backup restore actually performed" gate can be
+designed against a real target, not just performed once.
 
 ### B9. Support and upgrade policy
 Do all tenants sit on the same version? Is there a maintenance window? Can a tenant
@@ -175,7 +183,13 @@ challenged. Every one of them must be confirmed by Osama.
    would have. A deliberate rollout cadence per customer still needs designing (B9).
 3. Base currency is configurable per company; SAR is the default for Saudi customers.
 4. Fiscal year defaults to the Gregorian calendar year, configurable per company.
-5. Tier 1 has no payroll, no fixed assets, no POS, no manufacturing.
+5. Tier 1 has no payroll, no fixed assets, no POS, no manufacturing. **Confirmed by Osama,
+   2026-10-21:** this assumption stands — payroll (`packages/core/src/hr/`, GOSI, EOSB, the
+   WPS wages file, payslips) was built because Osama asked for it directly, but it is a
+   module **outside official Tier 1 scope**, not a redefinition of Tier 1. Treat it like any
+   other built-but-not-baseline feature: it ships, it is tested to the same bar as everything
+   else, but it is not implied by "Tier 1" in scope discussions and is not required for a
+   Tier-1-only customer.
 6. Users belong to exactly one company deployment. Cross-deployment users (e.g. an
    accounting firm managing several clients' separate installs) are **not**
    supported in Tier 1 — if they are needed, say so now, because it changes the
