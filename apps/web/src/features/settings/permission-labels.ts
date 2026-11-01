@@ -17,6 +17,7 @@ const RESOURCE_ORDER = [
   "stock",
   "account_mapping",
   "goods_receipt",
+  "goods_return",
   "stock_issue",
   "stock_count",
   "purchase_request",

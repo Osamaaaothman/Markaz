@@ -164,6 +164,57 @@ export class ReceivePurchaseOrderDto {
   lines!: ReceiveLineDto[];
 }
 
+// ── Purchase returns ──────────────────────────────────────────────────────────
+
+export class GoodsReturnLineDto {
+  @IsString()
+  purchaseOrderLineId!: string;
+
+  @IsDecimalString({ positive: true })
+  quantity!: string;
+}
+
+export class CreateGoodsReturnDto {
+  @IsString()
+  purchaseOrderId!: string;
+
+  @IsString()
+  warehouseId!: string;
+
+  @IsDateString()
+  documentDate!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  reference?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => GoodsReturnLineDto)
+  lines!: GoodsReturnLineDto[];
+}
+
+export class GoodsReturnsQueryDto {
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @IsString()
+  limit?: string;
+
+  @IsOptional()
+  @IsString()
+  purchaseOrderId?: string;
+}
+
 // ── Approval policy ───────────────────────────────────────────────────────────
 
 export class SetApprovalPolicyDto {

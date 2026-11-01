@@ -79,6 +79,8 @@ const PERMISSION_CATALOG = [
   { code: "account_mapping:update", description: "Change the inventory account mapping" },
   { code: "goods_receipt:create", description: "Post a goods receipt" },
   { code: "goods_receipt:read", description: "View goods receipts" },
+  { code: "goods_return:create", description: "Return goods to a supplier before the invoice is matched" },
+  { code: "goods_return:read", description: "View purchase returns" },
   { code: "stock_issue:create", description: "Post a stock issue" },
   { code: "stock_issue:read", description: "View stock issues" },
   { code: "stock_count:create", description: "Record a stock count" },

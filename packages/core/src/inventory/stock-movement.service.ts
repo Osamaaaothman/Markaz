@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@erp/db";
 
-export type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT";
+export type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT" | "RETURN";
 
 export interface StockMovementEntry {
   readonly id: string;
