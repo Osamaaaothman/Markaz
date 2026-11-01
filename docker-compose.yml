@@ -116,6 +116,13 @@ services:
         condition: service_healthy
     # docs/02-ARCHITECTURE-RULES.md §6: the worker is a separate process from the API,
     # even in Compose — same image, different entrypoint, own container.
+    healthcheck:
+      # The worker has no HTTP server; check the process is alive via /proc
+      test: ["CMD-SHELL", "test -f /proc/1/status && grep -q 'State:.*running\\|sleeping' /proc/1/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   web:
     build:
