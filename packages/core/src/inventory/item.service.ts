@@ -12,6 +12,9 @@ export interface ItemSummary {
   readonly unit: string;
   readonly reorderPoint: string;
   readonly isActive: boolean;
+  // The id of the item's current picture (an attachment), or null. It changes whenever the picture is replaced, so
+  // the screen can use it to know when to fetch the image again.
+  readonly pictureId: string | null;
 }
 
 export interface ItemListPage {
@@ -81,6 +84,20 @@ export class ItemService {
     private readonly audit: IAuditLogger,
   ) {}
 
+  // The newest picture (an ITEM attachment that was not removed) for each item, in one query.
+  private async pictureIds(companyId: string, itemIds: readonly string[]): Promise<Map<string, string>> {
+    const rows = itemIds.length
+      ? await this.prisma.attachment.findMany({
+          where: { companyId, ownerType: "ITEM", ownerId: { in: [...itemIds] }, deletedAt: null },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: { id: true, ownerId: true },
+        })
+      : [];
+    const newest = new Map<string, string>();
+    for (const row of rows) if (!newest.has(row.ownerId)) newest.set(row.ownerId, row.id);
+    return newest;
+  }
+
   async list(companyId: string, query: ItemListQuery): Promise<ItemListPage> {
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 100);
     const q = query.q?.trim();
@@ -107,8 +124,9 @@ export class ItemService {
 
     const hasMore = items.length > limit;
     const page = hasMore ? items.slice(0, limit) : items;
+    const pictures = await this.pictureIds(companyId, page.map((i) => i.id));
     return {
-      data: page.map((i) => ({ ...i, reorderPoint: i.reorderPoint.toFixed(4) })),
+      data: page.map((i) => ({ ...i, reorderPoint: i.reorderPoint.toFixed(4), pictureId: pictures.get(i.id) ?? null })),
       pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null },
     };
   }
@@ -140,7 +158,7 @@ export class ItemService {
       });
     });
 
-    const result = { ...item, reorderPoint: item.reorderPoint.toFixed(4) };
+    const result = { ...item, reorderPoint: item.reorderPoint.toFixed(4), pictureId: null };
     await this.audit.log({ actorId: actor.id, action: "item.created", entityType: "Item", entityId: id, after: result, correlationId });
     return result;
   }
@@ -163,13 +181,14 @@ export class ItemService {
       select: ITEM_SELECT,
     });
 
-    const result = { ...after, reorderPoint: after.reorderPoint.toFixed(4) };
+    const pictures = await this.pictureIds(actor.companyId, [id]);
+    const result = { ...after, reorderPoint: after.reorderPoint.toFixed(4), pictureId: pictures.get(id) ?? null };
     await this.audit.log({
       actorId: actor.id,
       action: "item.updated",
       entityType: "Item",
       entityId: id,
-      before: { ...before, reorderPoint: before.reorderPoint.toFixed(4) },
+      before: { ...before, reorderPoint: before.reorderPoint.toFixed(4), pictureId: result.pictureId },
       after: result,
       correlationId,
     });

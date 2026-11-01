@@ -39,7 +39,15 @@ the user:
 The same rule is a database CHECK (`attachments_public_only_items_check`), so it holds even if code is changed wrongly.
 A new record type is private until someone adds it to the table on purpose.
 
-> Item pictures have no screen yet (known gap below). The company logo is not an attachment yet either.
+**Item pictures and the company logo** use the same storage and rules:
+
+- An **item picture** is an `ITEM` attachment (the only public kind). Changing it needs `item:update`; anyone who may read
+  items sees it (`GET /v1/items/:id/picture`, no `attachment:read` needed). Item lists carry a `pictureId`. The newest
+  picture wins; replacing one marks the previous removed.
+- The **company logo** is a `COMPANY` attachment (private). Changing it needs `company:update`; any signed-in user of the
+  company can read it (`GET /v1/company/logo`). It shows in the side bar and is printed at the top of the sales invoice
+  PDF as an embedded data URI, so a PDF never fetches anything.
+- Both accept images only (PNG, JPEG, WebP), never PDF. Screens: item form (edit an existing item), Settings > Company.
 
 ## Where the files are stored
 
@@ -101,7 +109,8 @@ Errors carry a `code`: `UNSUPPORTED_FILE_TYPE` (415), `FILE_TOO_LARGE` (413), `E
 - No per-user rate limit on uploads yet.
 - A removed attachment's file stays in storage forever (retention). A purge policy is a decision for the accountant and
   the customer, not built.
-- Item pictures and the company logo have no screens (the rule and storage support them).
+- The logo appears on the sales invoice PDF only; the other PDFs (statements, reports) do not print it yet.
+- A picture cannot be added while creating an item: save the item, then open it again.
 - Uploading to a record that is created in the same screen (a new supplier invoice form) is not offered: save the
   invoice, then use the paperclip on its row.
 - Cloudinary secrets sit in `.env`. Rotate the API secret in the Cloudinary console if it was ever pasted into a chat,

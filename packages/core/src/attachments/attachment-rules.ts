@@ -1,7 +1,7 @@
 // What may be attached, to what, and how the bytes are checked. Pure and framework-free so the rules are
 // unit-testable and the SQL CHECK constraints in migration 20261009090000 can be compared with them.
 
-export const OWNER_TYPES = ["SALES_INVOICE", "SUPPLIER_INVOICE", "PAYMENT", "JOURNAL_ENTRY", "PURCHASE_ORDER", "PARTY", "ITEM"] as const;
+export const OWNER_TYPES = ["SALES_INVOICE", "SUPPLIER_INVOICE", "PAYMENT", "JOURNAL_ENTRY", "PURCHASE_ORDER", "PARTY", "ITEM", "COMPANY"] as const;
 export type AttachmentOwnerType = (typeof OWNER_TYPES)[number];
 
 export type AttachmentVisibility = "PRIVATE" | "PUBLIC";
@@ -10,6 +10,11 @@ interface OwnerRule {
   // The permission needed to see the record itself: nobody reads a scan of an invoice they cannot open.
   readonly readResource: string;
   readonly visibility: AttachmentVisibility;
+  // For records whose picture is part of the record (an item picture, the company logo), adding or removing a file
+  // needs the right to change the record, not just the right to attach documents.
+  readonly manage?: { readonly resource: string; readonly action: string };
+  // Pictures only: a PDF is not a valid item picture or logo.
+  readonly imageOnly?: boolean;
 }
 
 // Everything is PRIVATE except pictures of items. This table is the single place that decides visibility —
@@ -22,7 +27,9 @@ export const OWNER_RULES: Readonly<Record<AttachmentOwnerType, OwnerRule>> = {
   JOURNAL_ENTRY: { readResource: "journal_entry", visibility: "PRIVATE" },
   PURCHASE_ORDER: { readResource: "purchase_order", visibility: "PRIVATE" },
   PARTY: { readResource: "party", visibility: "PRIVATE" },
-  ITEM: { readResource: "item", visibility: "PUBLIC" },
+  ITEM: { readResource: "item", visibility: "PUBLIC", manage: { resource: "item", action: "update" }, imageOnly: true },
+  // The company logo is private: the API streams it to signed-in users of the company and prints it on documents.
+  COMPANY: { readResource: "company", visibility: "PRIVATE", manage: { resource: "company", action: "update" }, imageOnly: true },
 };
 
 export function isOwnerType(value: string): value is AttachmentOwnerType {

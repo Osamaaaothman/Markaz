@@ -10,7 +10,7 @@ import {
 import { AUDIT_LOGGER, PERMISSION_SERVICE } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { parseAttachmentConfig } from "./attachments.config.js";
-import { AttachmentsController } from "./attachments.controller.js";
+import { AttachmentsController, PicturesController } from "./attachments.controller.js";
 
 // The two storages exist side by side: new files go to the configured one, and files that were stored by the
 // other one stay readable, so switching provider later never strands anything.
@@ -23,7 +23,7 @@ function buildAttachmentService(prisma: PrismaService, audit: IAuditLogger, perm
 }
 
 @Module({
-  controllers: [AttachmentsController],
+  controllers: [AttachmentsController, PicturesController],
   providers: [
     {
       provide: AttachmentService,
@@ -31,5 +31,6 @@ function buildAttachmentService(prisma: PrismaService, audit: IAuditLogger, perm
       inject: [PrismaService, AUDIT_LOGGER, PERMISSION_SERVICE],
     },
   ],
+  exports: [AttachmentService],
 })
 export class AttachmentsModule {}

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
+import { ApiImage } from "../../shared/ui/ApiImage";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
@@ -67,6 +68,7 @@ export function ItemsPage(): React.JSX.Element {
       ) : (
         <>
           <DataGrid searchable={false} value={items} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+            <Column header="" style={{ width: "4rem" }} body={(row: ItemSummary) => <ApiImage path={row.pictureId ? `/v1/items/${row.id}/picture` : null} version={row.pictureId} className="mk-thumb" fallback={<span className="mk-thumb mk-thumb--empty"><i className="pi pi-image" aria-hidden="true" /></span>} />} />
             <Column field="code" header={t("inventory.items.code")} style={{ width: "8rem" }} body={(row: ItemSummary) => <span className="coa-code">{row.code}</span>} />
             <Column header={t("inventory.items.name")} body={(row: ItemSummary) => <span className="coa-name">{localizedName(row, i18n.language)}</span>} />
             <Column field="unit" header={t("inventory.items.unit")} style={{ width: "6rem" }} />

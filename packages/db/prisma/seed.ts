@@ -115,6 +115,8 @@ const PERMISSION_CATALOG = [
   { code: "attachment:read", description: "View and download attached documents" },
   { code: "attachment:create", description: "Attach a document to a record" },
   { code: "attachment:delete", description: "Remove an attached document" },
+  { code: "company:read", description: "View the company settings and logo" },
+  { code: "company:update", description: "Change the company logo" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);
@@ -209,10 +211,14 @@ async function main(): Promise<void> {
     throw new Error("SEED_ADMIN_PASSWORD looks like a placeholder or is too short (min 12 chars).");
   }
 
+  // The company names are optional install settings. When given they are written (on a re-run too); when not, an
+  // existing company keeps what it has and a new one is called "Default Company" with no Arabic name.
+  const companyName = process.env.SEED_COMPANY_NAME?.trim();
+  const companyNameAr = process.env.SEED_COMPANY_NAME_AR?.trim();
   const company = await prisma.company.upsert({
     where: { id: "default-company" },
-    create: { id: "default-company", name: "Default Company" },
-    update: {},
+    create: { id: "default-company", name: companyName || "Default Company", nameAr: companyNameAr || null },
+    update: { ...(companyName ? { name: companyName } : {}), ...(companyNameAr ? { nameAr: companyNameAr } : {}) },
   });
 
   await prisma.currency.upsert({

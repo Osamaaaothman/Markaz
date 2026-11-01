@@ -60,6 +60,12 @@ describe("visibility rule", () => {
     for (const type of OWNER_TYPES) expect(OWNER_RULES[type].readResource.length).toBeGreaterThan(0);
   });
 
+  it("treats pictures as image-only and tied to the right to change the record", () => {
+    expect(OWNER_RULES.ITEM).toMatchObject({ imageOnly: true, manage: { resource: "item", action: "update" } });
+    expect(OWNER_RULES.COMPANY).toMatchObject({ visibility: "PRIVATE", imageOnly: true, manage: { resource: "company", action: "update" } });
+    expect(OWNER_RULES.SALES_INVOICE.manage).toBeUndefined();
+  });
+
   it("knows which owner types exist", () => {
     expect(isOwnerType("SALES_INVOICE")).toBe(true);
     expect(isOwnerType("company")).toBe(false);

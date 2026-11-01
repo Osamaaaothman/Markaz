@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,8 @@ import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
+import { usePermissions } from "../../shared/auth/use-permissions";
+import { PictureField } from "../attachments/PictureField";
 import { useCreateItem, useUpdateItem, type ItemSummary } from "./use-items";
 
 const itemSchema = z.object({
@@ -31,9 +33,15 @@ export function ItemFormDialog({
   onHide: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const { can } = usePermissions();
+  // A new item that has just been saved: the dialog stays open and becomes the edit form, so a picture can be added
+  // straight away (a picture needs an item that exists to hang on).
+  const [created, setCreated] = useState<ItemSummary | null>(null);
+  const current = item ?? created;
   const createItem = useCreateItem();
-  const updateItem = useUpdateItem(item?.id ?? "");
-  const mutation = item ? updateItem : createItem;
+  const updateItem = useUpdateItem(current?.id ?? "");
+  const mutation = current ? updateItem : createItem;
+  const canAddPicture = can("item:update") && can("attachment:create");
 
   const {
     register,
@@ -45,6 +53,7 @@ export function ItemFormDialog({
 
   useEffect(() => {
     if (!visible) return;
+    setCreated(null);
     createItem.reset();
     updateItem.reset();
     reset(
@@ -55,7 +64,7 @@ export function ItemFormDialog({
   }, [visible, item?.id]);
 
   const onSubmit = handleSubmit((values) => {
-    if (item) {
+    if (current) {
       updateItem.mutate(
         { name: values.name, nameAr: values.nameAr.trim() || null, unit: values.unit, reorderPoint: values.reorderPoint, isActive: values.isActive },
         { onSuccess: onHide },
@@ -69,7 +78,7 @@ export function ItemFormDialog({
           unit: values.unit,
           reorderPoint: values.reorderPoint,
         },
-        { onSuccess: onHide },
+        { onSuccess: (saved) => (canAddPicture ? setCreated(saved) : onHide()) },
       );
     }
   });
@@ -77,9 +86,9 @@ export function ItemFormDialog({
   const isConflict = createItem.isError && (createItem.error as { response?: { status?: number } })?.response?.status === 409;
 
   return (
-    <Dialog header={item ? t("inventory.items.editTitle") : t("inventory.items.add")} visible={visible} onHide={onHide} className="erp-dialog" modal>
+    <Dialog header={current ? t("inventory.items.editTitle") : t("inventory.items.add")} visible={visible} onHide={onHide} className="erp-dialog" modal>
       <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
-        {!item ? (
+        {!current ? (
           <div className="erp-field">
             <label htmlFor="itemCode">{t("inventory.items.code")}</label>
             <InputText id="itemCode" dir="ltr" {...register("code")} className={errors.code ? "p-invalid" : ""} />
@@ -110,7 +119,23 @@ export function ItemFormDialog({
           </div>
         </div>
 
-        {item ? (
+        {created ? <p className="mk-picture__hint">{t("inventory.items.savedAddPicture")}</p> : null}
+
+        {current ? (
+          <PictureField
+            key={`${current.id}:${current.pictureId ?? "none"}`}
+            ownerType="ITEM"
+            ownerId={current.id}
+            imagePath={`/v1/items/${current.id}/picture`}
+            currentPictureId={current.pictureId}
+            canChange={can("item:update")}
+            label={t("inventory.items.picture")}
+          />
+        ) : canAddPicture ? (
+          <p className="mk-picture__hint">{t("inventory.items.pictureAfterSave")}</p>
+        ) : null}
+
+        {current ? (
           <div className="erp-field" style={{ flexDirection: "row", alignItems: "center", gap: "0.75rem" }}>
             <Controller
               control={control}
@@ -126,7 +151,7 @@ export function ItemFormDialog({
         {isConflict ? (
           <p className="erp-auth-card__error">{t("inventory.items.duplicateCode")}</p>
         ) : mutation.isError ? (
-          <p className="erp-auth-card__error">{item ? t("inventory.items.updateError") : t("inventory.items.createError")}</p>
+          <p className="erp-auth-card__error">{current ? t("inventory.items.updateError") : t("inventory.items.createError")}</p>
         ) : null}
 
         <div className="erp-form__actions">

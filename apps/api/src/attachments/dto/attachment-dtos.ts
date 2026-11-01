@@ -1,12 +1,16 @@
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
+import { IsIn, IsOptional, IsString, Matches, MaxLength } from "class-validator";
 import { OWNER_TYPES } from "@erp/core";
+
+// A record id: letters, digits, dash and underscore only. UUIDs for almost everything, but a company id is not
+// guaranteed to be one (the seeded company is "default-company"), so this is a safe-characters check, not IsUUID.
+const RECORD_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 // Multipart form fields that come with the file. The file itself is read by the upload interceptor, not here.
 export class UploadAttachmentDto {
   @IsIn([...OWNER_TYPES])
   ownerType!: string;
 
-  @IsUUID()
+  @Matches(RECORD_ID)
   ownerId!: string;
 }
 
@@ -18,7 +22,7 @@ export class AttachmentsQueryDto {
   ownerType?: string;
 
   @IsOptional()
-  @IsUUID()
+  @Matches(RECORD_ID)
   ownerId?: string;
 
   @IsOptional()

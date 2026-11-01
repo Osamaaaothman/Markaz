@@ -7,6 +7,8 @@ export interface CurrentUserProfile {
   readonly email: string;
   readonly companyId: string;
   readonly companyName: string;
+  // The company name in Arabic, or null when none is set.
+  readonly companyNameAr: string | null;
   readonly companyDefaultCurrency: string;
   readonly permissions: string[];
 }

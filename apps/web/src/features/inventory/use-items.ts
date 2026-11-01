@@ -11,6 +11,8 @@ export interface ItemSummary {
   readonly unit: string;
   readonly reorderPoint: string;
   readonly isActive: boolean;
+  // Id of the current picture (changes when it is replaced), or null.
+  readonly pictureId: string | null;
 }
 
 interface ItemListPage {

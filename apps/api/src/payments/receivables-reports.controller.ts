@@ -15,6 +15,7 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { agingToCsv, agingToPdfHtml, statementToCsv, statementToPdfHtml } from "./exports/receivables-exports.js";
+import { localizedCompanyName } from "../common/company-name.js";
 
 class AgingQueryDto {
   @IsIn(["SALES", "SUPPLIER"])
@@ -67,14 +68,14 @@ export class ReceivablesExportService {
   constructor(private readonly prisma: PrismaService) {}
 
   private company(companyId: string) {
-    return this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true, defaultCurrency: true } });
+    return this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true, nameAr: true, defaultCurrency: true } });
   }
 
   async aging(companyId: string, report: AgingReport, format: "csv" | "pdf", lang: SupportedDocumentLanguage): Promise<ExportedFile> {
     const base = report.side === "SALES" ? "receivables-ageing" : "payables-ageing";
     if (format === "csv") return { content: agingToCsv(report, lang), contentType: "text/csv; charset=utf-8", filename: `${base}.csv` };
     const company = await this.company(companyId);
-    const html = await agingToPdfHtml({ report, language: lang, companyName: company.name, currency: company.defaultCurrency });
+    const html = await agingToPdfHtml({ report, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
     return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: `${base}.pdf` };
   }
 
@@ -82,7 +83,7 @@ export class ReceivablesExportService {
     const base = `${statement.side === "SALES" ? "customer" : "supplier"}-statement`;
     if (format === "csv") return { content: statementToCsv(statement, lang), contentType: "text/csv; charset=utf-8", filename: `${base}.csv` };
     const company = await this.company(companyId);
-    const html = await statementToPdfHtml({ statement, language: lang, companyName: company.name, currency: company.defaultCurrency });
+    const html = await statementToPdfHtml({ statement, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
     return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: `${base}.pdf` };
   }
 }

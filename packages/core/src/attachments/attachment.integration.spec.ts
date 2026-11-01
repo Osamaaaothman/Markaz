@@ -100,7 +100,7 @@ describeIfDb("AttachmentService — real database and a real folder", () => {
   });
 
   it("refuses an unknown record type and a record from another company", async () => {
-    await expect(service.upload({ ownerType: "COMPANY", ownerId: partyA, fileName: "x.pdf", bytes: pdfBytes() }, actorA, newId())).rejects.toMatchObject({ code: "INVALID_OWNER_TYPE" });
+    await expect(service.upload({ ownerType: "WAREHOUSE", ownerId: partyA, fileName: "x.pdf", bytes: pdfBytes() }, actorA, newId())).rejects.toMatchObject({ code: "INVALID_OWNER_TYPE" });
     await expect(service.upload({ ownerType: "PARTY", ownerId: partyB, fileName: "x.pdf", bytes: pdfBytes() }, actorA, newId())).rejects.toMatchObject({ code: "OWNER_NOT_FOUND" });
     await expect(service.upload({ ownerType: "PARTY", ownerId: newId(), fileName: "x.pdf", bytes: pdfBytes() }, actorA, newId())).rejects.toMatchObject({ code: "OWNER_NOT_FOUND" });
   });
@@ -168,6 +168,54 @@ describeIfDb("AttachmentService — real database and a real folder", () => {
     const second = await service.listAll(actorA, { limit: "2", cursor: first.pageInfo.nextCursor ?? "" });
     expect(second.data.every((a) => !first.data.some((f) => f.id === a.id))).toBe(true);
     expect((await service.listAll(actorA, { q: "cement" })).data.map((a) => a.originalName)).toEqual(["cement.png"]);
+  });
+
+  const png = (): Uint8Array => Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6]);
+
+  it("keeps the company logo: image only, needs company:update, newest wins, and anyone in the company can read it", async () => {
+    const logoCompany = `logo-company-${newId()}`;
+    await prisma.company.create({ data: { id: logoCompany, name: "Logo company", defaultCurrency: "SAR" } });
+    const actor = { id: "att-actor", companyId: logoCompany };
+    expect(await service.getCompanyLogo(logoCompany)).toBeNull();
+
+    await expect(service.upload({ ownerType: "COMPANY", ownerId: logoCompany, fileName: "logo.pdf", bytes: pdfBytes() }, actor, newId())).rejects.toMatchObject({ code: "UNSUPPORTED_FILE_TYPE" });
+    permissions.denied.add("company:update");
+    try {
+      await expect(service.upload({ ownerType: "COMPANY", ownerId: logoCompany, fileName: "logo.png", bytes: png() }, actor, newId())).rejects.toMatchObject({ code: "FORBIDDEN_OWNER" });
+    } finally {
+      permissions.denied.clear();
+    }
+    await expect(service.upload({ ownerType: "COMPANY", ownerId: companyA, fileName: "logo.png", bytes: png() }, actor, newId())).rejects.toMatchObject({ code: "OWNER_NOT_FOUND" });
+
+    const first = await service.upload({ ownerType: "COMPANY", ownerId: logoCompany, fileName: "old.png", bytes: png() }, actor, newId());
+    expect(first).toMatchObject({ visibility: "PRIVATE", ownerLabel: "Logo company" });
+    const second = await service.upload({ ownerType: "COMPANY", ownerId: logoCompany, fileName: "new.png", bytes: Uint8Array.from([...png(), 9]) }, actor, newId());
+    expect((await service.getCompanyLogo(logoCompany))?.originalName).toBe("new.png");
+    expect(await service.getCompanyLogo(companyB)).toBeNull();
+
+    expect(await service.remove(actor, second.id, newId())).toBe(true);
+    expect((await service.getCompanyLogo(logoCompany))?.originalName).toBe("old.png");
+  });
+
+  it("gives each item its newest picture, needs item:update to change it, and refuses a PDF as a picture", async () => {
+    const items = new ItemService(prisma, audit);
+    await expect(service.upload({ ownerType: "ITEM", ownerId: itemA, fileName: "a.pdf", bytes: pdfBytes() }, actorA, newId())).rejects.toMatchObject({ code: "UNSUPPORTED_FILE_TYPE" });
+    permissions.denied.add("item:update");
+    try {
+      await expect(service.upload({ ownerType: "ITEM", ownerId: itemA, fileName: "a.png", bytes: png() }, actorA, newId())).rejects.toMatchObject({ code: "FORBIDDEN_OWNER" });
+    } finally {
+      permissions.denied.clear();
+    }
+    const first = await service.upload({ ownerType: "ITEM", ownerId: itemA, fileName: "first.png", bytes: png() }, actorA, newId());
+    const second = await service.upload({ ownerType: "ITEM", ownerId: itemA, fileName: "second.png", bytes: Uint8Array.from([...png(), 1]) }, actorA, newId());
+
+    const listed = (await items.list(companyA, {})).data.find((i) => i.id === itemA);
+    expect(listed?.pictureId).toBe(second.id);
+    expect((await service.getItemPicture(companyA, itemA))?.originalName).toBe("second.png");
+    expect(await service.getItemPicture(companyB, itemA)).toBeNull();
+
+    await service.remove(actorA, second.id, newId());
+    expect((await items.list(companyA, {})).data.find((i) => i.id === itemA)?.pictureId).toBe(first.id);
   });
 
   describe("database backstops (as the restricted runtime role)", () => {

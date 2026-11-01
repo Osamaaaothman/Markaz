@@ -42,7 +42,8 @@
     "aging": "Ageing",
     "partyStatement": "Customer / supplier statement",
     "stockMovements": "Stock movements",
-    "documents": "Documents"
+    "documents": "Documents",
+    "company": "Company"
   },
   "actions": {
     "save": "Save",
@@ -349,7 +350,8 @@
         "supplier_payment": "Supplier payments",
         "aging_report": "Ageing reports",
         "party_statement": "Customer and supplier statements",
-        "attachment": "Attached documents"
+        "attachment": "Attached documents",
+        "company": "Company settings"
       },
       "actions": {
         "create": "Create",
@@ -421,7 +423,10 @@
       "edit": "Edit",
       "createError": "Could not add this item.",
       "updateError": "Could not save this item.",
-      "duplicateCode": "An item with this code already exists."
+      "duplicateCode": "An item with this code already exists.",
+      "picture": "Item picture",
+      "pictureAfterSave": "Save the item first; you can add a picture right after.",
+      "savedAddPicture": "The item is saved. You can add a picture now, then press Save to close."
     },
     "stockLevels": {
       "title": "Stock levels",
@@ -1014,7 +1019,8 @@
       "JOURNAL_ENTRY": "Journal entry",
       "PURCHASE_ORDER": "Purchase order",
       "PARTY": "Party",
-      "ITEM": "Item"
+      "ITEM": "Item",
+      "COMPANY": "Company logo"
     },
     "errors": {
       "type": "Only PDF, PNG, JPEG and WebP files are accepted.",
@@ -1022,7 +1028,24 @@
       "empty": "The file is empty.",
       "owner": "The record no longer exists.",
       "forbidden": "You do not have access to this record.",
-      "generic": "Could not complete this. Try again."
-    }
+      "generic": "Could not complete this. Try again.",
+      "imageType": "A picture must be a PNG, JPEG or WebP image."
+    },
+    "pictureSet": "A picture is set.",
+    "pictureNone": "No picture yet.",
+    "uploadPicture": "Upload picture",
+    "replacePicture": "Replace",
+    "removePicture": "Remove"
+  },
+  "company": {
+    "title": "Company",
+    "subtitle": "How your company appears in the app and on documents.",
+    "details": "Details",
+    "name": "Company name",
+    "currency": "Default currency",
+    "logo": "Company logo",
+    "logoHint": "Shown in the side bar and at the top of invoices. A PNG with a transparent background, about 400 px wide, looks best.",
+    "nameEn": "Company name (English)",
+    "nameAr": "Company name (Arabic)"
   }
 }

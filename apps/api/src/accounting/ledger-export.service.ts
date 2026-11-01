@@ -5,6 +5,7 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import type { SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import type { ExportedFile } from "./accounting-export.service.js";
 import { generalLedgerToCsv, generalLedgerToPdfHtml } from "./exports/general-ledger-export.js";
+import { localizedCompanyName } from "../common/company-name.js";
 
 @Injectable()
 export class LedgerExportService {
@@ -25,7 +26,7 @@ export class LedgerExportService {
       this.ledger.statement(companyId, accountId, from, to),
       this.prisma.company.findUniqueOrThrow({
         where: { id: companyId },
-        select: { name: true, defaultCurrency: true },
+        select: { name: true, nameAr: true, defaultCurrency: true },
       }),
     ]);
     const statement = await this.localizeName(companyId, lang, computed);
@@ -36,7 +37,7 @@ export class LedgerExportService {
     const html = await generalLedgerToPdfHtml({
       statement,
       language: lang,
-      companyName: company.name,
+      companyName: localizedCompanyName(company, lang),
       currency: company.defaultCurrency,
     });
     return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: `${base}.pdf` };
