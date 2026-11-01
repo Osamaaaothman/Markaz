@@ -56,7 +56,7 @@ describeIfDb("Purchase returns (M5) — real database", () => {
   // A fresh item, an order for it, and part or all of the order received into the main warehouse.
   async function receivedOrder(quantity: string, unitPrice: string, receive: string, itemId?: string) {
     const item = itemId ?? (await items.create({ code: `RET${++itemCounter}`, name: `Returnable ${itemCounter}`, unit: "EA" }, actor, cid())).id;
-    const order = await orders.create({ supplierId, orderDate: today, lines: [{ itemId: item, quantity, unitPrice }] }, actor, cid());
+    const order = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: item, quantity, unitPrice }] }, actor, cid());
     const lineId = (await orders.get(companyId, order.id)).lines[0]!.id;
     await receiving.receive(order.id, { warehouseId, documentDate: today, lines: [{ purchaseOrderLineId: lineId, quantity: receive }] }, actor, cid(), newId());
     return { itemId: item, orderId: order.id, lineId };
@@ -211,7 +211,7 @@ describeIfDb("Purchase returns (M5) — real database", () => {
     await expect(returns.create(returnInput(orderId, other.lineId, "1"), actor, cid(), newId())).rejects.toMatchObject({ code: "LINE_NOT_ON_ORDER" });
     await expect(returns.create(returnInput(orderId, lineId, "1"), { id: "x", companyId: newId() }, cid(), newId())).rejects.toMatchObject({ code: "ORDER_NOT_FOUND" });
 
-    const idle = await orders.create({ supplierId, orderDate: today, lines: [{ itemId: other.itemId, quantity: "1", unitPrice: "10" }] }, actor, cid());
+    const idle = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: other.itemId, quantity: "1", unitPrice: "10" }] }, actor, cid());
     const idleLine = (await orders.get(companyId, idle.id)).lines[0]!.id;
     await expect(returns.create(returnInput(idle.id, idleLine, "1"), actor, cid(), newId())).rejects.toBeInstanceOf(GoodsReturnError);
     await expect(returns.create(returnInput(idle.id, idleLine, "1"), actor, cid(), newId())).rejects.toMatchObject({ code: "ORDER_NOT_RETURNABLE" });

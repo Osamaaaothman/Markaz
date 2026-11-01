@@ -247,7 +247,7 @@ function ReturnDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; 
   const { t, i18n } = useTranslation();
   const { data: warehouses } = useAllWarehouses();
   const returnGoods = useReturnGoods();
-  const [warehouseId, setWarehouseId] = useState("");
+  const [warehouseId, setWarehouseId] = useState(order.warehouseId ?? "");
   const [date, setDate] = useState<Date>(new Date());
   const [reference, setReference] = useState("");
   const [reason, setReason] = useState("");
