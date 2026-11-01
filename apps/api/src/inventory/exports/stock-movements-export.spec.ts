@@ -10,6 +10,7 @@ const entry: StockMovementEntry = {
   itemNameAr: null,
   warehouseId: "w1",
   warehouseName: "Main",
+  warehouseNameAr: null,
   movementType: "ISSUE",
   quantity: "-4.0000",
   unitCost: "5.0000",

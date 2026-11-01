@@ -15,11 +15,18 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useAllWarehouses } from "../inventory/use-warehouses";
+import { useReturnGoods } from "./use-goods-returns";
 import { OrderStatusTag } from "./StatusTags";
 import { useOrderAction, usePurchaseOrder, useReceiveOrder, type PurchaseOrderDetail, type PurchaseOrderLine } from "./use-purchasing";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const QTY = /^\d{1,15}(\.\d{1,4})?$/;
+
+// Received and not yet invoiced: the only quantity that can go back to the supplier without a debit note.
+function returnable(line: PurchaseOrderLine): string {
+  const left = Number(line.receivedQuantity) - Number(line.invoicedQuantity);
+  return left > 0 ? String(Number(left.toFixed(4))) : "0";
+}
 
 // Quantity still to receive on a line, as a plain decimal string ("6", "2.5").
 function outstanding(line: PurchaseOrderLine): string {
@@ -37,6 +44,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
   const reject = useOrderAction(id, "reject");
   const cancel = useOrderAction(id, "cancel");
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
 
   if (isPending) return <PageSkeleton />;
   if (isError || !order) {
@@ -51,6 +59,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
   }
 
   const canReceive = order.status === "APPROVED" || order.status === "PARTIALLY_RECEIVED";
+  const hasReceivedGoods = order.status === "PARTIALLY_RECEIVED" || order.status === "RECEIVED";
   const actionError = approve.isError || reject.isError || cancel.isError;
 
   return (
@@ -74,6 +83,9 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
           ) : null}
           {canReceive ? (
             <PermissionButton allowed={can("goods_receipt:create")} label={t("purchasing.orders.receive")} icon="pi pi-download" onClick={() => setReceiveOpen(true)} />
+          ) : null}
+          {hasReceivedGoods ? (
+            <PermissionButton allowed={can("goods_return:create")} label={t("purchasing.orders.returnGoods")} icon="pi pi-replay" severity="secondary" outlined onClick={() => setReturnOpen(true)} />
           ) : null}
           {order.status === "PENDING_APPROVAL" || order.status === "APPROVED" ? (
             <PermissionButton allowed={can("purchase_order:cancel")} label={t("purchasing.orders.cancel")} icon="pi pi-ban" severity="secondary" outlined loading={cancel.isPending} onClick={() => cancel.mutate(undefined)} />
@@ -103,7 +115,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
       <h3 className="erp-form__section-title">{t("purchasing.lines")}</h3>
       <DataTable value={[...order.lines]} className="erp-table" stripedRows showGridlines size="small">
         <Column header={t("inventory.items.code")} style={{ width: "8rem" }} body={(l: PurchaseOrderLine) => <span className="coa-code">{l.itemCode}</span>} />
-        <Column header={t("inventory.items.name")} body={(l: PurchaseOrderLine) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
+        <Column header={t("inventory.items.displayName")} body={(l: PurchaseOrderLine) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
         <Column header={t("purchasing.quantity")} align="right" body={(l: PurchaseOrderLine) => `${l.quantity} ${l.unit}`} />
         <Column header={t("purchasing.received")} align="right" body={(l: PurchaseOrderLine) => l.receivedQuantity} />
         <Column header={t("purchasing.unitPrice")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.unitPrice, order.currency)} />
@@ -115,7 +127,27 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
       </div>
 
       <ReceiveDialog order={order} visible={receiveOpen} onHide={() => setReceiveOpen(false)} />
+      <ReturnDialog order={order} visible={returnOpen} onHide={() => setReturnOpen(false)} />
     </div>
+  );
+}
+
+// A quantity cell inside a PrimeReact table. The table does not re-render its cells when the parent's
+// state changes, so a value the parent passes down stays stale and the field shows nothing while the user
+// types. This input keeps what is shown in its own state and only reports the value upward; the dialog
+// is unmounted when closed, so it starts from `initial` each time it opens.
+function QuantityInput({ initial, disabled, onValue }: { initial: string; disabled: boolean; onValue: (value: string) => void }): React.JSX.Element {
+  const [text, setText] = useState(initial);
+  return (
+    <InputText
+      dir="ltr"
+      value={text}
+      disabled={disabled}
+      onChange={(e) => {
+        setText(e.target.value);
+        onValue(e.target.value);
+      }}
+    />
   );
 }
 
@@ -173,17 +205,16 @@ function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail;
         </div>
 
         <DataTable value={[...order.lines]} className="erp-table" size="small" showGridlines>
-          <Column header={t("inventory.items.name")} body={(l: PurchaseOrderLine) => `${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)}`} />
+          <Column header={t("inventory.items.displayName")} body={(l: PurchaseOrderLine) => `${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)}`} />
           <Column header={t("purchasing.outstanding")} align="right" style={{ width: "8rem" }} body={(l: PurchaseOrderLine) => outstanding(l)} />
           <Column
             header={t("purchasing.receiveNow")}
             style={{ width: "10rem" }}
             body={(l: PurchaseOrderLine) => (
-              <InputText
-                dir="ltr"
-                value={quantities[l.id] ?? ""}
+              <QuantityInput
+                initial={outstanding(l)}
                 disabled={outstanding(l) === "0"}
-                onChange={(e) => setQuantities((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                onValue={(value) => setQuantities((prev) => ({ ...prev, [l.id]: value }))}
               />
             )}
           />
@@ -202,6 +233,114 @@ function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail;
             onClick={() =>
               receive.mutate(
                 { warehouseId, documentDate: toDateOnlyIsoString(date), ...(reference.trim() ? { reference: reference.trim() } : {}), lines: chosen },
+                { onSuccess: onHide },
+              )
+            }
+          />
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+function ReturnDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; visible: boolean; onHide: () => void }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { data: warehouses } = useAllWarehouses();
+  const returnGoods = useReturnGoods();
+  const [warehouseId, setWarehouseId] = useState(order.warehouseId ?? "");
+  const [date, setDate] = useState<Date>(new Date());
+  const [reference, setReference] = useState("");
+  const [reason, setReason] = useState("");
+  const [quantities, setQuantities] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!visible) return;
+    returnGoods.reset();
+    setDate(new Date());
+    setReference("");
+    setReason("");
+    // Nothing is pre-filled: sending goods back should always be a deliberate act.
+    setQuantities({});
+  }, [visible, order.id, order.status]);
+
+  const anyReturnable = order.lines.some((l) => returnable(l) !== "0");
+  const chosen = order.lines.flatMap((l) => {
+    const quantity = quantities[l.id] ?? "";
+    return QTY.test(quantity) && /[1-9]/.test(quantity) ? [{ purchaseOrderLineId: l.id, quantity }] : [];
+  });
+  const hasBadInput = order.lines.some((l) => {
+    const q = quantities[l.id] ?? "";
+    return q !== "" && q !== "0" && !QTY.test(q);
+  });
+  const overLimit = order.lines.some((l) => Number(quantities[l.id] ?? "0") > Number(returnable(l)));
+  const status = (returnGoods.error as { response?: { status?: number } } | null)?.response?.status;
+
+  return (
+    <Dialog header={t("purchasing.orders.returnTitle")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(46rem, 96vw)" }}>
+      <div className="erp-form">
+        <p className="erp-field__hint">{t("purchasing.orders.returnHint")}</p>
+        {anyReturnable ? null : <p className="erp-auth-card__error">{t("purchasing.orders.noReturnable")}</p>}
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="retWarehouse">{t("inventory.warehouses.title")}</label>
+            <Dropdown
+              inputId="retWarehouse"
+              value={warehouseId || null}
+              onChange={(e) => setWarehouseId((e.value as string | null) ?? "")}
+              options={(warehouses ?? []).map((w) => ({ label: localizedName(w, i18n.language), value: w.id }))}
+              filter
+            />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="retDate">{t("purchasing.returns.documentDate")}</label>
+            <Calendar inputId="retDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="retRef">{t("purchasing.returns.reference")}</label>
+            <InputText id="retRef" value={reference} onChange={(e) => setReference(e.target.value)} />
+          </div>
+        </div>
+        <div className="erp-field">
+          <label htmlFor="retReason">{t("purchasing.returns.reason")}</label>
+          <InputText id="retReason" value={reason} onChange={(e) => setReason(e.target.value)} />
+        </div>
+
+        <DataTable value={[...order.lines]} className="erp-table" size="small" showGridlines>
+          <Column header={t("inventory.items.displayName")} body={(l: PurchaseOrderLine) => `${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)}`} />
+          <Column header={t("purchasing.returnable")} align="right" style={{ width: "8rem" }} body={(l: PurchaseOrderLine) => returnable(l)} />
+          <Column
+            header={t("purchasing.returnNow")}
+            style={{ width: "10rem" }}
+            body={(l: PurchaseOrderLine) => (
+              <QuantityInput
+                initial=""
+                disabled={returnable(l) === "0"}
+                onValue={(value) => setQuantities((prev) => ({ ...prev, [l.id]: value }))}
+              />
+            )}
+          />
+        </DataTable>
+
+        {returnGoods.isError ? (
+          <p className="erp-auth-card__error">{status === 409 ? t("purchasing.orders.returnConflict") : t("purchasing.orders.returnError")}</p>
+        ) : null}
+        <div className="erp-form__actions">
+          <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
+          <Button
+            type="button"
+            label={t("purchasing.orders.postReturn")}
+            disabled={!warehouseId || chosen.length === 0 || hasBadInput || overLimit}
+            loading={returnGoods.isPending}
+            onClick={() =>
+              returnGoods.mutate(
+                {
+                  purchaseOrderId: order.id,
+                  warehouseId,
+                  documentDate: toDateOnlyIsoString(date),
+                  ...(reference.trim() ? { reference: reference.trim() } : {}),
+                  ...(reason.trim() ? { reason: reason.trim() } : {}),
+                  lines: chosen,
+                },
                 { onSuccess: onHide },
               )
             }

@@ -7,7 +7,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { exportReport, type ExportFormat } from "./export-report";
-import { useAccountLabel } from "./use-account-label";
+import { useAccountLabel, useAccountLabelKey } from "./use-account-label";
 import { useBalanceSheet, type BalanceSheetLine } from "./use-balance-sheet";
 
 export function BalanceSheetPage(): React.JSX.Element {
@@ -119,8 +119,10 @@ function BalanceSheetTable({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const accountLabel = useAccountLabel();
+  const labelKey = useAccountLabelKey();
   return (
     <DataTable
+      key={labelKey}
       value={[...lines]}
       className="erp-table"
       stripedRows

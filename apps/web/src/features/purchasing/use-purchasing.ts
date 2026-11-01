@@ -121,6 +121,8 @@ export interface PurchaseOrderLine {
   readonly quantity: string;
   readonly unitPrice: string;
   readonly receivedQuantity: string;
+  // Received minus this is what can still be returned without a debit note.
+  readonly invoicedQuantity: string;
   readonly lineTotal: string;
 }
 

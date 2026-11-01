@@ -1,6 +1,9 @@
 import { PrismaClient } from "@erp/db";
 import { ACCOUNT_COLORS, newId } from "@erp/shared";
 import { PrismaAuditLogger } from "../audit/audit-logger.js";
+import { PrismaAccountingEngine } from "./accounting-engine.service.js";
+import { PrismaNumberingService } from "./numbering.service.js";
+import { AccountMappingService } from "../inventory/account-mapping.service.js";
 import { PartyService } from "../parties/party.service.js";
 import { ChartOfAccountsError, ChartOfAccountsService, type ChartOfAccountsErrorCode } from "./chart-of-accounts.service.js";
 
@@ -135,6 +138,64 @@ describeIfDb("ChartOfAccountsService — real database", () => {
 
     const cleared = await chart.update(leafId, { partyId: null, nameAr: "" }, actorA, cid());
     expect(cleared).toMatchObject({ partyId: null, party: null, nameAr: null, name: "Cash on hand" });
+  });
+
+  it("turns an unused account into a folder that then holds sub-accounts, and audits it", async () => {
+    const banks = (await chart.create({ code: "2", name: "Banks", type: "ASSET", isPostable: false }, actorA, cid())).id;
+    const riyad = await chart.create({ code: "2001", name: "Riyad Bank", type: "ASSET", isPostable: true, parentId: banks }, actorA, cid());
+    // A postable account cannot hold sub-accounts, so this is exactly the mistake a user can make at creation.
+    expect(await failsWith(chart.create({ code: "200101", name: "Account 1", type: "ASSET", isPostable: true, parentId: riyad.id }, actorA, cid()))).toBe("PARENT_NOT_GROUP");
+
+    const folder = await chart.makeGroup(riyad.id, actorA, cid());
+    expect(folder.isPostable).toBe(false);
+    const first = await chart.create({ code: "200101", name: "Account 1", type: "ASSET", isPostable: true, parentId: riyad.id }, actorA, cid());
+    await chart.create({ code: "200102", name: "Account 2", type: "ASSET", isPostable: true, parentId: riyad.id }, actorA, cid());
+    expect(first.parentId).toBe(riyad.id);
+
+    // Doing it again changes nothing, and the change is in the audit trail.
+    expect((await chart.makeGroup(riyad.id, actorA, cid())).isPostable).toBe(false);
+    const audited = await prisma.auditLog.count({ where: { entityId: riyad.id, action: "account.made_group" } });
+    expect(audited).toBe(1);
+  });
+
+  it("refuses to turn a used account into a folder: a ledger line, an account mapping or a linked party", async () => {
+    const year = new Date().getUTCFullYear();
+    const fiscalYear = await prisma.fiscalYear.create({
+      data: { id: newId(), companyId: companyA, name: `FY${year}-${companyA.slice(0, 6)}`, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) },
+    });
+    const period = await prisma.fiscalPeriod.create({
+      data: { id: newId(), companyId: companyA, fiscalYearId: fiscalYear.id, periodNumber: 1, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) },
+    });
+    const parent = (await chart.create({ code: "3", name: "Group", type: "ASSET", isPostable: false }, actorA, cid())).id;
+    const mk = async (code: string) => (await chart.create({ code, name: code, type: "ASSET", isPostable: true, parentId: parent }, actorA, cid())).id;
+    const posted = await mk("3001");
+    const other = await mk("3002");
+    const mapped = await mk("3003");
+    const withParty = await mk("3004");
+
+    const engine = new PrismaAccountingEngine(prisma, new PrismaNumberingService());
+    await engine.postEntry({
+      companyId: companyA,
+      fiscalPeriodId: period.id,
+      entryDate: new Date(),
+      postingDate: new Date(),
+      currency: "SAR",
+      lines: [{ accountId: posted, debit: "10.0000" }, { accountId: other, credit: "10.0000" }],
+      sourceModule: "test",
+      sourceDocumentType: "test",
+      sourceDocumentId: newId(),
+      actorId: actorA.id,
+      correlationId: cid(),
+      idempotencyKey: newId(),
+    });
+    await new AccountMappingService(prisma, audit).set("INVENTORY", mapped, actorA, cid());
+    await chart.update(withParty, { partyId: partyA }, actorA, cid());
+
+    for (const id of [posted, other, mapped, withParty]) {
+      expect(await failsWith(chart.makeGroup(id, actorA, cid()))).toBe("ACCOUNT_IN_USE");
+      expect((await prisma.account.findUniqueOrThrow({ where: { id } })).isPostable).toBe(true);
+    }
+    expect(await failsWith(chart.makeGroup(posted, actorB, cid()))).toBe("ACCOUNT_NOT_FOUND");
   });
 
   it("leaves an account untouched by another company", async () => {

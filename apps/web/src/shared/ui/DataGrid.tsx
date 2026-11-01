@@ -1,4 +1,4 @@
-import { Children, isValidElement, useMemo, useRef, useState } from "react";
+import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
@@ -74,6 +74,21 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(pageSize);
   const panel = useRef<OverlayPanel>(null);
+  const root = useRef<HTMLDivElement>(null);
+  // A table wider than its card used to be clipped, hiding its last column (usually the amounts). When the table
+  // does not fit, this grid alone gets a sideways scroll; tables that fit keep the header that sticks to the page.
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const table = root.current?.querySelector<HTMLElement>(".p-datatable-table");
+    const wrapper = root.current?.querySelector<HTMLElement>(".p-datatable-wrapper");
+    if (!table || !wrapper || typeof ResizeObserver === "undefined") return;
+    const measure = (): void => setOverflowing(table.scrollWidth > (root.current?.clientWidth ?? 0) + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(table);
+    if (root.current) observer.observe(root.current);
+    return () => observer.disconnect();
+  });
 
   const columns = useMemo(() => Children.toArray(children), [children]);
   const headers = useMemo(() => columns.map(headerOf).filter((h): h is string => h !== null), [columns]);
@@ -98,7 +113,7 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
   };
 
   return (
-    <div className="mk-grid">
+    <div className={`mk-grid${overflowing ? " mk-grid--scroll" : ""}`} ref={root}>
       {searchable || toolbar || toggleable ? (
         <div className="mk-grid__toolbar">
           {searchable ? (

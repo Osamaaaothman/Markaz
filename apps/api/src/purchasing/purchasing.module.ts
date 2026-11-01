@@ -4,6 +4,7 @@ import {
   ApprovalPolicyService,
   ApprovalService,
   GoodsReceiptService,
+  GoodsReturnService,
   PrismaAccountingEngine,
   PrismaNumberingService,
   PurchaseOrderService,
@@ -55,6 +56,12 @@ import { PurchasingController } from "./purchasing.controller.js";
         const mappings = new AccountMappingService(prisma, audit);
         return new PurchaseReceiptService(prisma, new GoodsReceiptService(prisma, engine, mappings, audit), audit);
       },
+      inject: [PrismaService, PURCHASING_ENGINE, AUDIT_LOGGER],
+    },
+    {
+      provide: GoodsReturnService,
+      useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger) =>
+        new GoodsReturnService(prisma, engine, new AccountMappingService(prisma, audit), audit),
       inject: [PrismaService, PURCHASING_ENGINE, AUDIT_LOGGER],
     },
     {

@@ -46,7 +46,8 @@
     "documents": "Documents",
     "company": "Company",
     "employees": "Employees",
-    "payrollRuns": "Payroll runs"
+    "payrollRuns": "Payroll runs",
+    "goodsReturns": "Purchase returns"
   },
   "actions": {
     "save": "Save",
@@ -208,6 +209,24 @@
         },
         "movedTitle": "Account moved",
         "movedTo": "Moved under"
+      },
+      "details": "Account figures",
+      "detailsTitle": "Account totals",
+      "openStatement": "Open account statement",
+      "kind": "What are you adding?",
+      "kindAccount": "Account",
+      "kindGroup": "Folder",
+      "kindAccountHint": "An account receives entries (a bank account, a cash box, an expense). It cannot hold other accounts.",
+      "kindGroupHint": "A folder holds other accounts and shows their total (for example a bank, with its own accounts inside). You cannot post entries to it.",
+      "makeGroup": "Turn into a folder",
+      "makeGroupHint": "So this account can hold sub-accounts. Only possible while nothing has been posted to it or linked to it.",
+      "makeGroupConfirm": "This account will become a folder and can no longer receive entries. This cannot be undone. Continue?",
+      "makeGroupYes": "Yes, turn into a folder",
+      "makeGroupInUse": "This account is already used (entries, a linked person, or a setting point to it), so it cannot become a folder. Create a new folder and put the accounts under it.",
+      "makeGroupError": "Could not turn this account into a folder.",
+      "dnd": {
+        "hint": "Drag «{{name}}» onto a folder of the same type. Move to the top or bottom edge of the window to scroll.",
+        "over": "Release to move «{{name}}» into «{{target}}»"
       }
     },
     "trialBalance": {
@@ -226,7 +245,8 @@
       "closing": "Closing balance",
       "from": "From",
       "to": "To",
-      "periodSubtitle": "Opening balance, movement and closing balance of every posted account for the period."
+      "periodSubtitle": "Opening balance, movement and closing balance of every posted account for the period.",
+      "amountsIn": "All amounts are in {{currency}}"
     },
     "balanceSheet": {
       "title": "Balance sheet",
@@ -283,7 +303,23 @@
       "exchangeRate": "Exchange rate",
       "reversalOf": "Reverses entry {{number}}",
       "loadError": "Couldn't load this entry.",
-      "exportCsv": "Export lines (CSV)"
+      "exportCsv": "Export lines (CSV)",
+      "sourceTypes": {
+        "manual": "Manual entry",
+        "goods_receipt": "Goods receipt",
+        "goods_return": "Purchase return",
+        "stock_issue": "Stock issue",
+        "stock_count": "Stock count",
+        "supplier_invoice": "Supplier invoice",
+        "supplier_debit_note": "Supplier debit note",
+        "sales_invoice": "Sales invoice",
+        "sales_credit_note": "Sales credit note",
+        "customer_receipt": "Customer receipt",
+        "supplier_payment": "Supplier payment",
+        "payroll_run": "Payroll run",
+        "salary_advance": "Salary advance",
+        "end_of_service_settlement": "End-of-service settlement"
+      }
     },
     "accountStatement": {
       "title": "Account statement",
@@ -362,6 +398,7 @@
         "stock": "Stock levels",
         "account_mapping": "Inventory account mapping",
         "goods_receipt": "Goods receipts",
+        "goods_return": "Purchase returns",
         "stock_issue": "Stock issues",
         "stock_count": "Stock counts",
         "purchase_request": "Purchase requests",
@@ -455,7 +492,8 @@
       "duplicateCode": "An item with this code already exists.",
       "picture": "Item picture",
       "pictureAfterSave": "Save the item first; you can add a picture right after.",
-      "savedAddPicture": "The item is saved. You can add a picture now, then press Save to close."
+      "savedAddPicture": "The item is saved. You can add a picture now, then press Save to close.",
+      "displayName": "Name"
     },
     "stockLevels": {
       "title": "Stock levels",
@@ -576,13 +614,15 @@
       "types": {
         "RECEIPT": "Receipt",
         "ISSUE": "Issue",
-        "COUNT_ADJUSTMENT": "Count adjustment"
+        "COUNT_ADJUSTMENT": "Count adjustment",
+        "RETURN": "Return to supplier"
       },
       "sources": {
         "goods_receipt": "Goods receipt",
         "stock_issue": "Stock issue",
         "stock_count": "Stock count",
-        "sales_invoice": "Sales invoice"
+        "sales_invoice": "Sales invoice",
+        "goods_return": "Purchase return"
       }
     }
   },
@@ -651,7 +691,14 @@
       "receiveTitle": "Receive goods",
       "receiveConflict": "More than the outstanding quantity, or the order is no longer open for receiving.",
       "receiveError": "Could not post this receipt.",
-      "postReceipt": "Post receipt"
+      "postReceipt": "Post receipt",
+      "returnGoods": "Return goods",
+      "returnTitle": "Return goods to the supplier",
+      "returnHint": "Only goods that were received and not yet matched to a supplier invoice can be returned here. Returning goods that are already invoiced is not supported yet; a debit note only reduces the amount you owe and does not move stock.",
+      "postReturn": "Post return",
+      "returnConflict": "More than can be returned, no stock in that warehouse, or the order has changed. Reload and try again.",
+      "returnError": "Could not post this return.",
+      "noReturnable": "Nothing on this order can be returned: everything received has already been invoiced."
     },
     "approvals": {
       "title": "Approval limits",
@@ -735,6 +782,21 @@
       "deactivate": "Deactivate",
       "duplicate": "A tax code with this code already exists.",
       "saveError": "Could not save this tax code."
+    },
+    "returnable": "Can return",
+    "returnNow": "Return now",
+    "returns": {
+      "title": "Purchase returns",
+      "subtitle": "Goods sent back to suppliers before their invoice was matched.",
+      "order": "Order",
+      "warehouse": "Warehouse",
+      "reference": "Reference",
+      "reason": "Reason (optional)",
+      "value": "Value out of stock",
+      "documentDate": "Return date",
+      "lines": "Returned items",
+      "unitCost": "Cost",
+      "empty": "No purchase returns yet. Start one from a purchase order that has received goods."
     }
   },
   "sales": {

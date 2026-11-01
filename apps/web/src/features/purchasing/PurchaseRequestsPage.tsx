@@ -267,7 +267,7 @@ function RequestDetailDialog({ id, onHide }: { id: string | null; onHide: () => 
           {data.rejectionReason ? <p className="erp-page__error">{data.rejectionReason}</p> : null}
           <DataGrid value={[...data.lines]} searchable={false} className="erp-table" stripedRows showGridlines size="small">
             <Column header={t("inventory.items.code")} body={(l: (typeof data.lines)[number]) => <span className="coa-code">{l.itemCode}</span>} />
-            <Column header={t("inventory.items.name")} body={(l: (typeof data.lines)[number]) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
+            <Column header={t("inventory.items.displayName")} body={(l: (typeof data.lines)[number]) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
             <Column header={t("purchasing.quantity")} align="right" body={(l: (typeof data.lines)[number]) => `${l.quantity} ${l.unit}`} />
           </DataGrid>
         </>

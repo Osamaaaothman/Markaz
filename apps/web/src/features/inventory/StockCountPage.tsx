@@ -204,7 +204,7 @@ export function StockCountPage(): React.JSX.Element {
       ) : (
         <DataGrid value={counts ?? []} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
           <Column field="number" header={t("inventory.stockCount.number")} style={{ width: "10rem" }} body={(row: StockCountSummary) => <span className="coa-code">{row.number}</span>} />
-          <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockCountSummary) => row.warehouseName} />
+          <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockCountSummary) => localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language)} />
           <Column header={t("inventory.goodsReceipt.documentDate")} body={(row: StockCountSummary) => formatCalendarDate(row.documentDate, i18n.language)} />
           <Column header={t("inventory.stockCount.lineCount")} align="right" body={(row: StockCountSummary) => row.lineCount} />
           <Column

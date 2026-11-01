@@ -20,6 +20,7 @@ export interface StockCountSummary {
   readonly number: string;
   readonly warehouseId: string;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly documentDate: string;
   readonly isPosted: boolean;
   readonly lineCount: number;

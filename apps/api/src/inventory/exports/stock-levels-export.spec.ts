@@ -9,6 +9,7 @@ const entry = (over: Partial<StockLevelEntry>): StockLevelEntry => ({
   itemNameAr: "أسمنت ٥٠ كجم",
   warehouseId: "w1",
   warehouseName: "Main",
+  warehouseNameAr: null,
   quantity: "10.0000",
   value: "100.1000",
   averageUnitCost: "10.0100",

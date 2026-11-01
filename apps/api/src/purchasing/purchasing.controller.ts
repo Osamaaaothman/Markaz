@@ -5,6 +5,8 @@ import {
   ApprovalPolicyError,
   ApprovalPolicyService,
   GoodsReceiptError,
+  GoodsReturnError,
+  GoodsReturnService,
   PurchaseOrderError,
   PurchaseOrderService,
   PurchaseReceiptError,
@@ -14,6 +16,8 @@ import {
   UnmappedAccountError,
   type ApprovableSubjectType,
   type ApprovalPolicyEntry,
+  type GoodsReturnListPage,
+  type GoodsReturnResult,
   type PurchaseOrderCreated,
   type PurchaseOrderDetail,
   type PurchaseOrderListPage,
@@ -27,9 +31,11 @@ import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import {
+  CreateGoodsReturnDto,
   CreatePurchaseOrderDto,
   CreatePurchaseRequestDto,
   DecidePurchaseOrderDto,
+  GoodsReturnsQueryDto,
   PurchaseOrdersQueryDto,
   PurchaseRequestsQueryDto,
   ReceivePurchaseOrderDto,
@@ -43,6 +49,7 @@ export class PurchasingController {
     private readonly requests: PurchaseRequestService,
     private readonly orders: PurchaseOrderService,
     private readonly receiving: PurchaseReceiptService,
+    private readonly goodsReturns: GoodsReturnService,
     private readonly policies: ApprovalPolicyService,
   ) {}
 
@@ -239,6 +246,61 @@ export class PurchasingController {
         case "OVER_RECEIPT":
           throw new ConflictException(error.message);
         case "EMPTY_RECEIPT":
+          throw new BadRequestException(error.message);
+      }
+    }
+  }
+
+  // ── Returning goods to the supplier (before the supplier invoice is matched) ─
+
+  @Get("goods-returns")
+  @RequirePermission("goods_return", "read")
+  listGoodsReturns(@CurrentUser() actor: CurrentUserPayload, @Query() query: GoodsReturnsQueryDto): Promise<GoodsReturnListPage> {
+    return this.goodsReturns.list(actor.companyId, query);
+  }
+
+  @Post("goods-returns")
+  @RequirePermission("goods_return", "create")
+  createGoodsReturn(
+    @Body() dto: CreateGoodsReturnDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+    @IdempotencyKey() idempotencyKey: string,
+  ): Promise<GoodsReturnResult> {
+    return this.mapReturnErrors(
+      this.goodsReturns.create(
+        {
+          purchaseOrderId: dto.purchaseOrderId,
+          warehouseId: dto.warehouseId,
+          documentDate: new Date(dto.documentDate),
+          ...(dto.reference !== undefined ? { reference: dto.reference } : {}),
+          ...(dto.reason !== undefined ? { reason: dto.reason } : {}),
+          lines: dto.lines,
+        },
+        actor,
+        correlationId,
+        idempotencyKey,
+      ),
+    );
+  }
+
+  private async mapReturnErrors<T>(work: Promise<T>): Promise<T> {
+    try {
+      return await work;
+    } catch (error) {
+      if (error instanceof UnmappedAccountError) throw new BadRequestException(error.message);
+      if (!(error instanceof GoodsReturnError)) throw error;
+      switch (error.code) {
+        case "ORDER_NOT_FOUND":
+        case "WAREHOUSE_NOT_FOUND":
+        case "LINE_NOT_ON_ORDER":
+          throw new NotFoundException(error.message);
+        case "ORDER_NOT_RETURNABLE":
+        case "OVER_RETURN":
+        case "INSUFFICIENT_STOCK":
+          throw new ConflictException(error.message);
+        case "NO_OPEN_PERIOD":
+        case "EMPTY_RETURN":
           throw new BadRequestException(error.message);
       }
     }

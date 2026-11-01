@@ -18,7 +18,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { useAllItems } from "./use-items";
 import { useAllWarehouses } from "./use-warehouses";
 
-type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT";
+type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT" | "RETURN";
 
 interface MovementEntry {
   readonly id: string;
@@ -28,6 +28,7 @@ interface MovementEntry {
   readonly itemName: string;
   readonly itemNameAr: string | null;
   readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
   readonly movementType: MovementType;
   readonly quantity: string;
   readonly unitCost: string;
@@ -42,7 +43,7 @@ interface Page {
 }
 
 const ALL = "ALL";
-const TYPES: readonly MovementType[] = ["RECEIPT", "ISSUE", "COUNT_ADJUSTMENT"];
+const TYPES: readonly MovementType[] = ["RECEIPT", "ISSUE", "COUNT_ADJUSTMENT", "RETURN"];
 
 // The stock card: every movement of every item. Read-only — movements are written only by the posting
 // documents (receipt, issue, count, sales invoice), so there is nothing to edit here.
@@ -148,8 +149,8 @@ export function StockMovementsPage(): React.JSX.Element {
           <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("inventory.movements.date")} style={{ width: "9rem" }} body={(r: MovementEntry) => formatCalendarDate(r.date, i18n.language)} />
             <Column header={t("inventory.items.code")} style={{ width: "9rem" }} body={(r: MovementEntry) => <span className="coa-code">{r.itemCode}</span>} />
-            <Column header={t("inventory.items.name")} body={(r: MovementEntry) => localizedName({ name: r.itemName, nameAr: r.itemNameAr }, i18n.language)} />
-            <Column header={t("inventory.stockLevels.warehouse")} body={(r: MovementEntry) => r.warehouseName} />
+            <Column header={t("inventory.items.displayName")} body={(r: MovementEntry) => localizedName({ name: r.itemName, nameAr: r.itemNameAr }, i18n.language)} />
+            <Column header={t("inventory.stockLevels.warehouse")} body={(r: MovementEntry) => localizedName({ name: r.warehouseName, nameAr: r.warehouseNameAr }, i18n.language)} />
             <Column
               header={t("inventory.movements.type")}
               style={{ width: "10rem" }}

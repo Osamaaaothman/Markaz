@@ -237,11 +237,23 @@ Confirm or change each before the first real customer posts a supplier invoice.
   credit notes not re-touching stock. `packages/core/src/purchasing/supplier-invoice.service.ts`'s
   `createDebitNote`. Confirm before the first real debit note posts, same as D1-D7.
 
-**Known gaps, M5:** no purchase returns (goods physically sent back — debit notes above only correct the
+- **D9. Purchase returns.** Osama chose to build only the return of goods that were received and **not yet
+  matched to a supplier invoice**. The posting reverses the receipt: GRNI is debited at the order price (what
+  the receipt credited), Inventory is credited at the weighted-average cost actually taken out of stock, and
+  any difference goes to `PURCHASE_PRICE_VARIANCE` (same account as D1). Without that last line GRNI would keep
+  a residue no invoice can clear whenever the average cost has drifted from the order price. The returned
+  quantity is no longer "received": it can be received again, and the order status follows the counters
+  (a fully returned order goes back to APPROVED). **Not built, needs an accountant:** sending back goods that
+  are already invoiced. The debit note of D8 does not cover it: it corrects only the amount owed and never
+  moves stock, GRNI or price variance. That case needs a ruling on reversing input VAT and the price variance.
+  Direct receipts with no purchase order cannot be returned yet.
+
+**Known gaps, M5:** no return of goods that are already invoiced (D9; the debit notes of D8 correct only the
 amount owed, they do not move stock); purchase orders cannot be edited (cancel and re-issue); a retried
-receipt or invoice is not replayed at document level (the ledger itself is protected by the idempotency
-key). Supplier payments and AP ageing are **done** — they are the generic `packages/core/src/payments/`
-module shared with sales (`direction: "PAYMENT"` / `side: "SUPPLIER"`), not a separate purchasing feature.
+receipt, invoice or return is not replayed at document level (the ledger itself is protected by the
+idempotency key). Supplier payments and AP ageing are **done** — they are the generic
+`packages/core/src/payments/` module shared with sales (`direction: "PAYMENT"` / `side: "SUPPLIER"`), not a
+separate purchasing feature.
 
 ## E. Accounting treatments built with a stated default (M6 sales)
 

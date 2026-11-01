@@ -6,7 +6,7 @@ import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { useApiImageUrl } from "../../shared/ui/ApiImage";
 import { localizedName } from "../../shared/lib/localized-name";
 import { Logo } from "../../shared/ui/Logo";
-import { NAV_ITEMS } from "./NavConfig";
+import { DEFAULT_GROUP_ICON, GROUP_ICONS, NAV_ITEMS } from "./NavConfig";
 import { useLayoutStore } from "./layout-store";
 
 export interface SidebarProps {
@@ -53,8 +53,12 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
                   onClick={() => toggleGroup(groupKey)}
                   aria-expanded={!groupFolded}
                   aria-label={t(groupFolded ? "shell.expandSection" : "shell.collapseSection", { section: t(groupKey) })}
+                  data-pr-tooltip={t(groupKey)}
                 >
-                  <span>{t(groupKey)}</span>
+                  <span className="erp-sidebar__group-title">
+                    <i className={`${GROUP_ICONS[groupKey] ?? DEFAULT_GROUP_ICON} erp-sidebar__group-icon`} aria-hidden="true" />
+                    <span className="erp-sidebar__group-text">{t(groupKey)}</span>
+                  </span>
                   <i className={`pi pi-chevron-down erp-sidebar__group-chevron${groupFolded ? " erp-sidebar__group-chevron--folded" : ""}`} aria-hidden="true" />
                 </button>
               ) : null}

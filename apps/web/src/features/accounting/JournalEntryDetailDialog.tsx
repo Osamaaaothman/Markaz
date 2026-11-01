@@ -6,7 +6,7 @@ import { Tag } from "primereact/tag";
 import { formatCalendarDate } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
-import { useAccountLabel } from "./use-account-label";
+import { useAccountLabel, useAccountLabelKey } from "./use-account-label";
 import { useJournalEntry, type JournalEntryLineDetail } from "./use-journal-entries";
 import { AttachmentsPanel } from "../attachments/AttachmentsPanel";
 
@@ -19,6 +19,7 @@ export function JournalEntryDetailDialog({
 }) {
   const { t, i18n } = useTranslation();
   const accountLabel = useAccountLabel();
+  const labelKey = useAccountLabelKey();
   const { data: entry, isPending, isError } = useJournalEntry(entryId);
 
   return (
@@ -69,12 +70,12 @@ export function JournalEntryDetailDialog({
             <div className="erp-form__row">
               <div className="erp-field">
                 <label>{t("accounting.journalEntries.sourceDocumentType")}</label>
-                <p>{entry.sourceDocumentType}</p>
+                <p>{t(`accounting.journalEntries.sourceTypes.${entry.sourceDocumentType}`, { defaultValue: entry.sourceDocumentType })}</p>
               </div>
             </div>
           ) : null}
 
-          <DataTable value={[...entry.lines]} className="erp-table" size="small" showGridlines>
+          <DataTable key={labelKey} value={[...entry.lines]} className="erp-table" size="small" showGridlines>
             <Column
               header={t("accounting.journalEntries.account")}
               body={(row: JournalEntryLineDetail) => `${row.accountCode} — ${accountLabel(row.accountId, row.accountName)}`}

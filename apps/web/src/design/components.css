@@ -521,6 +521,11 @@ html body .erp-table .p-treetable-wrapper {
   overflow: visible !important;
 }
 
+/* A list table wider than its card scrolls sideways (see DataGrid) instead of hiding its last column. */
+html body .mk-grid--scroll .p-datatable-wrapper {
+  overflow-x: auto !important;
+}
+
 @media (max-width: 899px) {
   .erp-table {
     overflow: visible;
@@ -653,7 +658,7 @@ html body .erp-table .p-datatable-emptymessage > td {
 
 /* eight amount columns need room: below this the table scrolls sideways inside its card instead of squeezing */
 .erp-table--tb .p-datatable-table {
-  min-width: 60rem;
+  min-width: 50rem;
 }
 
 .erp-table--tb .p-datatable-thead > tr > th {
@@ -985,6 +990,17 @@ html body .erp-table .p-datatable-tbody > tr > td.p-align-center,
 html body .erp-table .p-datatable-tfoot > tr > td.p-align-center {
   text-align: center;
   justify-content: center;
+}
+
+/* Amounts in Arabic. In a right-to-left cell the bidi rules print "410,021.00 SAR" as "SAR 410,021.00" on some pages
+   and not on others. Amount cells read left-to-right (number, then currency) and sit flush against the END of the
+   row, which in Arabic is the left, directly under their header. */
+html[dir="rtl"] body .erp-table .p-datatable-tbody > tr > td.p-align-right,
+html[dir="rtl"] body .erp-table .p-datatable-tfoot > tr > td.p-align-right,
+html[dir="rtl"] body .erp-table .p-treetable-tbody > tr > td.p-align-right,
+html[dir="rtl"] body .erp-table .p-treetable-tfoot > tr > td.p-align-right {
+  direction: ltr;
+  text-align: left;
 }
 
 /* Arabic letters join: no tracking, no upper-casing on headers */

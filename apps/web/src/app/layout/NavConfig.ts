@@ -12,6 +12,23 @@ export interface NavItem {
 
 // One place to add a nav entry as new modules land (M4+) — docs/08-FRONTEND-I18N-RULES.md
 // §1 "one folder per domain area." Every label is a translation key, never literal text.
+// One icon per sidebar section, shown beside the section heading (and alone when the sidebar is collapsed to
+// icons, where the heading text is hidden). Keyed by the same translation key as `NavItem.groupKey`.
+export const GROUP_ICONS: Readonly<Record<string, string>> = {
+  "nav.groups.accounting": "pi pi-calculator",
+  "nav.groups.masterData": "pi pi-database",
+  "nav.groups.inventory": "pi pi-warehouse",
+  "nav.groups.purchasing": "pi pi-truck",
+  "nav.groups.sales": "pi pi-shopping-bag",
+  "nav.groups.payments": "pi pi-credit-card",
+  "nav.groups.hr": "pi pi-briefcase",
+  "nav.groups.documents": "pi pi-folder-open",
+  "nav.groups.settings": "pi pi-cog",
+};
+
+// A section added later without an icon still gets a sensible one rather than a blank space.
+export const DEFAULT_GROUP_ICON = "pi pi-folder";
+
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: "pi pi-home" },
   { to: "/accounting/chart-of-accounts", labelKey: "nav.chartOfAccounts", icon: "pi pi-sitemap", permissions: ["account:read"], groupKey: "nav.groups.accounting" },
@@ -34,6 +51,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/hr/payroll-runs", labelKey: "nav.payrollRuns", icon: "pi pi-wallet", permissions: ["payroll_run:read"], groupKey: "nav.groups.hr" },
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing" },
+  { to: "/purchasing/returns", labelKey: "nav.goodsReturns", icon: "pi pi-replay", permissions: ["goods_return:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/invoices", labelKey: "nav.supplierInvoices", icon: "pi pi-receipt", permissions: ["supplier_invoice:read"], groupKey: "nav.groups.purchasing" },
   { to: "/sales/quotations", labelKey: "nav.quotations", icon: "pi pi-file-edit", permissions: ["quotation:read"], groupKey: "nav.groups.sales" },
   { to: "/sales/orders", labelKey: "nav.salesOrders", icon: "pi pi-shopping-bag", permissions: ["sales_order:read"], groupKey: "nav.groups.sales" },

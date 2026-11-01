@@ -10,7 +10,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { exportReport, type ExportFormat } from "./export-report";
 import { useFiscalPeriods } from "./use-fiscal-periods";
-import { useAccountLabel } from "./use-account-label";
+import { useAccountLabel, useAccountLabelKey } from "./use-account-label";
 import { useIncomeStatement, type IncomeStatementLine } from "./use-income-statement";
 
 export function IncomeStatementPage(): React.JSX.Element {
@@ -129,8 +129,10 @@ function IncomeStatementTable({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const accountLabel = useAccountLabel();
+  const labelKey = useAccountLabelKey();
   return (
     <DataTable
+      key={labelKey}
       value={[...lines]}
       className="erp-table"
       stripedRows

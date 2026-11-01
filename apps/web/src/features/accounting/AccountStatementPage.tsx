@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
@@ -23,7 +24,9 @@ export function AccountStatementPage(): React.JSX.Element {
   const { data: fiscalPeriods } = useFiscalPeriods();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
 
-  const [accountId, setAccountId] = useState("");
+  // The chart of accounts links here with ?account=<id>, so the statement opens already on that account.
+  const [searchParams] = useSearchParams();
+  const [accountId, setAccountId] = useState(searchParams.get("account") ?? "");
   const [range, setRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
 
   // Same default as the income statement: the whole fiscal calendar, adjustable.

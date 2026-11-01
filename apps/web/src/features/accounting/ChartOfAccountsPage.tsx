@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
-import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import { SelectButton } from "primereact/selectbutton";
 import { Tag } from "primereact/tag";
@@ -16,7 +17,7 @@ import type { TreeNode } from "primereact/treenode";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
-import { formatMoney } from "../../shared/lib/money";
+import { formatAmount, formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { CopyId } from "../../shared/ui/CopyId";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
@@ -41,6 +42,7 @@ import { useAccountBalances, type AccountBalance } from "./use-account-balances"
 import {
   useChartOfAccounts,
   useCreateAccount,
+  useMakeAccountGroup,
   useUpdateAccount,
   type ChartOfAccountEntry,
 } from "./use-chart-of-accounts";
@@ -181,6 +183,7 @@ function AddAccountDialog({
   const selectedType = useWatch({ control, name: "type" });
   const selectedParentId = useWatch({ control, name: "parentId" });
   const typedCode = useWatch({ control, name: "code" });
+  const isPostableNow = useWatch({ control, name: "isPostable" });
   const typedHint = useMemo(() => inferFromCode(accounts, typedCode), [accounts, typedCode]);
   // With a parent chosen on purpose, the only thing worth saying about the code is that it is already used.
   const codeHint = selectedParentId !== null && typedHint.kind !== "duplicate" ? ({ kind: "empty" } as const) : typedHint;
@@ -337,22 +340,31 @@ function AddAccountDialog({
           />
         </div>
 
-        {/* isPostable toggle */}
-        <div className="erp-field" style={{ flexDirection: "row", alignItems: "center", gap: "0.75rem" }}>
+        {/* Folder or account: a folder holds other accounts, an account receives entries. A postable account can
+            never have sub-accounts, so this choice is made here, in plain words, and not as a technical switch. */}
+        <div className="erp-field">
+          <label htmlFor="acctKind">{t("accounting.chartOfAccounts.kind")}</label>
           <Controller
             control={control}
             name="isPostable"
             render={({ field }) => (
-              <InputSwitch
-                inputId="acctPostable"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.value)}
+              <SelectButton
+                id="acctKind"
+                value={field.value}
+                onChange={(e) => {
+                  if (e.value !== null && e.value !== undefined) field.onChange(e.value as boolean);
+                }}
+                allowEmpty={false}
+                options={[
+                  { label: t("accounting.chartOfAccounts.kindAccount"), value: true },
+                  { label: t("accounting.chartOfAccounts.kindGroup"), value: false },
+                ]}
               />
             )}
           />
-          <label htmlFor="acctPostable" style={{ marginBlockEnd: 0 }}>
-            {t("accounting.chartOfAccounts.isPostable")}
-          </label>
+          <small className="erp-field__hint">
+            {t(isPostableNow ? "accounting.chartOfAccounts.kindAccountHint" : "accounting.chartOfAccounts.kindGroupHint")}
+          </small>
         </div>
 
         {/* Linked party — offered only to users who may read parties. */}
@@ -433,6 +445,8 @@ function EditAccountDialog({
   const { t } = useTranslation();
   const { can } = usePermissions();
   const updateAccount = useUpdateAccount(account?.id ?? "");
+  const makeGroup = useMakeAccountGroup(account?.id ?? "");
+  const [confirmingGroup, setConfirmingGroup] = useState(false);
   const isTopLevel = account?.parentId === null;
 
   const {
@@ -449,6 +463,8 @@ function EditAccountDialog({
   useEffect(() => {
     if (!account) return;
     updateAccount.reset();
+    makeGroup.reset();
+    setConfirmingGroup(false);
     reset({ name: account.name, nameAr: account.nameAr ?? "", partyId: account.partyId, color: account.color });
     // Reload the form only when another account is opened, not on every re-render.
   }, [account?.id]);
@@ -478,6 +494,41 @@ function EditAccountDialog({
           <div className="erp-field">
             <label>{t("accounting.chartOfAccounts.id")}</label>
             <CopyId value={account.ref} uuid={account.id} />
+          </div>
+        ) : null}
+
+        {/* An account nothing has used yet can become a folder, so it can hold sub-accounts. A used one cannot. */}
+        {account?.isPostable && can("account:update") ? (
+          <div className="erp-field">
+            <label>{t("accounting.chartOfAccounts.makeGroup")}</label>
+            {confirmingGroup ? (
+              <>
+                <small className="erp-field__hint">{t("accounting.chartOfAccounts.makeGroupConfirm")}</small>
+                <div className="erp-form__actions">
+                  <Button type="button" text label={t("actions.cancel")} onClick={() => setConfirmingGroup(false)} />
+                  <Button
+                    type="button"
+                    severity="warning"
+                    icon="pi pi-folder"
+                    label={t("accounting.chartOfAccounts.makeGroupYes")}
+                    loading={makeGroup.isPending}
+                    onClick={() => makeGroup.mutate(undefined, { onSuccess: onHide })}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <small className="erp-field__hint">{t("accounting.chartOfAccounts.makeGroupHint")}</small>
+                <Button type="button" outlined severity="secondary" icon="pi pi-folder" label={t("accounting.chartOfAccounts.makeGroup")} onClick={() => setConfirmingGroup(true)} />
+              </>
+            )}
+            {makeGroup.isError ? (
+              <small className="erp-auth-card__error">
+                {(makeGroup.error as { response?: { status?: number } } | null)?.response?.status === 409
+                  ? t("accounting.chartOfAccounts.makeGroupInUse")
+                  : t("accounting.chartOfAccounts.makeGroupError")}
+              </small>
+            ) : null}
           </div>
         ) : null}
 
@@ -537,6 +588,64 @@ function EditAccountDialog({
   );
 }
 
+// The debit and credit totals and the balance of one account, in full with the currency. Opened from the eye
+// button in the chart so the table itself stays narrow.
+function AccountTotalsDialog({
+  account,
+  row,
+  currency,
+  onHide,
+}: {
+  account: ChartNodeData | null;
+  row: AccountBalance | undefined;
+  currency: string;
+  onHide: () => void;
+}): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { can } = usePermissions();
+  const navigate = useNavigate();
+  const side = row?.balanceSide ? t(row.balanceSide === "DEBIT" ? "accounting.trialBalance.debit" : "accounting.trialBalance.credit") : null;
+  const figure = (value: string | undefined): string => (value === undefined ? "—" : formatMoney(value, currency));
+  return (
+    <Dialog
+      header={account ? `${account.code} — ${localizedName(account, i18n.language)}` : t("accounting.chartOfAccounts.detailsTitle")}
+      visible={account !== null}
+      onHide={onHide}
+      className="erp-dialog"
+      modal
+      style={{ width: "min(28rem, 96vw)" }}
+    >
+      <dl className="coa-totals">
+        <div>
+          <dt>{t("accounting.trialBalance.debit")}</dt>
+          <dd className="coa-amount">{figure(row?.debitTotal)}</dd>
+        </div>
+        <div>
+          <dt>{t("accounting.trialBalance.credit")}</dt>
+          <dd className="coa-amount">{figure(row?.creditTotal)}</dd>
+        </div>
+        <div className="coa-totals__balance">
+          <dt>{t("accounting.balanceSheet.balance")}</dt>
+          <dd>
+            <span className="coa-amount">{figure(row?.balance)}</span>
+            {side ? <small className="coa-side"> {side}</small> : null}
+          </dd>
+        </div>
+      </dl>
+      {account?.isPostable && can("journal_entry:read") ? (
+        <div className="erp-form__actions">
+          <Button
+            type="button"
+            icon="pi pi-list"
+            label={t("accounting.chartOfAccounts.openStatement")}
+            onClick={() => void navigate(`/accounting/account-statement?account=${encodeURIComponent(account.id)}`)}
+          />
+        </div>
+      ) : null}
+    </Dialog>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const TYPE_SEVERITY = {
@@ -546,17 +655,6 @@ const TYPE_SEVERITY = {
   REVENUE: "success",
   EXPENSE: "danger",
 } as const;
-
-// Zero (or no activity) shows a dash so a long chart is not a wall of "0.0000".
-function amountCell(
-  row: AccountBalance | undefined,
-  field: "debitTotal" | "creditTotal",
-  currency: string,
-): React.JSX.Element {
-  const value = row?.[field];
-  if (value === undefined || value === "0.0000") return <span className="coa-amount coa-amount--zero">—</span>;
-  return <span className="coa-amount">{formatMoney(value, currency)}</span>;
-}
 
 const LEVEL_CHOICES: readonly LevelChoice[] = [1, 2, 3, 4, "all"];
 const DEFAULT_LEVEL: LevelChoice = 2;
@@ -572,6 +670,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
   const { data: currentUser } = useCurrentUser();
   const { data: balanceRows } = useAccountBalances();
   const canSeeTotals = can("trial_balance:read");
+  const [details, setDetails] = useState<ChartNodeData | null>(null);
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const balances = useMemo(
     () => new Map((balanceRows ?? []).map((row) => [row.accountId, row])),
@@ -616,11 +715,53 @@ export function ChartOfAccountsPage(): React.JSX.Element {
     setManualKeys(opened);
   };
   // Whether the dragged account may be dropped on this group (the same rules the server enforces).
-  const canDropOn = (target: ChartNodeData): boolean => {
+  const canDropOn = (target: Pick<ChartOfAccountEntry, "id" | "type" | "isPostable">): boolean => {
     if (!data || !draggingId || draggingId === target.id || target.isPostable) return false;
     const dragged = data.find((a) => a.id === draggingId);
     if (!dragged || dragged.type !== target.type || dragged.parentId === target.id) return false;
     return !descendantIds(data, dragged.id).has(target.id);
+  };
+  // While an account is dragged, the page scrolls by itself when the pointer nears the top or bottom of the window,
+  // faster the closer it gets, so an account can be carried a long way without letting go. The pointer position is
+  // remembered from the drag events and acted on every frame, because a browser sends none while the mouse is still.
+  const pointerY = useRef(0);
+  useEffect(() => {
+    if (!draggingId) return;
+    const TOP_ZONE = 170; // below the top bar and the sticky table header
+    const BOTTOM_ZONE = 120;
+    const MAX_STEP = 28;
+    const remember = (e: DragEvent): void => {
+      pointerY.current = e.clientY;
+    };
+    let frame = 0;
+    const step = (): void => {
+      const y = pointerY.current;
+      const bottomEdge = window.innerHeight - BOTTOM_ZONE;
+      if (y > 0 && y < TOP_ZONE) window.scrollBy(0, -Math.max(2, Math.round(((TOP_ZONE - y) / TOP_ZONE) * MAX_STEP)));
+      else if (y > bottomEdge) window.scrollBy(0, Math.max(2, Math.round(((y - bottomEdge) / BOTTOM_ZONE) * MAX_STEP)));
+      frame = requestAnimationFrame(step);
+    };
+    window.addEventListener("dragover", remember);
+    frame = requestAnimationFrame(step);
+    return () => {
+      window.removeEventListener("dragover", remember);
+      cancelAnimationFrame(frame);
+    };
+  }, [draggingId]);
+
+  // Resting over a closed folder for a moment opens it, so an account can be dropped into something nested.
+  useEffect(() => {
+    if (!dropKey || !draggingId || !data) return;
+    const isClosedFolder = !expandedKeys[dropKey] && data.some((a) => a.parentId === dropKey);
+    if (!isClosedFolder) return;
+    const timer = window.setTimeout(() => openGroups([dropKey]), 800);
+    return () => window.clearTimeout(timer);
+  }, [dropKey, draggingId, Boolean(dropKey && expandedKeys[dropKey])]);
+
+  // Which account a drag event is over: the whole row counts, not only the name text.
+  const accountUnder = (e: React.DragEvent): ChartOfAccountEntry | null => {
+    const id = (e.target as HTMLElement).closest("tr")?.querySelector("[data-account-id]")?.getAttribute("data-account-id");
+    return (id && data?.find((a) => a.id === id)) || null;
   };
   const changeQuery = (value: string): void => {
     setQuery(value);
@@ -703,6 +844,32 @@ export function ChartOfAccountsPage(): React.JSX.Element {
             </div>
           </div>
 
+          <div
+            className="coa-dnd"
+            onDragOver={(e) => {
+              if (!draggingId) return;
+              const target = accountUnder(e);
+              if (target && canDropOn(target)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dropKey !== target.id) setDropKey(target.id);
+              } else {
+                e.dataTransfer.dropEffect = "none";
+                if (dropKey !== null) setDropKey(null);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropKey(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const target = accountUnder(e);
+              const dragged = data.find((a) => a.id === draggingId);
+              setDropKey(null);
+              setDraggingId(null);
+              if (dragged && target && canDropOn(target)) setMoving({ account: dragged, parentId: target.id });
+            }}
+          >
           <TreeTable
             value={visibleTree}
             className="erp-table erp-coa"
@@ -719,6 +886,10 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 [`coa-row--${account.type.toLowerCase()}`]: true,
                 // The branch's colour (from its top-level account) arrives as a CSS variable on the row.
                 "coa-row--colored": account.branchColor !== null,
+                // Drag feedback: the row being carried, the folders it may go into, and the one it is over.
+                "coa-row--dragging": draggingId === account.id,
+                "coa-row--droppable": draggingId !== null && canDropOn(account),
+                "coa-row--drop": dropKey === account.id,
               };
             }}
             emptyMessage={query.trim() ? t("accounting.chartOfAccounts.noResults") : t("status.empty")}
@@ -752,30 +923,26 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                   // Indented with a logical padding driven by --depth, so it nests toward the
                   // correct side under both html[dir=ltr] and html[dir=rtl].
                   <div
-                    className={`coa-cell${dropKey === key ? " coa-cell--drop" : ""}`}
+                    className="coa-cell"
+                    data-account-id={account.id}
                     style={{ "--depth": account.depth } as CSSProperties}
                     draggable={can("account:update")}
                     onDragStart={(e) => {
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", account.id);
+                      // A small label that follows the pointer, instead of the browser's faded copy of the row.
+                      const chip = document.createElement("div");
+                      chip.className = "coa-drag-chip";
+                      chip.textContent = `${account.code} — ${localizedName(account, i18n.language)}`;
+                      document.body.appendChild(chip);
+                      e.dataTransfer.setDragImage(chip, 14, 14);
+                      requestAnimationFrame(() => chip.remove());
+                      pointerY.current = e.clientY;
                       setDraggingId(account.id);
                     }}
                     onDragEnd={() => {
                       setDraggingId(null);
                       setDropKey(null);
-                    }}
-                    onDragOver={(e) => {
-                      if (!canDropOn(account)) return;
-                      e.preventDefault();
-                      if (dropKey !== key) setDropKey(key);
-                    }}
-                    onDragLeave={() => setDropKey((current) => (current === key ? null : current))}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDropKey(null);
-                      const dragged = data.find((a) => a.id === draggingId);
-                      setDraggingId(null);
-                      if (dragged && canDropOn(account)) setMoving({ account: dragged, parentId: account.id });
                     }}
                   >
                     {isGroup ? (
@@ -810,50 +977,30 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 );
               }}
             />
-            {/* Totals come from the server, already rolled up: a parent is the sum of its
-                children. Only for users allowed to read the trial balance. */}
-            {canSeeTotals
-              ? [
-                  <Column
-                    key="debit"
-                    header={t("accounting.trialBalance.debit")}
-                    align="right"
-                    alignHeader="right"
-                    style={{ width: "8rem" }}
-                    className="coa-col-hide-sm2"
-                    headerClassName="coa-col-hide-sm2"
-                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
-                  />,
-                  <Column
-                    key="credit"
-                    header={t("accounting.trialBalance.credit")}
-                    align="right"
-                    alignHeader="right"
-                    style={{ width: "8rem" }}
-                    className="coa-col-hide-sm2"
-                    headerClassName="coa-col-hide-sm2"
-                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
-                  />,
-                  <Column
-                    key="balance"
-                    header={t("accounting.balanceSheet.balance")}
-                    align="right"
-                    alignHeader="right"
-                    style={{ width: "9.5rem" }}
-                    body={(node: TreeNode) => {
-                      const row = balances.get(node.key as string);
-                      if (!row || row.balanceSide === null) return <span className="coa-amount coa-amount--zero">—</span>;
-                      const side =
-                        row.balanceSide === "DEBIT" ? t("accounting.trialBalance.debit") : t("accounting.trialBalance.credit");
-                      return (
-                        <span className="coa-amount">
-                          {formatMoney(row.balance, currency)} <small className="coa-side">{side}</small>
-                        </span>
-                      );
-                    }}
-                  />,
-                ]
-              : null}
+            {/* The balance comes from the server, already rolled up: a parent is the sum of its children. Only
+                for users allowed to read the trial balance. Debit and credit totals are one click away (the
+                details button), so the table keeps a single money column that never squeezes the names. */}
+            {canSeeTotals ? (
+              <Column
+                key="balance"
+                header={`${t("accounting.balanceSheet.balance")} (${currency})`}
+                align="right"
+                alignHeader="right"
+                style={{ width: "11rem" }}
+                body={(node: TreeNode) => {
+                  const row = balances.get(node.key as string);
+                  if (!row || row.balanceSide === null) return <span className="coa-amount coa-amount--zero">—</span>;
+                  const side =
+                    row.balanceSide === "DEBIT" ? t("accounting.trialBalance.debit") : t("accounting.trialBalance.credit");
+                  return (
+                    <span className="coa-balance">
+                      <span className="coa-amount">{formatAmount(row.balance, currency)}</span>
+                      <small className="coa-side">{side}</small>
+                    </span>
+                  );
+                }}
+              />
+            ) : null}
             <Column
               header={t("accounting.chartOfAccounts.type")}
               style={{ width: "6rem" }}
@@ -873,9 +1020,21 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 account:update, like the other action buttons. */}
             <Column
               header=""
-              style={{ width: "7rem" }}
+              style={{ width: "10rem" }}
               body={(node: TreeNode) => (
                 <div style={{ display: "flex", gap: "0.15rem" }}>
+                  {canSeeTotals ? (
+                    <Button
+                      type="button"
+                      icon="pi pi-eye"
+                      rounded
+                      text
+                      severity="secondary"
+                      aria-label={t("accounting.chartOfAccounts.details")}
+                      tooltip={t("accounting.chartOfAccounts.details")}
+                      onClick={() => setDetails(node.data as ChartNodeData)}
+                    />
+                  ) : null}
                   <PermissionButton
                     allowed={can("account:update")}
                     icon="pi pi-pencil"
@@ -899,6 +1058,22 @@ export function ChartOfAccountsPage(): React.JSX.Element {
               )}
             />
           </TreeTable>
+          </div>
+          {draggingId
+            ? createPortal(
+                <div className={`coa-drag-hint${dropKey ? " coa-drag-hint--over" : ""}`} role="status">
+                  {(() => {
+                    const dragged = data.find((a) => a.id === draggingId);
+                    const target = dropKey ? data.find((a) => a.id === dropKey) : undefined;
+                    const draggedName = dragged ? localizedName(dragged, i18n.language) : "";
+                    return target
+                      ? t("accounting.chartOfAccounts.dnd.over", { name: draggedName, target: localizedName(target, i18n.language) })
+                      : t("accounting.chartOfAccounts.dnd.hint", { name: draggedName });
+                  })()}
+                </div>,
+                document.body,
+              )
+            : null}
         </>
       )}
 
@@ -932,6 +1107,12 @@ export function ChartOfAccountsPage(): React.JSX.Element {
         }}
       />
       <EditAccountDialog account={editAccount} onHide={() => setEditAccount(null)} />
+      <AccountTotalsDialog
+        account={details}
+        row={details ? balances.get(details.id) : undefined}
+        currency={currency}
+        onHide={() => setDetails(null)}
+      />
     </div>
   );
 }
