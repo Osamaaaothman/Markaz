@@ -13,7 +13,9 @@
   },
   "overrides": {
     "multer": "^2.3.0",
-    "deepmerge-ts": "^8.0.2"
+    "deepmerge-ts": "^8.0.2",
+    "vite": "^6.4.5",
+    "source-map-js": "^1.2.2"
   },
   "scripts": {
     "build": "turbo run build",
