@@ -3,6 +3,7 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { AxiosError } from "axios";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
@@ -170,7 +171,19 @@ export function StockCountPage(): React.JSX.Element {
         <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
 
         {errors.lines?.root?.message ? <p className="erp-field__error">{t(`validation.${errors.lines.root.message}`)}</p> : null}
-        {recordCount.isError ? <p className="erp-auth-card__error">{t("inventory.stockCount.recordError")}</p> : null}
+        {recordCount.isError ? (
+          <p className="erp-auth-card__error">
+            {(() => {
+              if (recordCount.error instanceof AxiosError && recordCount.error.response?.status === 400) {
+                const msg: string = (recordCount.error.response.data as { message?: string })?.message ?? "";
+                if (msg.toLowerCase().includes("unit cost")) return t("inventory.stockCount.unitCostRequired");
+                if (msg.toLowerCase().includes("open") && msg.toLowerCase().includes("period")) return t("inventory.stockCount.noOpenPeriod");
+              }
+              return t("inventory.stockCount.recordError");
+            })()}
+          </p>
+        ) : null}
+        {postCount.isError ? <p className="erp-auth-card__error">{t("inventory.stockCount.postError")}</p> : null}
         {recordCount.isSuccess ? <p className="erp-field__hint">{t("inventory.stockCount.recordedSuccess", { number: recordCount.data?.number })}</p> : null}
 
         <div className="erp-form__actions">
