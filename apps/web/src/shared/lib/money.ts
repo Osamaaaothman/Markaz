@@ -8,6 +8,12 @@ export function formatMoney(amount: string, currency: string): string {
   return `${groupThousands(Money.of(amount, currency).toDecimalString())} ${currency}`;
 }
 
+// The same figure without the currency code, for tables that name the currency once in the column header
+// instead of repeating it in every cell.
+export function formatAmount(amount: string, currency: string): string {
+  return groupThousands(Money.of(amount, currency).toDecimalString());
+}
+
 // 1234567.50 -> 1,234,567.50. Done on the decimal STRING (never a JS number), so no digit can change, and
 // with plain commas so the figure reads the same in both languages and in a spreadsheet paste.
 export function groupThousands(decimal: string): string {

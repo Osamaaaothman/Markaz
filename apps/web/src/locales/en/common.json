@@ -209,7 +209,10 @@
         },
         "movedTitle": "Account moved",
         "movedTo": "Moved under"
-      }
+      },
+      "details": "Account figures",
+      "detailsTitle": "Account totals",
+      "openStatement": "Open account statement"
     },
     "trialBalance": {
       "title": "Trial balance",

@@ -209,7 +209,10 @@
         },
         "movedTitle": "تم نقل الحساب",
         "movedTo": "نُقل تحت"
-      }
+      },
+      "details": "أرقام الحساب",
+      "detailsTitle": "إجماليات الحساب",
+      "openStatement": "فتح كشف الحساب"
     },
     "trialBalance": {
       "title": "ميزان المراجعة",

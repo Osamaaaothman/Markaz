@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
@@ -16,7 +17,7 @@ import type { TreeNode } from "primereact/treenode";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
-import { formatMoney } from "../../shared/lib/money";
+import { formatAmount, formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { CopyId } from "../../shared/ui/CopyId";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
@@ -537,6 +538,64 @@ function EditAccountDialog({
   );
 }
 
+// The debit and credit totals and the balance of one account, in full with the currency. Opened from the eye
+// button in the chart so the table itself stays narrow.
+function AccountTotalsDialog({
+  account,
+  row,
+  currency,
+  onHide,
+}: {
+  account: ChartNodeData | null;
+  row: AccountBalance | undefined;
+  currency: string;
+  onHide: () => void;
+}): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { can } = usePermissions();
+  const navigate = useNavigate();
+  const side = row?.balanceSide ? t(row.balanceSide === "DEBIT" ? "accounting.trialBalance.debit" : "accounting.trialBalance.credit") : null;
+  const figure = (value: string | undefined): string => (value === undefined ? "—" : formatMoney(value, currency));
+  return (
+    <Dialog
+      header={account ? `${account.code} — ${localizedName(account, i18n.language)}` : t("accounting.chartOfAccounts.detailsTitle")}
+      visible={account !== null}
+      onHide={onHide}
+      className="erp-dialog"
+      modal
+      style={{ width: "min(28rem, 96vw)" }}
+    >
+      <dl className="coa-totals">
+        <div>
+          <dt>{t("accounting.trialBalance.debit")}</dt>
+          <dd className="coa-amount">{figure(row?.debitTotal)}</dd>
+        </div>
+        <div>
+          <dt>{t("accounting.trialBalance.credit")}</dt>
+          <dd className="coa-amount">{figure(row?.creditTotal)}</dd>
+        </div>
+        <div className="coa-totals__balance">
+          <dt>{t("accounting.balanceSheet.balance")}</dt>
+          <dd>
+            <span className="coa-amount">{figure(row?.balance)}</span>
+            {side ? <small className="coa-side"> {side}</small> : null}
+          </dd>
+        </div>
+      </dl>
+      {account?.isPostable && can("journal_entry:read") ? (
+        <div className="erp-form__actions">
+          <Button
+            type="button"
+            icon="pi pi-list"
+            label={t("accounting.chartOfAccounts.openStatement")}
+            onClick={() => void navigate(`/accounting/account-statement?account=${encodeURIComponent(account.id)}`)}
+          />
+        </div>
+      ) : null}
+    </Dialog>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const TYPE_SEVERITY = {
@@ -546,17 +605,6 @@ const TYPE_SEVERITY = {
   REVENUE: "success",
   EXPENSE: "danger",
 } as const;
-
-// Zero (or no activity) shows a dash so a long chart is not a wall of "0.0000".
-function amountCell(
-  row: AccountBalance | undefined,
-  field: "debitTotal" | "creditTotal",
-  currency: string,
-): React.JSX.Element {
-  const value = row?.[field];
-  if (value === undefined || value === "0.0000") return <span className="coa-amount coa-amount--zero">—</span>;
-  return <span className="coa-amount">{formatMoney(value, currency)}</span>;
-}
 
 const LEVEL_CHOICES: readonly LevelChoice[] = [1, 2, 3, 4, "all"];
 const DEFAULT_LEVEL: LevelChoice = 2;
@@ -572,6 +620,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
   const { data: currentUser } = useCurrentUser();
   const { data: balanceRows } = useAccountBalances();
   const canSeeTotals = can("trial_balance:read");
+  const [details, setDetails] = useState<ChartNodeData | null>(null);
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const balances = useMemo(
     () => new Map((balanceRows ?? []).map((row) => [row.accountId, row])),
@@ -810,50 +859,30 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 );
               }}
             />
-            {/* Totals come from the server, already rolled up: a parent is the sum of its
-                children. Only for users allowed to read the trial balance. */}
-            {canSeeTotals
-              ? [
-                  <Column
-                    key="debit"
-                    header={t("accounting.trialBalance.debit")}
-                    align="right"
-                    alignHeader="right"
-                    style={{ width: "8rem" }}
-                    className="coa-col-hide-sm2"
-                    headerClassName="coa-col-hide-sm2"
-                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "debitTotal", currency)}
-                  />,
-                  <Column
-                    key="credit"
-                    header={t("accounting.trialBalance.credit")}
-                    align="right"
-                    alignHeader="right"
-                    style={{ width: "8rem" }}
-                    className="coa-col-hide-sm2"
-                    headerClassName="coa-col-hide-sm2"
-                    body={(node: TreeNode) => amountCell(balances.get(node.key as string), "creditTotal", currency)}
-                  />,
-                  <Column
-                    key="balance"
-                    header={t("accounting.balanceSheet.balance")}
-                    align="right"
-                    alignHeader="right"
-                    style={{ width: "9.5rem" }}
-                    body={(node: TreeNode) => {
-                      const row = balances.get(node.key as string);
-                      if (!row || row.balanceSide === null) return <span className="coa-amount coa-amount--zero">—</span>;
-                      const side =
-                        row.balanceSide === "DEBIT" ? t("accounting.trialBalance.debit") : t("accounting.trialBalance.credit");
-                      return (
-                        <span className="coa-amount">
-                          {formatMoney(row.balance, currency)} <small className="coa-side">{side}</small>
-                        </span>
-                      );
-                    }}
-                  />,
-                ]
-              : null}
+            {/* The balance comes from the server, already rolled up: a parent is the sum of its children. Only
+                for users allowed to read the trial balance. Debit and credit totals are one click away (the
+                details button), so the table keeps a single money column that never squeezes the names. */}
+            {canSeeTotals ? (
+              <Column
+                key="balance"
+                header={`${t("accounting.balanceSheet.balance")} (${currency})`}
+                align="right"
+                alignHeader="right"
+                style={{ width: "11rem" }}
+                body={(node: TreeNode) => {
+                  const row = balances.get(node.key as string);
+                  if (!row || row.balanceSide === null) return <span className="coa-amount coa-amount--zero">—</span>;
+                  const side =
+                    row.balanceSide === "DEBIT" ? t("accounting.trialBalance.debit") : t("accounting.trialBalance.credit");
+                  return (
+                    <span className="coa-balance">
+                      <span className="coa-amount">{formatAmount(row.balance, currency)}</span>
+                      <small className="coa-side">{side}</small>
+                    </span>
+                  );
+                }}
+              />
+            ) : null}
             <Column
               header={t("accounting.chartOfAccounts.type")}
               style={{ width: "6rem" }}
@@ -873,9 +902,21 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 account:update, like the other action buttons. */}
             <Column
               header=""
-              style={{ width: "7rem" }}
+              style={{ width: "10rem" }}
               body={(node: TreeNode) => (
                 <div style={{ display: "flex", gap: "0.15rem" }}>
+                  {canSeeTotals ? (
+                    <Button
+                      type="button"
+                      icon="pi pi-eye"
+                      rounded
+                      text
+                      severity="secondary"
+                      aria-label={t("accounting.chartOfAccounts.details")}
+                      tooltip={t("accounting.chartOfAccounts.details")}
+                      onClick={() => setDetails(node.data as ChartNodeData)}
+                    />
+                  ) : null}
                   <PermissionButton
                     allowed={can("account:update")}
                     icon="pi pi-pencil"
@@ -932,6 +973,12 @@ export function ChartOfAccountsPage(): React.JSX.Element {
         }}
       />
       <EditAccountDialog account={editAccount} onHide={() => setEditAccount(null)} />
+      <AccountTotalsDialog
+        account={details}
+        row={details ? balances.get(details.id) : undefined}
+        currency={currency}
+        onHide={() => setDetails(null)}
+      />
     </div>
   );
 }

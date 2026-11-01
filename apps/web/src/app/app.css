@@ -107,6 +107,43 @@
   color: var(--erp-text-muted);
 }
 
+/* One money column: the figure, then the small debit/credit tag, kept on one line. */
+.coa-balance {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+/* The details dialog: label on one side, the full figure on the other. */
+.coa-totals {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0 0 var(--erp-space-3, 1rem);
+}
+
+.coa-totals > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding-block: 0.4rem;
+  border-block-end: 1px solid var(--erp-border, rgb(0 0 0 / 0.08));
+}
+
+.coa-totals dt {
+  color: var(--erp-text-muted);
+  margin: 0;
+}
+
+.coa-totals dd {
+  margin: 0;
+}
+
+.coa-totals__balance {
+  font-weight: 700;
+}
+
 .coa-side {
   color: var(--erp-text-muted);
   font-size: 0.72rem;
@@ -252,12 +289,6 @@
 
 @media (max-width: 1280px) {
   .erp-coa .coa-col-hide-md {
-    display: none;
-  }
-}
-
-@media (max-width: 1100px) {
-  .erp-coa .coa-col-hide-sm2 {
     display: none;
   }
 }
