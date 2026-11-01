@@ -54,6 +54,7 @@ model Company {
   stockMovements     StockMovement[]
   costLayers         CostLayer[]
   goodsReceipts      GoodsReceipt[]
+  goodsReturns      GoodsReturn[]
   stockIssues        StockIssue[]
   stockCounts        StockCount[]
 
@@ -359,6 +360,7 @@ model Party {
   accounts         Account[]
   // M4 inventory: the supplier a goods receipt was received from, if recorded.
   goodsReceipts    GoodsReceipt[]
+  goodsReturns    GoodsReturn[]
   // M5 purchasing: orders placed with this party as the supplier.
   purchaseOrders   PurchaseOrder[]
   supplierInvoices SupplierInvoice[]
@@ -425,6 +427,7 @@ model JournalEntry {
   // line was posted by.
   stockMovements   StockMovement[]
   goodsReceipts    GoodsReceipt[]
+  goodsReturns    GoodsReturn[]
   stockIssues      StockIssue[]
   stockCountLines  StockCountLine[]
   supplierInvoices SupplierInvoice[]
@@ -592,6 +595,7 @@ model Warehouse {
   stockMovements    StockMovement[]
   costLayers        CostLayer[]
   goodsReceipts     GoodsReceipt[]
+  goodsReturns     GoodsReturn[]
   stockIssues       StockIssue[]
   stockCounts       StockCount[]
   salesInvoiceLines SalesInvoiceLine[]
@@ -624,6 +628,7 @@ model Item {
   stockMovements       StockMovement[]
   costLayers           CostLayer[]
   goodsReceiptLines    GoodsReceiptLine[]
+  goodsReturnLines    GoodsReturnLine[]
   stockIssueLines      StockIssueLine[]
   stockCountLines      StockCountLine[]
   purchaseRequestLines PurchaseRequestLine[]
@@ -935,6 +940,7 @@ model PurchaseOrder {
   lines            PurchaseOrderLine[]
   purchaseRequests PurchaseRequest[]
   goodsReceipts    GoodsReceipt[]
+  goodsReturns    GoodsReturn[]
   supplierInvoices SupplierInvoice[]
 
   @@unique([companyId, number])
@@ -959,6 +965,7 @@ model PurchaseOrderLine {
   purchaseOrder     PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
   item              Item                  @relation(fields: [itemId], references: [id])
   goodsReceiptLines GoodsReceiptLine[]
+  goodsReturnLines GoodsReturnLine[]
   invoiceLines      SupplierInvoiceLine[]
 
   @@index([purchaseOrderId])
@@ -1056,6 +1063,61 @@ model SupplierInvoiceLine {
 
   @@index([supplierInvoiceId])
   @@map("supplier_invoice_lines")
+}
+
+// ─── Purchase returns (M5) ──────────────────────────────────────────────────────
+// Goods sent back to the supplier BEFORE the supplier invoice has been matched to them. Only that case is
+// built (docs/01-OPEN-DECISIONS.md section D8): a return after invoicing needs a debit note, which waits
+// for an accountant's ruling on input VAT and price variance. A return reverses the receipt posting:
+// GRNI is debited at the order price, Inventory is credited at the weighted-average cost actually taken
+// out of stock, and any difference goes to the purchase price variance account.
+model GoodsReturn {
+  id              String   @id
+  companyId       String   @map("company_id")
+  number          String
+  warehouseId     String   @map("warehouse_id")
+  partyId         String   @map("party_id")
+  purchaseOrderId String   @map("purchase_order_id")
+  documentDate    DateTime @map("document_date") @db.Date
+  reference       String?
+  reason          String?
+  journalEntryId  String   @map("journal_entry_id")
+  actorId         String   @map("actor_id")
+  correlationId   String   @map("correlation_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company       Company           @relation(fields: [companyId], references: [id])
+  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id])
+  party         Party             @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  journalEntry  JournalEntry      @relation(fields: [journalEntryId], references: [id])
+  lines         GoodsReturnLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, purchaseOrderId])
+  @@index([companyId, documentDate])
+  @@map("goods_returns")
+}
+
+model GoodsReturnLine {
+  id                  String  @id
+  goodsReturnId       String  @map("goods_return_id")
+  itemId              String  @map("item_id")
+  purchaseOrderLineId String  @map("purchase_order_line_id")
+  quantity            Decimal @db.Decimal(19, 4)
+  // What left stock: weighted-average cost at the time of the return (credited to Inventory).
+  unitCost            Decimal @map("unit_cost") @db.Decimal(19, 4)
+  value               Decimal @db.Decimal(19, 4)
+  // What the receipt booked to GRNI for this quantity: quantity x order price (debited back to GRNI).
+  orderValue          Decimal @map("order_value") @db.Decimal(19, 4)
+  lineNumber          Int     @map("line_number")
+
+  goodsReturn       GoodsReturn       @relation(fields: [goodsReturnId], references: [id])
+  item              Item              @relation(fields: [itemId], references: [id])
+  purchaseOrderLine PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+
+  @@index([goodsReturnId])
+  @@map("goods_return_lines")
 }
 
 // ─── M6: Sales ──────────────────────────────────────────────────────────────────
