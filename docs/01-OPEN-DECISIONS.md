@@ -212,8 +212,18 @@ Confirm or change each before the first real customer posts a supplier invoice.
 - **D7. Approval segregation.** The user who creates a purchase order may also approve it. A rule
   "requester cannot approve" would block a one-person company, so it is not enforced.
 
-**Known gaps, M5:** no debit notes or purchase returns; no supplier payments or AP ageing (arrive with the
-payments work); purchase orders cannot be edited (cancel and re-issue); a retried receipt or invoice is not
+- **D8. Purchase returns.** Osama chose to build only the return of goods that were received and **not yet
+  matched to a supplier invoice**. The posting reverses the receipt: GRNI is debited at the order price (what
+  the receipt credited), Inventory is credited at the weighted-average cost actually taken out of stock, and
+  any difference goes to `PURCHASE_PRICE_VARIANCE` (same account as D1). Without that last line GRNI would keep
+  a residue no invoice can clear whenever the average cost has drifted from the order price. The returned
+  quantity is no longer "received": it can be received again, and the order status follows the counters
+  (a fully returned order goes back to APPROVED). **Not built, needs an accountant:** returning goods that are
+  already invoiced. That is a debit note (debit payables, credit Inventory) and rules on reversing input VAT and
+  the price variance have to be confirmed first. Direct receipts with no purchase order cannot be returned yet.
+
+**Known gaps, M5:** no debit notes (so no return of invoiced goods, D8); no supplier payments or AP ageing (arrive with the
+payments work); purchase orders cannot be edited (cancel and re-issue); a retried receipt, invoice or return is not
 replayed at document level (the ledger itself is protected by the idempotency key).
 
 ## E. Accounting treatments built with a stated default (M6 sales)
