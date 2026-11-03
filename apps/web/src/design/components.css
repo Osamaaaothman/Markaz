@@ -1766,3 +1766,8 @@ html body .mk-created {
     grid-template-columns: 1fr;
   }
 }
+
+/* The "saved" message must stay readable above any dialog that opens with it (the new record's details). */
+html body .p-toast {
+  z-index: 100000 !important;
+}

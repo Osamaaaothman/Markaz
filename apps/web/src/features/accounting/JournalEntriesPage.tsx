@@ -143,7 +143,7 @@ export function JournalEntriesPage(): React.JSX.Element {
         </>
       )}
 
-      <JournalEntryForm visible={formVisible} onHide={() => setFormVisible(false)} onCreated={setCreated} />
+      <JournalEntryForm visible={formVisible} onHide={() => setFormVisible(false)} onCreated={(info, entryId) => setCreated({ ...info, onOpen: () => setSelectedEntryId(entryId) })} />
       <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <JournalEntryDetailDialog entryId={selectedEntryId} onHide={() => setSelectedEntryId(null)} />
     </div>

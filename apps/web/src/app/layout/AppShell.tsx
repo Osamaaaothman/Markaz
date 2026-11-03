@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
+import { CreatedToast } from "../../shared/ui/CreatedToast";
 import { CommandPalette } from "./CommandPalette";
 import { ExportProgress } from "./ExportProgress";
 import { Sidebar } from "./Sidebar";
@@ -45,6 +46,7 @@ export function AppShell(): React.JSX.Element {
       </div>
       <CommandPalette />
       <ExportProgress />
+      <CreatedToast />
     </div>
   );
 }

@@ -333,3 +333,14 @@ Before this, a request became an order directly and "accepted" was implicit. Now
   for approval. The list refreshes after every request/order action and once a minute.
 - Not built: the same person may create and accept a request (no segregation setting yet, same as D7); no notification to the
   requester (needs configured email).
+
+## I. After creating something, opening its details (2026-11-03)
+
+- Done: a record that has a details screen **opens on it straight away, with the "saved successfully" message shown over it**
+  (a toast in the app shell; `CreatedInfo.onOpen` in `CreatedDialog`). There is no extra button. Employee, purchase order, sales
+  order and sales invoice open their page; journal entry and purchase request open their dialog. A quotation has no details
+  screen, so it keeps the confirmation dialog.
+- Known gap (not built): supplier invoice, payment/receipt, goods receipt, stock issue, stock count and goods return have no
+  details screen and no `GET :id` endpoint (goods receipts and issues have no list either). Each needs a read endpoint, a page
+  and tests, so it is its own piece of work. Their confirmation dialog still shows the saved fields.
+- Not planned: master data (parties, items, warehouses, tax codes, accounts); the confirmation dialog already shows all their fields.

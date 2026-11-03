@@ -106,6 +106,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
           setCreated({
             id: saved.id,
             info: {
+              onOpen: () => void navigate(`/purchasing/orders/${saved.id}`),
               title: t("purchasing.orders.newTitle"),
               headline: saved.number,
               rows: [
