@@ -117,7 +117,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
         </>
       )}
 
-      <NewRequestDialog visible={newOpen} onHide={() => setNewOpen(false)} onCreated={setCreated} />
+      <NewRequestDialog visible={newOpen} onHide={() => setNewOpen(false)} onCreated={(info, id) => setCreated({ ...info, onOpen: () => setViewId(id) })} />
       <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <RequestDetailDialog id={viewId} onHide={() => setViewId(null)} />
     </div>
@@ -136,7 +136,7 @@ const requestSchema = z.object({
 type RequestFormValues = z.infer<typeof requestSchema>;
 const EMPTY_LINE = { itemId: "", quantity: "" };
 
-function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; onHide: () => void; onCreated: (info: CreatedInfo) => void }): React.JSX.Element {
+function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; onHide: () => void; onCreated: (info: CreatedInfo, requestId: string) => void }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data: items } = useAllItems();
   const { data: warehouses } = useAllWarehouses();
@@ -172,7 +172,7 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
               { label: t("created.lines"), value: String(saved.lineCount) },
               { label: t("created.notes"), value: saved.notes ?? "" },
             ],
-          });
+          }, saved.id);
           onHide();
         },
       },

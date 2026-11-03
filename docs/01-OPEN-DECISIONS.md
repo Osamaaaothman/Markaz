@@ -362,3 +362,14 @@ Detailed choices below were made without an accountant and are marked `// REVIEW
 - Not built: paying salary and paying the gratuity through the Payments module against the new party (it needs a payment
   direction for employees). New migration `20261103120000_employee_accounts` (expand-only). No new permission; existing
   `employee:update` covers provisioning.
+
+## I. After creating something, opening its details (2026-11-03)
+
+- Done: a record that has a details screen **opens on it straight away, with the "saved successfully" message shown over it**
+  (a toast in the app shell; `CreatedInfo.onOpen` in `CreatedDialog`). There is no extra button. Employee, purchase order, sales
+  order and sales invoice open their page; journal entry and purchase request open their dialog. A quotation has no details
+  screen, so it keeps the confirmation dialog.
+- Known gap (not built): supplier invoice, payment/receipt, goods receipt, stock issue, stock count and goods return have no
+  details screen and no `GET :id` endpoint (goods receipts and issues have no list either). Each needs a read endpoint, a page
+  and tests, so it is its own piece of work. Their confirmation dialog still shows the saved fields.
+- Not planned: master data (parties, items, warehouses, tax codes, accounts); the confirmation dialog already shows all their fields.

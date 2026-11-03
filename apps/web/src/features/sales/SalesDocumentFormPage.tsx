@@ -155,11 +155,13 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     const dateIso = toDateOnlyIsoString(date);
     const secondIso = secondDate ? toDateOnlyIsoString(secondDate) : null;
     const listPath = mode === "quotation" ? "/sales/quotations" : mode === "order" ? "/sales/orders" : "/sales/invoices";
-    const done = (saved: { readonly number: string }): void => {
+    const done = (saved: { readonly id: string; readonly number: string }): void => {
       const gross = totals.net.add(totals.tax);
       setCreated({
-        to: listPath,
+        // An order or invoice opens on its own page; a quotation has none, so it goes back to the list.
+        to: mode === "quotation" ? listPath : `${listPath}/${saved.id}`,
         info: {
+          ...(mode === "quotation" ? {} : { onOpen: () => void navigate(`${listPath}/${saved.id}`) }),
           title: t(`sales.${mode === "quotation" ? "quotations" : mode === "order" ? "orders" : "invoices"}.newTitle`),
           headline: saved.number,
           rows: [
