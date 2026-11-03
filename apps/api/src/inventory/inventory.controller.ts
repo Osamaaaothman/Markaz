@@ -23,6 +23,7 @@ import {
   type ItemSummary,
   type StockCountPostResult,
   type StockCountRecordResult,
+  type StockCountDetail,
   type StockCountSummary,
   type StockIssueResult,
   type StockLevelEntry,
@@ -319,6 +320,14 @@ export class InventoryController {
   @RequirePermission("stock_count", "read")
   listStockCounts(@CurrentUser() actor: CurrentUserPayload, @Query() query: StockCountsQueryDto): Promise<StockCountSummary[]> {
     return this.stockCounts.list(actor.companyId, query);
+  }
+
+  @Get("stock-counts/:id")
+  @RequirePermission("stock_count", "read")
+  async getStockCount(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<StockCountDetail> {
+    const count = await this.stockCounts.get(id, actor.companyId);
+    if (!count) throw new NotFoundException("Stock count not found");
+    return count;
   }
 
   @Post("stock-counts")

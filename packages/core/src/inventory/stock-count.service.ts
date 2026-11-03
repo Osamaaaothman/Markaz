@@ -65,6 +65,28 @@ export interface StockCountSummary {
   readonly lineCount: number;
 }
 
+// One counted line. `systemQuantity` is what the books said when it was counted (informational: the variance that is posted is
+// worked out against stock at the moment of posting).
+export interface StockCountLineDetail {
+  readonly lineNumber: number;
+  readonly itemId: string;
+  readonly itemCode: string;
+  readonly itemName: string;
+  readonly itemNameAr: string | null;
+  readonly unit: string;
+  readonly systemQuantity: string;
+  readonly countedQuantity: string;
+  readonly difference: string;
+  readonly unitCost: string;
+}
+
+export interface StockCountDetail extends StockCountSummary {
+  readonly postedAt: string | null;
+  // The entry the posting made; null while the count is a draft, or when every line matched the books.
+  readonly journalEntryId: string | null;
+  readonly lines: readonly StockCountLineDetail[];
+}
+
 export interface StockCountListQuery {
   readonly warehouseId?: string | undefined;
   readonly unpostedOnly?: "true" | "false" | undefined;
@@ -109,6 +131,41 @@ export class StockCountService {
       isPosted: c.postedAt !== null,
       lineCount: c._count.lines,
     }));
+  }
+
+  async get(id: string, companyId: string): Promise<StockCountDetail | null> {
+    const c = await this.prisma.stockCount.findFirst({
+      where: { id, companyId },
+      include: {
+        warehouse: { select: { name: true, nameAr: true } },
+        lines: { orderBy: { lineNumber: "asc" }, include: { item: { select: { code: true, name: true, nameAr: true, unit: true } } } },
+      },
+    });
+    if (!c) return null;
+    return {
+      id: c.id,
+      number: c.number,
+      warehouseId: c.warehouseId,
+      warehouseName: c.warehouse.name,
+      warehouseNameAr: c.warehouse.nameAr,
+      documentDate: c.documentDate.toISOString(),
+      isPosted: c.postedAt !== null,
+      lineCount: c.lines.length,
+      postedAt: c.postedAt ? c.postedAt.toISOString() : null,
+      journalEntryId: c.lines.find((l) => l.journalEntryId !== null)?.journalEntryId ?? null,
+      lines: c.lines.map((l) => ({
+        lineNumber: l.lineNumber,
+        itemId: l.itemId,
+        itemCode: l.item.code,
+        itemName: l.item.name,
+        itemNameAr: l.item.nameAr,
+        unit: l.item.unit,
+        systemQuantity: l.systemQuantity.toFixed(4),
+        countedQuantity: l.countedQuantity.toFixed(4),
+        difference: l.countedQuantity.minus(l.systemQuantity).toFixed(4),
+        unitCost: l.unitCost.toFixed(4),
+      })),
+    };
   }
 
   async record(input: RecordStockCountInput, actor: StockCountActor, correlationId: string): Promise<StockCountRecordResult> {
