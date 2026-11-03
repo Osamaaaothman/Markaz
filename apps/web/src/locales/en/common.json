@@ -1270,7 +1270,8 @@
     "tax": "Tax",
     "gross": "Gross",
     "permissions": "Permissions",
-    "nameAr": "Arabic name"
+    "nameAr": "Arabic name",
+    "openDetails": "Open details"
   },
   "hr": {
     "employees": {

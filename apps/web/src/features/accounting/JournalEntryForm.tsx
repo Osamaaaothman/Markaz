@@ -66,7 +66,7 @@ export interface JournalEntryFormProps {
   readonly visible: boolean;
   readonly onHide: () => void;
   // Called with a summary of the saved entry so the page can show it in a dialog.
-  readonly onCreated?: (info: CreatedInfo) => void;
+  readonly onCreated?: (info: CreatedInfo, entryId: string) => void;
 }
 
 export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFormProps): React.JSX.Element {
@@ -146,7 +146,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
             { label: t("created.credit"), value: formatMoney(totals.credit.toDecimalString(4), input.currency), ltr: true },
             { label: t("created.lines"), value: String(input.lines.length) },
           ],
-        });
+        }, saved.journalEntryId);
         onHide();
       },
     });

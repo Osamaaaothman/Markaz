@@ -15,6 +15,8 @@ export interface CreatedInfo {
   // The headline value people look for first: the number or code that was just generated.
   readonly headline?: string;
   readonly rows: readonly CreatedRow[];
+  // When the new record has a details screen, how to get there. Adds an "open details" button.
+  readonly onOpen?: () => void;
 }
 
 // Shown right after something has been created, so the person can check what was saved (and write down the number)
@@ -50,6 +52,18 @@ export function CreatedDialog({
             ))}
           </dl>
           <div className="mk-created__actions">
+            {info.onOpen ? (
+              <Button
+                type="button"
+                label={t("created.openDetails")}
+                icon="pi pi-external-link"
+                outlined
+                onClick={() => {
+                  onHide();
+                  info.onOpen?.();
+                }}
+              />
+            ) : null}
             {extraAction ? <Button type="button" label={extraAction.label} outlined onClick={extraAction.onClick} /> : null}
             <Button type="button" label={t("created.ok")} onClick={onHide} autoFocus />
           </div>

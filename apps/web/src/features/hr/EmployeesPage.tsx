@@ -82,6 +82,7 @@ export function EmployeesPage(): React.JSX.Element {
         onSuccess: (saved) => {
           setDialogOpen(false);
           setCreated({
+            onOpen: () => void navigate(`/hr/employees/${saved.id}`),
             title: t("hr.employees.add"),
             headline: saved.ref,
             rows: [
