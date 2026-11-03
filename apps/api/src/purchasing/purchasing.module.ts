@@ -10,6 +10,7 @@ import {
   PurchaseOrderService,
   PurchaseReceiptService,
   PurchaseRequestService,
+  PurchasingQueueService,
   SupplierInvoiceService,
   TaxCodeService,
   type IAccountingEngine,
@@ -43,6 +44,7 @@ import { PurchasingController } from "./purchasing.controller.js";
       useFactory: (prisma: PrismaService, audit: IAuditLogger) => new PurchaseRequestService(prisma, audit),
       inject: [PrismaService, AUDIT_LOGGER],
     },
+    { provide: PurchasingQueueService, useFactory: (prisma: PrismaService) => new PurchasingQueueService(prisma), inject: [PrismaService] },
     {
       provide: PurchaseOrderService,
       useFactory: (prisma: PrismaService, approvals: ApprovalService, audit: IAuditLogger) =>

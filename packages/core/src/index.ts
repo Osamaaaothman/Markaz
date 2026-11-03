@@ -32,6 +32,7 @@ export * from "./approvals/approval.service.js";
 
 // M5 purchasing
 export * from "./purchasing/purchase-request.service.js";
+export * from "./purchasing/purchasing-queue.service.js";
 export * from "./purchasing/purchase-order.service.js";
 export * from "./purchasing/purchase-receipt.service.js";
 export * from "./purchasing/goods-return.service.js";

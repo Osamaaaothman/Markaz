@@ -90,6 +90,7 @@ const PERMISSION_CATALOG = [
   { code: "purchase_request:create", description: "Raise a purchase request" },
   { code: "purchase_request:read", description: "View purchase requests" },
   { code: "purchase_request:reject", description: "Reject a purchase request" },
+  { code: "purchase_request:review", description: "Review purchase requests: accept one so an order can be made from it" },
   { code: "purchase_order:create", description: "Create a purchase order" },
   { code: "purchase_order:read", description: "View purchase orders" },
   { code: "purchase_order:approve", description: "Approve or reject a purchase order above the approval threshold" },
