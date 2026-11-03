@@ -1632,14 +1632,16 @@ model EndOfServiceSettlement {
   grossEntitlement    Decimal  @map("gross_entitlement") @db.Decimal(19, 4)
   entitlementFraction Decimal  @map("entitlement_fraction") @db.Decimal(6, 4)
   netEntitlement      Decimal  @map("net_entitlement") @db.Decimal(19, 4)
-  journalEntryId      String   @map("journal_entry_id")
+  // Null only when nothing is owed (net_entitlement = 0): no ledger event, so no entry. A CHECK in the database
+  // ("end_of_service_settlements_journal_entry_check") refuses a null entry on a settlement that owes money.
+  journalEntryId      String?  @map("journal_entry_id")
   actorId             String   @map("actor_id")
   correlationId       String   @map("correlation_id")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  company      Company      @relation(fields: [companyId], references: [id])
-  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+  company      Company       @relation(fields: [companyId], references: [id])
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, number])
   @@index([companyId, employeeId])
