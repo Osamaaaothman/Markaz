@@ -52,6 +52,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/inventory/stock-counts", labelKey: "nav.stockCount", icon: "pi pi-check-square", permissions: ["stock_count:read"], groupKey: "nav.groups.inventory" },
   { to: "/hr/employees", labelKey: "nav.employees", icon: "pi pi-id-card", permissions: ["employee:read"], groupKey: "nav.groups.hr" },
   { to: "/hr/allowance-types", labelKey: "nav.allowanceTypes", icon: "pi pi-tags", permissions: ["employee:read"], groupKey: "nav.groups.hr" },
+  { to: "/hr/payments", labelKey: "nav.hrPayments", icon: "pi pi-money-bill", permissions: ["hr_payment:read"], groupKey: "nav.groups.hr" },
   { to: "/hr/payroll-runs", labelKey: "nav.payrollRuns", icon: "pi pi-wallet", permissions: ["payroll_run:read"], groupKey: "nav.groups.hr" },
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/review", labelKey: "nav.purchaseReview", icon: "pi pi-check-square", permissions: ["purchase_request:review"], groupKey: "nav.groups.purchasing", badge: "review" },
