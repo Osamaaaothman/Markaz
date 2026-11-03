@@ -11,13 +11,13 @@ import { useChartOfAccounts } from "./use-chart-of-accounts";
 // once the chart has loaded and when the language changes.
 export function useAccountLabelKey(): string {
   const { i18n } = useTranslation();
-  const { data } = useChartOfAccounts();
+  const { data } = useChartOfAccounts(true);
   return `${i18n.language}:${data ? "ready" : "loading"}`;
 }
 
 export function useAccountLabel(): (accountId: string, fallbackName: string) => string {
   const { i18n } = useTranslation();
-  const { data } = useChartOfAccounts();
+  const { data } = useChartOfAccounts(true);
   const byId = new Map((data ?? []).map((a) => [a.id, a]));
 
   return (accountId, fallbackName) => {

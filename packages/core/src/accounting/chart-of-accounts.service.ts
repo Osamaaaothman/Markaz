@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@erp/db";
+import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
 import { allocateRef } from "../reference.js";
@@ -18,11 +18,33 @@ export interface ChartOfAccountEntry {
   readonly nameAr: string | null;
   readonly type: string;
   readonly isPostable: boolean;
+  // A stopped account stays in the books and the reports but takes no new postings and is not offered in pickers.
+  readonly isActive: boolean;
   readonly parentId: string | null;
   readonly partyId: string | null;
   // #RRGGBB, set on top-level accounts only.
   readonly color: string | null;
   readonly party: AccountPartyRef | null;
+}
+
+// Everything that points at one account. An account may be deleted only when every count is zero and no party is
+// linked; any one of them is a reason to keep it (and to stop it instead).
+export interface AccountUsage {
+  readonly ledgerLines: number;
+  readonly mappings: number;
+  readonly supplierInvoiceLines: number;
+  readonly salesInvoiceLines: number;
+  readonly payments: number;
+  readonly salaryAdvances: number;
+  readonly children: number;
+  readonly linkedParty: boolean;
+}
+
+export interface AccountUsageResult {
+  readonly id: string;
+  readonly code: string;
+  readonly usage: AccountUsage;
+  readonly canDelete: boolean;
 }
 
 export type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
@@ -63,13 +85,19 @@ export type ChartOfAccountsErrorCode =
   | "PARTY_NOT_FOUND"
   | "TYPE_MISMATCH"
   | "MOVE_INTO_SELF_OR_DESCENDANT"
-  | "ACCOUNT_IN_USE";
+  | "ACCOUNT_IN_USE"
+  | "ACCOUNT_MAPPED"
+  | "HAS_ACTIVE_CHILDREN"
+  | "BALANCE_NOT_ZERO"
+  | "PARENT_INACTIVE";
 
 // Typed business-rule failure; the API maps each code to an HTTP status.
 export class ChartOfAccountsError extends Error {
   constructor(
     readonly code: ChartOfAccountsErrorCode,
     message: string,
+    // What the account is used by (counts per kind), so a screen can say why a delete was refused.
+    readonly details?: AccountUsage,
   ) {
     super(message);
     this.name = "ChartOfAccountsError";
@@ -86,11 +114,20 @@ export const CHART_ENTRY_SELECT = {
   nameAr: true,
   type: true,
   isPostable: true,
+  isActive: true,
   parentId: true,
   partyId: true,
   color: true,
   party: { select: { id: true, name: true, nameAr: true, kind: true } },
 } as const;
+
+// True when anything at all points at the account.
+export function isUsed(usage: AccountUsage): boolean {
+  return (
+    usage.ledgerLines + usage.mappings + usage.supplierInvoiceLines + usage.salesInvoiceLines + usage.payments + usage.salaryAdvances + usage.children > 0 ||
+    usage.linkedParty
+  );
+}
 
 export function normalBalanceFor(type: AccountType): "DEBIT" | "CREDIT" {
   return type === "ASSET" || type === "EXPENSE" ? "DEBIT" : "CREDIT";
@@ -183,6 +220,98 @@ export class ChartOfAccountsService {
     return after;
   }
 
+  // Counts every record that points at the account. Takes the client so a delete can run it inside its transaction.
+  private async usageOf(
+    db: Pick<PrismaClient, "journalEntryLine" | "accountMapping" | "supplierInvoiceLine" | "salesInvoiceLine" | "payment" | "salaryAdvance" | "account">,
+    id: string,
+    partyId: string | null,
+  ): Promise<AccountUsage> {
+    const [ledgerLines, mappings, supplierInvoiceLines, salesInvoiceLines, payments, salaryAdvances, children] = await Promise.all([
+      db.journalEntryLine.count({ where: { accountId: id } }),
+      db.accountMapping.count({ where: { accountId: id } }),
+      db.supplierInvoiceLine.count({ where: { accountId: id } }),
+      db.salesInvoiceLine.count({ where: { revenueAccountId: id } }),
+      db.payment.count({ where: { cashAccountId: id } }),
+      db.salaryAdvance.count({ where: { cashAccountId: id } }),
+      db.account.count({ where: { parentId: id } }),
+    ]);
+    return { ledgerLines, mappings, supplierInvoiceLines, salesInvoiceLines, payments, salaryAdvances, children, linkedParty: partyId !== null };
+  }
+
+  async usage(id: string, actor: AccountActor): Promise<AccountUsageResult> {
+    const account = await this.prisma.account.findFirst({ where: { id, companyId: actor.companyId }, select: { id: true, code: true, partyId: true } });
+    if (!account) throw new ChartOfAccountsError("ACCOUNT_NOT_FOUND", "Account not found");
+    const usage = await this.usageOf(this.prisma, id, account.partyId);
+    return { id: account.id, code: account.code, usage, canDelete: !isUsed(usage) };
+  }
+
+  // Deletes an account nothing points at. A used account is never deleted (docs/05 section 4): stop it instead.
+  // The check runs in the same transaction as the delete under a row lock, and the foreign keys (all RESTRICT) are a
+  // second wall: a record this check does not know about makes the database refuse, which is reported the same way.
+  async delete(id: string, actor: AccountActor, correlationId: string): Promise<void> {
+    let deleted: Record<string, unknown> | null = null;
+    try {
+      deleted = await this.prisma.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM accounts WHERE id = ${id} AND company_id = ${actor.companyId} FOR UPDATE`;
+        if (rows.length === 0) throw new ChartOfAccountsError("ACCOUNT_NOT_FOUND", "Account not found");
+        const before = await tx.account.findUniqueOrThrow({ where: { id }, select: CHART_ENTRY_SELECT });
+        const usage = await this.usageOf(tx, id, before.partyId);
+        if (isUsed(usage)) throw new ChartOfAccountsError("ACCOUNT_IN_USE", "This account is used, so it cannot be deleted", usage);
+        await tx.account.delete({ where: { id } });
+        return { ...before };
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        throw new ChartOfAccountsError("ACCOUNT_IN_USE", "This account is used, so it cannot be deleted");
+      }
+      throw error;
+    }
+    await this.audit.log({ actorId: actor.id, action: "account.deleted", entityType: "Account", entityId: id, before: deleted, correlationId });
+  }
+
+  // Stops or restarts an account. A stopped account keeps its history and appears in the reports, but cannot be
+  // posted to and is not offered in pickers. Refused for: an account an automatic posting depends on (mapped), a
+  // folder that still has active sub-accounts, and (unless acknowledged) an account whose balance is not zero.
+  // Restarting needs an active parent so the tree never has an active account under a stopped one.
+  async setActive(
+    id: string,
+    isActive: boolean,
+    acknowledgeBalance: boolean,
+    actor: AccountActor,
+    correlationId: string,
+  ): Promise<ChartOfAccountEntry> {
+    const before = await this.prisma.account.findFirst({ where: { id, companyId: actor.companyId }, select: CHART_ENTRY_SELECT });
+    if (!before) throw new ChartOfAccountsError("ACCOUNT_NOT_FOUND", "Account not found");
+    if (before.isActive === isActive) return before;
+
+    if (isActive) {
+      if (before.parentId) {
+        const parent = await this.prisma.account.findUnique({ where: { id: before.parentId }, select: { isActive: true } });
+        if (parent && !parent.isActive) throw new ChartOfAccountsError("PARENT_INACTIVE", "Restart the parent account first");
+      }
+    } else {
+      if ((await this.prisma.accountMapping.count({ where: { accountId: id } })) > 0) {
+        throw new ChartOfAccountsError("ACCOUNT_MAPPED", "An automatic posting uses this account; point it elsewhere first");
+      }
+      if ((await this.prisma.account.count({ where: { parentId: id, isActive: true } })) > 0) {
+        throw new ChartOfAccountsError("HAS_ACTIVE_CHILDREN", "Stop the sub-accounts first");
+      }
+      if (!acknowledgeBalance) {
+        const sums = await this.prisma.journalEntryLine.aggregate({ where: { accountId: id }, _sum: { baseDebit: true, baseCredit: true } });
+        const net = (sums._sum.baseDebit ?? new Prisma.Decimal(0)).minus(sums._sum.baseCredit ?? new Prisma.Decimal(0));
+        if (!net.isZero()) throw new ChartOfAccountsError("BALANCE_NOT_ZERO", "This account still has a balance");
+      }
+    }
+
+    const after = await this.prisma.account.update({
+      where: { id },
+      data: { isActive, updatedBy: actor.id, version: { increment: 1 } },
+      select: CHART_ENTRY_SELECT,
+    });
+    await this.audit.log({ actorId: actor.id, action: isActive ? "account.restarted" : "account.stopped", entityType: "Account", entityId: id, before, after, correlationId });
+    return after;
+  }
+
   // Turns an account that takes postings into a folder (group) that can hold other accounts. Only for an account
   // nothing has used yet: no ledger line, no account mapping, no supplier-invoice line, payment or salary advance
   // points at it, and no party is linked. A used account keeps its postings (docs/05 section 4), so it is refused.
@@ -198,15 +327,10 @@ export class ChartOfAccountsService {
     if (!before) throw new ChartOfAccountsError("ACCOUNT_NOT_FOUND", "Account not found");
     if (!before.isPostable) return before; // already a folder: nothing to do
 
-    const [ledgerLines, mappings, invoiceLines, payments, advances] = await Promise.all([
-      this.prisma.journalEntryLine.count({ where: { accountId: id } }),
-      this.prisma.accountMapping.count({ where: { accountId: id } }),
-      this.prisma.supplierInvoiceLine.count({ where: { accountId: id } }),
-      this.prisma.payment.count({ where: { cashAccountId: id } }),
-      this.prisma.salaryAdvance.count({ where: { cashAccountId: id } }),
-    ]);
-    if (ledgerLines + mappings + invoiceLines + payments + advances > 0 || before.partyId !== null) {
-      throw new ChartOfAccountsError("ACCOUNT_IN_USE", "This account is already used, so it cannot become a folder");
+    // A folder has no postings of its own, so children are fine; everything else is a reason to refuse.
+    const usage = await this.usageOf(this.prisma, id, before.partyId);
+    if (isUsed({ ...usage, children: 0 })) {
+      throw new ChartOfAccountsError("ACCOUNT_IN_USE", "This account is already used, so it cannot become a folder", usage);
     }
 
     const after = await this.prisma.account.update({

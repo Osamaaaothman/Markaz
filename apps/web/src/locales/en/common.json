@@ -228,7 +228,38 @@
       "dnd": {
         "hint": "Drag «{{name}}» onto a folder of the same type. Move to the top or bottom edge of the window to scroll.",
         "over": "Release to move «{{name}}» into «{{target}}»"
-      }
+      },
+      "lifecycle": {
+        "title": "Delete or stop this account",
+        "usedBy": "This account is used by:",
+        "unused": "Nothing uses this account yet, so it can be deleted.",
+        "cannotDelete": "A used account cannot be deleted. Stop it instead, or remove what points at it first.",
+        "delete": "Delete account",
+        "deleteConfirm": "The account will be deleted for good. This cannot be undone.",
+        "deleteYes": "Yes, delete it",
+        "stop": "Stop account",
+        "stopConfirm": "A stopped account keeps its history but takes no new entries and disappears from the pickers.",
+        "stopYes": "Yes, stop it",
+        "balanceAsk": "This account still has a balance. Stop it anyway?",
+        "restart": "Restart account",
+        "error": "Could not complete this.",
+        "errors": {
+          "ACCOUNT_MAPPED": "An automatic posting uses this account. Point that setting to another account first.",
+          "HAS_ACTIVE_CHILDREN": "Stop its sub-accounts first.",
+          "PARENT_INACTIVE": "Restart the parent account first."
+        },
+        "usage": {
+          "ledgerLines": "Journal lines",
+          "mappings": "Automatic posting settings",
+          "supplierInvoiceLines": "Supplier invoice lines",
+          "salesInvoiceLines": "Sales invoice lines",
+          "payments": "Payments",
+          "salaryAdvances": "Salary advances",
+          "children": "Sub-accounts",
+          "linkedParty": "Linked to a person or company"
+        }
+      },
+      "stopped": "Stopped"
     },
     "trialBalance": {
       "title": "Trial balance",

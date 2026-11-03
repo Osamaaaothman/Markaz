@@ -63,6 +63,7 @@ const PERMISSION_CATALOG = [
   { code: "account:read", description: "View the chart of accounts" },
   { code: "account:create", description: "Add an account to the chart of accounts" },
   { code: "account:update", description: "Edit an account's names, linked party and colour" },
+  { code: "account:delete", description: "Delete an account nothing uses" },
   { code: "party:read", description: "View parties (people, companies, employees)" },
   { code: "party:create", description: "Add a party" },
   { code: "party:update", description: "Edit a party" },

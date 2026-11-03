@@ -144,6 +144,31 @@
   font-weight: 700;
 }
 
+/* A stopped account: still in the chart and the reports, but faded, and its name carries a small tag. */
+.erp-coa .p-treetable-tbody > tr.coa-row--stopped > td {
+  opacity: 0.55;
+}
+
+.erp-coa .p-treetable-tbody > tr.coa-row--stopped > td:last-child {
+  opacity: 1;
+}
+
+.coa-stopped-tag {
+  margin-inline-start: 0.5rem;
+  font-size: 0.7rem;
+}
+
+.coa-lifecycle .erp-form__actions {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.coa-usage {
+  margin: 0.25rem 0;
+  padding-inline-start: 1.25rem;
+}
+
 .coa-side {
   color: var(--erp-text-muted);
   font-size: 0.72rem;
