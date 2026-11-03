@@ -410,7 +410,12 @@ Decided by Osama: allowances are a **table of types the company defines**, repla
 - Second slice: payment/receipt (`GET /v1/payments/:id`: bank account, the invoices it settled with links, what stayed on account)
   and stock count (`GET /v1/stock-counts/:id`: lines as counted against what the books said, the entry a posted count made, and a
   "post" button on a draft). A stock count stores no entry id of its own, so the page finds it through the lines it posted.
-- Remaining: goods receipt and stock issue (next slice; they have no list yet either).
+- Third slice: goods receipt and stock issue. They had no list either, so each now has a list page (`GET /v1/goods-receipts`,
+  `GET /v1/stock-issues`, newest first, paged) and a details page (lines with the cost stored at posting, the entry it made, the
+  supplier and order for a receipt, the cost centre for an issue). The menu entries now open these lists (read permission); the
+  entry forms are reached from a button on the list. A new receipt or issue opens on its page with the "saved" message over it.
+- With this slice every document that posts an entry has a details page. Not done: documents made inside a purchase-order receipt
+  (the order's "receive" dialog still just closes), and the numbering prefix question below.
 - Observed, not changed: goods returns, goods receipts, stock issues and stock counts are numbered `000001`, with no prefix
   (the numbering service creates their series without one, unlike purchase orders and invoices, which get `PO-2026-000001`).
   Changing it affects the format of numbers already issued, so it needs a decision.
