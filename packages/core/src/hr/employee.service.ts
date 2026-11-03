@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@erp/db";
+import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
 import { allocateRef } from "../reference.js";
@@ -7,7 +7,7 @@ import { outstandingAdvanceTotal } from "./salary-advance-balance.js";
 
 export class EmployeeError extends Error {
   constructor(
-    readonly code: "OUTSTANDING_ADVANCES" | "ACCOUNTS_PARENTS_INCOMPLETE" | "ACCOUNTS_PARENTS_NOT_MAPPED" | "ACCOUNTS_PARENT_INVALID" | "ACCOUNTS_CODE_EXHAUSTED",
+    readonly code: "OUTSTANDING_ADVANCES" | "ACCOUNTS_PARENTS_INCOMPLETE" | "ACCOUNTS_PARENTS_NOT_MAPPED" | "ACCOUNTS_PARENT_INVALID" | "ACCOUNTS_CODE_EXHAUSTED" | "ALLOWANCE_TYPE_NOT_FOUND" | "ALLOWANCE_TYPE_INACTIVE" | "DUPLICATE_ALLOWANCE",
     message: string,
   ) {
     super(message);
@@ -31,6 +31,23 @@ export interface EmployeeAccounts {
   readonly eosb: EmployeeLedgerAccount;
 }
 
+// One allowance an employee is paid, with the type's flags (which bases it counts in).
+export interface EmployeeAllowanceLine {
+  readonly allowanceTypeId: string;
+  readonly code: string;
+  readonly name: string;
+  readonly nameAr: string | null;
+  readonly amount: string;
+  readonly isHousing: boolean;
+  readonly inGosiBase: boolean;
+  readonly inEosbBase: boolean;
+}
+
+export interface AllowanceInput {
+  readonly allowanceTypeId: string;
+  readonly amount: string;
+}
+
 export interface EmployeeSummary {
   readonly id: string;
   readonly ref: string;
@@ -44,6 +61,9 @@ export interface EmployeeSummary {
   readonly hireDate: string;
   readonly terminationDate: string | null;
   readonly basicSalary: string;
+  // The allowances the employee is paid. `housingAllowance` / `otherAllowances` are totals derived from them (the
+  // housing-marked type, and everything else), kept for screens and exports that show those two numbers.
+  readonly allowances: readonly EmployeeAllowanceLine[];
   readonly housingAllowance: string;
   readonly otherAllowances: string;
   readonly isActive: boolean;
@@ -72,8 +92,7 @@ export interface CreateEmployeeInput {
   readonly bankName?: string | null | undefined;
   readonly hireDate: Date;
   readonly basicSalary: string;
-  readonly housingAllowance?: string | undefined;
-  readonly otherAllowances?: string | undefined;
+  readonly allowances?: readonly AllowanceInput[] | undefined;
 }
 
 // A field left out (undefined) is kept; null or "" clears an optional detail.
@@ -85,8 +104,8 @@ export interface UpdateEmployeeInput {
   readonly bankIban?: string | undefined;
   readonly bankName?: string | null | undefined;
   readonly basicSalary?: string | undefined;
-  readonly housingAllowance?: string | undefined;
-  readonly otherAllowances?: string | undefined;
+  // When given, replaces the employee's whole set of allowances (a type left out is removed).
+  readonly allowances?: readonly AllowanceInput[] | undefined;
   readonly terminationDate?: Date | null | undefined;
   readonly isActive?: boolean | undefined;
 }
@@ -109,8 +128,10 @@ const EMPLOYEE_SELECT = {
   hireDate: true,
   terminationDate: true,
   basicSalary: true,
-  housingAllowance: true,
-  otherAllowances: true,
+  allowances: {
+    select: { amount: true, allowanceType: { select: { id: true, code: true, name: true, nameAr: true, isHousing: true, inGosiBase: true, inEosbBase: true } } },
+    orderBy: { allowanceType: { name: "asc" } },
+  },
   isActive: true,
   partyId: true,
   advanceAccount: { select: { id: true, code: true, name: true, nameAr: true } },
@@ -140,8 +161,10 @@ type Row = {
   hireDate: Date;
   terminationDate: Date | null;
   basicSalary: { toFixed(n: number): string };
-  housingAllowance: { toFixed(n: number): string };
-  otherAllowances: { toFixed(n: number): string };
+  allowances: {
+    amount: Prisma.Decimal;
+    allowanceType: { id: string; code: string; name: string; nameAr: string | null; isHousing: boolean; inGosiBase: boolean; inEosbBase: boolean };
+  }[];
   isActive: boolean;
   partyId: string | null;
   advanceAccount: EmployeeLedgerAccount | null;
@@ -163,14 +186,46 @@ function toSummary(row: Row): EmployeeSummary {
     hireDate: dateOnly(row.hireDate),
     terminationDate: row.terminationDate ? dateOnly(row.terminationDate) : null,
     basicSalary: row.basicSalary.toFixed(4),
-    housingAllowance: row.housingAllowance.toFixed(4),
-    otherAllowances: row.otherAllowances.toFixed(4),
+    allowances: row.allowances.map((a) => ({
+      allowanceTypeId: a.allowanceType.id,
+      code: a.allowanceType.code,
+      name: a.allowanceType.name,
+      nameAr: a.allowanceType.nameAr,
+      amount: a.amount.toFixed(4),
+      isHousing: a.allowanceType.isHousing,
+      inGosiBase: a.allowanceType.inGosiBase,
+      inEosbBase: a.allowanceType.inEosbBase,
+    })),
+    housingAllowance: sumOf(row, true),
+    otherAllowances: sumOf(row, false),
     isActive: row.isActive,
     accounts:
       row.partyId && row.advanceAccount && row.salaryPayableAccount && row.eosbAccount
         ? { partyId: row.partyId, advance: row.advanceAccount, salaryPayable: row.salaryPayableAccount, eosb: row.eosbAccount }
         : null,
   };
+}
+
+function sumOf(row: Row, housing: boolean): string {
+  return row.allowances.filter((a) => a.allowanceType.isHousing === housing).reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0)).toFixed(4);
+}
+
+// Replaces the employee's allowances with `items` (zero amounts are dropped). A type must belong to the company; a stopped type
+// cannot be newly added, but one the employee already has can be kept.
+async function replaceAllowances(tx: Prisma.TransactionClient, companyId: string, employeeId: string, items: readonly AllowanceInput[]): Promise<void> {
+  const wanted = items.filter((i) => new Prisma.Decimal(i.amount).greaterThan(0));
+  if (new Set(wanted.map((i) => i.allowanceTypeId)).size !== wanted.length) throw new EmployeeError("DUPLICATE_ALLOWANCE", "An allowance type appears twice");
+  const types = await tx.allowanceType.findMany({ where: { companyId, id: { in: wanted.map((i) => i.allowanceTypeId) } }, select: { id: true, isActive: true } });
+  const have = new Set((await tx.employeeAllowance.findMany({ where: { employeeId }, select: { allowanceTypeId: true } })).map((a) => a.allowanceTypeId));
+  for (const item of wanted) {
+    const type = types.find((t) => t.id === item.allowanceTypeId);
+    if (!type) throw new EmployeeError("ALLOWANCE_TYPE_NOT_FOUND", "Allowance type not found");
+    if (!type.isActive && !have.has(type.id)) throw new EmployeeError("ALLOWANCE_TYPE_INACTIVE", "This allowance type is stopped");
+  }
+  await tx.employeeAllowance.deleteMany({ where: { employeeId } });
+  for (const item of wanted) {
+    await tx.employeeAllowance.create({ data: { id: newId(), companyId, employeeId, allowanceTypeId: item.allowanceTypeId, amount: item.amount } });
+  }
 }
 
 function accountsError(error: unknown): never {
@@ -246,14 +301,13 @@ export class EmployeeService {
           bankName: blankToNull(input.bankName),
           hireDate: input.hireDate,
           basicSalary: input.basicSalary,
-          housingAllowance: input.housingAllowance ?? "0",
-          otherAllowances: input.otherAllowances ?? "0",
           createdBy: actor.id,
           updatedBy: actor.id,
         },
         select: EMPLOYEE_SELECT,
       });
-      if (!parents) return created;
+      if (input.allowances?.length) await replaceAllowances(tx, actor.companyId, id, input.allowances);
+      if (!parents) return tx.employee.findUniqueOrThrow({ where: { id }, select: EMPLOYEE_SELECT });
       const provisioned = await provisionEmployeeAccounts(tx, actor.companyId, actor.id, { id, name: created.name, nameAr: created.nameAr, partyId: null, advanceAccountId: null, salaryPayableAccountId: null, eosbAccountId: null }, parents).catch(accountsError);
       createdRecords = provisioned.created;
       return tx.employee.update({ where: { id }, data: provisioned.ids, select: EMPLOYEE_SELECT });
@@ -328,7 +382,9 @@ export class EmployeeService {
       if (owed.greaterThan(0)) throw new EmployeeError("OUTSTANDING_ADVANCES", `This employee still owes ${owed.toFixed(4)} on salary advances; repay them first`);
     }
 
-    const after = await this.prisma.employee.update({
+    const after = await this.prisma.$transaction(async (tx) => {
+      if (input.allowances !== undefined) await replaceAllowances(tx, actor.companyId, id, input.allowances);
+      return tx.employee.update({
       where: { id },
       data: {
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
@@ -338,14 +394,13 @@ export class EmployeeService {
         ...(input.bankIban !== undefined ? { bankIban: input.bankIban.trim().toUpperCase() } : {}),
         ...(input.bankName !== undefined ? { bankName: blankToNull(input.bankName) } : {}),
         ...(input.basicSalary !== undefined ? { basicSalary: input.basicSalary } : {}),
-        ...(input.housingAllowance !== undefined ? { housingAllowance: input.housingAllowance } : {}),
-        ...(input.otherAllowances !== undefined ? { otherAllowances: input.otherAllowances } : {}),
         ...(input.terminationDate !== undefined ? { terminationDate: input.terminationDate } : {}),
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         updatedBy: actor.id,
         version: { increment: 1 },
       },
       select: EMPLOYEE_SELECT,
+      });
     });
 
     const afterSummary = toSummary(after);

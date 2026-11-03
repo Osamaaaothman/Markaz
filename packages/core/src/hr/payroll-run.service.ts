@@ -29,11 +29,20 @@ export interface CreatePayrollRunInput {
   readonly runDate: Date;
 }
 
+// One allowance on a payslip, as it was on the run date (name and flags copied, so a later change to the type changes nothing).
+export interface PayslipAllowance {
+  readonly name: string;
+  readonly nameAr: string | null;
+  readonly amount: string;
+  readonly isHousing: boolean;
+}
+
 export interface PayrollRunLineResult {
   readonly employeeId: string;
   readonly employeeRef: string;
   readonly employeeName: string;
   readonly basicSalary: string;
+  readonly allowances: readonly PayslipAllowance[];
   readonly housingAllowance: string;
   readonly otherAllowances: string;
   readonly gross: string;
@@ -53,6 +62,7 @@ export interface PayrollRunLine {
   readonly nationalId: string;
   readonly bankIban: string;
   readonly basicSalary: string;
+  readonly allowances: readonly PayslipAllowance[];
   readonly housingAllowance: string;
   readonly otherAllowances: string;
   readonly gross: string;
@@ -120,6 +130,7 @@ export class PayrollRunService {
 
     const employees = await this.prisma.employee.findMany({
       where: { companyId: actor.companyId, isActive: true, hireDate: { lte: input.runDate } },
+      include: { allowances: { include: { allowanceType: true }, orderBy: { allowanceType: { name: "asc" } } } },
     });
     if (employees.length === 0) throw new PayrollRunError("NO_ACTIVE_EMPLOYEES", "No active employee is eligible for this run");
 
@@ -173,6 +184,7 @@ export class PayrollRunService {
         readonly basicSalary: Prisma.Decimal;
         readonly housingAllowance: Prisma.Decimal;
         readonly otherAllowances: Prisma.Decimal;
+        readonly allowanceRows: readonly { readonly allowanceTypeId: string; readonly name: string; readonly nameAr: string | null; readonly amount: Prisma.Decimal; readonly isHousing: boolean; readonly inGosiBase: boolean; readonly inEosbBase: boolean }[];
         readonly gross: Prisma.Decimal;
         readonly gosiEmployeeShare: Prisma.Decimal;
         readonly gosiEmployerShare: Prisma.Decimal;
@@ -183,13 +195,27 @@ export class PayrollRunService {
 
       for (const employee of eligible) {
         const basicSalary = employee.basicSalary;
-        const housingAllowance = employee.housingAllowance;
-        const otherAllowances = employee.otherAllowances;
+        // The employee's allowances, by type. The housing-marked type is the housing column (and the WPS housing field), every
+        // other allowance is "other"; the GOSI base counts only the types flagged for it (today's housing-only rule is just
+        // the HOUSING type carrying that flag).
+        const allowanceRows = employee.allowances.map((a) => ({
+          allowanceTypeId: a.allowanceTypeId,
+          name: a.allowanceType.name,
+          nameAr: a.allowanceType.nameAr,
+          amount: a.amount,
+          isHousing: a.allowanceType.isHousing,
+          inGosiBase: a.allowanceType.inGosiBase,
+          inEosbBase: a.allowanceType.inEosbBase,
+        }));
+        const sumWhere = (pick: (a: (typeof allowanceRows)[number]) => boolean): Prisma.Decimal => allowanceRows.filter(pick).reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0));
+        const housingAllowance = sumWhere((a) => a.isHousing);
+        const otherAllowances = sumWhere((a) => !a.isHousing);
+        const gosiAllowances = sumWhere((a) => a.inGosiBase);
         const gross = basicSalary.plus(housingAllowance).plus(otherAllowances);
 
         const gosi = computeGosiContribution({
           basicSalary: basicSalary.toFixed(4),
-          housingAllowance: housingAllowance.toFixed(4),
+          housingAllowance: gosiAllowances.toFixed(4),
           isSaudi: employee.isSaudi,
           gosiLegacyTrack: false,
           asOf: input.runDate,
@@ -235,6 +261,7 @@ export class PayrollRunService {
           basicSalary,
           housingAllowance,
           otherAllowances,
+          allowanceRows,
           gross,
           gosiEmployeeShare,
           gosiEmployerShare,
@@ -311,6 +338,11 @@ export class PayrollRunService {
             net: line.net,
           },
         });
+        for (const allowance of line.allowanceRows) {
+          await tx.payrollRunLineAllowance.create({
+            data: { id: newId(), companyId: actor.companyId, payrollRunLineId: line.id, allowanceTypeId: allowance.allowanceTypeId, name: allowance.name, nameAr: allowance.nameAr, amount: allowance.amount, isHousing: allowance.isHousing, inGosiBase: allowance.inGosiBase, inEosbBase: allowance.inEosbBase },
+          });
+        }
         for (const applied of line.advanceDeductionsApplied) {
           await tx.salaryAdvanceDeduction.create({
             data: { id: newId(), companyId: actor.companyId, salaryAdvanceId: applied.salaryAdvanceId, payrollRunLineId: line.id, amount: applied.amount },
@@ -334,6 +366,7 @@ export class PayrollRunService {
             employeeRef: employee.ref,
             employeeName: employee.name,
             basicSalary: l.basicSalary.toFixed(4),
+            allowances: l.allowanceRows.map((a) => ({ name: a.name, nameAr: a.nameAr, amount: a.amount.toFixed(4), isHousing: a.isHousing })),
             housingAllowance: l.housingAllowance.toFixed(4),
             otherAllowances: l.otherAllowances.toFixed(4),
             gross: l.gross.toFixed(4),
@@ -361,7 +394,7 @@ export class PayrollRunService {
   async get(id: string, companyId: string): Promise<PayrollRunDetail | null> {
     const run = await this.prisma.payrollRun.findFirst({
       where: { id, companyId },
-      include: { lines: { include: { employee: true }, orderBy: { employee: { name: "asc" } } } },
+      include: { lines: { include: { employee: true, allowances: { orderBy: { name: "asc" } } }, orderBy: { employee: { name: "asc" } } } },
     });
     if (!run) return null;
     return {
@@ -385,6 +418,7 @@ export class PayrollRunService {
         nationalId: l.employee.nationalId,
         bankIban: l.employee.bankIban,
         basicSalary: l.basicSalary.toFixed(4),
+        allowances: l.allowances.map((a) => ({ name: a.name, nameAr: a.nameAr, amount: a.amount.toFixed(4), isHousing: a.isHousing })),
         housingAllowance: l.housingAllowance.toFixed(4),
         otherAllowances: l.otherAllowances.toFixed(4),
         gross: l.gross.toFixed(4),

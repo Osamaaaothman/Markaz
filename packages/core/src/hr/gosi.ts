@@ -70,7 +70,8 @@ export function pensionRateTotalAsOf(asOf: Date, lawEffectiveDate: Date = GOSI_L
   return (step ?? PENSION_SCHEDULE[PENSION_SCHEDULE.length - 1]!).totalRate;
 }
 
-// `basicSalary` and `housingAllowance` are the only two wage components GOSI counts (Article 17
+// `housingAllowance` is the sum of the allowances flagged as part of the GOSI base (today only the housing type carries that flag; the
+// parameter name is kept). `basicSalary` and that sum are the only two wage components GOSI counts (Article 17
 // of the Executive Regulation) -- "other allowances" never enter this calculation.
 export function computeGosiContribution(params: {
   readonly basicSalary: string;

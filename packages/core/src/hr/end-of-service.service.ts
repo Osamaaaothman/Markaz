@@ -55,7 +55,7 @@ export class EndOfServiceService {
 
   async settle(input: SettleEndOfServiceInput, actor: EndOfServiceActor, correlationId: string, idempotencyKey: string): Promise<EndOfServiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const employee = await tx.employee.findFirst({ where: { id: input.employeeId, companyId: actor.companyId } });
+      const employee = await tx.employee.findFirst({ where: { id: input.employeeId, companyId: actor.companyId }, include: { allowances: { include: { allowanceType: true } } } });
       if (!employee) throw new EndOfServiceError("EMPLOYEE_NOT_FOUND", "Employee not found");
       if (!employee.isActive || employee.terminationDate) throw new EndOfServiceError("ALREADY_TERMINATED", "This employee has already been settled");
       if (input.terminationDate.getTime() < employee.hireDate.getTime()) {
@@ -76,7 +76,7 @@ export class EndOfServiceService {
 
       // Wage base: basic salary + fixed allowances -- Osama's decision (18 Oct 2026), reading
       // the Ministry's "last wage" against the two wage terms the Labor Law defines.
-      const wageBase = employee.basicSalary.plus(employee.housingAllowance).plus(employee.otherAllowances);
+      const wageBase = employee.allowances.reduce((sum, a) => (a.allowanceType.inEosbBase ? sum.plus(a.amount) : sum), employee.basicSalary);
       const settlement = computeEndOfServiceSettlement({
         wageBase: wageBase.toFixed(4),
         hireDate: employee.hireDate,

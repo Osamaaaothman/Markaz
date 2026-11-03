@@ -75,6 +75,7 @@ model Company {
   payments                Payment[]
   attachments             Attachment[]
   employees               Employee[]
+  allowanceTypes          AllowanceType[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
   salaryAdvanceRepayments SalaryAdvanceRepayment[]
@@ -1457,6 +1458,8 @@ model Employee {
   hireDate               DateTime  @map("hire_date") @db.Date
   terminationDate        DateTime? @map("termination_date") @db.Date
   basicSalary            Decimal   @map("basic_salary") @db.Decimal(19, 4)
+  // DEPRECATED: no longer read or written. Allowances live in employee_allowances (one row per allowance type); the
+  // migration that introduced them copied these two values over. Kept only so that migration is expand-only.
   housingAllowance       Decimal   @default(0) @map("housing_allowance") @db.Decimal(19, 4)
   otherAllowances        Decimal   @default(0) @map("other_allowances") @db.Decimal(19, 4)
   isActive               Boolean   @default(true) @map("is_active")
@@ -1478,6 +1481,7 @@ model Employee {
   advanceAccount          Account?                 @relation("EmployeeAdvanceAccount", fields: [advanceAccountId], references: [id], onDelete: Restrict)
   salaryPayableAccount    Account?                 @relation("EmployeeSalaryPayableAccount", fields: [salaryPayableAccountId], references: [id], onDelete: Restrict)
   eosbAccount             Account?                 @relation("EmployeeEosbAccount", fields: [eosbAccountId], references: [id], onDelete: Restrict)
+  allowances              EmployeeAllowance[]
   payrollRunLines         PayrollRunLine[]
   salaryAdvances          SalaryAdvance[]
   endOfServiceSettlements EndOfServiceSettlement[]
@@ -1529,9 +1533,10 @@ model PayrollRunLine {
   advanceDeduction  Decimal @default(0) @map("advance_deduction") @db.Decimal(19, 4)
   net               Decimal @db.Decimal(19, 4)
 
-  payrollRun        PayrollRun               @relation(fields: [payrollRunId], references: [id])
-  employee          Employee                 @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  payrollRun        PayrollRun                @relation(fields: [payrollRunId], references: [id])
+  employee          Employee                  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   advanceDeductions SalaryAdvanceDeduction[]
+  allowances        PayrollRunLineAllowance[]
 
   @@unique([payrollRunId, employeeId])
   @@index([companyId, employeeId])
@@ -1639,4 +1644,70 @@ model EndOfServiceSettlement {
   @@unique([companyId, number])
   @@index([companyId, employeeId])
   @@map("end_of_service_settlements")
+}
+
+// A kind of allowance a company pays (housing, transport, food, phone, ...). The company defines its own list; two flags say whether
+// the amount counts in the GOSI contribution base and in the end-of-service wage base. `isHousing` marks the one type reported
+// in the housing column of the WPS file (every other allowance is reported as other earnings). A type that is paid to an
+// active employee cannot be stopped.
+model AllowanceType {
+  id         String   @id
+  companyId  String   @map("company_id")
+  code       String
+  name       String
+  nameAr     String?  @map("name_ar")
+  isHousing  Boolean  @default(false) @map("is_housing")
+  inGosiBase Boolean  @default(false) @map("in_gosi_base")
+  inEosbBase Boolean  @default(true) @map("in_eosb_base")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdBy  String?  @map("created_by")
+  updatedBy  String?  @map("updated_by")
+  version    Int      @default(1)
+
+  company   Company                   @relation(fields: [companyId], references: [id])
+  employees EmployeeAllowance[]
+  lines     PayrollRunLineAllowance[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+  @@map("allowance_types")
+}
+
+// What one employee is paid for one allowance type each month. Mutable master data (the set is replaced when the employee is edited).
+model EmployeeAllowance {
+  id              String  @id
+  companyId       String  @map("company_id")
+  employeeId      String  @map("employee_id")
+  allowanceTypeId String  @map("allowance_type_id")
+  amount          Decimal @db.Decimal(19, 4)
+
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  allowanceType AllowanceType @relation(fields: [allowanceTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, allowanceTypeId])
+  @@index([companyId, allowanceTypeId])
+  @@map("employee_allowances")
+}
+
+// A payroll run line's allowances as they were on the run date: name and flags are copied, so changing a type later never changes
+// a posted run. Insert-only like the line itself.
+model PayrollRunLineAllowance {
+  id               String  @id
+  companyId        String  @map("company_id")
+  payrollRunLineId String  @map("payroll_run_line_id")
+  allowanceTypeId  String  @map("allowance_type_id")
+  name             String
+  nameAr           String? @map("name_ar")
+  amount           Decimal @db.Decimal(19, 4)
+  isHousing        Boolean @map("is_housing")
+  inGosiBase       Boolean @map("in_gosi_base")
+  inEosbBase       Boolean @map("in_eosb_base")
+
+  payrollRunLine PayrollRunLine @relation(fields: [payrollRunLineId], references: [id])
+  allowanceType  AllowanceType  @relation(fields: [allowanceTypeId], references: [id], onDelete: Restrict)
+
+  @@index([payrollRunLineId])
+  @@map("payroll_run_line_allowances")
 }

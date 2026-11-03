@@ -44,7 +44,7 @@ describeIfDb("Salary advance repayment — real database", () => {
   const newEmployee = async (): Promise<string> =>
     (
       await employees.create(
-        { name: `Employee ${++counter}`, nationalId: `30000000${String(counter).padStart(2, "0")}`, isSaudi: false, bankIban: `SA00000000000000000${String(counter).padStart(5, "0")}`, hireDate: new Date(Date.UTC(2021, 0, 1)), basicSalary: "5000", housingAllowance: "1000" },
+        { name: `Employee ${++counter}`, nationalId: `30000000${String(counter).padStart(2, "0")}`, isSaudi: false, bankIban: `SA00000000000000000${String(counter).padStart(5, "0")}`, hireDate: new Date(Date.UTC(2021, 0, 1)), basicSalary: "5000" },
         actor,
         cid(),
       )

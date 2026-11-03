@@ -5,6 +5,7 @@ import { PrismaAccountingEngine } from "../accounting/accounting-engine.service.
 import { PrismaNumberingService } from "../accounting/numbering.service.js";
 import { TrialBalanceService } from "../accounting/trial-balance.service.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
+import { AllowanceTypeService } from "./allowance-type.service.js";
 import { EmployeeService } from "./employee.service.js";
 import { EndOfServiceError, EndOfServiceService } from "./end-of-service.service.js";
 import { PayrollRunError, PayrollRunService } from "./payroll-run.service.js";
@@ -67,16 +68,19 @@ describeIfDb("Payroll — real database", () => {
     await mappings.set("EOSB_EXPENSE", acc.eosbExpense!, actor, cid());
     await mappings.set("EOSB_PAYABLE", acc.eosbPayable!, actor, cid());
 
+    // Housing: in the GOSI base and the end-of-service base, the WPS housing column -- what the old fixed field meant.
+    const housing = await new AllowanceTypeService(prisma, audit).create({ code: "HOUSING", name: "Housing allowance", isHousing: true, inGosiBase: true, inEosbBase: true }, actor, cid());
+
     saudiEmployeeId = (
       await employees.create(
-        { name: "Saudi Employee", nationalId: "1111111111", isSaudi: true, bankIban: "SA0000000000000000000001", hireDate: new Date(Date.UTC(2020, 0, 1)), basicSalary: "6000", housingAllowance: "1500" },
+        { name: "Saudi Employee", nationalId: "1111111111", isSaudi: true, bankIban: "SA0000000000000000000001", hireDate: new Date(Date.UTC(2020, 0, 1)), basicSalary: "6000", allowances: [{ allowanceTypeId: housing.id, amount: "1500" }] },
         actor,
         cid(),
       )
     ).id;
     expatEmployeeId = (
       await employees.create(
-        { name: "Expat Employee", nationalId: "2222222222", isSaudi: false, bankIban: "SA0000000000000000000002", hireDate: new Date(Date.UTC(2021, 0, 1)), basicSalary: "5000", housingAllowance: "1000" },
+        { name: "Expat Employee", nationalId: "2222222222", isSaudi: false, bankIban: "SA0000000000000000000002", hireDate: new Date(Date.UTC(2021, 0, 1)), basicSalary: "5000", allowances: [{ allowanceTypeId: housing.id, amount: "1000" }] },
         actor,
         cid(),
       )

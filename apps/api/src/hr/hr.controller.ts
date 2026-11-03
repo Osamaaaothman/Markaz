@@ -1,6 +1,8 @@
 import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
+  AllowanceTypeError,
+  AllowanceTypeService,
   AttachmentService,
   EmployeeService,
   EmployeeError,
@@ -13,6 +15,7 @@ import {
   UnmappedAccountError,
   WpsFileError,
   buildWpsWagesFile,
+  type AllowanceTypeSummary,
   type EmployeeListPage,
   type EmployeeSummary,
   type EndOfServiceResult,
@@ -29,19 +32,58 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, RepaySalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
+import { CreateAllowanceTypeDto, UpdateAllowanceTypeDto, CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, RepaySalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
 import { payslipToPdfHtml } from "./exports/payslip-export.js";
 
 @Controller("v1")
 export class HrController {
   constructor(
     private readonly employees: EmployeeService,
+    private readonly allowanceTypes: AllowanceTypeService,
     private readonly payrollRuns: PayrollRunService,
     private readonly salaryAdvances: SalaryAdvanceService,
     private readonly endOfService: EndOfServiceService,
     private readonly attachments: AttachmentService,
     private readonly prisma: PrismaService,
   ) {}
+
+  // ── Allowance types ──────────────────────────────────────────────────────────
+
+  // Anyone who can see employees may need the list (to read an employee's allowances, or fill the employee form).
+  @Get("allowance-types")
+  @RequirePermission("employee", "read")
+  listAllowanceTypes(@CurrentUser() actor: CurrentUserPayload, @Query("includeInactive") includeInactive?: string): Promise<readonly AllowanceTypeSummary[]> {
+    return this.allowanceTypes.list(actor.companyId, includeInactive === "true");
+  }
+
+  @Post("allowance-types")
+  @RequirePermission("allowance_type", "create")
+  createAllowanceType(@Body() dto: CreateAllowanceTypeDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<AllowanceTypeSummary> {
+    return this.mapAllowanceTypeErrors(this.allowanceTypes.create(dto, actor, correlationId));
+  }
+
+  // Adds the usual types (transport, food, phone, ...) the company does not have yet. Never done silently.
+  @Post("allowance-types/add-common")
+  @RequirePermission("allowance_type", "create")
+  addCommonAllowanceTypes(@CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<{ readonly added: number }> {
+    return this.allowanceTypes.addCommon(actor, correlationId);
+  }
+
+  @Put("allowance-types/:id")
+  @RequirePermission("allowance_type", "update")
+  updateAllowanceType(@Param("id") id: string, @Body() dto: UpdateAllowanceTypeDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<AllowanceTypeSummary> {
+    return this.mapAllowanceTypeErrors(this.allowanceTypes.update(id, dto, actor, correlationId));
+  }
+
+  private async mapAllowanceTypeErrors<T>(work: Promise<T>): Promise<T> {
+    try {
+      return await work;
+    } catch (error) {
+      if (!(error instanceof AllowanceTypeError)) throw error;
+      if (error.code === "NOT_FOUND") throw new NotFoundException(error.message);
+      throw new ConflictException({ message: error.message, code: error.code });
+    }
+  }
 
   // ── Employees ────────────────────────────────────────────────────────────────
 
@@ -79,8 +121,7 @@ export class HrController {
         ...(dto.bankName !== undefined ? { bankName: dto.bankName } : {}),
         hireDate: new Date(dto.hireDate),
         basicSalary: dto.basicSalary,
-        ...(dto.housingAllowance !== undefined ? { housingAllowance: dto.housingAllowance } : {}),
-        ...(dto.otherAllowances !== undefined ? { otherAllowances: dto.otherAllowances } : {}),
+        ...(dto.allowances !== undefined ? { allowances: dto.allowances } : {}),
       },
       actor,
       correlationId,
@@ -121,8 +162,7 @@ export class HrController {
         ...(dto.bankIban !== undefined ? { bankIban: dto.bankIban } : {}),
         ...(dto.bankName !== undefined ? { bankName: dto.bankName } : {}),
         ...(dto.basicSalary !== undefined ? { basicSalary: dto.basicSalary } : {}),
-        ...(dto.housingAllowance !== undefined ? { housingAllowance: dto.housingAllowance } : {}),
-        ...(dto.otherAllowances !== undefined ? { otherAllowances: dto.otherAllowances } : {}),
+        ...(dto.allowances !== undefined ? { allowances: dto.allowances } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       },
       actor,
