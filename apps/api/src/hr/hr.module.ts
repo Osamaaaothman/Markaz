@@ -4,6 +4,7 @@ import {
   AllowanceTypeService,
   EmployeeService,
   EndOfServiceService,
+  HrPaymentService,
   PayrollRunService,
   PrismaAccountingEngine,
   PrismaNumberingService,
@@ -44,6 +45,12 @@ import { HR_ENGINE, HR_NUMBERING } from "./hr.tokens.js";
       provide: PayrollRunService,
       useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger) =>
         new PayrollRunService(prisma, engine, new AccountMappingService(prisma, audit), audit),
+      inject: [PrismaService, HR_ENGINE, AUDIT_LOGGER],
+    },
+    {
+      provide: HrPaymentService,
+      useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger) =>
+        new HrPaymentService(prisma, engine, new AccountMappingService(prisma, audit), audit),
       inject: [PrismaService, HR_ENGINE, AUDIT_LOGGER],
     },
     {

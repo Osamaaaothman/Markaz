@@ -190,6 +190,8 @@ export class PayrollRunService {
         readonly gosiEmployerShare: Prisma.Decimal;
         readonly advanceDeduction: Prisma.Decimal;
         readonly net: Prisma.Decimal;
+        // The account this line's net pay was credited to; paying the salary debits it.
+        readonly netPayAccountId: string;
         readonly advanceDeductionsApplied: readonly { readonly salaryAdvanceId: string; readonly amount: Prisma.Decimal }[];
       }[] = [];
 
@@ -246,6 +248,7 @@ export class PayrollRunService {
         totalNet = totalNet.plus(net);
         // Net pay is owed to this employee: on their own salary-payable account if they have one, else the company-wide one
         // (all of those are posted as one line).
+        const netPayAccountId = employee.salaryPayableAccountId ?? (await generalNetPay());
         if (employee.salaryPayableAccountId) {
           const own = netPayCredits.get(employee.salaryPayableAccountId);
           netPayCredits.set(employee.salaryPayableAccountId, { amount: (own?.amount ?? new Prisma.Decimal(0)).plus(net), label: employee.name });
@@ -256,6 +259,7 @@ export class PayrollRunService {
         }
 
         lineRows.push({
+          netPayAccountId,
           id: newId(),
           employeeId: employee.id,
           basicSalary,
@@ -336,6 +340,7 @@ export class PayrollRunService {
             gosiEmployerShare: line.gosiEmployerShare,
             advanceDeduction: line.advanceDeduction,
             net: line.net,
+            netPayAccountId: line.netPayAccountId,
           },
         });
         for (const allowance of line.allowanceRows) {
