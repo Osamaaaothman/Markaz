@@ -55,3 +55,10 @@ Every breaking change and every migration is recorded here —
 - Two dependency vulnerabilities newly disclosed after the M0/M1 dependency set
   had already audited clean (`multer` via `@nestjs/platform-express`,
   `deepmerge-ts` via prisma's config tooling) — fixed via `overrides`.
+- Settling an end-of-service gratuity of zero (e.g. a resignation under two years) failed with
+  HTTP 500: the service tried to post a zero-amount journal entry, which the posting engine
+  rightly rejects. A settlement with nothing owed is now recorded, ends the employment and posts
+  no entry. **Migration** `20261103150000_eosb_settlement_nullable_journal_entry` (expand-only,
+  backward-compatible): `end_of_service_settlements.journal_entry_id` becomes nullable, with a
+  CHECK that it may be null only when `net_entitlement = 0`. API change: `journalEntryId` in the
+  `POST /v1/end-of-service-settlements` response is now `string | null`.

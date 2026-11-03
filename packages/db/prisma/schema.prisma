@@ -1648,15 +1648,17 @@ model EndOfServiceSettlement {
   netEntitlement      Decimal  @map("net_entitlement") @db.Decimal(19, 4)
   // The account the gratuity was credited to (the employee's own, or the company-wide one); paying it debits the same account.
   payableAccountId    String?  @map("payable_account_id")
-  journalEntryId      String   @map("journal_entry_id")
+  // Null only when nothing is owed (net_entitlement = 0): no ledger event, so no entry. A CHECK in the database
+  // ("end_of_service_settlements_journal_entry_check") refuses a null entry on a settlement that owes money.
+  journalEntryId      String?  @map("journal_entry_id")
   actorId             String   @map("actor_id")
   correlationId       String   @map("correlation_id")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  company        Company      @relation(fields: [companyId], references: [id])
-  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
-  payableAccount Account?     @relation("EosbPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  company        Company       @relation(fields: [companyId], references: [id])
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  payableAccount Account?      @relation("EosbPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
   payment        HrPayment?
 
   @@unique([companyId, number])

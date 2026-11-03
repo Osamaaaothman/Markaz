@@ -32,7 +32,8 @@ export interface SettleEndOfServiceInput {
 export interface EndOfServiceResult {
   readonly id: string;
   readonly number: string;
-  readonly journalEntryId: string;
+  // Null when nothing was owed: the settlement is recorded but no accrual entry is posted.
+  readonly journalEntryId: string | null;
   readonly yearsOfService: string;
   readonly grossEntitlement: string;
   readonly entitlementFraction: string;
@@ -40,8 +41,8 @@ export interface EndOfServiceResult {
 }
 
 // Settles an employee's exit: computes the gratuity (packages/core/src/hr/eosb.ts), accrues it
-// -- Dr End-of-Service Expense, Cr End-of-Service Payable -- and marks the employee terminated,
-// all in one transaction. Paying the accrued amount out is a separate step (a payment against
+// -- Dr End-of-Service Expense, Cr End-of-Service Payable; nothing is posted when nothing is owed --
+// and marks the employee terminated, all in one transaction. Paying the accrued amount out is a separate step (a payment against
 // the EOSB-payable account, through the existing payments module), deliberately not folded in
 // here: the accrual and the cash payment are two different events that can happen on different
 // days, and conflating them would make the ledger lie about when either one actually occurred.
@@ -89,52 +90,25 @@ export class EndOfServiceService {
       // The employee's own end-of-service account if they have one, else the company-wide one.
       const eosbPayableAccount = employee.eosbAccountId ?? (await this.accountMappings.resolve(tx, actor.companyId, "EOSB_PAYABLE"));
 
-      const journalLines: JournalLineInput[] = [
-        { accountId: eosbExpenseAccount, debit: netEntitlement.toFixed(4), description: `End-of-service accrual -- ${employee.name}` },
-        { accountId: eosbPayableAccount, credit: netEntitlement.toFixed(4), description: `End-of-service accrual -- ${employee.name}` },
-      ];
-
       const settlementId = newId();
-      // A zero entitlement (e.g. a resignation under two years) has nothing to post -- the
-      // settlement record itself is still the system of record for the computation.
-      const posting = netEntitlement.greaterThan(0)
-        ? await this.engine.postEntry(
-            {
-              companyId: actor.companyId,
-              fiscalPeriodId: period.id,
-              entryDate: input.terminationDate,
-              postingDate: input.terminationDate,
-              currency,
-              lines: journalLines,
-              sourceModule: "hr",
-              sourceDocumentType: "end_of_service_settlement",
-              sourceDocumentId: settlementId,
-              actorId: actor.id,
-              correlationId,
-              idempotencyKey,
-            },
-            tx,
-          )
-        : null;
-
-      const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.terminationDate);
-      const number = await allocateDocumentNumber(tx, actor.companyId, "eosb_settlement_no", "EOS", fiscalYear);
-
-      if (!posting) {
-        // Still need a journal entry id for the (nullable in spirit, not-null in schema) FK --
-        // zero-entitlement exits are rare enough that posting a balanced zero-amount entry is
-        // the simplest honest option: it shows up in the audit trail as "settled, nothing owed".
-        const zeroPosting = await this.engine.postEntry(
+      // Nothing owed (e.g. a resignation under two years) is not a ledger event: the settlement is still recorded
+      // -- it is the system of record for the computation and ends the employment -- but no journal entry is posted.
+      // The posting engine rejects zero-amount lines, and the database allows a missing entry only when
+      // net_entitlement = 0 (end_of_service_settlements_journal_entry_check).
+      let journalEntryId: string | null = null;
+      if (netEntitlement.greaterThan(0)) {
+        const journalLines: JournalLineInput[] = [
+          { accountId: eosbExpenseAccount, debit: netEntitlement.toFixed(4), description: `End-of-service accrual -- ${employee.name}` },
+          { accountId: eosbPayableAccount, credit: netEntitlement.toFixed(4), description: `End-of-service accrual -- ${employee.name}` },
+        ];
+        const posting = await this.engine.postEntry(
           {
             companyId: actor.companyId,
             fiscalPeriodId: period.id,
             entryDate: input.terminationDate,
             postingDate: input.terminationDate,
             currency,
-            lines: [
-              { accountId: eosbExpenseAccount, debit: "0.0000", description: `End-of-service accrual -- ${employee.name} (nothing owed)` },
-              { accountId: eosbPayableAccount, credit: "0.0000", description: `End-of-service accrual -- ${employee.name} (nothing owed)` },
-            ],
+            lines: journalLines,
             sourceModule: "hr",
             sourceDocumentType: "end_of_service_settlement",
             sourceDocumentId: settlementId,
@@ -144,27 +118,11 @@ export class EndOfServiceService {
           },
           tx,
         );
-        await tx.endOfServiceSettlement.create({
-          data: {
-            id: settlementId,
-            companyId: actor.companyId,
-            employeeId: input.employeeId,
-            number,
-            terminationDate: input.terminationDate,
-            reason: input.reason,
-            yearsOfService: settlement.yearsOfService,
-            grossEntitlement: settlement.grossEntitlement,
-            entitlementFraction: settlement.entitlementFraction,
-            netEntitlement,
-            payableAccountId: eosbPayableAccount,
-            journalEntryId: zeroPosting.journalEntryId,
-            actorId: actor.id,
-            correlationId,
-          },
-        });
-        await tx.employee.update({ where: { id: input.employeeId }, data: { terminationDate: input.terminationDate, isActive: false, updatedBy: actor.id, version: { increment: 1 } } });
-        return { id: settlementId, number, journalEntryId: zeroPosting.journalEntryId, ...settlement };
+        journalEntryId = posting.journalEntryId;
       }
+
+      const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.terminationDate);
+      const number = await allocateDocumentNumber(tx, actor.companyId, "eosb_settlement_no", "EOS", fiscalYear);
 
       await tx.endOfServiceSettlement.create({
         data: {
@@ -179,14 +137,14 @@ export class EndOfServiceService {
           entitlementFraction: settlement.entitlementFraction,
           netEntitlement,
           payableAccountId: eosbPayableAccount,
-          journalEntryId: posting.journalEntryId,
+          journalEntryId,
           actorId: actor.id,
           correlationId,
         },
       });
       await tx.employee.update({ where: { id: input.employeeId }, data: { terminationDate: input.terminationDate, isActive: false, updatedBy: actor.id, version: { increment: 1 } } });
 
-      return { id: settlementId, number, journalEntryId: posting.journalEntryId, ...settlement };
+      return { id: settlementId, number, journalEntryId, ...settlement };
     });
 
     await this.audit.log({ actorId: actor.id, action: "end_of_service.settled", entityType: "EndOfServiceSettlement", entityId: result.id, after: result, correlationId });

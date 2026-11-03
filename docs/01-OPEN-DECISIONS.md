@@ -481,3 +481,19 @@ Decided by Osama: the third per-employee account is the employee's **dues** (wha
 leave pay or bonuses can use it later. In the standard chart the folder "Employees Other Dues" (2111102) fits. Choosing it makes the
 gratuity a **current** liability, whereas the chart's "End of Services - EOS" (2210201) is non-current: that is an accounting
 choice for Osama's accountant. Accounts already created keep the name they were given.
+## Q. End-of-service settlement with nothing owed (2026-11-03)
+
+Decided by Osama: a settlement whose net entitlement is **0** (e.g. a resignation under two years of service) is recorded, ends the
+employment (employee terminated and inactive) and writes the usual audit record, but **posts no journal entry**. Nothing is owed, so
+there is no ledger event; the posting engine rejects zero-amount lines by design.
+
+- **Schema:** `end_of_service_settlements.journal_entry_id` is nullable (migration `20261103150000_eosb_settlement_nullable_journal_entry`,
+  expand-only; rollback in its header). A CHECK, `end_of_service_settlements_journal_entry_check`, allows a null entry only when
+  `net_entitlement = 0`, so the database itself refuses a settlement that owes money without an accrual entry.
+- **Contract:** `journalEntryId` in the settle response is `string | null`. The employee screen's confirmation shows
+  "No entry — zero entitlement" instead of a link to the entry.
+- **Readers must handle null:** anything that reads settlements and follows the entry must treat null as "nothing owed". The payable
+  lists already select `netEntitlement > 0` (`HrPaymentService`, section M).
+- **Follow-up (still open):** now that `feat/hr-payments` is merged, add the "no payable shown" assertion to
+  `end-of-service.integration.spec.ts` — after a zero settlement, `HrPaymentService.payables` must not list it, and paying it must fail
+  with `NOTHING_TO_PAY`. Not done as part of this merge.

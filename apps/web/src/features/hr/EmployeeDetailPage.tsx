@@ -19,6 +19,7 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
+import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
@@ -156,6 +157,8 @@ export function EmployeeDetailPage(): React.JSX.Element {
               { label: t("hr.eosb.years"), value: result.yearsOfService, ltr: true },
               { label: t("hr.eosb.fraction"), value: result.entitlementFraction, ltr: true },
               { label: t("created.amount"), value: formatMoney(result.netEntitlement, currency), ltr: true },
+              // A zero entitlement posts no entry (nothing is owed), so there is nothing to open.
+              { label: t("documents.journalEntry"), value: result.journalEntryId ? <JournalEntryLinkButton entryId={result.journalEntryId} /> : t("hr.eosb.noEntry") },
             ],
           });
         },
