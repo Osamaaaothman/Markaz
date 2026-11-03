@@ -316,3 +316,20 @@ Decided by Osama: an employee who still owes a salary advance **cannot be settle
   gratuity. A deduction from end-of-service dues has statutory limits.
 - New permission `salary_advance:repay`. Existing installations must run the seed again:
   `npm run seed --workspace=@erp/db`.
+
+## H. Purchase requests: a review step (2026-11-03)
+
+Before this, a request became an order directly and "accepted" was implicit. Now a request is reviewed first.
+
+- **Statuses:** `PENDING` (waiting for review) → `ACCEPTED` (a buyer may make an order) → `PROCESSED` (an order exists),
+  or `REJECTED` (from `PENDING` or `ACCEPTED`, with a reason). Who accepted and when is stored (`accepted_by`, `accepted_at`).
+- **An order can only be made from an `ACCEPTED` request** (`REQUEST_NOT_ACCEPTED`, 409). Requests that were already
+  `PENDING` before this change appear on the review page; no data migration.
+- **Permissions:** new `purchase_request:review` (accept). Reject stays `purchase_request:reject`. Create, review and
+  approve are separate, so one person or three may hold them. Existing installations must run the seed again:
+  `npm run seed --workspace=@erp/db`.
+- **Queue badges** in the menu come from `GET /v1/purchasing/pending-counts`. Each number is returned only if the user may
+  act on it. Review page = requests to review. Purchase orders = accepted requests still without an order + orders waiting
+  for approval. The list refreshes after every request/order action and once a minute.
+- Not built: the same person may create and accept a request (no segregation setting yet, same as D7); no notification to the
+  requester (needs configured email).
