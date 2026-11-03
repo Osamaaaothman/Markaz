@@ -23,7 +23,7 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
-import { useEmployee, useGrantSalaryAdvance, useRepaySalaryAdvance, useSalaryAdvances, useSettleEndOfService, useUpdateEmployee, type SalaryAdvanceSummary } from "./use-hr";
+import { employeeErrorCode, useEmployee, useGrantSalaryAdvance, useProvisionEmployeeAccounts, useRepaySalaryAdvance, useSalaryAdvances, useSettleEndOfService, useUpdateEmployee, type SalaryAdvanceSummary } from "./use-hr";
 
 const ADVANCE_SCHEMA = z.object({
   grantDate: z.date(),
@@ -57,6 +57,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: employee, isPending, isError, refetch } = useEmployee(id);
+  const provisionAccounts = useProvisionEmployeeAccounts(id);
   const { data: advances } = useSalaryAdvances(id);
   const { data: accounts } = useChartOfAccounts();
   const updateEmployee = useUpdateEmployee(id);
@@ -229,6 +230,35 @@ export function EmployeeDetailPage(): React.JSX.Element {
         ) : null}
         {employee.isActive && owesAdvances ? <p className="erp-auth-card__error">{t("hr.advances.blocked", { amount: ltr(formatMoney(owed.toDecimalString(4), currency)) })}</p> : null}
         {apiErrorCode(updateEmployee.error) === "OUTSTANDING_ADVANCES" ? <p className="erp-auth-card__error">{t("hr.advances.blocked", { amount: ltr(formatMoney(owed.toDecimalString(4), currency)) })}</p> : null}
+      </section>
+
+      <section className="erp-card">
+        <h2 className="erp-card__title">{t("hr.accounts.title")}</h2>
+        {employee.accounts ? (
+          <dl className="mk-facts">
+            {(["advance", "salaryPayable", "eosb"] as const).map((kind) => (
+              <div key={kind}>
+                <dt>{t(`hr.accounts.${kind}`)}</dt>
+                <dd>
+                  <span className="coa-code" dir="ltr">{employee.accounts![kind].code}</span> {localizedName(employee.accounts![kind], i18n.language)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <>
+            <p className="erp-card__empty">{t("hr.accounts.none")}</p>
+            <PermissionButton
+              allowed={can("employee:update")}
+              label={t("hr.accounts.create")}
+              icon="pi pi-plus"
+              outlined
+              loading={provisionAccounts.isPending}
+              onClick={() => provisionAccounts.mutate()}
+            />
+          </>
+        )}
+        {provisionAccounts.isError ? <p className="erp-auth-card__error">{t(`hr.accounts.errors.${employeeErrorCode(provisionAccounts.error) ?? "generic"}`, { defaultValue: t("hr.accounts.errors.generic") })}</p> : null}
       </section>
 
       <section className="erp-card">

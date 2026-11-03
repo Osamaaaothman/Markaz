@@ -22,7 +22,7 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
-import { useCreateEmployee, useEmployees, type EmployeeSummary } from "./use-hr";
+import { employeeErrorCode, useCreateEmployee, useEmployees, useProvisionMissingEmployeeAccounts, type EmployeeSummary } from "./use-hr";
 
 const EMPLOYEE_SCHEMA = z.object({
   name: z.string().trim().min(1, "required"),
@@ -54,6 +54,7 @@ export function EmployeesPage(): React.JSX.Element {
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useEmployees({ q: debouncedQuery, includeInactive });
   const employees = data?.pages.flatMap((page) => page.data) ?? [];
   const createEmployee = useCreateEmployee();
+  const provisionMissing = useProvisionMissingEmployeeAccounts();
 
   const { control, register, handleSubmit, reset, formState: { errors } } = useForm<EmployeeFormValues>({ resolver: zodResolver(EMPLOYEE_SCHEMA), defaultValues: EMPTY_FORM });
 
@@ -102,8 +103,18 @@ export function EmployeesPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("hr.employees.title")}</h1>
           <p className="erp-page__subtitle">{t("hr.employees.subtitle")}</p>
         </div>
-        <PermissionButton allowed={can("employee:create")} label={t("hr.employees.add")} icon="pi pi-plus" onClick={() => setDialogOpen(true)} />
+        <div className="erp-row-actions">
+          <PermissionButton allowed={can("employee:update")} label={t("hr.accounts.createMissing")} icon="pi pi-sitemap" outlined loading={provisionMissing.isPending} onClick={() => provisionMissing.mutate()} />
+          <PermissionButton allowed={can("employee:create")} label={t("hr.employees.add")} icon="pi pi-plus" onClick={() => setDialogOpen(true)} />
+        </div>
       </div>
+      {provisionMissing.isSuccess ? (
+        <p className="erp-page__subtitle">
+          {t("hr.accounts.missingDone", { count: provisionMissing.data.provisioned })}
+          {provisionMissing.data.failed.length > 0 ? ` ${t("hr.accounts.missingFailed", { refs: provisionMissing.data.failed.map((f) => f.ref).join(", ") })}` : ""}
+        </p>
+      ) : null}
+      {provisionMissing.isError ? <p className="erp-auth-card__error">{t(`hr.accounts.errors.${employeeErrorCode(provisionMissing.error) ?? "generic"}`, { defaultValue: t("hr.accounts.errors.generic") })}</p> : null}
 
       <div className="coa-toolbar">
         <div className="coa-search">
@@ -203,7 +214,7 @@ export function EmployeesPage(): React.JSX.Element {
               <InputText id="empOther" dir="ltr" {...register("otherAllowances")} />
             </div>
           </div>
-          {createEmployee.isError ? <p className="erp-auth-card__error">{t("hr.employees.createError")}</p> : null}
+          {createEmployee.isError ? <p className="erp-auth-card__error">{t(`hr.accounts.errors.${employeeErrorCode(createEmployee.error) ?? ""}`, { defaultValue: t("hr.employees.createError") })}</p> : null}
           <div className="erp-form__actions">
             <Button type="button" label={t("actions.cancel")} text onClick={() => setDialogOpen(false)} />
             <Button type="submit" label={t("hr.employees.add")} loading={createEmployee.isPending} />
