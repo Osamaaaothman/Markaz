@@ -636,7 +636,7 @@
         "EOSB_PAYABLE": "End-of-service payable",
         "EMPLOYEE_ADVANCES_PARENT": "Employee advances folder",
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "Employee salaries payable folder",
-        "EMPLOYEE_EOSB_PARENT": "Employee end-of-service payable folder"
+        "EMPLOYEE_EOSB_PARENT": "Employee dues folder"
       },
       "keyHints": {
         "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
@@ -660,7 +660,7 @@
         "EOSB_PAYABLE": "Credited with the end-of-service amount owed until paid.",
         "EMPLOYEE_ADVANCES_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
-        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above."
+        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries) for each employee's dues: what is owed to them besides salary (end-of-service now, leave or bonuses later). In the standard chart, \"Employees Other Dues\" (2111102) fits. Set all three employee folders, or none to keep using the company-wide accounts above."
       }
     },
     "movements": {
@@ -1390,7 +1390,7 @@
       "title": "Employee accounts",
       "advance": "Advances (owed by the employee)",
       "salaryPayable": "Salary payable (owed to the employee)",
-      "eosb": "End of service payable (owed to the employee)",
+      "eosb": "Dues (owed to the employee)",
       "none": "This employee has no accounts of their own. Payroll and advances use the company-wide accounts.",
       "create": "Create the employee's accounts",
       "createMissing": "Create accounts for employees without them",

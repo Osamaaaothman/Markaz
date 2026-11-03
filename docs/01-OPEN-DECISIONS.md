@@ -439,3 +439,12 @@ Payroll and end-of-service credited three debts (net salaries, social insurance,
   a gratuity against an employee's advance (a legal question, section G).
 - Found and not fixed here: a settlement with a **zero** entitlement fails with a 500 (it posts a zero-amount entry the engine refuses).
   Tracked as a separate task; the fix needs `journal_entry_id` to become nullable on settlements.
+
+## N. The employee's third account is "dues" (2026-11-03)
+
+Decided by Osama: the third per-employee account is the employee's **dues** (what is owed to them besides salary), not an
+"end-of-service" account. It is created as "Employee dues - <name>" / "مستحقات - <name>" under the third folder in the account mapping
+(key `EMPLOYEE_EOSB_PARENT`, kept so nothing migrates; only its label changed). Today the end-of-service gratuity is posted to it, and
+leave pay or bonuses can use it later. In the standard chart the folder "Employees Other Dues" (2111102) fits. Choosing it makes the
+gratuity a **current** liability, whereas the chart's "End of Services - EOS" (2210201) is non-current: that is an accounting
+choice for Osama's accountant. Accounts already created keep the name they were given.
