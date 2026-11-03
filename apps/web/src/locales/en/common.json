@@ -50,7 +50,8 @@
     "payrollRuns": "Payroll runs",
     "goodsReturns": "Purchase returns",
     "purchaseReview": "Purchase review",
-    "allowanceTypes": "Allowance types"
+    "allowanceTypes": "Allowance types",
+    "hrPayments": "Pay salaries and dues"
   },
   "actions": {
     "save": "Save",
@@ -1448,6 +1449,46 @@
         "IN_USE": "Active employees are still paid this allowance. Remove it from them first.",
         "NOT_FOUND": "This allowance type was not found.",
         "generic": "Could not save this allowance type."
+      }
+    },
+    "payments": {
+      "title": "Pay salaries and dues",
+      "subtitle": "Pay what payroll and end-of-service left owed. Each payment lowers the debt it was recorded under and the bank by the same amount.",
+      "paySalaries": "Pay salaries",
+      "payGosi": "Pay social insurance",
+      "payGratuity": "Pay end-of-service",
+      "owedSalaries": "Salaries still unpaid",
+      "owedGosi": "Social insurance still owed",
+      "owedGratuities": "End-of-service still unpaid",
+      "empty": "No payments yet.",
+      "kind": "Type",
+      "for": "For",
+      "kinds": {
+        "SALARY": "Salaries",
+        "GOSI": "Social insurance",
+        "END_OF_SERVICE": "End-of-service"
+      },
+      "dialogs": {
+        "SALARY": "Pay a payroll run's salaries",
+        "GOSI": "Pay social insurance",
+        "END_OF_SERVICE": "Pay an end-of-service gratuity"
+      },
+      "run": "Payroll run",
+      "pickRun": "Choose the run",
+      "unpaid": "{{count}} unpaid, {{total}}",
+      "settlement": "Settlement",
+      "pickSettlement": "Choose the settlement",
+      "gosiHint": "Owed now: {{amount}}",
+      "confirm": "Pay",
+      "employees": "Employees paid",
+      "errors": {
+        "NOTHING_TO_PAY": "Nothing is left to pay here.",
+        "ALREADY_PAID": "This has already been paid.",
+        "OVER_PAYMENT": "The amount is more than what is owed.",
+        "BEFORE_SOURCE_DATE": "The payment date is before the payroll run or termination date.",
+        "CASH_ACCOUNT_INVALID": "Choose an active bank or cash account.",
+        "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+        "generic": "Could not record this payment."
       }
     }
   },

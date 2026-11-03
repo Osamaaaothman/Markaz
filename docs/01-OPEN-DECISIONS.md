@@ -419,3 +419,23 @@ Decided by Osama: allowances are a **table of types the company defines**, repla
 - Observed, not changed: goods returns, goods receipts, stock issues and stock counts are numbered `000001`, with no prefix
   (the numbering service creates their series without one, unlike purchase orders and invoices, which get `PO-2026-000001`).
   Changing it affects the format of numbers already issued, so it needs a decision.
+
+## M. Paying salaries, social insurance and end-of-service (2026-11-03)
+
+Payroll and end-of-service credited three debts (net salaries, social insurance, gratuity) and nothing ever paid them. Now:
+
+- **Three payments** (`hr_payments`, API `/v1/hr-payments/...`, page "Pay salaries and dues"): pay a payroll run's salaries (all unpaid,
+  or chosen employees), remit social insurance (partial allowed, never more than owed), pay an employee's gratuity (once).
+- **Posting is the mirror of the original entry, so no new accounting treatment:** salaries Dr the account each net pay was credited to,
+  GOSI Dr GOSI payable, gratuity Dr the account the gratuity was credited to; every one Cr the chosen bank or cash account.
+- **Which account was credited** is now stored on each payroll line (`net_pay_account_id`) and settlement (`payable_account_id`), so the
+  payment debits the same account. The migration backfilled existing rows exactly (an employee's own account only if the run's own entry
+  credited it); everything else stays null and uses the company-wide mapping, as it was posted.
+- **Guards:** a salary line and a settlement can be paid once (unique keys, plus an advisory lock so two clicks cannot both pay);
+  social insurance owed = what the runs credited minus what was remitted; the payment date cannot precede the run or termination date;
+  the bank must be an active postable asset account. Insert-only tables.
+- New permissions `hr_payment:create` and `hr_payment:read`. Existing installations must run the seed again.
+- Still not built: payment of advances to employees is a separate thing (advances already have grant and repayment); the settlement of
+  a gratuity against an employee's advance (a legal question, section G).
+- Found and not fixed here: a settlement with a **zero** entitlement fails with a 500 (it posts a zero-amount entry the engine refuses).
+  Tracked as a separate task; the fix needs `journal_entry_id` to become nullable on settlements.

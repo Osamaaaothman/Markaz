@@ -7,6 +7,8 @@ import {
   EmployeeService,
   EmployeeError,
   EndOfServiceError,
+  HrPaymentError,
+  HrPaymentService,
   EndOfServiceService,
   PayrollRunError,
   PayrollRunService,
@@ -18,6 +20,10 @@ import {
   type AllowanceTypeSummary,
   type EmployeeListPage,
   type EmployeeSummary,
+  type HrPayables,
+  type HrPaymentDetail,
+  type HrPaymentListPage,
+  type HrPaymentResult,
   type EndOfServiceResult,
   type PayrollRunResult,
   type SalaryAdvanceRepaymentResult,
@@ -32,7 +38,7 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { CreateAllowanceTypeDto, UpdateAllowanceTypeDto, CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, RepaySalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
+import { HrPaymentsQueryDto, PayEndOfServiceDto, PayGosiDto, PaySalariesDto, CreateAllowanceTypeDto, UpdateAllowanceTypeDto, CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, RepaySalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
 import { payslipToPdfHtml } from "./exports/payslip-export.js";
 
 @Controller("v1")
@@ -40,12 +46,81 @@ export class HrController {
   constructor(
     private readonly employees: EmployeeService,
     private readonly allowanceTypes: AllowanceTypeService,
+    private readonly hrPayments: HrPaymentService,
     private readonly payrollRuns: PayrollRunService,
     private readonly salaryAdvances: SalaryAdvanceService,
     private readonly endOfService: EndOfServiceService,
     private readonly attachments: AttachmentService,
     private readonly prisma: PrismaService,
   ) {}
+
+  // ── Paying salaries, social insurance and end-of-service ─────────────────────
+
+  // What is waiting to be paid: unpaid salary lines per run, social insurance still owed, unpaid gratuities.
+  @Get("hr-payments/payables")
+  @RequirePermission("hr_payment", "read")
+  hrPayables(@CurrentUser() actor: CurrentUserPayload): Promise<HrPayables> {
+    return this.hrPayments.payables(actor.companyId);
+  }
+
+  @Get("hr-payments")
+  @RequirePermission("hr_payment", "read")
+  listHrPayments(@CurrentUser() actor: CurrentUserPayload, @Query() query: HrPaymentsQueryDto): Promise<HrPaymentListPage> {
+    return this.hrPayments.list(actor.companyId, query);
+  }
+
+  @Get("hr-payments/:id")
+  @RequirePermission("hr_payment", "read")
+  async getHrPayment(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<HrPaymentDetail> {
+    const payment = await this.hrPayments.get(id, actor.companyId);
+    if (!payment) throw new NotFoundException("Payment not found");
+    return payment;
+  }
+
+  @Post("hr-payments/salaries")
+  @RequirePermission("hr_payment", "create")
+  paySalaries(@Body() dto: PaySalariesDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string, @IdempotencyKey() idempotencyKey: string): Promise<HrPaymentResult> {
+    return this.mapHrPaymentErrors(
+      this.hrPayments.paySalaries({ payrollRunId: dto.payrollRunId, paymentDate: new Date(dto.paymentDate), cashAccountId: dto.cashAccountId, ...(dto.employeeIds ? { employeeIds: dto.employeeIds } : {}), ...(dto.notes ? { notes: dto.notes } : {}) }, actor, correlationId, idempotencyKey),
+    );
+  }
+
+  @Post("hr-payments/gosi")
+  @RequirePermission("hr_payment", "create")
+  payGosi(@Body() dto: PayGosiDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string, @IdempotencyKey() idempotencyKey: string): Promise<HrPaymentResult> {
+    return this.mapHrPaymentErrors(
+      this.hrPayments.payGosi({ amount: dto.amount, paymentDate: new Date(dto.paymentDate), cashAccountId: dto.cashAccountId, ...(dto.notes ? { notes: dto.notes } : {}) }, actor, correlationId, idempotencyKey),
+    );
+  }
+
+  @Post("hr-payments/end-of-service")
+  @RequirePermission("hr_payment", "create")
+  payEndOfService(@Body() dto: PayEndOfServiceDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string, @IdempotencyKey() idempotencyKey: string): Promise<HrPaymentResult> {
+    return this.mapHrPaymentErrors(
+      this.hrPayments.payEndOfService({ settlementId: dto.settlementId, paymentDate: new Date(dto.paymentDate), cashAccountId: dto.cashAccountId, ...(dto.notes ? { notes: dto.notes } : {}) }, actor, correlationId, idempotencyKey),
+    );
+  }
+
+  private async mapHrPaymentErrors<T>(work: Promise<T>): Promise<T> {
+    try {
+      return await work;
+    } catch (error) {
+      if (error instanceof UnmappedAccountError) throw new BadRequestException(error.message);
+      if (!(error instanceof HrPaymentError)) throw error;
+      switch (error.code) {
+        case "RUN_NOT_FOUND":
+        case "SETTLEMENT_NOT_FOUND":
+        case "CASH_ACCOUNT_NOT_FOUND":
+          throw new NotFoundException({ message: error.message, code: error.code });
+        case "NOTHING_TO_PAY":
+        case "ALREADY_PAID":
+        case "OVER_PAYMENT":
+          throw new ConflictException({ message: error.message, code: error.code });
+        default:
+          throw new BadRequestException({ message: error.message, code: error.code });
+      }
+    }
+  }
 
   // ── Allowance types ──────────────────────────────────────────────────────────
 
