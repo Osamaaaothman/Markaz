@@ -73,6 +73,37 @@ export interface SupplierInvoiceSummary {
   readonly totalGross: string;
 }
 
+export interface SupplierInvoiceLineDetail {
+  readonly lineNumber: number;
+  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly itemCode: string | null;
+  readonly itemName: string | null;
+  readonly itemNameAr: string | null;
+  readonly accountCode: string | null;
+  readonly accountName: string | null;
+  readonly accountNameAr: string | null;
+  readonly description: string | null;
+  readonly quantity: string;
+  readonly unitPrice: string;
+  readonly netAmount: string;
+  readonly taxCode: string;
+  readonly taxRate: string;
+  readonly taxAmount: string;
+  readonly priceVariance: string;
+}
+
+export interface SupplierInvoiceDetail extends SupplierInvoiceSummary {
+  readonly notes: string | null;
+  readonly purchaseOrderId: string | null;
+  readonly purchaseOrderNumber: string | null;
+  readonly originalInvoiceNumber: string | null;
+  readonly journalEntryId: string;
+  readonly lines: readonly SupplierInvoiceLineDetail[];
+  readonly payments: readonly { readonly paymentId: string; readonly number: string; readonly paymentDate: string; readonly amount: string }[];
+  readonly debitNotes: readonly { readonly id: string; readonly number: string; readonly totalGross: string }[];
+  readonly outstanding: string | null;
+}
+
 interface Page<T> {
   readonly data: readonly T[];
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
@@ -92,6 +123,15 @@ export function useSupplierInvoices(documentType: "INVOICE" | "DEBIT_NOTE" | nul
     getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
     staleTime: 10_000,
     enabled: can("supplier_invoice:read"),
+  });
+}
+
+export function useSupplierInvoice(id: string) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["supplierInvoices", "detail", id],
+    queryFn: async () => (await apiClient.get<SupplierInvoiceDetail>(`/v1/supplier-invoices/${id}`)).data,
+    enabled: can("supplier_invoice:read") && id !== "",
   });
 }
 

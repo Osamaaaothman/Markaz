@@ -1446,5 +1446,19 @@
         "generic": "تعذّر حفظ نوع البدل."
       }
     }
+  },
+  "documents": {
+    "journalEntry": "عرض القيد المحاسبي",
+    "purchaseOrder": "أمر الشراء",
+    "reducesInvoice": "يخفّض الفاتورة",
+    "outstanding": "المتبقي",
+    "item": "الصنف / الحساب",
+    "taxCode": "رمز الضريبة",
+    "priceVariance": "فرق السعر",
+    "paymentsAgainst": "الدفعات المسددة لهذه الفاتورة",
+    "debitNotesAgainst": "إشعارات المدين على هذه الفاتورة",
+    "backToList": "العودة إلى القائمة",
+    "totalValue": "القيمة الإجمالية",
+    "unitCost": "تكلفة الوحدة"
   }
 }
