@@ -123,6 +123,9 @@ describeIfDb("Inventory (M4) — real database", () => {
     expect(itemByRef.data.map((i) => i.id)).toContain(itemId);
   });
 
+  let firstReceipt: { id: string; number: string; journalEntryId: string } | null = null;
+  let firstIssue: { id: string; number: string; journalEntryId: string } | null = null;
+
   it("receiving stock debits Inventory and credits GRNI for exactly quantity * unit cost", async () => {
     const before = await inventoryAccountBalance();
 
@@ -133,6 +136,7 @@ describeIfDb("Inventory (M4) — real database", () => {
       idk(),
     );
     expect(receipt.number).toBeTruthy();
+    firstReceipt = receipt;
 
     const after = await inventoryAccountBalance();
     expect(after - before).toBeCloseTo(1000, 4);
@@ -165,6 +169,7 @@ describeIfDb("Inventory (M4) — real database", () => {
       idk(),
     );
     expect(issue.number).toBeTruthy();
+    firstIssue = issue;
 
     const after = await inventoryAccountBalance();
     expect(before - after).toBeCloseTo(550, 4); // 5 * 110
@@ -172,6 +177,30 @@ describeIfDb("Inventory (M4) — real database", () => {
     const levels = await stockLevels.list(companyId, { itemId, warehouseId });
     expect(levels[0]?.quantity).toBe("15.0000");
     expect(levels[0]?.value).toBe("1650.0000");
+  });
+
+  it("lists and reads goods receipts and stock issues back, newest first, for the company only", async () => {
+    const receipts = await goodsReceipts.list(companyId, {});
+    expect(receipts.data.length).toBeGreaterThanOrEqual(2);
+    expect(receipts.data[0]!.lineCount).toBe(1);
+    expect((await goodsReceipts.list(companyId, { limit: "1" })).pageInfo.nextCursor).not.toBeNull();
+    expect((await goodsReceipts.list(newId(), {})).data).toHaveLength(0);
+
+    const receipt = (await goodsReceipts.get(firstReceipt!.id, companyId))!;
+    expect(receipt).toMatchObject({ number: firstReceipt!.number, journalEntryId: firstReceipt!.journalEntryId, totalValue: "1000.0000", partyId: null, purchaseOrderId: null });
+    expect(receipt.lines[0]).toMatchObject({ lineNumber: 1, quantity: "10.0000", unitCost: "100.0000", value: "1000.0000" });
+    expect(await goodsReceipts.get(firstReceipt!.id, newId())).toBeNull();
+    expect(await goodsReceipts.get(newId(), companyId)).toBeNull();
+
+    const issues = await stockIssues.list(companyId, {});
+    expect(issues.data[0]).toMatchObject({ costCenterRef: "PROJECT-1", lineCount: 1, totalValue: "550.0000" });
+    expect((await stockIssues.list(newId(), {})).data).toHaveLength(0);
+
+    const issue = (await stockIssues.get(firstIssue!.id, companyId))!;
+    expect(issue).toMatchObject({ number: firstIssue!.number, journalEntryId: firstIssue!.journalEntryId, costCenterRef: "PROJECT-1" });
+    expect(issue.lines[0]).toMatchObject({ quantity: "5.0000", unitCost: "110.0000", value: "550.0000" });
+    expect(await stockIssues.get(firstIssue!.id, newId())).toBeNull();
+    expect(await prisma.journalEntry.count({ where: { id: issue.journalEntryId, companyId } })).toBe(1);
   });
 
   it("refuses to issue more than is on hand, and leaves stock and the ledger untouched", async () => {

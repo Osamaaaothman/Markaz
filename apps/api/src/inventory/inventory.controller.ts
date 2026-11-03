@@ -18,6 +18,8 @@ import {
   WarehouseService,
   type AccountMappingEntry,
   type AccountMappingKey,
+  type GoodsReceiptDetail,
+  type GoodsReceiptListPage,
   type GoodsReceiptResult,
   type ItemListPage,
   type ItemSummary,
@@ -25,6 +27,8 @@ import {
   type StockCountRecordResult,
   type StockCountDetail,
   type StockCountSummary,
+  type StockIssueDetail,
+  type StockIssueListPage,
   type StockIssueResult,
   type StockLevelEntry,
   type StockMovementPage,
@@ -42,6 +46,7 @@ import { CreateWarehouseDto } from "./dto/create-warehouse.dto.js";
 import { ItemsQueryDto } from "./dto/items-query.dto.js";
 import { RecordStockCountDto } from "./dto/record-stock-count.dto.js";
 import { SetAccountMappingDto } from "./dto/set-account-mapping.dto.js";
+import { InventoryDocumentsQueryDto } from "./dto/inventory-documents-query.dto.js";
 import { StockCountsQueryDto } from "./dto/stock-counts-query.dto.js";
 import { StockLevelsExportQueryDto } from "./dto/stock-levels-export-query.dto.js";
 import { StockLevelsQueryDto } from "./dto/stock-levels-query.dto.js";
@@ -230,6 +235,20 @@ export class InventoryController {
 
   // ── Goods receipts ──────────────────────────────────────────────────────────
 
+  @Get("goods-receipts")
+  @RequirePermission("goods_receipt", "read")
+  listGoodsReceipts(@CurrentUser() actor: CurrentUserPayload, @Query() query: InventoryDocumentsQueryDto): Promise<GoodsReceiptListPage> {
+    return this.goodsReceipts.list(actor.companyId, query);
+  }
+
+  @Get("goods-receipts/:id")
+  @RequirePermission("goods_receipt", "read")
+  async getGoodsReceipt(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<GoodsReceiptDetail> {
+    const receipt = await this.goodsReceipts.get(id, actor.companyId);
+    if (!receipt) throw new NotFoundException("Goods receipt not found");
+    return receipt;
+  }
+
   @Post("goods-receipts")
   @RequirePermission("goods_receipt", "create")
   createGoodsReceipt(
@@ -272,6 +291,20 @@ export class InventoryController {
   }
 
   // ── Stock issues ────────────────────────────────────────────────────────────
+
+  @Get("stock-issues")
+  @RequirePermission("stock_issue", "read")
+  listStockIssues(@CurrentUser() actor: CurrentUserPayload, @Query() query: InventoryDocumentsQueryDto): Promise<StockIssueListPage> {
+    return this.stockIssues.list(actor.companyId, query);
+  }
+
+  @Get("stock-issues/:id")
+  @RequirePermission("stock_issue", "read")
+  async getStockIssue(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<StockIssueDetail> {
+    const issue = await this.stockIssues.get(id, actor.companyId);
+    if (!issue) throw new NotFoundException("Stock issue not found");
+    return issue;
+  }
 
   @Post("stock-issues")
   @RequirePermission("stock_issue", "create")

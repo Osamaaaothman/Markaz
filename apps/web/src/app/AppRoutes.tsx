@@ -11,6 +11,10 @@ import { CashFlowPage } from "../features/accounting/CashFlowPage";
 import { JournalEntriesPage } from "../features/accounting/JournalEntriesPage";
 import { PartiesPage } from "../features/parties/PartiesPage";
 import { AccountMappingPage } from "../features/inventory/AccountMappingPage";
+import { GoodsReceiptDetailPage } from "../features/inventory/GoodsReceiptDetailPage";
+import { GoodsReceiptsPage } from "../features/inventory/GoodsReceiptsPage";
+import { StockIssueDetailPage } from "../features/inventory/StockIssueDetailPage";
+import { StockIssuesPage } from "../features/inventory/StockIssuesPage";
 import { GoodsReceiptPage } from "../features/inventory/GoodsReceiptPage";
 import { ItemsPage } from "../features/inventory/ItemsPage";
 import { StockCountDetailPage } from "../features/inventory/StockCountDetailPage";
@@ -106,10 +110,18 @@ export function AppRoutes(): React.JSX.Element {
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/movements")} />}>
             <Route path="/inventory/movements" element={<StockMovementsPage />} />
           </Route>
-          <Route element={<RequirePermission anyOf={permissionsFor("/inventory/goods-receipts/new")} />}>
+          <Route element={<RequirePermission anyOf={permissionsFor("/inventory/goods-receipts")} />}>
+            <Route path="/inventory/goods-receipts" element={<GoodsReceiptsPage />} />
+            <Route path="/inventory/goods-receipts/:id" element={<GoodsReceiptDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["goods_receipt:create"]} />}>
             <Route path="/inventory/goods-receipts/new" element={<GoodsReceiptPage />} />
           </Route>
-          <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-issues/new")} />}>
+          <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-issues")} />}>
+            <Route path="/inventory/stock-issues" element={<StockIssuesPage />} />
+            <Route path="/inventory/stock-issues/:id" element={<StockIssueDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["stock_issue:create"]} />}>
             <Route path="/inventory/stock-issues/new" element={<StockIssuePage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-counts")} />}>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
@@ -37,6 +38,7 @@ const EMPTY_LINE = { itemId: "", quantity: "", unitCost: "" };
 
 export function GoodsReceiptPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: warehouses } = useAllWarehouses();
@@ -83,6 +85,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
         onSuccess: (saved) => {
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
+            onOpen: () => void navigate(`/inventory/goods-receipts/${saved.id}`),
             title: t("inventory.goodsReceipt.title"),
             headline: saved.number,
             rows: [

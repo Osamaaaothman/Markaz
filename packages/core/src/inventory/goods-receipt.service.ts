@@ -40,10 +40,86 @@ export interface GoodsReceiptActor {
   readonly companyId: string;
 }
 
+export interface GoodsReceiptSummary {
+  readonly id: string;
+  readonly number: string;
+  readonly documentDate: string;
+  readonly warehouseId: string;
+  readonly warehouseName: string;
+  readonly warehouseNameAr: string | null;
+  // The supplier, when one was recorded.
+  readonly partyId: string | null;
+  readonly partyName: string | null;
+  readonly partyNameAr: string | null;
+  // The order it was received against, if any (null = a direct receipt).
+  readonly purchaseOrderId: string | null;
+  readonly purchaseOrderNumber: string | null;
+  readonly reference: string | null;
+  readonly lineCount: number;
+  readonly totalValue: string;
+}
+
+export interface GoodsReceiptLineDetail {
+  readonly lineNumber: number;
+  readonly itemId: string;
+  readonly itemCode: string;
+  readonly itemName: string;
+  readonly itemNameAr: string | null;
+  readonly unit: string;
+  readonly quantity: string;
+  readonly unitCost: string;
+  readonly value: string;
+}
+
+export interface GoodsReceiptDetail extends GoodsReceiptSummary {
+  readonly currency: string;
+  readonly journalEntryId: string;
+  readonly lines: readonly GoodsReceiptLineDetail[];
+}
+
+export interface GoodsReceiptListQuery {
+  readonly cursor?: string | undefined;
+  readonly limit?: string | undefined;
+  readonly warehouseId?: string | undefined;
+}
+
+export interface GoodsReceiptListPage {
+  readonly data: readonly GoodsReceiptSummary[];
+  readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
+}
+
 export interface GoodsReceiptResult {
   readonly id: string;
   readonly number: string;
   readonly journalEntryId: string;
+}
+
+const RECEIPT_INCLUDE = {
+  warehouse: { select: { name: true, nameAr: true } },
+  party: { select: { name: true, nameAr: true } },
+  purchaseOrder: { select: { number: true } },
+  lines: { orderBy: { lineNumber: "asc" as const }, include: { item: { select: { code: true, name: true, nameAr: true, unit: true } } } },
+} as const;
+
+type ReceiptRow = Prisma.GoodsReceiptGetPayload<{ include: typeof RECEIPT_INCLUDE }>;
+
+function toReceiptSummary(r: ReceiptRow): GoodsReceiptSummary {
+  return {
+    id: r.id,
+    number: r.number,
+    documentDate: r.documentDate.toISOString().slice(0, 10),
+    warehouseId: r.warehouseId,
+    warehouseName: r.warehouse.name,
+    warehouseNameAr: r.warehouse.nameAr,
+    partyId: r.partyId,
+    partyName: r.party?.name ?? null,
+    partyNameAr: r.party?.nameAr ?? null,
+    purchaseOrderId: r.purchaseOrderId,
+    purchaseOrderNumber: r.purchaseOrder?.number ?? null,
+    reference: r.reference,
+    lineCount: r.lines.length,
+    totalValue: r.lines.reduce((sum, l) => sum.plus(l.value), new Prisma.Decimal(0)).toFixed(4),
+  };
 }
 
 // A receipt not yet matched to a supplier invoice: Inventory increases, GRN-Payables (goods
@@ -60,6 +136,42 @@ export class GoodsReceiptService {
     private readonly accountMappings: AccountMappingService,
     private readonly audit: IAuditLogger,
   ) {}
+
+  async list(companyId: string, query: GoodsReceiptListQuery): Promise<GoodsReceiptListPage> {
+    const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 100);
+    const rows = await this.prisma.goodsReceipt.findMany({
+      where: { companyId, ...(query.warehouseId ? { warehouseId: query.warehouseId } : {}) },
+      include: RECEIPT_INCLUDE,
+      orderBy: [{ documentDate: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    });
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    return { data: page.map(toReceiptSummary), pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
+  }
+
+  async get(id: string, companyId: string): Promise<GoodsReceiptDetail | null> {
+    const row = await this.prisma.goodsReceipt.findFirst({ where: { id, companyId }, include: RECEIPT_INCLUDE });
+    if (!row) return null;
+    const { defaultCurrency } = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { defaultCurrency: true } });
+    return {
+      ...toReceiptSummary(row),
+      currency: defaultCurrency,
+      journalEntryId: row.journalEntryId,
+      lines: row.lines.map((l) => ({
+        lineNumber: l.lineNumber,
+        itemId: l.itemId,
+        itemCode: l.item.code,
+        itemName: l.item.name,
+        itemNameAr: l.item.nameAr,
+        unit: l.item.unit,
+        quantity: l.quantity.toFixed(4),
+        unitCost: l.unitCost.toFixed(4),
+        value: l.value.toFixed(4),
+      })),
+    };
+  }
 
   async create(
     input: CreateGoodsReceiptInput,
