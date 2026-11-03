@@ -69,6 +69,7 @@ export * from "./hr/gosi.js";
 export * from "./hr/eosb.js";
 export * from "./hr/allowance-type.service.js";
 export * from "./hr/employee.service.js";
+export * from "./hr/hr-payment.service.js";
 export * from "./hr/payroll-run.service.js";
 export * from "./hr/salary-advance.service.js";
 export * from "./hr/end-of-service.service.js";

@@ -51,6 +51,7 @@
     "goodsReturns": "Purchase returns",
     "purchaseReview": "Purchase review",
     "allowanceTypes": "Allowance types",
+    "hrPayments": "Pay salaries and dues",
     "auditLog": "Audit log"
   },
   "actions": {
@@ -636,7 +637,7 @@
         "EOSB_PAYABLE": "End-of-service payable",
         "EMPLOYEE_ADVANCES_PARENT": "Employee advances folder",
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "Employee salaries payable folder",
-        "EMPLOYEE_EOSB_PARENT": "Employee end-of-service payable folder"
+        "EMPLOYEE_EOSB_PARENT": "Employee dues folder"
       },
       "keyHints": {
         "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
@@ -660,7 +661,7 @@
         "EOSB_PAYABLE": "Credited with the end-of-service amount owed until paid.",
         "EMPLOYEE_ADVANCES_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
-        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above."
+        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries) for each employee's dues: what is owed to them besides salary (end-of-service now, leave or bonuses later). In the standard chart, \"Employees Other Dues\" (2111102) fits. Set all three employee folders, or none to keep using the company-wide accounts above."
       }
     },
     "movements": {
@@ -1390,7 +1391,7 @@
       "title": "Employee accounts",
       "advance": "Advances (owed by the employee)",
       "salaryPayable": "Salary payable (owed to the employee)",
-      "eosb": "End of service payable (owed to the employee)",
+      "eosb": "Dues (owed to the employee)",
       "none": "This employee has no accounts of their own. Payroll and advances use the company-wide accounts.",
       "create": "Create the employee's accounts",
       "createMissing": "Create accounts for employees without them",
@@ -1449,6 +1450,46 @@
         "IN_USE": "Active employees are still paid this allowance. Remove it from them first.",
         "NOT_FOUND": "This allowance type was not found.",
         "generic": "Could not save this allowance type."
+      }
+    },
+    "payments": {
+      "title": "Pay salaries and dues",
+      "subtitle": "Pay what payroll and end-of-service left owed. Each payment lowers the debt it was recorded under and the bank by the same amount.",
+      "paySalaries": "Pay salaries",
+      "payGosi": "Pay social insurance",
+      "payGratuity": "Pay end-of-service",
+      "owedSalaries": "Salaries still unpaid",
+      "owedGosi": "Social insurance still owed",
+      "owedGratuities": "End-of-service still unpaid",
+      "empty": "No payments yet.",
+      "kind": "Type",
+      "for": "For",
+      "kinds": {
+        "SALARY": "Salaries",
+        "GOSI": "Social insurance",
+        "END_OF_SERVICE": "End-of-service"
+      },
+      "dialogs": {
+        "SALARY": "Pay a payroll run's salaries",
+        "GOSI": "Pay social insurance",
+        "END_OF_SERVICE": "Pay an end-of-service gratuity"
+      },
+      "run": "Payroll run",
+      "pickRun": "Choose the run",
+      "unpaid": "{{count}} unpaid, {{total}}",
+      "settlement": "Settlement",
+      "pickSettlement": "Choose the settlement",
+      "gosiHint": "Owed now: {{amount}}",
+      "confirm": "Pay",
+      "employees": "Employees paid",
+      "errors": {
+        "NOTHING_TO_PAY": "Nothing is left to pay here.",
+        "ALREADY_PAID": "This has already been paid.",
+        "OVER_PAYMENT": "The amount is more than what is owed.",
+        "BEFORE_SOURCE_DATE": "The payment date is before the payroll run or termination date.",
+        "CASH_ACCOUNT_INVALID": "Choose an active bank or cash account.",
+        "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+        "generic": "Could not record this payment."
       }
     }
   },

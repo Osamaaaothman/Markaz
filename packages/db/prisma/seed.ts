@@ -135,6 +135,8 @@ const PERMISSION_CATALOG = [
   { code: "salary_advance:read", description: "View salary advances" },
   { code: "salary_advance:repay", description: "Record an employee repaying a salary advance" },
   { code: "end_of_service:create", description: "Settle an employee's end-of-service gratuity" },
+  { code: "hr_payment:create", description: "Pay salaries, social insurance and end-of-service gratuities" },
+  { code: "hr_payment:read", description: "View salary, social insurance and gratuity payments" },
 ] as const;
 
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);

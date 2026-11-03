@@ -30,7 +30,8 @@ const KINDS: readonly {
 }[] = [
   { kind: "advance", key: "EMPLOYEE_ADVANCES_PARENT", type: "ASSET", name: "Salary advance", nameAr: "سلفة" },
   { kind: "salaryPayable", key: "EMPLOYEE_SALARY_PAYABLE_PARENT", type: "LIABILITY", name: "Salary payable", nameAr: "راتب مستحق" },
-  { kind: "eosb", key: "EMPLOYEE_EOSB_PARENT", type: "LIABILITY", name: "End-of-service payable", nameAr: "نهاية خدمة مستحقة" },
+  // The third account is the employee's "dues": what is owed to them besides salary. Today it receives the end-of-service gratuity.
+  { kind: "eosb", key: "EMPLOYEE_EOSB_PARENT", type: "LIABILITY", name: "Employee dues", nameAr: "مستحقات" },
 ];
 
 export type ParentGroups = Readonly<Record<EmployeeAccountKind, string>>;

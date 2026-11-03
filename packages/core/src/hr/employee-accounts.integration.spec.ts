@@ -141,6 +141,9 @@ describeIfDb("Employee accounts — real database", () => {
     expect(a.salaryPayable.code).toBe("8110801");
     expect(a.eosb.code).toBe("9110801");
     expect(second.accounts!.advance.code).toBe("7110802");
+    // The third account is the employee's dues (what is owed to them besides salary).
+    expect(a.eosb.name).toBe("Employee dues - Layla");
+    expect(a.eosb.nameAr).toMatch(/^مستحقات - /);
 
     const rows = await prisma.account.findMany({ where: { id: { in: [a.advance.id, a.salaryPayable.id, a.eosb.id] } } });
     expect(rows.map((r) => [r.type, r.normalBalance, r.isPostable, r.partyId])).toEqual(
