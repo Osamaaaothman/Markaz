@@ -28,3 +28,6 @@ packages/db/prisma/*.db
 
 # Third-party specifications downloaded for reference (public, not redistributed)
 docs/vendor/
+
+# Redis snapshots a local test server may leave in the working directory
+*.rdb
