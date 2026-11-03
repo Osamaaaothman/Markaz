@@ -419,3 +419,19 @@ Decided by Osama: allowances are a **table of types the company defines**, repla
 - Observed, not changed: goods returns, goods receipts, stock issues and stock counts are numbered `000001`, with no prefix
   (the numbering service creates their series without one, unlike purchase orders and invoices, which get `PO-2026-000001`).
   Changing it affects the format of numbers already issued, so it needs a decision.
+
+## N. End-of-service settlement with nothing owed (2026-11-03)
+
+Decided by Osama: a settlement whose net entitlement is **0** (e.g. a resignation under two years of service) is recorded, ends the
+employment (employee terminated and inactive) and writes the usual audit record, but **posts no journal entry**. Nothing is owed, so
+there is no ledger event; the posting engine rejects zero-amount lines by design.
+
+- **Schema:** `end_of_service_settlements.journal_entry_id` is nullable (migration `20261103150000_eosb_settlement_nullable_journal_entry`,
+  expand-only; rollback in its header). A CHECK, `end_of_service_settlements_journal_entry_check`, allows a null entry only when
+  `net_entitlement = 0`, so the database itself refuses a settlement that owes money without an accrual entry.
+- **Contract:** `journalEntryId` in the settle response is `string | null`. The employee screen's confirmation shows
+  "No entry — zero entitlement" instead of a link to the entry.
+- **Readers must handle null:** anything that reads settlements and follows the entry must treat null as "nothing owed". The payable
+  lists already select `netEntitlement > 0` (branch `feat/hr-payments`).
+- Known gap: the "no payable shown" check for a zero settlement is not in the integration test yet, because the payables list lives
+  on `feat/hr-payments`, which is not merged. To add as soon as it is.
