@@ -77,6 +77,7 @@ model Company {
   employees               Employee[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
+  salaryAdvanceRepayments          SalaryAdvanceRepayment[]
   endOfServiceSettlements EndOfServiceSettlement[]
 
   @@map("companies")
@@ -341,6 +342,7 @@ model Account {
   salesInvoiceLines    SalesInvoiceLine[]
   payments             Payment[]
   salaryAdvances       SalaryAdvance[]
+  salaryAdvanceRepayments       SalaryAdvanceRepayment[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -447,6 +449,7 @@ model JournalEntry {
   payments                Payment[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
+  salaryAdvanceRepayments          SalaryAdvanceRepayment[]
   endOfServiceSettlements EndOfServiceSettlement[]
 
   // The idempotencyKey unique constraint below IS the duplicate-posting guard
@@ -1537,10 +1540,37 @@ model SalaryAdvance {
   cashAccount  Account                  @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
   journalEntry JournalEntry             @relation(fields: [journalEntryId], references: [id])
   deductions   SalaryAdvanceDeduction[]
+  repayments   SalaryAdvanceRepayment[]
 
   @@unique([companyId, number])
   @@index([companyId, employeeId])
   @@map("salary_advances")
+}
+
+// A repayment of a salary advance in cash or by bank transfer: the employee pays money back instead of waiting for payroll
+// deductions (for example before an end-of-service settlement). Insert-only like every posted record: the remaining
+// balance of an advance is its amount minus its deductions minus its repayments, never a stored number.
+model SalaryAdvanceRepayment {
+  id              String   @id
+  companyId       String   @map("company_id")
+  salaryAdvanceId String   @map("salary_advance_id")
+  number          String
+  repaymentDate   DateTime @map("repayment_date") @db.Date
+  amount          Decimal  @db.Decimal(19, 4)
+  cashAccountId   String   @map("cash_account_id")
+  journalEntryId  String   @map("journal_entry_id")
+  actorId         String   @map("actor_id")
+  correlationId   String   @map("correlation_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company       Company       @relation(fields: [companyId], references: [id])
+  salaryAdvance SalaryAdvance @relation(fields: [salaryAdvanceId], references: [id], onDelete: Restrict)
+  cashAccount   Account       @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  journalEntry  JournalEntry  @relation(fields: [journalEntryId], references: [id])
+
+  @@unique([companyId, number])
+  @@index([salaryAdvanceId])
+  @@map("salary_advance_repayments")
 }
 
 model SalaryAdvanceDeduction {

@@ -153,6 +153,18 @@ export class GrantSalaryAdvanceDto {
   cashAccountId!: string;
 }
 
+export class RepaySalaryAdvanceDto {
+  @IsDateString()
+  repaymentDate!: string;
+
+  @IsDecimalString({ positive: true })
+  amount!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  cashAccountId!: string;
+}
+
 // ── End of service ───────────────────────────────────────────────────────────
 
 const END_OF_SERVICE_REASONS = ["RESIGNATION", "TERMINATION", "OTHER"] as const;

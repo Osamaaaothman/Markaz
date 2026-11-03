@@ -256,7 +256,8 @@
           "payments": "Payments",
           "salaryAdvances": "Salary advances",
           "children": "Sub-accounts",
-          "linkedParty": "Linked to a person or company"
+          "linkedParty": "Linked to a person or company",
+          "salaryAdvanceRepayments": "Salary advance repayments"
         }
       },
       "stopped": "Stopped"
@@ -1324,7 +1325,18 @@
       "title": "Salary advances",
       "grant": "Grant advance",
       "installment": "Installment per run",
-      "remaining": "Remaining"
+      "remaining": "Remaining",
+      "repaid": "Repaid",
+      "repay": "Record repayment",
+      "repayHint": "Advance {{number}}: {{remaining}} remains.",
+      "blocked": "This employee still owes {{amount}} on salary advances. Repay them first, then settle or stop the employee.",
+      "errors": {
+        "OVER_REPAYMENT": "The amount is more than what remains on this advance.",
+        "NOTHING_TO_REPAY": "This advance is already fully repaid.",
+        "CASH_ACCOUNT_INVALID": "Choose an active, postable asset account for the bank or cash.",
+        "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+        "generic": "Could not record this repayment."
+      }
     },
     "eosb": {
       "settle": "Settle end of service",
@@ -1336,7 +1348,8 @@
         "OTHER": "Other (death, force majeure)"
       },
       "years": "Years of service",
-      "fraction": "Entitlement fraction"
+      "fraction": "Entitlement fraction",
+      "error": "Could not settle this employee."
     },
     "wps": {
       "title": "WPS (Mudad) settings",

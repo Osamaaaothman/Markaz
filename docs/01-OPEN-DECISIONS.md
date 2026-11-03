@@ -296,3 +296,23 @@ and can only be **stopped**.
   a non-zero balance is acceptable, and whether a stopped account with a balance should block closing a period.
 - Not done: the same "used? then no delete" rule for parties, items, warehouses, tax codes and employees. They have no
   delete today, only a stop flag with no check (question 3 of the plan).
+
+## G. Salary advances: repayment and leavers (2026-11-03)
+
+Decided by Osama: an employee who still owes a salary advance **cannot be settled or stopped** until the advance is repaid.
+
+- **Repayment** (`SalaryAdvanceService.repay`, permission `salary_advance:repay`): the employee pays money back outside payroll.
+  Posting: Dr the bank or cash account, Cr `SALARY_ADVANCES_RECEIVABLE`. Insert-only table `salary_advance_repayments`.
+  Allowed for an employee who is no longer active.
+- **Remaining balance** of an advance = amount − payroll deductions − repayments, computed in one place
+  (`packages/core/src/hr/salary-advance-balance.ts`) and used by the lists, the payroll run and the checks.
+- **Blocked:** `EndOfServiceService.settle` and a manual stop of an employee fail with `OUTSTANDING_ADVANCES` (409) while any
+  balance remains. Reason: once an employee is inactive payroll stops recovering the advance, and the receivable would stay on
+  the books for good.
+- **Concurrency:** a repayment and a payroll run both take a per-employee advisory lock (`salary_advances` is insert-only for the
+  application role, so `SELECT ... FOR UPDATE` is not available), and payroll now reads the advances inside its transaction.
+  Before this, a repayment made while a run was being prepared could have been deducted a second time.
+- `// REVIEW:` not built, and a question for an accountant and a lawyer: netting the balance against the end-of-service
+  gratuity. A deduction from end-of-service dues has statutory limits.
+- New permission `salary_advance:repay`. Existing installations must run the seed again:
+  `npm run seed --workspace=@erp/db`.

@@ -2,6 +2,17 @@ import type { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
 import { allocateRef } from "../reference.js";
+import { outstandingAdvanceTotal } from "./salary-advance-balance.js";
+
+export class EmployeeError extends Error {
+  constructor(
+    readonly code: "OUTSTANDING_ADVANCES",
+    message: string,
+  ) {
+    super(message);
+    this.name = "EmployeeError";
+  }
+}
 
 export interface EmployeeSummary {
   readonly id: string;
@@ -211,6 +222,13 @@ export class EmployeeService {
   async update(id: string, input: UpdateEmployeeInput, actor: EmployeeActor, correlationId: string): Promise<EmployeeSummary | null> {
     const before = await this.prisma.employee.findFirst({ where: { id, companyId: actor.companyId }, select: EMPLOYEE_SELECT });
     if (!before) return null;
+
+    // Stopping an employee by hand has the same rule as the end-of-service settlement: payroll stops recovering the
+    // advances of an inactive employee, so what is still owed must be repaid first.
+    if (input.isActive === false && before.isActive) {
+      const owed = await outstandingAdvanceTotal(this.prisma, actor.companyId, id);
+      if (owed.greaterThan(0)) throw new EmployeeError("OUTSTANDING_ADVANCES", `This employee still owes ${owed.toFixed(4)} on salary advances; repay them first`);
+    }
 
     const after = await this.prisma.employee.update({
       where: { id },
