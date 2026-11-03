@@ -312,6 +312,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                   post.mutate(payload, {
                     onSuccess: (saved) =>
                       setCreated({
+                        onOpen: () => void navigate(`/purchasing/invoices/${saved.id}`),
                         title: t("purchasing.invoices.title"),
                         headline: saved.number,
                         rows: [

@@ -22,7 +22,9 @@ import { ApprovalPolicyPage } from "../features/purchasing/ApprovalPolicyPage";
 import { SupplierInvoiceFormPage } from "../features/purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "../features/purchasing/SupplierInvoicesPage";
 import { TaxCodesPage } from "../features/purchasing/TaxCodesPage";
+import { GoodsReturnDetailPage } from "../features/purchasing/GoodsReturnDetailPage";
 import { GoodsReturnsPage } from "../features/purchasing/GoodsReturnsPage";
+import { SupplierInvoiceDetailPage } from "../features/purchasing/SupplierInvoiceDetailPage";
 import { PurchaseOrderDetailPage } from "../features/purchasing/PurchaseOrderDetailPage";
 import { PurchaseOrderFormPage } from "../features/purchasing/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "../features/purchasing/PurchaseOrdersPage";
@@ -137,9 +139,11 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/returns")} />}>
             <Route path="/purchasing/returns" element={<GoodsReturnsPage />} />
+            <Route path="/purchasing/returns/:id" element={<GoodsReturnDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/invoices")} />}>
             <Route path="/purchasing/invoices" element={<SupplierInvoicesPage />} />
+            <Route path="/purchasing/invoices/:id" element={<SupplierInvoiceDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={["supplier_invoice:create"]} />}>
             <Route path="/purchasing/invoices/new" element={<SupplierInvoiceFormPage />} />

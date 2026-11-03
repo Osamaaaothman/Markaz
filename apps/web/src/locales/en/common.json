@@ -1446,5 +1446,19 @@
         "generic": "Could not save this allowance type."
       }
     }
+  },
+  "documents": {
+    "journalEntry": "View journal entry",
+    "purchaseOrder": "Purchase order",
+    "reducesInvoice": "Reduces invoice",
+    "outstanding": "Still owed",
+    "item": "Item / account",
+    "taxCode": "Tax code",
+    "priceVariance": "Price variance",
+    "paymentsAgainst": "Payments against this invoice",
+    "debitNotesAgainst": "Debit notes against this invoice",
+    "backToList": "Back to the list",
+    "totalValue": "Total value",
+    "unitCost": "Unit cost"
   }
 }

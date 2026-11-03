@@ -1,5 +1,5 @@
 import { newId } from "@erp/shared";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 
@@ -32,6 +32,10 @@ export interface GoodsReturnSummary {
   readonly lines: readonly GoodsReturnLine[];
 }
 
+export interface GoodsReturnDetail extends GoodsReturnSummary {
+  readonly journalEntryId: string;
+}
+
 interface Page<T> {
   readonly data: readonly T[];
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
@@ -47,6 +51,15 @@ export function useGoodsReturns() {
     getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
     staleTime: 10_000,
     enabled: can("goods_return:read"),
+  });
+}
+
+export function useGoodsReturn(id: string) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["goodsReturns", "detail", id],
+    queryFn: async () => (await apiClient.get<GoodsReturnDetail>(`/v1/goods-returns/${id}`)).data,
+    enabled: can("goods_return:read") && id !== "",
   });
 }
 

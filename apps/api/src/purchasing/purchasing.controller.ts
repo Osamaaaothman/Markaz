@@ -19,6 +19,7 @@ import {
   type ApprovalPolicyEntry,
   type IPermissionService,
   type PurchasingQueueCounts,
+  type GoodsReturnDetail,
   type GoodsReturnListPage,
   type GoodsReturnResult,
   type PurchaseOrderCreated,
@@ -288,6 +289,14 @@ export class PurchasingController {
   @RequirePermission("goods_return", "read")
   listGoodsReturns(@CurrentUser() actor: CurrentUserPayload, @Query() query: GoodsReturnsQueryDto): Promise<GoodsReturnListPage> {
     return this.goodsReturns.list(actor.companyId, query);
+  }
+
+  @Get("goods-returns/:id")
+  @RequirePermission("goods_return", "read")
+  async getGoodsReturn(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<GoodsReturnDetail> {
+    const goodsReturn = await this.goodsReturns.get(id, actor.companyId);
+    if (!goodsReturn) throw new NotFoundException("Goods return not found");
+    return goodsReturn;
   }
 
   @Post("goods-returns")

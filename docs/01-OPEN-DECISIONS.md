@@ -399,3 +399,15 @@ Decided by Osama: allowances are a **table of types the company defines**, repla
   run the seed again: `npm run seed --workspace=@erp/db`.
 - Not built: allowances that vary by month (a bonus in one run only), percentage-of-basic allowances, and per-type accounts or cost
   centres. All allowances still post to the one salary expense account.
+
+## L. Details pages for documents (2026-11-03, continues section I)
+
+- Done in this slice: supplier invoice / debit note (`GET /v1/supplier-invoices/:id`) and goods return (`GET /v1/goods-returns/:id`)
+  each have a read endpoint and a details page: header facts, lines, the journal entry it posted (button, for anyone who may read
+  entries), and links to the order. A supplier invoice also shows what is still owed (the same definition payments and ageing
+  use), the payments set against it and the debit notes raised against it. A new invoice or return opens on its page with the
+  "saved" message over it; the lists link to the page.
+- Remaining: payment/receipt, stock count, goods receipt, stock issue (next slices).
+- Observed, not changed: goods returns, goods receipts, stock issues and stock counts are numbered `000001`, with no prefix
+  (the numbering service creates their series without one, unlike purchase orders and invoices, which get `PO-2026-000001`).
+  Changing it affects the format of numbers already issued, so it needs a decision.

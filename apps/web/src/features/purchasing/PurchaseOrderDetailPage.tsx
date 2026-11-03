@@ -12,6 +12,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
+import { useCreatedToast } from "../../shared/ui/created-toast";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useAllWarehouses } from "../inventory/use-warehouses";
@@ -245,6 +246,8 @@ function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail;
 
 function ReturnDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; visible: boolean; onHide: () => void }): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const showCreated = useCreatedToast((state) => state.show);
   const { data: warehouses } = useAllWarehouses();
   const returnGoods = useReturnGoods();
   const [warehouseId, setWarehouseId] = useState(order.warehouseId ?? "");
@@ -341,7 +344,14 @@ function ReturnDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; 
                   ...(reason.trim() ? { reason: reason.trim() } : {}),
                   lines: chosen,
                 },
-                { onSuccess: onHide },
+                {
+                  // The new return opens on its own page with the "saved" message over it.
+                  onSuccess: (saved) => {
+                    onHide();
+                    showCreated(t("purchasing.orders.returnGoods"), saved.number);
+                    void navigate(`/purchasing/returns/${saved.id}`);
+                  },
+                },
               )
             }
           />

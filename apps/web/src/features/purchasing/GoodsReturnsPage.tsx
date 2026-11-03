@@ -45,7 +45,7 @@ export function GoodsReturnsPage(): React.JSX.Element {
             size="small"
             emptyMessage={t("purchasing.returns.empty")}
             selectionMode="single"
-            onRowClick={(e) => void navigate(`/purchasing/orders/${(e.data as GoodsReturnSummary).purchaseOrderId}`)}
+            onRowClick={(e) => void navigate(`/purchasing/returns/${(e.data as GoodsReturnSummary).id}`)}
           >
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(row: GoodsReturnSummary) => <span className="coa-code">{row.number}</span>} />
             <Column header={t("purchasing.returns.documentDate")} style={{ width: "9rem" }} body={(row: GoodsReturnSummary) => formatCalendarDate(row.documentDate, i18n.language)} />

@@ -68,7 +68,7 @@ export function SupplierInvoicesPage(): React.JSX.Element {
       ) : (
         <>
           <DataGrid value={invoices} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
-            <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SupplierInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
+            <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SupplierInvoiceSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/purchasing/invoices/${r.id}`)}>{r.number}</button>} />
             <Column header={t("purchasing.invoices.documentType")} style={{ width: "10rem" }} body={(r: SupplierInvoiceSummary) => <Tag value={t(`purchasing.invoices.types.${r.documentType}`)} severity={r.documentType === "INVOICE" ? "info" : "warning"} />} />
             <Column header={t("purchasing.invoices.supplierInvoiceNumber")} style={{ width: "12rem" }} body={(r: SupplierInvoiceSummary) => r.supplierInvoiceNumber ?? "—"} />
             <Column header={t("purchasing.supplier")} body={(r: SupplierInvoiceSummary) => localizedName({ name: r.supplierName, nameAr: r.supplierNameAr }, i18n.language)} />

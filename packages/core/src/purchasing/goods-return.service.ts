@@ -81,6 +81,10 @@ export interface GoodsReturnSummary {
   readonly lines: readonly GoodsReturnLineSummary[];
 }
 
+export interface GoodsReturnDetail extends GoodsReturnSummary {
+  readonly journalEntryId: string;
+}
+
 export interface GoodsReturnListQuery {
   readonly cursor?: string | undefined;
   readonly limit?: string | undefined;
@@ -90,6 +94,44 @@ export interface GoodsReturnListQuery {
 export interface GoodsReturnListPage {
   readonly data: readonly GoodsReturnSummary[];
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
+}
+
+const RETURN_INCLUDE = {
+  party: { select: { name: true, nameAr: true } },
+  warehouse: { select: { name: true, nameAr: true } },
+  purchaseOrder: { select: { number: true } },
+  lines: { orderBy: { lineNumber: "asc" as const }, include: { item: { select: { code: true, name: true, nameAr: true } } } },
+} as const;
+
+type ReturnRow = Prisma.GoodsReturnGetPayload<{ include: typeof RETURN_INCLUDE }>;
+
+function toSummary(r: ReturnRow, currency: string): GoodsReturnSummary {
+  return {
+      id: r.id,
+      number: r.number,
+      documentDate: r.documentDate.toISOString().slice(0, 10),
+      purchaseOrderId: r.purchaseOrderId,
+      purchaseOrderNumber: r.purchaseOrder.number,
+      supplierId: r.partyId,
+      supplierName: r.party.name,
+      supplierNameAr: r.party.nameAr,
+      warehouseId: r.warehouseId,
+      warehouseName: r.warehouse.name,
+      warehouseNameAr: r.warehouse.nameAr,
+      reference: r.reference,
+      reason: r.reason,
+      currency,
+      totalValue: r.lines.reduce((sum, l) => sum.plus(l.value), new Prisma.Decimal(0)).toFixed(4),
+      lines: r.lines.map((l) => ({
+        itemId: l.itemId,
+        itemCode: l.item.code,
+        itemName: l.item.name,
+        itemNameAr: l.item.nameAr,
+        quantity: l.quantity.toFixed(4),
+        unitCost: l.unitCost.toFixed(4),
+        value: l.value.toFixed(4),
+      })),
+    };
 }
 
 const DEFAULT_LIMIT = 50;
@@ -323,6 +365,14 @@ export class GoodsReturnService {
     return result;
   }
 
+  // One return with its lines and the journal entry it posted.
+  async get(id: string, companyId: string): Promise<GoodsReturnDetail | null> {
+    const row = await this.prisma.goodsReturn.findFirst({ where: { id, companyId }, include: RETURN_INCLUDE });
+    if (!row) return null;
+    const { defaultCurrency } = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { defaultCurrency: true } });
+    return { ...toSummary(row, defaultCurrency), journalEntryId: row.journalEntryId };
+  }
+
   async list(companyId: string, query: GoodsReturnListQuery): Promise<GoodsReturnListPage> {
     const parsed = Number.parseInt(query.limit ?? "", 10);
     const limit = Math.min(Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_LIMIT, MAX_LIMIT);
@@ -331,12 +381,7 @@ export class GoodsReturnService {
       orderBy: [{ documentDate: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-      include: {
-        party: { select: { name: true, nameAr: true } },
-        warehouse: { select: { name: true, nameAr: true } },
-        purchaseOrder: { select: { number: true } },
-        lines: { orderBy: { lineNumber: "asc" }, include: { item: { select: { code: true, name: true, nameAr: true } } } },
-      },
+      include: RETURN_INCLUDE,
     });
     if (rows.length === 0) return { data: [], pageInfo: { hasMore: false, nextCursor: null } };
     const currency = await this.prisma.company
@@ -344,32 +389,7 @@ export class GoodsReturnService {
       .then((c) => c.defaultCurrency);
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
-    const data: GoodsReturnSummary[] = page.map((r) => ({
-      id: r.id,
-      number: r.number,
-      documentDate: r.documentDate.toISOString().slice(0, 10),
-      purchaseOrderId: r.purchaseOrderId,
-      purchaseOrderNumber: r.purchaseOrder.number,
-      supplierId: r.partyId,
-      supplierName: r.party.name,
-      supplierNameAr: r.party.nameAr,
-      warehouseId: r.warehouseId,
-      warehouseName: r.warehouse.name,
-      warehouseNameAr: r.warehouse.nameAr,
-      reference: r.reference,
-      reason: r.reason,
-      currency,
-      totalValue: r.lines.reduce((sum, l) => sum.plus(l.value), new Prisma.Decimal(0)).toFixed(4),
-      lines: r.lines.map((l) => ({
-        itemId: l.itemId,
-        itemCode: l.item.code,
-        itemName: l.item.name,
-        itemNameAr: l.item.nameAr,
-        quantity: l.quantity.toFixed(4),
-        unitCost: l.unitCost.toFixed(4),
-        value: l.value.toFixed(4),
-      })),
-    }));
+    const data: GoodsReturnSummary[] = page.map((r) => toSummary(r, currency));
     return { data, pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
   }
 }
