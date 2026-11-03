@@ -373,3 +373,29 @@ Detailed choices below were made without an accountant and are marked `// REVIEW
   details screen and no `GET :id` endpoint (goods receipts and issues have no list either). Each needs a read endpoint, a page
   and tests, so it is its own piece of work. Their confirmation dialog still shows the saved fields.
 - Not planned: master data (parties, items, warehouses, tax codes, accounts); the confirmation dialog already shows all their fields.
+
+## K. Allowance types (2026-11-03)
+
+Decided by Osama: allowances are a **table of types the company defines**, replacing the two fixed fields (housing, other).
+
+- **Tables:** `allowance_types` (code, name in two languages, `isHousing`, `inGosiBase`, `inEosbBase`, active), `employee_allowances`
+  (an amount per employee per type) and `payroll_run_line_allowances` (a copy of each allowance as it was on the run date, insert-only).
+- **What the flags do:** GOSI is computed on basic salary + the allowances flagged `inGosiBase` (the 45,000 cap is unchanged);
+  the end-of-service gratuity on basic salary + those flagged `inEosbBase`. `isHousing` marks the one type reported in the housing
+  column of the WPS wages file and the payslip; every other allowance is reported as other earnings. The housing and other
+  totals on a payroll line are still stored, so the WPS file, payslip and screens that show two numbers are unchanged.
+- **Migration** `20261103130000_allowance_types` carries today's data over: for each company with employees it creates `HOUSING`
+  (GOSI yes, end-of-service yes, housing column) and `OTHER` (GOSI no, end-of-service yes) and turns each employee's existing amounts
+  into rows. This reproduces exactly today's rules (GOSI on basic + housing; end-of-service on basic + housing + other, Osama 18 Oct
+  2026), so payroll and gratuity for existing data are unchanged. The old `employees.housing_allowance` / `other_allowances`
+  columns stay (expand-only) but are no longer read or written.
+- **Never silent:** the usual types (housing, transport, food, phone, nature of work, travel, cost of living) are added only when the
+  user presses "Add the usual types". New types default to **not** in the GOSI base and **in** the end-of-service base.
+  `// REVIEW:` whether each common allowance belongs in either base is for an accountant and a labour-law adviser; the company
+  can change both flags per type, and a posted run keeps what it used.
+- **Rules:** a type's code and housing marker never change; a type paid to an active employee cannot be stopped (`IN_USE`);
+  a stopped type cannot be given to anyone new.
+- New permissions `allowance_type:create` and `allowance_type:update` (listing needs `employee:read`). Existing installations must
+  run the seed again: `npm run seed --workspace=@erp/db`.
+- Not built: allowances that vary by month (a bonus in one run only), percentage-of-basic allowances, and per-type accounts or cost
+  centres. All allowances still post to the one salary expense account.
