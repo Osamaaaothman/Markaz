@@ -48,7 +48,8 @@
     "company": "Company",
     "employees": "Employees",
     "payrollRuns": "Payroll runs",
-    "goodsReturns": "Purchase returns"
+    "goodsReturns": "Purchase returns",
+    "purchaseReview": "Purchase review"
   },
   "actions": {
     "save": "Save",
@@ -692,6 +693,7 @@
     "receiveNow": "Receive now",
     "requestStatus": {
       "PENDING": "Pending",
+      "ACCEPTED": "Accepted",
       "PROCESSED": "Ordered",
       "REJECTED": "Rejected"
     },
@@ -844,6 +846,16 @@
       "lines": "Returned items",
       "unitCost": "Cost",
       "empty": "No purchase returns yet. Start one from a purchase order that has received goods."
+    },
+    "review": {
+      "title": "Purchase request review",
+      "subtitle": "Accept a request so a buyer can turn it into an order, or reject it with a reason.",
+      "toReview": "Waiting for review",
+      "accepted": "Accepted (no order yet)",
+      "emptyPending": "No requests are waiting for review.",
+      "emptyAccepted": "No accepted requests are waiting for an order.",
+      "accept": "Accept",
+      "acceptError": "Could not accept this request."
     }
   },
   "sales": {
@@ -1051,7 +1063,8 @@
     "densityCompact": "Compact rows (click for comfortable)",
     "densityComfortable": "Comfortable rows (click for compact)",
     "toggleTheme": "Switch light / dark",
-    "designSystem": "Design system"
+    "designSystem": "Design system",
+    "pendingCount": "{{count}} waiting for action"
   },
   "authHero": {
     "titleA": "Your books,",

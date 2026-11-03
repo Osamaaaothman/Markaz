@@ -6,6 +6,7 @@ type Severity = "success" | "info" | "warning" | "danger" | "secondary";
 
 const REQUEST_SEVERITY: Record<PurchaseRequestStatus, Severity> = {
   PENDING: "warning",
+  ACCEPTED: "info",
   PROCESSED: "success",
   REJECTED: "danger",
 };

@@ -8,6 +8,8 @@ export interface NavItem {
   readonly permissions?: readonly string[];
   // Section heading it sits under in the sidebar (a translation key under `nav.groups`); no group = top of the list.
   readonly groupKey?: string;
+  // Which purchasing count to show as a badge beside the label (see usePurchasingCounts).
+  readonly badge?: "review" | "orders";
 }
 
 // One place to add a nav entry as new modules land (M4+) — docs/08-FRONTEND-I18N-RULES.md
@@ -51,7 +53,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/hr/employees", labelKey: "nav.employees", icon: "pi pi-id-card", permissions: ["employee:read"], groupKey: "nav.groups.hr" },
   { to: "/hr/payroll-runs", labelKey: "nav.payrollRuns", icon: "pi pi-wallet", permissions: ["payroll_run:read"], groupKey: "nav.groups.hr" },
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
-  { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing" },
+  { to: "/purchasing/review", labelKey: "nav.purchaseReview", icon: "pi pi-check-square", permissions: ["purchase_request:review"], groupKey: "nav.groups.purchasing", badge: "review" },
+  { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing", badge: "orders" },
   { to: "/purchasing/returns", labelKey: "nav.goodsReturns", icon: "pi pi-replay", permissions: ["goods_return:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/invoices", labelKey: "nav.supplierInvoices", icon: "pi pi-receipt", permissions: ["supplier_invoice:read"], groupKey: "nav.groups.purchasing" },
   { to: "/sales/quotations", labelKey: "nav.quotations", icon: "pi pi-file-edit", permissions: ["quotation:read"], groupKey: "nav.groups.sales" },

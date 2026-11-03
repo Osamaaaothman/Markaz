@@ -108,7 +108,7 @@ export function DashboardPage(): React.JSX.Element {
     attention.push({ key: "approvals", text: t("dashboard.attention.approvals", { count: data.purchasing.pendingApprovals }), to: "/purchasing/orders", icon: "pi pi-verified" });
   }
   if (data.purchasing && data.purchasing.pendingRequests > 0) {
-    attention.push({ key: "requests", text: t("dashboard.attention.requests", { count: data.purchasing.pendingRequests }), to: "/purchasing/requests", icon: "pi pi-inbox" });
+    attention.push({ key: "requests", text: t("dashboard.attention.requests", { count: data.purchasing.pendingRequests }), to: "/purchasing/review", icon: "pi pi-inbox" });
   }
   if (data.stock && data.stock.belowReorder > 0) {
     attention.push({ key: "reorder", text: t("dashboard.attention.reorder", { count: data.stock.belowReorder }), to: "/inventory/stock-levels", icon: "pi pi-exclamation-triangle" });

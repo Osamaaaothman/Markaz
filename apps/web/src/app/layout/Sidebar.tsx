@@ -7,6 +7,7 @@ import { useApiImageUrl } from "../../shared/ui/ApiImage";
 import { localizedName } from "../../shared/lib/localized-name";
 import { Logo } from "../../shared/ui/Logo";
 import { DEFAULT_GROUP_ICON, GROUP_ICONS, NAV_ITEMS } from "./NavConfig";
+import { usePurchasingCounts, type PurchasingCounts } from "../../features/purchasing/use-purchasing";
 import { useLayoutStore } from "./layout-store";
 
 export interface SidebarProps {
@@ -28,6 +29,8 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
   const { url: companyLogo } = useApiImageUrl("/v1/company/logo", "current");
   const collapsed = variant === "desktop" && collapsedPref;
   const visibleItems = NAV_ITEMS.filter((item) => canAny(item.permissions ?? []));
+  const { data: counts } = usePurchasingCounts();
+  const badgeOf = (badge: "review" | "orders" | undefined): number => (badge ? badgeCount(badge, counts) : 0);
 
   return (
     <nav className={`erp-sidebar erp-sidebar--${variant}${collapsed ? " erp-sidebar--collapsed" : ""}`} aria-label={t("app.name")}>
@@ -72,6 +75,11 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
                 >
                   <i className={item.icon} aria-hidden="true" />
                   <span className="erp-sidebar__label">{t(item.labelKey)}</span>
+                  {badgeOf(item.badge) > 0 ? (
+                    <span className="erp-sidebar__badge" aria-label={t("shell.pendingCount", { count: badgeOf(item.badge) })}>
+                      {badgeOf(item.badge) > 99 ? "99+" : badgeOf(item.badge)}
+                    </span>
+                  ) : null}
                 </NavLink>
               )}
             </li>
@@ -103,4 +111,11 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
       </div>
     </nav>
   );
+}
+
+// Review = requests waiting for a decision. Orders = accepted requests still waiting for an order, plus orders waiting
+// for approval. A part the user may not act on is absent from the counts and adds nothing.
+function badgeCount(badge: "review" | "orders", counts: PurchasingCounts | undefined): number {
+  if (!counts) return 0;
+  return badge === "review" ? (counts.requestsToReview ?? 0) : (counts.requestsAccepted ?? 0) + (counts.ordersAwaitingApproval ?? 0);
 }

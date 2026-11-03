@@ -67,7 +67,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const lines = watch("lines");
 
   useEffect(() => {
-    if (!request || request.status !== "PENDING") return;
+    if (!request || request.status !== "ACCEPTED") return;
     reset({
       supplierId: "",
       // The request already says which warehouse the goods are for.
@@ -97,7 +97,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
         orderDate: toDateOnlyIsoString(values.orderDate),
         ...(values.expectedDate ? { expectedDate: toDateOnlyIsoString(values.expectedDate) } : {}),
         ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
-        ...(request?.status === "PENDING" && requestId ? { purchaseRequestId: requestId } : {}),
+        ...(request?.status === "ACCEPTED" && requestId ? { purchaseRequestId: requestId } : {}),
         lines: values.lines,
       },
       {
