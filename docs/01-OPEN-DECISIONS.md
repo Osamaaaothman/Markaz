@@ -336,9 +336,10 @@ Before this, a request became an order directly and "accepted" was implicit. Now
 
 ## I. After creating something, opening its details (2026-11-03)
 
-- Done: the confirmation dialog (`CreatedDialog`) shows an "Open details" button when the record has a details screen
-  (`CreatedInfo.onOpen`): employee, journal entry (opens its dialog), purchase request (opens its dialog). A new sales order
-  or invoice opens on its own page (a quotation has none and returns to the list). A purchase order already did.
+- Done: a record that has a details screen **opens on it straight away, with the "saved successfully" message shown over it**
+  (a toast in the app shell; `CreatedInfo.onOpen` in `CreatedDialog`). There is no extra button. Employee, purchase order, sales
+  order and sales invoice open their page; journal entry and purchase request open their dialog. A quotation has no details
+  screen, so it keeps the confirmation dialog.
 - Known gap (not built): supplier invoice, payment/receipt, goods receipt, stock issue, stock count and goods return have no
   details screen and no `GET :id` endpoint (goods receipts and issues have no list either). Each needs a read endpoint, a page
   and tests, so it is its own piece of work. Their confirmation dialog still shows the saved fields.

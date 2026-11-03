@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
+import { useCreatedToast } from "./created-toast";
 
 export interface CreatedRow {
   readonly label: string;
@@ -15,7 +17,8 @@ export interface CreatedInfo {
   // The headline value people look for first: the number or code that was just generated.
   readonly headline?: string;
   readonly rows: readonly CreatedRow[];
-  // When the new record has a details screen, how to get there. Adds an "open details" button.
+  // When the new record has a details screen, how to open it. The record then opens on that screen straight away and the
+  // success message is shown over it, instead of this dialog.
   readonly onOpen?: () => void;
 }
 
@@ -32,8 +35,20 @@ export function CreatedDialog({
   readonly extraAction?: { readonly label: string; readonly onClick: () => void };
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const showToast = useCreatedToast((state) => state.show);
+  const handled = useRef<CreatedInfo | null>(null);
+  const opensDetails = info?.onOpen !== undefined;
+
+  useEffect(() => {
+    if (!info?.onOpen || handled.current === info) return;
+    handled.current = info;
+    showToast(info.title, info.headline);
+    onHide();
+    info.onOpen();
+  }, [info]);
+
   return (
-    <Dialog visible={info !== null} onHide={onHide} className="mk-created" modal dismissableMask header={t("created.title")} closable>
+    <Dialog visible={info !== null && !opensDetails} onHide={onHide} className="mk-created" modal dismissableMask header={t("created.title")} closable>
       {info ? (
         <div className="mk-created__body">
           <div className="mk-created__hero">
@@ -52,18 +67,6 @@ export function CreatedDialog({
             ))}
           </dl>
           <div className="mk-created__actions">
-            {info.onOpen ? (
-              <Button
-                type="button"
-                label={t("created.openDetails")}
-                icon="pi pi-external-link"
-                outlined
-                onClick={() => {
-                  onHide();
-                  info.onOpen?.();
-                }}
-              />
-            ) : null}
             {extraAction ? <Button type="button" label={extraAction.label} outlined onClick={extraAction.onClick} /> : null}
             <Button type="button" label={t("created.ok")} onClick={onHide} autoFocus />
           </div>
