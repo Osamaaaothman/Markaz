@@ -50,7 +50,8 @@
     "payrollRuns": "تشغيلات الرواتب",
     "goodsReturns": "مردودات المشتريات",
     "purchaseReview": "مراجعة طلبات الشراء",
-    "allowanceTypes": "أنواع البدلات"
+    "allowanceTypes": "أنواع البدلات",
+    "auditLog": "سجل التدقيق"
   },
   "actions": {
     "save": "حفظ",
@@ -1473,5 +1474,22 @@
     "countedQuantity": "المعدود",
     "difference": "الفرق",
     "costCenter": "مركز التكلفة / المشروع"
+  },
+  "audit": {
+    "title": "سجل التدقيق",
+    "subtitle": "من غيّر ماذا ومتى. للقراءة فقط: لا يمكن تعديل أي شيء هنا أو حذفه.",
+    "entityType": "نوع السجل",
+    "user": "المستخدم",
+    "action": "الإجراء",
+    "actionPlaceholder": "ابحث في الإجراء (مثل posted)",
+    "entityId": "السجل",
+    "when": "الوقت",
+    "from": "من تاريخ",
+    "to": "إلى تاريخ",
+    "clear": "مسح الفلاتر",
+    "all": "الكل",
+    "correlation": "معرّف الطلب",
+    "before": "قبل",
+    "after": "بعد"
   }
 }

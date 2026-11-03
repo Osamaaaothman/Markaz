@@ -65,6 +65,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/documents", labelKey: "nav.documents", icon: "pi pi-paperclip", permissions: ["attachment:read"], groupKey: "nav.groups.documents" },
   { to: "/settings/company", labelKey: "nav.company", icon: "pi pi-building-columns", permissions: ["company:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users", permissions: ["user:read", "role:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/audit-log", labelKey: "nav.auditLog", icon: "pi pi-history", permissions: ["audit_log:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/account-mapping", labelKey: "nav.accountMapping", icon: "pi pi-link", permissions: ["account_mapping:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/tax-codes", labelKey: "nav.taxCodes", icon: "pi pi-percentage", permissions: ["tax_code:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },

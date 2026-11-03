@@ -1771,3 +1771,18 @@ html body .mk-created {
 html body .p-toast {
   z-index: 100000 !important;
 }
+
+/* A formatted JSON block (the audit log's before / after), always left to right and scrollable instead of widening the dialog. */
+.mk-json {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  max-height: 16rem;
+  overflow: auto;
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface-sunken, rgba(0, 0, 0, 0.04));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
