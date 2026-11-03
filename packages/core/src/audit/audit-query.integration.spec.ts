@@ -15,6 +15,8 @@ describeIfDb("Audit log reading — real database", () => {
   const userA = newId();
   const userB = newId();
   const legacyUserA = newId();
+  // Record ids are unique per run: the table is append-only, so rows from an earlier run of this test are still there.
+  const run = newId().slice(-8);
 
   const logAs = (actorId: string, action: string, entityType: string, entityId: string, extra: { before?: Record<string, unknown>; after?: Record<string, unknown> } = {}) =>
     logger.log({ actorId, action, entityType, entityId, correlationId: newId(), ...extra });
@@ -32,32 +34,32 @@ describeIfDb("Audit log reading — real database", () => {
   });
 
   it("records the actor's company on new rows, so the log can be read per tenant", async () => {
-    await logAs(userA, "account.created", "Account", "acc-1", { after: { code: "1010" } });
-    const row = await prisma.auditLog.findFirstOrThrow({ where: { entityId: "acc-1" } });
+    await logAs(userA, "account.created", "Account", `acc-1-${run}`, { after: { code: "1010" } });
+    const row = await prisma.auditLog.findFirstOrThrow({ where: { entityId: `acc-1-${run}` } });
     expect(row.companyId).toBe(companyA);
   });
 
   it("shows a company only its own rows, plus older rows written without a company by one of its users, never anyone else's", async () => {
-    await logAs(userB, "account.created", "Account", "acc-b");
+    await logAs(userB, "account.created", "Account", `acc-b-${run}`);
     // a row from before the company was recorded: no company, written by a user of A
-    await prisma.auditLog.create({ data: { id: newId(), actorId: legacyUserA, action: "party.created", entityType: "Party", entityId: "legacy-1", correlationId: newId() } });
+    await prisma.auditLog.create({ data: { id: newId(), actorId: legacyUserA, action: "party.created", entityType: "Party", entityId: `legacy-1-${run}`, correlationId: newId() } });
     // a row nobody can attribute (a system actor)
-    await logAs("system-job", "job.ran", "Job", "job-1");
+    await logAs("system-job", "job.ran", "Job", `job-1-${run}`);
 
     const a = (await audit.list(companyA, { limit: "200" })).data.map((r) => r.entityId);
-    expect(a).toEqual(expect.arrayContaining(["acc-1", "legacy-1"]));
-    expect(a).not.toContain("acc-b");
-    expect(a).not.toContain("job-1");
+    expect(a).toEqual(expect.arrayContaining([`acc-1-${run}`, `legacy-1-${run}`]));
+    expect(a).not.toContain(`acc-b-${run}`);
+    expect(a).not.toContain(`job-1-${run}`);
     const b = (await audit.list(companyB, { limit: "200" })).data.map((r) => r.entityId);
-    expect(b).toContain("acc-b");
-    expect(b).not.toContain("acc-1");
-    expect(b).not.toContain("legacy-1");
+    expect(b).toContain(`acc-b-${run}`);
+    expect(b).not.toContain(`acc-1-${run}`);
+    expect(b).not.toContain(`legacy-1-${run}`);
     expect((await audit.list(newId(), {})).data).toHaveLength(0);
   });
 
   it("returns what changed (before and after) and who did it, newest first", async () => {
-    await logAs(userA, "employee.updated", "Employee", "emp-1", { before: { name: "Old" }, after: { name: "New" } });
-    const rows = (await audit.list(companyA, { entityId: "emp-1" })).data;
+    await logAs(userA, "employee.updated", "Employee", `emp-1-${run}`, { before: { name: "Old" }, after: { name: "New" } });
+    const rows = (await audit.list(companyA, { entityId: `emp-1-${run}` })).data;
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ actorId: userA, actorEmail: `a-${userA}@audit.test`, action: "employee.updated", before: { name: "Old" }, after: { name: "New" } });
     const all = (await audit.list(companyA, { limit: "200" })).data;
@@ -66,9 +68,9 @@ describeIfDb("Audit log reading — real database", () => {
   });
 
   it("filters by type, action text, actor and date, and pages", async () => {
-    await logAs(userA, "journal_entry.posted", "JournalEntry", "je-1");
-    await logAs(userA, "journal_entry.posted", "JournalEntry", "je-2");
-    expect((await audit.list(companyA, { entityType: "JournalEntry" })).data.map((r) => r.entityId).sort()).toEqual(["je-1", "je-2"]);
+    await logAs(userA, "journal_entry.posted", "JournalEntry", `je-1-${run}`);
+    await logAs(userA, "journal_entry.posted", "JournalEntry", `je-2-${run}`);
+    expect((await audit.list(companyA, { entityType: "JournalEntry" })).data.map((r) => r.entityId).sort()).toEqual([`je-1-${run}`, `je-2-${run}`]);
     expect((await audit.list(companyA, { action: "POSTED", entityType: "JournalEntry" })).data).toHaveLength(2);
     expect((await audit.list(companyA, { actorId: legacyUserA })).data.every((r) => r.actorId === legacyUserA)).toBe(true);
     const today = new Date().toISOString().slice(0, 10);
