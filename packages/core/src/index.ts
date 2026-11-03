@@ -11,6 +11,7 @@ export * from "./inventory/stock-issue.service.js";
 export * from "./inventory/stock-count.service.js";
 export * from "./accounting/fiscal-period.util.js";
 export * from "./audit/audit-logger.js";
+export * from "./audit/audit-query.service.js";
 export * from "./identity/permission.service.js";
 export * from "./licensing/grace-period.js";
 export * from "./licensing/activation-client.js";

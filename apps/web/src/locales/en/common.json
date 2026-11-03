@@ -51,7 +51,8 @@
     "goodsReturns": "Purchase returns",
     "purchaseReview": "Purchase review",
     "allowanceTypes": "Allowance types",
-    "hrPayments": "Pay salaries and dues"
+    "hrPayments": "Pay salaries and dues",
+    "auditLog": "Audit log"
   },
   "actions": {
     "save": "Save",
@@ -1514,5 +1515,22 @@
     "countedQuantity": "Counted",
     "difference": "Difference",
     "costCenter": "Cost centre / project"
+  },
+  "audit": {
+    "title": "Audit log",
+    "subtitle": "Who changed what, and when. Read-only: nothing here can be edited or deleted.",
+    "entityType": "Record type",
+    "user": "User",
+    "action": "Action",
+    "actionPlaceholder": "Search the action (e.g. posted)",
+    "entityId": "Record",
+    "when": "When",
+    "from": "From date",
+    "to": "To date",
+    "clear": "Clear filters",
+    "all": "All",
+    "correlation": "Request id",
+    "before": "Before",
+    "after": "After"
   }
 }

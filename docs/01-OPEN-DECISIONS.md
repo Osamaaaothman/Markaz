@@ -420,6 +420,17 @@ Decided by Osama: allowances are a **table of types the company defines**, repla
   (the numbering service creates their series without one, unlike purchase orders and invoices, which get `PO-2026-000001`).
   Changing it affects the format of numbers already issued, so it needs a decision.
 
+## O. Reading the audit log (2026-11-03)
+
+- New page "Audit log" (Settings) and `GET /v1/audit-log` (+ `/filters`), permission `audit_log:read`: who changed what and when, with the
+  before and after of each change, filters by record type, user, action text and dates. Read-only; the table stays append-only for the
+  application role.
+- **Found while building it:** audit rows never recorded the company (`audit_log.company_id` was always null), so the log could not be
+  read per tenant. The logger now records the actor's company. Older rows are not rewritten (the log is append-only): the reader shows
+  a company its own rows plus older rows whose actor is one of its users, and never a row it cannot attribute.
+- Existing installations must run the seed again to give the Admin role `audit_log:read`. New migration only adds an index.
+- Not built: exporting the log, and showing a friendly name for the record (it shows the record type and its id).
+
 ## M. Paying salaries, social insurance and end-of-service (2026-11-03)
 
 Payroll and end-of-service credited three debts (net salaries, social insurance, gratuity) and nothing ever paid them. Now:

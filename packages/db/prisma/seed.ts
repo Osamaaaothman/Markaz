@@ -122,6 +122,7 @@ const PERMISSION_CATALOG = [
   { code: "attachment:delete", description: "Remove an attached document" },
   { code: "company:read", description: "View the company settings and logo" },
   { code: "company:update", description: "Change the company logo" },
+  { code: "audit_log:read", description: "View the audit log (who changed what, and when)" },
   // M-HR1 — payroll
   { code: "employee:read", description: "View employees" },
   { code: "employee:create", description: "Add an employee" },
