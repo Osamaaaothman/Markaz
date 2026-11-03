@@ -22,8 +22,18 @@ export const ACCOUNT_MAPPING_KEYS = [
   "SALARY_ADVANCES_RECEIVABLE",
   "EOSB_EXPENSE",
   "EOSB_PAYABLE",
+  "EMPLOYEE_ADVANCES_PARENT",
+  "EMPLOYEE_SALARY_PAYABLE_PARENT",
+  "EMPLOYEE_EOSB_PARENT",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
+
+// Keys that map a group (folder) account, with the type it must have; every other key maps a postable account.
+export const GROUP_MAPPING_KEYS: Readonly<Partial<Record<AccountMappingKey, "ASSET" | "LIABILITY">>> = {
+  EMPLOYEE_ADVANCES_PARENT: "ASSET",
+  EMPLOYEE_SALARY_PAYABLE_PARENT: "LIABILITY",
+  EMPLOYEE_EOSB_PARENT: "LIABILITY",
+};
 
 export interface AccountMappingEntry {
   readonly key: AccountMappingKey;

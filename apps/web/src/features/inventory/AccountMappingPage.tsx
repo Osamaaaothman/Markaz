@@ -4,7 +4,7 @@ import { Tag } from "primereact/tag";
 import { localizedName } from "../../shared/lib/localized-name";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
-import { ACCOUNT_MAPPING_KEYS, useAccountMappings, useSetAccountMapping, type AccountMappingKey } from "./use-account-mappings";
+import { ACCOUNT_MAPPING_KEYS, GROUP_MAPPING_KEYS, useAccountMappings, useSetAccountMapping, type AccountMappingKey } from "./use-account-mappings";
 
 const NOT_MAPPED = "__none__";
 
@@ -16,6 +16,8 @@ export function AccountMappingPage(): React.JSX.Element {
 
   // Only a leaf (postable) account can be posted to — the same rule the API enforces.
   const postableAccounts = (accounts ?? []).filter((a) => a.isPostable);
+  // The three employee keys take a group (folder) of the matching type instead.
+  const groupsOfType = (type: string) => (accounts ?? []).filter((a) => !a.isPostable && a.type === type);
 
   if (isPending) return <PageSkeleton />;
   if (isError) {
@@ -43,6 +45,7 @@ export function AccountMappingPage(): React.JSX.Element {
       <div className="erp-form">
         {ACCOUNT_MAPPING_KEYS.map((key: AccountMappingKey) => {
           const entry = byKey.get(key);
+          const groupType = GROUP_MAPPING_KEYS[key];
           return (
             <div key={key} className="erp-field">
               <label htmlFor={`mapping-${key}`}>
@@ -59,7 +62,7 @@ export function AccountMappingPage(): React.JSX.Element {
                 }}
                 options={[
                   { label: t("inventory.accountMapping.unset"), value: NOT_MAPPED },
-                  ...postableAccounts.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
+                  ...(groupType ? groupsOfType(groupType) : postableAccounts).map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
                 ]}
                 filter
               />

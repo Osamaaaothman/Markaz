@@ -151,8 +151,15 @@ export class PayrollRunService {
       const salaryExpenseAccount = await this.accountMappings.resolve(tx, actor.companyId, "SALARY_EXPENSE");
       const gosiEmployerExpenseAccount = await this.accountMappings.resolve(tx, actor.companyId, "GOSI_EMPLOYER_EXPENSE");
       const gosiPayableAccount = await this.accountMappings.resolve(tx, actor.companyId, "GOSI_PAYABLE");
-      const netPayPayableAccount = await this.accountMappings.resolve(tx, actor.companyId, "NET_PAY_PAYABLE");
-      const advancesReceivableAccount = await this.accountMappings.resolve(tx, actor.companyId, "SALARY_ADVANCES_RECEIVABLE");
+      // The company-wide net-pay and advances accounts are needed only for an employee (or advance) with no account of its
+      // own, so they are looked up on first use: a company that has moved fully to per-employee accounts does not need them.
+      const generalAccounts: { netPay?: string; advances?: string } = {};
+      const generalNetPay = async (): Promise<string> => (generalAccounts.netPay ??= await this.accountMappings.resolve(tx, actor.companyId, "NET_PAY_PAYABLE"));
+      const generalAdvances = async (): Promise<string> => (generalAccounts.advances ??= await this.accountMappings.resolve(tx, actor.companyId, "SALARY_ADVANCES_RECEIVABLE"));
+      // What each account is credited with by this run (an advance's recovery, an employee's net pay), in first-seen order.
+      const advanceCredits = new Map<string, Prisma.Decimal>();
+      const netPayCredits = new Map<string, { readonly amount: Prisma.Decimal; readonly label: string }>();
+      const credit = (map: Map<string, Prisma.Decimal>, accountId: string, amount: Prisma.Decimal): void => void map.set(accountId, (map.get(accountId) ?? new Prisma.Decimal(0)).plus(amount));
 
       let totalGross = new Prisma.Decimal(0);
       let totalGosiEmployee = new Prisma.Decimal(0);
@@ -200,6 +207,7 @@ export class PayrollRunService {
           const take = Prisma.Decimal.min(remaining, advance.installmentAmount);
           if (take.lessThanOrEqualTo(0)) continue;
           applied.push({ salaryAdvanceId: advance.id, amount: take });
+          credit(advanceCredits, advance.receivableAccountId ?? (await generalAdvances()), take);
           advanceDeduction = advanceDeduction.plus(take);
         }
 
@@ -210,6 +218,16 @@ export class PayrollRunService {
         totalGosiEmployer = totalGosiEmployer.plus(gosiEmployerShare);
         totalAdvanceDeduction = totalAdvanceDeduction.plus(advanceDeduction);
         totalNet = totalNet.plus(net);
+        // Net pay is owed to this employee: on their own salary-payable account if they have one, else the company-wide one
+        // (all of those are posted as one line).
+        if (employee.salaryPayableAccountId) {
+          const own = netPayCredits.get(employee.salaryPayableAccountId);
+          netPayCredits.set(employee.salaryPayableAccountId, { amount: (own?.amount ?? new Prisma.Decimal(0)).plus(net), label: employee.name });
+        } else {
+          const general = await generalNetPay();
+          const shared = netPayCredits.get(general);
+          netPayCredits.set(general, { amount: (shared?.amount ?? new Prisma.Decimal(0)).plus(net), label: "net pay payable" });
+        }
 
         lineRows.push({
           id: newId(),
@@ -230,10 +248,8 @@ export class PayrollRunService {
         { accountId: salaryExpenseAccount, debit: totalGross.toFixed(4), description: "Payroll run -- gross salaries" },
         { accountId: gosiEmployerExpenseAccount, debit: totalGosiEmployer.toFixed(4), description: "Payroll run -- employer GOSI share" },
         { accountId: gosiPayableAccount, credit: totalGosiEmployee.plus(totalGosiEmployer).toFixed(4), description: "Payroll run -- GOSI payable" },
-        ...(totalAdvanceDeduction.greaterThan(0)
-          ? [{ accountId: advancesReceivableAccount, credit: totalAdvanceDeduction.toFixed(4), description: "Payroll run -- advances recovered" }]
-          : []),
-        { accountId: netPayPayableAccount, credit: totalNet.toFixed(4), description: "Payroll run -- net pay payable" },
+        ...[...advanceCredits].map(([accountId, amount]) => ({ accountId, credit: amount.toFixed(4), description: "Payroll run -- advances recovered" })),
+        ...[...netPayCredits].map(([accountId, { amount, label }]) => ({ accountId, credit: amount.toFixed(4), description: `Payroll run -- net pay payable -- ${label}` })),
       ];
 
       const payrollRunId = newId();

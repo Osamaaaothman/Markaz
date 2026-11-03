@@ -86,7 +86,8 @@ export class EndOfServiceService {
       const netEntitlement = new Prisma.Decimal(settlement.netEntitlement);
 
       const eosbExpenseAccount = await this.accountMappings.resolve(tx, actor.companyId, "EOSB_EXPENSE");
-      const eosbPayableAccount = await this.accountMappings.resolve(tx, actor.companyId, "EOSB_PAYABLE");
+      // The employee's own end-of-service account if they have one, else the company-wide one.
+      const eosbPayableAccount = employee.eosbAccountId ?? (await this.accountMappings.resolve(tx, actor.companyId, "EOSB_PAYABLE"));
 
       const journalLines: JournalLineInput[] = [
         { accountId: eosbExpenseAccount, debit: netEntitlement.toFixed(4), description: `End-of-service accrual -- ${employee.name}` },

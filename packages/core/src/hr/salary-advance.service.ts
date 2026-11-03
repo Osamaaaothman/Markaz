@@ -107,7 +107,9 @@ export class SalaryAdvanceService {
       if (!period) throw new SalaryAdvanceError("NO_OPEN_PERIOD", "No open fiscal period covers the grant date");
       const currency = await companyCurrency(tx, actor.companyId);
 
-      const advancesReceivableAccount = await this.accountMappings.resolve(tx, actor.companyId, "SALARY_ADVANCES_RECEIVABLE");
+      // The employee's own advance account if they have one, else the company-wide account. The choice is stored on the
+      // advance, so its repayments and deductions always credit the account this grant debited.
+      const advancesReceivableAccount = employee.advanceAccountId ?? (await this.accountMappings.resolve(tx, actor.companyId, "SALARY_ADVANCES_RECEIVABLE"));
       const amount = new Prisma.Decimal(input.amount);
 
       const journalLines: JournalLineInput[] = [
@@ -147,6 +149,7 @@ export class SalaryAdvanceService {
           amount,
           installmentAmount: new Prisma.Decimal(input.installmentAmount),
           cashAccountId: cash.id,
+          receivableAccountId: employee.advanceAccountId,
           journalEntryId: posting.journalEntryId,
           actorId: actor.id,
           correlationId,
@@ -191,7 +194,8 @@ export class SalaryAdvanceService {
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.repaymentDate);
       if (!period) throw new SalaryAdvanceError("NO_OPEN_PERIOD", "No open fiscal period covers the repayment date");
       const currency = await companyCurrency(tx, actor.companyId);
-      const advancesReceivableAccount = await this.accountMappings.resolve(tx, actor.companyId, "SALARY_ADVANCES_RECEIVABLE");
+      // The account the advance was granted on (null = the company-wide one).
+      const advancesReceivableAccount = advance.receivableAccountId ?? (await this.accountMappings.resolve(tx, actor.companyId, "SALARY_ADVANCES_RECEIVABLE"));
 
       const description = `Salary advance repayment -- ${advance.employee.name} (${advance.number})`;
       const repaymentId = newId();

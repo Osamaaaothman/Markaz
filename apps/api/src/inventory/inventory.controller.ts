@@ -220,6 +220,8 @@ export class InventoryController {
         case "ACCOUNT_NOT_FOUND":
           throw new NotFoundException(error.message);
         case "ACCOUNT_NOT_POSTABLE":
+        case "ACCOUNT_NOT_GROUP":
+        case "ACCOUNT_WRONG_TYPE":
           throw new BadRequestException(error.message);
       }
     }

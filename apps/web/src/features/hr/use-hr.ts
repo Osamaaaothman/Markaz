@@ -20,6 +20,22 @@ export interface EmployeeSummary {
   readonly housingAllowance: string;
   readonly otherAllowances: string;
   readonly isActive: boolean;
+  // The employee's own party and ledger accounts; null when they have none (payroll then uses the company-wide accounts).
+  readonly accounts: EmployeeAccounts | null;
+}
+
+export interface EmployeeLedgerAccount {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly nameAr: string | null;
+}
+
+export interface EmployeeAccounts {
+  readonly partyId: string;
+  readonly advance: EmployeeLedgerAccount;
+  readonly salaryPayable: EmployeeLedgerAccount;
+  readonly eosb: EmployeeLedgerAccount;
 }
 
 interface EmployeeListPage {
@@ -64,6 +80,9 @@ function employeeListParams(filter: EmployeeFilter, cursor?: string): Record<str
   return { limit: "50", ...(q ? { q } : {}), ...(filter.includeInactive ? { includeInactive: "true" } : {}), ...(cursor ? { cursor } : {}) };
 }
 
+export const employeeErrorCode = (error: unknown): string | undefined =>
+  (error as { response?: { data?: { error?: { code?: string } } } } | null)?.response?.data?.error?.code;
+
 export function useEmployees(filter: EmployeeFilter) {
   const { can } = usePermissions();
   return useInfiniteQuery({
@@ -99,6 +118,24 @@ export function useCreateEmployee() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload: CreateEmployeePayload) => (await apiClient.post<EmployeeSummary>("/v1/employees", payload)).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["employees"] }),
+  });
+}
+
+// Gives one employee the party and accounts they are missing.
+export function useProvisionEmployeeAccounts(employeeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await apiClient.post<EmployeeSummary>(`/v1/employees/${employeeId}/accounts`, {})).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["employees"] }),
+  });
+}
+
+// The same for every active employee who lacks them. `failed` lists employees it could not do (for example a group that ran out of codes).
+export function useProvisionMissingEmployeeAccounts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await apiClient.post<{ provisioned: number; failed: { ref: string; code: string }[] }>("/v1/employees/accounts/provision-missing", {})).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["employees"] }),
   });
 }

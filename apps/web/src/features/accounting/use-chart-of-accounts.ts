@@ -93,6 +93,7 @@ export interface AccountUsage {
   readonly payments: number;
   readonly salaryAdvances: number;
   readonly salaryAdvanceRepayments: number;
+  readonly employeeAccounts: number;
   readonly children: number;
   readonly linkedParty: boolean;
 }

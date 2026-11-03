@@ -334,6 +334,35 @@ Before this, a request became an order directly and "accepted" was implicit. Now
 - Not built: the same person may create and accept a request (no segregation setting yet, same as D7); no notification to the
   requester (needs configured email).
 
+## J. Employee accounts: a party and three ledger accounts per employee (2026-11-03)
+
+Decided by Osama: every employee gets **three real accounts** in the chart of accounts, and a party (kind `EMPLOYEE`) they hang on.
+Detailed choices below were made without an accountant and are marked `// REVIEW:` in the code.
+
+- **The three accounts**, created under three parent *folders* (group accounts) chosen in the account mapping
+  (`EMPLOYEE_ADVANCES_PARENT` asset, `EMPLOYEE_SALARY_PAYABLE_PARENT` liability, `EMPLOYEE_EOSB_PARENT` liability):
+  1. advances owed **by** the employee; 2. salary owed **to** the employee; 3. end-of-service owed **to** the employee.
+  Codes come from the chart's own numbering rule (`packages/core/src/accounting/account-code.ts`, a copy of the web
+  `suggestNextCode`; keep the two in step). A per-company advisory lock stops two new employees getting one code.
+- **Created with the employee**, in the same transaction: party + three accounts + the employee row, or nothing.
+  If **none** of the three folders is mapped the employee is created without accounts and payroll keeps using the company-wide
+  accounts (the earlier plan said to refuse; I chose to fall back so a company is not blocked from hiring on upgrade). If
+  **some but not all** are mapped, creation is refused (`ACCOUNTS_PARENTS_INCOMPLETE`).
+- **Posting:** a payroll run credits each employee's net pay to their own salary-payable account (employees without one share the
+  company-wide `NET_PAY_PAYABLE` line); end-of-service accrual credits their own account.
+- **Advances keep the account they were granted on** (`salary_advances.receivable_account_id`, null = company-wide). Repayments
+  and payroll deductions credit that same account, so an advance never ends split between two accounts. Nothing already posted is
+  moved when an employee is given accounts later: their earlier balances stay on the company-wide accounts (no opening entry).
+- **Backfill:** `POST /v1/employees/:id/accounts` (button on the employee page) and `POST /v1/employees/accounts/provision-missing`
+  (button on the employees list). Idempotent; one transaction per employee.
+- An employee's account counts as "in use" for account delete protection (section F).
+- The employee's bank IBAN stays employee data, not an account: the bank is the company's account.
+- Questions for an accountant: whether net pay should sit per employee or in one account with the party as sub-ledger; whether
+  the end-of-service gratuity should be accrued monthly per employee (today it is booked only at settlement); and the account names.
+- Not built: paying salary and paying the gratuity through the Payments module against the new party (it needs a payment
+  direction for employees). New migration `20261103120000_employee_accounts` (expand-only). No new permission; existing
+  `employee:update` covers provisioning.
+
 ## I. After creating something, opening its details (2026-11-03)
 
 - Done: a record that has a details screen **opens on it straight away, with the "saved successfully" message shown over it**

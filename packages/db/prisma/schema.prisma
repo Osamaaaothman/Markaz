@@ -77,7 +77,7 @@ model Company {
   employees               Employee[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
-  salaryAdvanceRepayments          SalaryAdvanceRepayment[]
+  salaryAdvanceRepayments SalaryAdvanceRepayment[]
   endOfServiceSettlements EndOfServiceSettlement[]
 
   @@map("companies")
@@ -331,18 +331,22 @@ model Account {
   updatedBy     String?  @map("updated_by")
   version       Int      @default(1)
 
-  company              Company               @relation(fields: [companyId], references: [id])
-  parent               Account?              @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children             Account[]             @relation("AccountTree")
-  party                Party?                @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  journalEntryLines    JournalEntryLine[]
+  company                       Company                  @relation(fields: [companyId], references: [id])
+  parent                        Account?                 @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children                      Account[]                @relation("AccountTree")
+  party                         Party?                   @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  journalEntryLines             JournalEntryLine[]
   // M4 inventory: an account may be the target of a mapping key (INVENTORY, GRNI, ...).
-  accountMappings      AccountMapping[]
-  supplierInvoiceLines SupplierInvoiceLine[]
-  salesInvoiceLines    SalesInvoiceLine[]
-  payments             Payment[]
-  salaryAdvances       SalaryAdvance[]
+  accountMappings               AccountMapping[]
+  supplierInvoiceLines          SupplierInvoiceLine[]
+  salesInvoiceLines             SalesInvoiceLine[]
+  payments                      Payment[]
+  salaryAdvances                SalaryAdvance[]
   salaryAdvanceRepayments       SalaryAdvanceRepayment[]
+  employeeAdvanceAccounts       Employee[]               @relation("EmployeeAdvanceAccount")
+  employeeSalaryPayableAccounts Employee[]               @relation("EmployeeSalaryPayableAccount")
+  employeeEosbAccounts          Employee[]               @relation("EmployeeEosbAccount")
+  advancesHeldHere              SalaryAdvance[]          @relation("AdvanceReceivableAccount")
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -382,6 +386,7 @@ model Party {
   salesOrders      SalesOrder[]
   salesInvoices    SalesInvoice[]
   payments         Payment[]
+  employees        Employee[]
 
   @@unique([companyId, ref])
   @@index([companyId, kind])
@@ -449,7 +454,7 @@ model JournalEntry {
   payments                Payment[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
-  salaryAdvanceRepayments          SalaryAdvanceRepayment[]
+  salaryAdvanceRepayments SalaryAdvanceRepayment[]
   endOfServiceSettlements EndOfServiceSettlement[]
 
   // The idempotencyKey unique constraint below IS the duplicate-posting guard
@@ -1434,40 +1439,52 @@ model Attachment {
 // end-of-service settlements. KSA GOSI rates and the EOSB formula live in packages/core/src/hr,
 // not here -- this is storage only.
 model Employee {
-  id               String    @id
-  companyId        String    @map("company_id")
-  ref              String
-  name             String
-  nameAr           String?   @map("name_ar")
+  id                     String    @id
+  companyId              String    @map("company_id")
+  ref                    String
+  name                   String
+  nameAr                 String?   @map("name_ar")
   // National ID for a Saudi, Iqama number for an expatriate -- both the same shape GOSI and the
   // WPS file expect.
-  nationalId       String    @map("national_id")
-  isSaudi          Boolean   @map("is_saudi")
+  nationalId             String    @map("national_id")
+  isSaudi                Boolean   @map("is_saudi")
   // The narrow exception in Royal Decree M/273 (clause "second"): a subscriber with uncompensated
   // prior contribution periods, or an existing pensioner, stays on the old GOSI law entirely.
   // Set by hand per employee -- it is not something the system can infer. See packages/core/src/hr/gosi.ts.
-  gosiLegacyTrack  Boolean   @default(false) @map("gosi_legacy_track")
-  bankIban         String    @map("bank_iban")
-  bankName         String?   @map("bank_name")
-  hireDate         DateTime  @map("hire_date") @db.Date
-  terminationDate  DateTime? @map("termination_date") @db.Date
-  basicSalary      Decimal   @map("basic_salary") @db.Decimal(19, 4)
-  housingAllowance Decimal   @default(0) @map("housing_allowance") @db.Decimal(19, 4)
-  otherAllowances  Decimal   @default(0) @map("other_allowances") @db.Decimal(19, 4)
-  isActive         Boolean   @default(true) @map("is_active")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  createdBy        String?   @map("created_by")
-  updatedBy        String?   @map("updated_by")
-  version          Int       @default(1)
+  gosiLegacyTrack        Boolean   @default(false) @map("gosi_legacy_track")
+  bankIban               String    @map("bank_iban")
+  bankName               String?   @map("bank_name")
+  hireDate               DateTime  @map("hire_date") @db.Date
+  terminationDate        DateTime? @map("termination_date") @db.Date
+  basicSalary            Decimal   @map("basic_salary") @db.Decimal(19, 4)
+  housingAllowance       Decimal   @default(0) @map("housing_allowance") @db.Decimal(19, 4)
+  otherAllowances        Decimal   @default(0) @map("other_allowances") @db.Decimal(19, 4)
+  isActive               Boolean   @default(true) @map("is_active")
+  // The employee's own party and three ledger accounts (advances owed by them, salary owed to them, end-of-service owed to
+  // them). All null for an employee created before these existed, or in a company that has not set the three parent
+  // groups in the account mapping: payroll then posts to the company-wide accounts as before.
+  partyId                String?   @map("party_id")
+  advanceAccountId       String?   @map("advance_account_id")
+  salaryPayableAccountId String?   @map("salary_payable_account_id")
+  eosbAccountId          String?   @map("eosb_account_id")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  createdBy              String?   @map("created_by")
+  updatedBy              String?   @map("updated_by")
+  version                Int       @default(1)
 
   company                 Company                  @relation(fields: [companyId], references: [id])
+  party                   Party?                   @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  advanceAccount          Account?                 @relation("EmployeeAdvanceAccount", fields: [advanceAccountId], references: [id], onDelete: Restrict)
+  salaryPayableAccount    Account?                 @relation("EmployeeSalaryPayableAccount", fields: [salaryPayableAccountId], references: [id], onDelete: Restrict)
+  eosbAccount             Account?                 @relation("EmployeeEosbAccount", fields: [eosbAccountId], references: [id], onDelete: Restrict)
   payrollRunLines         PayrollRunLine[]
   salaryAdvances          SalaryAdvance[]
   endOfServiceSettlements EndOfServiceSettlement[]
 
   @@unique([companyId, ref])
   @@index([companyId, isActive])
+  @@index([partyId])
   @@map("employees")
 }
 
@@ -1525,25 +1542,30 @@ model PayrollRunLine {
 // never stored, only ever computed as amount minus the sum of SalaryAdvanceDeduction rows, the
 // same way every other balance in this system is computed from immutable rows, never stored.
 model SalaryAdvance {
-  id                String   @id
-  companyId         String   @map("company_id")
-  employeeId        String   @map("employee_id")
-  number            String
-  grantDate         DateTime @map("grant_date") @db.Date
-  amount            Decimal  @db.Decimal(19, 4)
-  installmentAmount Decimal  @map("installment_amount") @db.Decimal(19, 4)
-  cashAccountId     String   @map("cash_account_id")
-  journalEntryId    String   @map("journal_entry_id")
-  actorId           String   @map("actor_id")
-  correlationId     String   @map("correlation_id")
-  createdAt         DateTime @default(now()) @map("created_at")
+  id                  String   @id
+  companyId           String   @map("company_id")
+  employeeId          String   @map("employee_id")
+  number              String
+  grantDate           DateTime @map("grant_date") @db.Date
+  amount              Decimal  @db.Decimal(19, 4)
+  installmentAmount   Decimal  @map("installment_amount") @db.Decimal(19, 4)
+  cashAccountId       String   @map("cash_account_id")
+  // The account that holds what the employee owes on this advance, fixed when it is granted: the employee's own advance
+  // account, or null for the company-wide mapping. Repayments and payroll deductions credit the same account the
+  // grant debited, so an advance never ends split across two accounts.
+  receivableAccountId String?  @map("receivable_account_id")
+  journalEntryId      String   @map("journal_entry_id")
+  actorId             String   @map("actor_id")
+  correlationId       String   @map("correlation_id")
+  createdAt           DateTime @default(now()) @map("created_at")
 
-  company      Company                  @relation(fields: [companyId], references: [id])
-  employee     Employee                 @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  cashAccount  Account                  @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
-  journalEntry JournalEntry             @relation(fields: [journalEntryId], references: [id])
-  deductions   SalaryAdvanceDeduction[]
-  repayments   SalaryAdvanceRepayment[]
+  company           Company                  @relation(fields: [companyId], references: [id])
+  employee          Employee                 @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  cashAccount       Account                  @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  receivableAccount Account?                 @relation("AdvanceReceivableAccount", fields: [receivableAccountId], references: [id], onDelete: Restrict)
+  journalEntry      JournalEntry             @relation(fields: [journalEntryId], references: [id])
+  deductions        SalaryAdvanceDeduction[]
+  repayments        SalaryAdvanceRepayment[]
 
   @@unique([companyId, number])
   @@index([companyId, employeeId])

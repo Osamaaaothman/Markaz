@@ -31,8 +31,21 @@ export const ACCOUNT_MAPPING_KEYS = [
   "SALARY_ADVANCES_RECEIVABLE",
   "EOSB_EXPENSE",
   "EOSB_PAYABLE",
+  // Per-employee accounts: the three GROUP accounts (not postable) under which each new employee gets their own advance,
+  // salary-payable and end-of-service-payable accounts. Unlike every other key these map a group, not a leaf.
+  "EMPLOYEE_ADVANCES_PARENT",
+  "EMPLOYEE_SALARY_PAYABLE_PARENT",
+  "EMPLOYEE_EOSB_PARENT",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
+
+// Keys that map a group account (its children are created per employee) instead of a postable leaf, with the account
+// type the group must have.
+export const GROUP_MAPPING_KEYS: Readonly<Partial<Record<AccountMappingKey, "ASSET" | "LIABILITY">>> = {
+  EMPLOYEE_ADVANCES_PARENT: "ASSET",
+  EMPLOYEE_SALARY_PAYABLE_PARENT: "LIABILITY",
+  EMPLOYEE_EOSB_PARENT: "LIABILITY",
+};
 
 export interface AccountMappingEntry {
   readonly key: AccountMappingKey;
@@ -49,7 +62,7 @@ export interface AccountMappingActor {
 
 export class AccountMappingError extends Error {
   constructor(
-    readonly code: "ACCOUNT_NOT_FOUND" | "ACCOUNT_NOT_POSTABLE",
+    readonly code: "ACCOUNT_NOT_FOUND" | "ACCOUNT_NOT_POSTABLE" | "ACCOUNT_NOT_GROUP" | "ACCOUNT_WRONG_TYPE",
     message: string,
   ) {
     super(message);
@@ -95,12 +108,17 @@ export class AccountMappingService {
   async set(key: AccountMappingKey, accountId: string, actor: AccountMappingActor, correlationId: string): Promise<AccountMappingEntry> {
     const account = await this.prisma.account.findFirst({
       where: { id: accountId, companyId: actor.companyId },
-      select: { id: true, code: true, name: true, isPostable: true },
+      select: { id: true, code: true, name: true, isPostable: true, type: true },
     });
     if (!account) throw new AccountMappingError("ACCOUNT_NOT_FOUND", "Account not found");
-    // A mapped account is where real postings land, so it must be a leaf, postable account —
-    // the same rule account creation itself enforces for a parent (docs/05 §4).
-    if (!account.isPostable) {
+    const groupType = GROUP_MAPPING_KEYS[key];
+    if (groupType !== undefined) {
+      // A per-employee parent: a group the employee accounts are created under, so it must not take postings itself.
+      if (account.isPostable) throw new AccountMappingError("ACCOUNT_NOT_GROUP", "Choose a group account, not a postable one");
+      if (account.type !== groupType) throw new AccountMappingError("ACCOUNT_WRONG_TYPE", `This key needs a ${groupType.toLowerCase()} group account`);
+    } else if (!account.isPostable) {
+      // A mapped account is where real postings land, so it must be a leaf, postable account —
+      // the same rule account creation itself enforces for a parent (docs/05 §4).
       throw new AccountMappingError("ACCOUNT_NOT_POSTABLE", "Only a postable (leaf) account can be mapped");
     }
 
