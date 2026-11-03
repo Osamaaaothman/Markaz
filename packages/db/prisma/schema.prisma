@@ -202,6 +202,7 @@ model AuditLog {
   userAgent     String?  @map("user_agent")
 
   @@index([companyId])
+  @@index([companyId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_log")
 }

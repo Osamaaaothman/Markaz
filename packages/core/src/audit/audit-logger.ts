@@ -18,9 +18,13 @@ export class PrismaAuditLogger implements IAuditLogger {
     // `undefined` differently from an omitted key — Prisma's JSON input types want
     // the key genuinely absent, not present-and-undefined, so these are spread in
     // conditionally rather than always assigned.
+    // The company is the actor's company, so the log can be read per tenant (docs/03-MULTI-TENANCY-RULES.md). An actor that is not
+    // a user (a system job, a test) has none and the row is left without one.
+    const actor = await this.prisma.user.findUnique({ where: { id: event.actorId }, select: { companyId: true } });
     await this.prisma.auditLog.create({
       data: {
         id: newId(),
+        companyId: actor?.companyId ?? null,
         actorId: event.actorId,
         action: event.action,
         entityType: event.entityType,
