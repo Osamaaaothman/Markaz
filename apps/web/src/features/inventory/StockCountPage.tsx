@@ -3,6 +3,7 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
@@ -36,6 +37,7 @@ const EMPTY_LINE = { itemId: "", countedQuantity: "", unitCostIfNoStock: "" };
 
 export function StockCountPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { data: warehouses } = useAllWarehouses();
   const { data: items } = useAllItems();
   const recordCount = useRecordStockCount();
@@ -71,6 +73,7 @@ export function StockCountPage(): React.JSX.Element {
         onSuccess: (saved) => {
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
+            onOpen: () => void navigate(`/inventory/stock-counts/${saved.id}`),
             title: t("inventory.stockCount.title"),
             headline: saved.number,
             rows: [
@@ -203,7 +206,7 @@ export function StockCountPage(): React.JSX.Element {
         </div>
       ) : (
         <DataGrid value={counts ?? []} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
-          <Column field="number" header={t("inventory.stockCount.number")} style={{ width: "10rem" }} body={(row: StockCountSummary) => <span className="coa-code">{row.number}</span>} />
+          <Column field="number" header={t("inventory.stockCount.number")} style={{ width: "10rem" }} body={(row: StockCountSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/inventory/stock-counts/${row.id}`)}>{row.number}</button>} />
           <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockCountSummary) => localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language)} />
           <Column header={t("inventory.goodsReceipt.documentDate")} body={(row: StockCountSummary) => formatCalendarDate(row.documentDate, i18n.language)} />
           <Column header={t("inventory.stockCount.lineCount")} align="right" body={(row: StockCountSummary) => row.lineCount} />

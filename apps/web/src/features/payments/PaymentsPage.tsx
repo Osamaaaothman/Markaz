@@ -66,7 +66,7 @@ export function PaymentsPage(): React.JSX.Element {
       ) : (
         <>
           <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
-            <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: PaymentSummary) => <span className="coa-code">{r.number}</span>} />
+            <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: PaymentSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/payments/${r.id}`)}>{r.number}</button>} />
             <Column header={t("payments.direction")} style={{ width: "10rem" }} body={(r: PaymentSummary) => <Tag value={t(`payments.directions.${r.direction}`)} severity={r.direction === "RECEIPT" ? "success" : "info"} />} />
             <Column header={t("payments.party")} body={(r: PaymentSummary) => localizedName({ name: r.partyName, nameAr: r.partyNameAr }, i18n.language)} />
             <Column header={t("payments.date")} style={{ width: "9rem" }} body={(r: PaymentSummary) => formatCalendarDate(r.paymentDate, i18n.language)} />

@@ -26,6 +26,34 @@ export interface StockCountSummary {
   readonly lineCount: number;
 }
 
+export interface StockCountLineDetail {
+  readonly lineNumber: number;
+  readonly itemId: string;
+  readonly itemCode: string;
+  readonly itemName: string;
+  readonly itemNameAr: string | null;
+  readonly unit: string;
+  readonly systemQuantity: string;
+  readonly countedQuantity: string;
+  readonly difference: string;
+  readonly unitCost: string;
+}
+
+export interface StockCountDetail extends StockCountSummary {
+  readonly postedAt: string | null;
+  readonly journalEntryId: string | null;
+  readonly lines: readonly StockCountLineDetail[];
+}
+
+export function useStockCount(id: string) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["stockCounts", "detail", id],
+    queryFn: async () => (await apiClient.get<StockCountDetail>(`/v1/stock-counts/${id}`)).data,
+    enabled: can("stock_count:read") && id !== "",
+  });
+}
+
 export function useStockCounts(unpostedOnly: boolean) {
   const { can } = usePermissions();
   return useQuery({

@@ -1459,6 +1459,14 @@
     "debitNotesAgainst": "إشعارات المدين على هذه الفاتورة",
     "backToList": "العودة إلى القائمة",
     "totalValue": "القيمة الإجمالية",
-    "unitCost": "تكلفة الوحدة"
+    "unitCost": "تكلفة الوحدة",
+    "settledInvoices": "الفواتير التي سدّدتها",
+    "noSettledInvoices": "لم تُخصَّص لأي فاتورة: المبلغ كله يبقى على الحساب.",
+    "postedAt": "تاريخ الترحيل",
+    "countNoVariance": "كل السطور طابقت الدفاتر، فلم يُرحَّل شيء إلى الدفتر.",
+    "countPostError": "تعذّر ترحيل هذا الجرد.",
+    "systemQuantity": "حسب الدفاتر",
+    "countedQuantity": "المعدود",
+    "difference": "الفرق"
   }
 }

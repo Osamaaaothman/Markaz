@@ -13,6 +13,7 @@ import { PartiesPage } from "../features/parties/PartiesPage";
 import { AccountMappingPage } from "../features/inventory/AccountMappingPage";
 import { GoodsReceiptPage } from "../features/inventory/GoodsReceiptPage";
 import { ItemsPage } from "../features/inventory/ItemsPage";
+import { StockCountDetailPage } from "../features/inventory/StockCountDetailPage";
 import { StockCountPage } from "../features/inventory/StockCountPage";
 import { StockIssuePage } from "../features/inventory/StockIssuePage";
 import { StockLevelsPage } from "../features/inventory/StockLevelsPage";
@@ -40,6 +41,7 @@ import { QuotationFormPage, SalesInvoiceFormPage, SalesOrderFormPage } from "../
 import { SalesInvoiceDetailPage, SalesInvoicesPage } from "../features/sales/SalesInvoicesPage";
 import { SalesOrderDetailPage, SalesOrdersPage } from "../features/sales/SalesOrdersPage";
 import { CustomerReceiptPage, SupplierPaymentPage } from "../features/payments/PaymentFormPage";
+import { PaymentDetailPage } from "../features/payments/PaymentDetailPage";
 import { PaymentsPage } from "../features/payments/PaymentsPage";
 import { AgingPage } from "../features/payments/AgingPage";
 import { PartyStatementPage } from "../features/payments/PartyStatementPage";
@@ -112,6 +114,7 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-counts")} />}>
             <Route path="/inventory/stock-counts" element={<StockCountPage />} />
+            <Route path="/inventory/stock-counts/:id" element={<StockCountDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/hr/employees")} />}>
             <Route path="/hr/employees" element={<EmployeesPage />} />
@@ -179,6 +182,7 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/payments")} />}>
             <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/payments/:id" element={<PaymentDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={["customer_receipt:create"]} />}>
             <Route path="/payments/receipts/new" element={<CustomerReceiptPage />} />

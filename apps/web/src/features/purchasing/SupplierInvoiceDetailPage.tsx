@@ -127,7 +127,7 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
         <>
           <h3 className="erp-form__section-title">{t("documents.paymentsAgainst")}</h3>
           <DataTable value={[...invoice.payments]} className="erp-table" stripedRows showGridlines size="small">
-            <Column header={t("purchasing.number")} body={(p: SupplierInvoiceDetailPayment) => <span className="coa-code">{p.number}</span>} />
+            <Column header={t("purchasing.number")} body={(p: SupplierInvoiceDetailPayment) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/payments/${p.paymentId}`)}>{p.number}</button>} />
             <Column header={t("purchasing.date")} body={(p: SupplierInvoiceDetailPayment) => formatCalendarDate(p.paymentDate, i18n.language)} />
             <Column header={t("created.amount")} align="right" body={(p: SupplierInvoiceDetailPayment) => money(p.amount)} />
           </DataTable>
