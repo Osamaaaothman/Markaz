@@ -1376,6 +1376,7 @@
       },
       "years": "Years of service",
       "fraction": "Entitlement fraction",
+      "noEntry": "No entry — zero entitlement",
       "error": "Could not settle this employee."
     },
     "wps": {

@@ -336,7 +336,8 @@ export interface SettleEndOfServicePayload {
 export interface EndOfServiceResult {
   readonly id: string;
   readonly number: string;
-  readonly journalEntryId: string;
+  // Null when nothing was owed: the settlement is recorded but no journal entry is posted.
+  readonly journalEntryId: string | null;
   readonly yearsOfService: string;
   readonly grossEntitlement: string;
   readonly entitlementFraction: string;
