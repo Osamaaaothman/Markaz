@@ -25,7 +25,7 @@ export class PurchaseOrderError extends Error {
       | "ITEM_NOT_FOUND"
       | "ORDER_NOT_FOUND"
       | "REQUEST_NOT_FOUND"
-      | "REQUEST_NOT_PENDING"
+      | "REQUEST_NOT_ACCEPTED"
       | "NOT_PENDING_APPROVAL"
       | "NOT_CANCELLABLE",
     message: string,
@@ -228,7 +228,8 @@ export class PurchaseOrderService {
         `;
         const request = locked[0];
         if (!request) throw new PurchaseOrderError("REQUEST_NOT_FOUND", "Purchase request not found");
-        if (request.status !== "PENDING") throw new PurchaseOrderError("REQUEST_NOT_PENDING", "This purchase request is already decided");
+        // An order is made only from a request that has been accepted at review.
+        if (request.status !== "ACCEPTED") throw new PurchaseOrderError("REQUEST_NOT_ACCEPTED", "This purchase request has not been accepted for buying");
         await tx.purchaseRequest.update({
           where: { id: input.purchaseRequestId },
           data: { status: "PROCESSED", purchaseOrderId: id, decidedBy: actor.id, decidedAt: new Date() },

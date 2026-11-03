@@ -14,6 +14,7 @@ import { WarehouseService } from "../inventory/warehouse.service.js";
 import { PurchaseOrderError, PurchaseOrderService } from "./purchase-order.service.js";
 import { PurchaseReceiptError, PurchaseReceiptService } from "./purchase-receipt.service.js";
 import { PurchaseRequestError, PurchaseRequestService } from "./purchase-request.service.js";
+import { PurchasingQueueService } from "./purchasing-queue.service.js";
 
 // Real PostgreSQL (docs/10-TESTING-RULES.md §1); skipped without DATABASE_URL.
 const describeIfDb = process.env.DATABASE_URL ? describe : describe.skip;
@@ -107,6 +108,12 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
     const second = await requests.create({ warehouseId, lines: [{ itemId: itemB, quantity: "5" }] }, actor, cid());
     expect(second.number).toMatch(/-000002$/);
 
+    // An order is made only from a request accepted at review.
+    await expect(
+      orders.create({ supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "100", unitPrice: "12.5" }] }, actor, cid()),
+    ).rejects.toMatchObject({ code: "REQUEST_NOT_ACCEPTED" });
+    expect((await requests.accept(request.id, actor, cid())).status).toBe("ACCEPTED");
+
     const order = await orders.create(
       { supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "100", unitPrice: "12.5" }] },
       actor,
@@ -118,10 +125,45 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
     expect((await requests.get(companyId, request.id)).status).toBe("PROCESSED");
     await expect(
       orders.create({ supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1" }] }, actor, cid()),
-    ).rejects.toMatchObject({ code: "REQUEST_NOT_PENDING" });
+    ).rejects.toMatchObject({ code: "REQUEST_NOT_ACCEPTED" });
 
     await requests.reject(second.id, "Not needed", actor, cid());
     await expect(requests.reject(second.id, "again", actor, cid())).rejects.toBeInstanceOf(PurchaseRequestError);
+  });
+
+  it("reviews a request: accept records who and when, a decided request cannot be accepted again, and an accepted one can still be rejected", async () => {
+    const request = await requests.create({ warehouseId, lines: [{ itemId: itemA, quantity: "3" }] }, actor, cid());
+    const reviewer = { id: "reviewer", companyId };
+    const accepted = await requests.accept(request.id, reviewer, cid());
+    expect(accepted.status).toBe("ACCEPTED");
+    expect(accepted.acceptedAt).not.toBeNull();
+    expect((await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: request.id } })).acceptedBy).toBe("reviewer");
+
+    await expect(requests.accept(request.id, reviewer, cid())).rejects.toMatchObject({ code: "NOT_PENDING" });
+    expect((await requests.reject(request.id, "Changed our mind", reviewer, cid())).status).toBe("REJECTED");
+    await expect(requests.accept(request.id, reviewer, cid())).rejects.toMatchObject({ code: "NOT_PENDING" });
+    await expect(requests.accept(newId(), reviewer, cid())).rejects.toMatchObject({ code: "REQUEST_NOT_FOUND" });
+    await expect(requests.accept(request.id, { id: "x", companyId: newId() }, cid())).rejects.toMatchObject({ code: "REQUEST_NOT_FOUND" });
+  });
+
+  it("lets only one of two reviewers accept the same request at once", async () => {
+    const request = await requests.create({ warehouseId, lines: [{ itemId: itemA, quantity: "2" }] }, actor, cid());
+    const results = await Promise.allSettled([requests.accept(request.id, actor, cid()), requests.accept(request.id, actor, cid())]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await prisma.auditLog.count({ where: { entityId: request.id, action: "purchase_request.accepted" } })).toBe(1);
+  });
+
+  it("counts what waits on people, and only the parts the caller asks for", async () => {
+    const queue = new PurchasingQueueService(prisma);
+    const everything = await queue.counts(companyId, { review: true, orders: true, approvals: true });
+    const pending = await prisma.purchaseRequest.count({ where: { companyId, status: "PENDING" } });
+    const accepted = await prisma.purchaseRequest.count({ where: { companyId, status: "ACCEPTED" } });
+    expect(everything.requestsToReview).toBe(pending);
+    expect(everything.requestsAccepted).toBe(accepted);
+    expect(typeof everything.ordersAwaitingApproval).toBe("number");
+    expect(await queue.counts(companyId, { review: false, orders: false, approvals: false })).toEqual({});
+    expect(Object.keys(await queue.counts(companyId, { review: true, orders: false, approvals: false }))).toEqual(["requestsToReview"]);
+    expect(await queue.counts(newId(), { review: true, orders: true, approvals: true })).toEqual({ requestsToReview: 0, requestsAccepted: 0, ordersAwaitingApproval: 0 });
   });
 
   it("refuses a request or an order without a usable warehouse", async () => {

@@ -5,7 +5,8 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 
 // ── Purchase requests ─────────────────────────────────────────────────────────
 
-export type PurchaseRequestStatus = "PENDING" | "PROCESSED" | "REJECTED";
+// PENDING (waiting for review) -> ACCEPTED (a buyer may make an order) -> PROCESSED (an order was made), or REJECTED.
+export type PurchaseRequestStatus = "PENDING" | "ACCEPTED" | "PROCESSED" | "REJECTED";
 
 export interface PurchaseRequestSummary {
   readonly id: string;
@@ -18,6 +19,7 @@ export interface PurchaseRequestSummary {
   readonly warehouseId: string | null;
   readonly warehouseName: string | null;
   readonly warehouseNameAr: string | null;
+  readonly acceptedAt: string | null;
   readonly createdAt: string;
 }
 
@@ -76,7 +78,21 @@ export function useCreatePurchaseRequest() {
   return useMutation({
     mutationFn: async (payload: CreatePurchaseRequestPayload) =>
       (await apiClient.post<PurchaseRequestSummary>("/v1/purchase-requests", payload)).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["purchaseRequests"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["purchaseRequests"] });
+      void qc.invalidateQueries({ queryKey: ["purchasingCounts"] });
+    },
+  });
+}
+
+export function useAcceptPurchaseRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => (await apiClient.post<PurchaseRequestSummary>(`/v1/purchase-requests/${id}/accept`, {})).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["purchaseRequests"] });
+      void qc.invalidateQueries({ queryKey: ["purchasingCounts"] });
+    },
   });
 }
 
@@ -85,7 +101,28 @@ export function useRejectPurchaseRequest() {
   return useMutation({
     mutationFn: async (input: { readonly id: string; readonly reason: string }) =>
       (await apiClient.post<PurchaseRequestSummary>(`/v1/purchase-requests/${input.id}/reject`, { reason: input.reason })).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["purchaseRequests"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["purchaseRequests"] });
+      void qc.invalidateQueries({ queryKey: ["purchasingCounts"] });
+    },
+  });
+}
+
+// What waits on the signed-in user in purchasing. A number is present only when the user may act on it.
+export interface PurchasingCounts {
+  readonly requestsToReview?: number;
+  readonly requestsAccepted?: number;
+  readonly ordersAwaitingApproval?: number;
+}
+
+// Feeds the menu badges. Mutations invalidate this key, and it refetches every minute so a request raised by
+// someone else appears without a reload.
+export function usePurchasingCounts() {
+  return useQuery({
+    queryKey: ["purchasingCounts"],
+    queryFn: async () => (await apiClient.get<PurchasingCounts>("/v1/purchasing/pending-counts")).data,
+    staleTime: 20_000,
+    refetchInterval: 60_000,
   });
 }
 
@@ -181,6 +218,7 @@ export function useCreatePurchaseOrder() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["purchaseOrders"] });
       void qc.invalidateQueries({ queryKey: ["purchaseRequests"] });
+      void qc.invalidateQueries({ queryKey: ["purchasingCounts"] });
     },
   });
 }
@@ -190,7 +228,10 @@ export function useOrderAction(id: string, action: "approve" | "reject" | "cance
   return useMutation({
     mutationFn: async (reason?: string) =>
       (await apiClient.post<PurchaseOrderCreated>(`/v1/purchase-orders/${id}/${action}`, reason ? { reason } : {})).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["purchaseOrders"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["purchaseOrders"] });
+      void qc.invalidateQueries({ queryKey: ["purchasingCounts"] });
+    },
   });
 }
 

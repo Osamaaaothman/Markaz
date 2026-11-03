@@ -30,7 +30,7 @@ import {
 } from "./use-purchasing";
 
 const ALL = "ALL";
-const STATUSES: readonly PurchaseRequestStatus[] = ["PENDING", "PROCESSED", "REJECTED"];
+const STATUSES: readonly PurchaseRequestStatus[] = ["PENDING", "ACCEPTED", "PROCESSED", "REJECTED"];
 
 export function PurchaseRequestsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -39,7 +39,6 @@ export function PurchaseRequestsPage(): React.JSX.Element {
   const [status, setStatus] = useState<PurchaseRequestStatus | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
-  const [rejectId, setRejectId] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseRequests(status);
@@ -93,24 +92,15 @@ export function PurchaseRequestsPage(): React.JSX.Element {
               body={(row: PurchaseRequestSummary) => (
                 <div className="erp-row-actions">
                   <Button label={t("purchasing.view")} size="small" text onClick={() => setViewId(row.id)} />
-                  {row.status === "PENDING" ? (
-                    <>
-                      <PermissionButton
-                        allowed={can("purchase_order:create")}
-                        label={t("purchasing.requests.createOrder")}
-                        size="small"
-                        text
-                        onClick={() => void navigate(`/purchasing/orders/new?request=${row.id}`)}
-                      />
-                      <PermissionButton
-                        allowed={can("purchase_request:reject")}
-                        label={t("purchasing.requests.reject")}
-                        size="small"
-                        text
-                        severity="danger"
-                        onClick={() => setRejectId(row.id)}
-                      />
-                    </>
+                  {/* Review (accept or reject) is done on its own page; a buyer makes an order here from an accepted request. */}
+                  {row.status === "ACCEPTED" ? (
+                    <PermissionButton
+                      allowed={can("purchase_order:create")}
+                      label={t("purchasing.requests.createOrder")}
+                      size="small"
+                      text
+                      onClick={() => void navigate(`/purchasing/orders/new?request=${row.id}`)}
+                    />
                   ) : null}
                   {row.purchaseOrderId ? (
                     <Button label={t("purchasing.requests.openOrder")} size="small" text onClick={() => void navigate(`/purchasing/orders/${row.purchaseOrderId}`)} />
@@ -130,7 +120,6 @@ export function PurchaseRequestsPage(): React.JSX.Element {
       <NewRequestDialog visible={newOpen} onHide={() => setNewOpen(false)} onCreated={setCreated} />
       <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <RequestDetailDialog id={viewId} onHide={() => setViewId(null)} />
-      <RejectDialog id={rejectId} onHide={() => setRejectId(null)} />
     </div>
   );
 }
@@ -251,7 +240,7 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
   );
 }
 
-function RequestDetailDialog({ id, onHide }: { id: string | null; onHide: () => void }): React.JSX.Element {
+export function RequestDetailDialog({ id, onHide }: { id: string | null; onHide: () => void }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { data, isPending } = usePurchaseRequest(id);
   return (
@@ -276,7 +265,7 @@ function RequestDetailDialog({ id, onHide }: { id: string | null; onHide: () => 
   );
 }
 
-function RejectDialog({ id, onHide }: { id: string | null; onHide: () => void }): React.JSX.Element {
+export function RejectDialog({ id, onHide }: { id: string | null; onHide: () => void }): React.JSX.Element {
   const { t } = useTranslation();
   const [reason, setReason] = useState("");
   const reject = useRejectPurchaseRequest();

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Query } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Put, Query } from "@nestjs/common";
 import {
   APPROVABLE_SUBJECT_TYPES,
   AlreadyDecidedError,
@@ -13,9 +13,12 @@ import {
   PurchaseReceiptService,
   PurchaseRequestError,
   PurchaseRequestService,
+  PurchasingQueueService,
   UnmappedAccountError,
   type ApprovableSubjectType,
   type ApprovalPolicyEntry,
+  type IPermissionService,
+  type PurchasingQueueCounts,
   type GoodsReturnListPage,
   type GoodsReturnResult,
   type PurchaseOrderCreated,
@@ -29,6 +32,8 @@ import {
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
+import { AuthenticatedOnly } from "../identity/authenticated-only.decorator.js";
+import { PERMISSION_SERVICE } from "../identity/identity.tokens.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import {
   CreateGoodsReturnDto,
@@ -51,7 +56,22 @@ export class PurchasingController {
     private readonly receiving: PurchaseReceiptService,
     private readonly goodsReturns: GoodsReturnService,
     private readonly policies: ApprovalPolicyService,
+    private readonly queue: PurchasingQueueService,
+    @Inject(PERMISSION_SERVICE) private readonly permissions: IPermissionService,
   ) {}
+
+  // What waits on the signed-in user in purchasing, for the badges in the menu. Each number is returned only if the user
+  // may act on it: reviewing requests, making orders from accepted requests, approving orders.
+  @Get("purchasing/pending-counts")
+  @AuthenticatedOnly()
+  async pendingCounts(@CurrentUser() actor: CurrentUserPayload): Promise<PurchasingQueueCounts> {
+    const [review, orders, approvals] = await Promise.all([
+      this.permissions.can(actor.id, "review", "purchase_request"),
+      this.permissions.can(actor.id, "create", "purchase_order"),
+      this.permissions.can(actor.id, "approve", "purchase_order"),
+    ]);
+    return this.queue.counts(actor.companyId, { review, orders, approvals });
+  }
 
   // ── Purchase requests ───────────────────────────────────────────────────────
 
@@ -77,6 +97,17 @@ export class PurchasingController {
     return this.mapRequestErrors(
       this.requests.create({ warehouseId: dto.warehouseId, ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines }, actor, correlationId),
     );
+  }
+
+  // The review step: accept a pending request so a buyer can make an order from it.
+  @Post("purchase-requests/:id/accept")
+  @RequirePermission("purchase_request", "review")
+  acceptRequest(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<PurchaseRequestSummary> {
+    return this.mapRequestErrors(this.requests.accept(id, actor, correlationId));
   }
 
   @Post("purchase-requests/:id/reject")
@@ -191,7 +222,7 @@ export class PurchasingController {
         case "ITEM_NOT_FOUND":
         case "REQUEST_NOT_FOUND":
           throw new NotFoundException(error.message);
-        case "REQUEST_NOT_PENDING":
+        case "REQUEST_NOT_ACCEPTED":
         case "NOT_PENDING_APPROVAL":
         case "NOT_CANCELLABLE":
           throw new ConflictException(error.message);

@@ -26,6 +26,7 @@ import { GoodsReturnsPage } from "../features/purchasing/GoodsReturnsPage";
 import { PurchaseOrderDetailPage } from "../features/purchasing/PurchaseOrderDetailPage";
 import { PurchaseOrderFormPage } from "../features/purchasing/PurchaseOrderFormPage";
 import { PurchaseOrdersPage } from "../features/purchasing/PurchaseOrdersPage";
+import { PurchaseRequestReviewPage } from "../features/purchasing/PurchaseRequestReviewPage";
 import { PurchaseRequestsPage } from "../features/purchasing/PurchaseRequestsPage";
 import { EmployeeDetailPage } from "../features/hr/EmployeeDetailPage";
 import { EmployeesPage } from "../features/hr/EmployeesPage";
@@ -119,6 +120,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/requests")} />}>
             <Route path="/purchasing/requests" element={<PurchaseRequestsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/review")} />}>
+            <Route path="/purchasing/review" element={<PurchaseRequestReviewPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/orders")} />}>
             <Route path="/purchasing/orders" element={<PurchaseOrdersPage />} />

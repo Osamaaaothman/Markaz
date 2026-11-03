@@ -904,6 +904,9 @@ model PurchaseRequest {
   requestedBy     String    @map("requested_by")
   decidedBy       String?   @map("decided_by")
   decidedAt       DateTime? @map("decided_at")
+  // The review step between PENDING and PROCESSED: who accepted the request for buying, and when.
+  acceptedBy      String?   @map("accepted_by")
+  acceptedAt      DateTime? @map("accepted_at")
   purchaseOrderId String?   @map("purchase_order_id")
   // The warehouse the goods are wanted in. Required for every new request; null only on requests made before it existed.
   warehouseId     String?   @map("warehouse_id")

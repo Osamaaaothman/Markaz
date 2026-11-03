@@ -364,6 +364,31 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
   transform: scaleX(-1) rotate(180deg);
 }
 
+/* count pill beside a menu entry (purchasing queues); margin-inline-start:auto pushes it to the end in both directions */
+.erp-sidebar__badge {
+  margin-inline-start: auto;
+  min-width: 1.3rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--mk-danger, #e5484d);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* collapsed rail: no room for the number, so it floats over the icon corner */
+.erp-sidebar--collapsed .erp-sidebar__badge {
+  position: absolute;
+  inset-block-start: 0.2rem;
+  inset-inline-end: 0.55rem;
+  min-width: 1rem;
+  padding: 0 0.28rem;
+  font-size: 0.62rem;
+}
+
 /* collapsed rail: icons only */
 .erp-sidebar--collapsed .erp-sidebar__label,
 .erp-sidebar--collapsed .mk-brand__text,

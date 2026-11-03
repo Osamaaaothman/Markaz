@@ -63,8 +63,8 @@ export class PurchaseRequestsQueryDto {
   limit?: string;
 
   @IsOptional()
-  @IsIn(["PENDING", "PROCESSED", "REJECTED"])
-  status?: "PENDING" | "PROCESSED" | "REJECTED";
+  @IsIn(["PENDING", "ACCEPTED", "PROCESSED", "REJECTED"])
+  status?: "PENDING" | "ACCEPTED" | "PROCESSED" | "REJECTED";
 }
 
 // ── Purchase orders ───────────────────────────────────────────────────────────

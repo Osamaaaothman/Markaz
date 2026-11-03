@@ -4,7 +4,8 @@ import type { IAuditLogger } from "../contracts.js";
 import { fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { allocateDocumentNumber } from "../reference.js";
 
-export type PurchaseRequestStatus = "PENDING" | "PROCESSED" | "REJECTED";
+// PENDING (waiting for review) -> ACCEPTED (a buyer may now make an order) -> PROCESSED (an order was made), or REJECTED.
+export type PurchaseRequestStatus = "PENDING" | "ACCEPTED" | "PROCESSED" | "REJECTED";
 
 export class PurchaseRequestError extends Error {
   constructor(
@@ -42,6 +43,8 @@ export interface PurchaseRequestSummary {
   readonly rejectionReason: string | null;
   readonly lineCount: number;
   readonly purchaseOrderId: string | null;
+  // When the request was accepted at review, if it was.
+  readonly acceptedAt: string | null;
   readonly warehouseId: string | null;
   readonly warehouseName: string | null;
   readonly warehouseNameAr: string | null;
@@ -88,6 +91,7 @@ function toSummary(row: RequestRow): PurchaseRequestSummary {
     rejectionReason: row.rejectionReason,
     lineCount: row._count.lines,
     purchaseOrderId: row.purchaseOrderId,
+    acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
     warehouseId: row.warehouseId,
     warehouseName: row.warehouse?.name ?? null,
     warehouseNameAr: row.warehouse?.nameAr ?? null,
@@ -191,6 +195,27 @@ export class PurchaseRequestService {
     };
   }
 
+  // The review step: accepts a pending request so a buyer can make an order from it. Who reviewed it and when is kept.
+  // The row is locked, so two reviewers cannot decide the same request at once.
+  async accept(id: string, actor: PurchaseRequestActor, correlationId: string): Promise<PurchaseRequestSummary> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ status: string }[]>`
+        SELECT status FROM purchase_requests WHERE id = ${id} AND company_id = ${actor.companyId} FOR UPDATE
+      `;
+      const current = locked[0];
+      if (!current) throw new PurchaseRequestError("REQUEST_NOT_FOUND", "Purchase request not found");
+      if (current.status !== "PENDING") throw new PurchaseRequestError("NOT_PENDING", "Only a request that is waiting for review can be accepted");
+      return tx.purchaseRequest.update({
+        where: { id },
+        data: { status: "ACCEPTED", acceptedBy: actor.id, acceptedAt: new Date() },
+        include: { warehouse: true, _count: { select: { lines: true } } },
+      });
+    });
+    const summary = toSummary(updated);
+    await this.audit.log({ actorId: actor.id, action: "purchase_request.accepted", entityType: "PurchaseRequest", entityId: id, after: { ...summary }, correlationId });
+    return summary;
+  }
+
   async reject(id: string, reason: string, actor: PurchaseRequestActor, correlationId: string): Promise<PurchaseRequestSummary> {
     const updated = await this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<{ status: string }[]>`
@@ -198,7 +223,8 @@ export class PurchaseRequestService {
       `;
       const current = locked[0];
       if (!current) throw new PurchaseRequestError("REQUEST_NOT_FOUND", "Purchase request not found");
-      if (current.status !== "PENDING") throw new PurchaseRequestError("NOT_PENDING", "Only a pending request can be rejected");
+      // Rejecting is possible at review (PENDING) and also after acceptance, until an order has been made from it.
+      if (current.status !== "PENDING" && current.status !== "ACCEPTED") throw new PurchaseRequestError("NOT_PENDING", "Only a request that is waiting for review or accepted can be rejected");
       return tx.purchaseRequest.update({
         where: { id },
         data: { status: "REJECTED", rejectionReason: reason.trim(), decidedBy: actor.id, decidedAt: new Date() },
