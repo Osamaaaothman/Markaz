@@ -1812,6 +1812,8 @@ html body .p-toast {
 .mk-checklist__progress {
   font-variant-numeric: tabular-nums;
   color: var(--mk-text-muted, #8a8a8a);
+}
+
 /* A formatted JSON block (the audit log's before / after), always left to right and scrollable instead of widening the dialog. */
 .mk-json {
   margin: 0;
