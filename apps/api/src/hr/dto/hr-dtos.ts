@@ -1,7 +1,72 @@
-import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
+import { Type } from "class-transformer";
+import { IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from "class-validator";
 import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
+// ── Allowance types ────────────────────────────────────────────────────────────
+
+export class CreateAllowanceTypeDto {
+  @IsString()
+  @Matches(/^[A-Za-z][A-Za-z0-9_]{0,29}$/, { message: "code must be letters, digits or underscore, starting with a letter" })
+  code!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  nameAr?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isHousing?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  inGosiBase?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  inEosbBase?: boolean;
+}
+
+export class UpdateAllowanceTypeDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  nameAr?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  inGosiBase?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  inEosbBase?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 // ── Employees ──────────────────────────────────────────────────────────────────
+
+export class EmployeeAllowanceDto {
+  @IsString()
+  @IsNotEmpty()
+  allowanceTypeId!: string;
+
+  @IsDecimalString()
+  amount!: string;
+}
 
 export class CreateEmployeeDto {
   @IsString()
@@ -43,12 +108,10 @@ export class CreateEmployeeDto {
   basicSalary!: string;
 
   @IsOptional()
-  @IsDecimalString()
-  housingAllowance?: string;
-
-  @IsOptional()
-  @IsDecimalString()
-  otherAllowances?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EmployeeAllowanceDto)
+  allowances?: EmployeeAllowanceDto[];
 }
 
 export class UpdateEmployeeDto {
@@ -85,12 +148,10 @@ export class UpdateEmployeeDto {
   basicSalary?: string;
 
   @IsOptional()
-  @IsDecimalString()
-  housingAllowance?: string;
-
-  @IsOptional()
-  @IsDecimalString()
-  otherAllowances?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EmployeeAllowanceDto)
+  allowances?: EmployeeAllowanceDto[];
 
   @IsOptional()
   @IsBoolean()

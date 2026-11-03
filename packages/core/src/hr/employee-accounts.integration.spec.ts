@@ -81,7 +81,7 @@ describeIfDb("Employee accounts — real database", () => {
 
   const newEmployee = async (t: Tenant, name = `Employee ${++counter}`) =>
     employees.create(
-      { name, nameAr: `موظف ${counter}`, nationalId: `31000${String(++counter).padStart(5, "0")}`, isSaudi: false, bankIban: "SA0380000000608010167519", hireDate: new Date(Date.UTC(2021, 0, 1)), basicSalary: "5000", housingAllowance: "1000" },
+      { name, nameAr: `موظف ${counter}`, nationalId: `31000${String(++counter).padStart(5, "0")}`, isSaudi: false, bankIban: "SA0380000000608010167519", hireDate: new Date(Date.UTC(2021, 0, 1)), basicSalary: "5000" },
       t.actor,
       cid(),
     );

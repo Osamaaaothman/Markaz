@@ -66,6 +66,7 @@ export * from "./attachments/cloudinary-file-storage.js";
 export * from "./attachments/attachment.service.js";
 export * from "./hr/gosi.js";
 export * from "./hr/eosb.js";
+export * from "./hr/allowance-type.service.js";
 export * from "./hr/employee.service.js";
 export * from "./hr/payroll-run.service.js";
 export * from "./hr/salary-advance.service.js";

@@ -49,7 +49,8 @@
     "employees": "Employees",
     "payrollRuns": "Payroll runs",
     "goodsReturns": "Purchase returns",
-    "purchaseReview": "Purchase review"
+    "purchaseReview": "Purchase review",
+    "allowanceTypes": "Allowance types"
   },
   "actions": {
     "save": "Save",
@@ -69,7 +70,9 @@
     "exportCsv": "Export CSV",
     "copyId": "Copy ID",
     "copied": "Copied",
-    "print": "Print"
+    "print": "Print",
+    "edit": "Edit",
+    "search": "Search"
   },
   "status": {
     "loading": "Loading…",
@@ -1394,6 +1397,53 @@
         "ACCOUNTS_PARENT_INVALID": "One of the three employee folders in the account mapping is not a valid active folder of the right type.",
         "ACCOUNTS_CODE_EXHAUSTED": "No free account code is left in one of the employee folders. Add the accounts by hand.",
         "generic": "Could not create the employee's accounts."
+      }
+    },
+    "allowances": {
+      "title": "Allowances",
+      "none": "No allowances besides basic salary.",
+      "edit": "Edit allowances",
+      "add": "Add allowance",
+      "chooseType": "Allowance type",
+      "amount": "Monthly amount",
+      "noTypes": "No allowance types yet. Add them under HR → Allowance types.",
+      "invalidAmount": "An allowance amount is not a valid number.",
+      "errors": {
+        "ALLOWANCE_TYPE_NOT_FOUND": "One of the allowance types was not found.",
+        "ALLOWANCE_TYPE_INACTIVE": "One of the allowance types is stopped.",
+        "DUPLICATE_ALLOWANCE": "An allowance type appears twice.",
+        "generic": "Could not save the allowances."
+      }
+    },
+    "allowanceTypes": {
+      "title": "Allowance types",
+      "subtitle": "The allowances your company pays (housing, transport, food...). Two choices per type decide what social insurance and the end-of-service gratuity are computed on; they apply from the next payroll run.",
+      "new": "New allowance type",
+      "edit": "Edit allowance type",
+      "addCommon": "Add the usual types",
+      "addedCommon": "{{count}} type(s) added.",
+      "empty": "No allowance types yet. Use \"Add the usual types\" or create your own.",
+      "code": "Code",
+      "name": "Name",
+      "nameAr": "Arabic name",
+      "housing": "Housing",
+      "status": "Status",
+      "active": "Active",
+      "stopped": "Stopped",
+      "stop": "Stop",
+      "activate": "Activate",
+      "yes": "Yes",
+      "no": "No",
+      "inGosiBase": "Social insurance base",
+      "inEosbBase": "End-of-service base",
+      "isHousingHint": "This is the housing allowance (reported in the housing column of the wages file)",
+      "inGosiBaseHint": "Counts in the social insurance (GOSI) contribution base",
+      "inEosbBaseHint": "Counts in the end-of-service gratuity wage base",
+      "errors": {
+        "DUPLICATE_CODE": "A type with this code already exists.",
+        "IN_USE": "Active employees are still paid this allowance. Remove it from them first.",
+        "NOT_FOUND": "This allowance type was not found.",
+        "generic": "Could not save this allowance type."
       }
     }
   }

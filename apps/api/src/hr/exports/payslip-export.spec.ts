@@ -9,6 +9,7 @@ const line: PayrollRunLine = {
   nationalId: "1234567890",
   bankIban: "SA0380000000608010167519",
   basicSalary: "6000.0000",
+  allowances: [],
   housingAllowance: "1500.0000",
   otherAllowances: "0.0000",
   gross: "7500.0000",
@@ -53,5 +54,21 @@ describe("payslip PDF html", () => {
   it("falls back to the English name when no Arabic name is on file", async () => {
     const html = await payslipToPdfHtml({ ...base, language: "ar", line: { ...line, employeeNameAr: null } });
     expect(html).toContain("Sara Ahmed");
+  });
+
+  it("lists each allowance by name (Arabic name in Arabic) when the run recorded them", async () => {
+    const detailed: PayrollRunLine = {
+      ...line,
+      allowances: [
+        { name: "Housing allowance", nameAr: "بدل السكن", amount: "1000.0000", isHousing: true },
+        { name: "Transport allowance", nameAr: "بدل النقل", amount: "500.0000", isHousing: false },
+      ],
+    };
+    const en = await payslipToPdfHtml({ ...base, language: "en", line: detailed });
+    expect(en).toContain("Transport allowance");
+    expect(en).toContain("500.00 SAR");
+    expect(en).not.toContain("Other allowances"); // the breakdown replaces the two totals
+    const ar = await payslipToPdfHtml({ ...base, language: "ar", line: detailed });
+    expect(ar).toContain("بدل النقل");
   });
 });

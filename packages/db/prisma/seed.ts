@@ -126,6 +126,8 @@ const PERMISSION_CATALOG = [
   { code: "employee:read", description: "View employees" },
   { code: "employee:create", description: "Add an employee" },
   { code: "employee:update", description: "Edit an employee" },
+  { code: "allowance_type:create", description: "Add an allowance type (housing, transport, food, ...)" },
+  { code: "allowance_type:update", description: "Edit or stop an allowance type, including which bases it counts in" },
   { code: "payroll_run:create", description: "Run payroll for a period" },
   { code: "payroll_run:read", description: "View payroll runs and payslips" },
   { code: "salary_advance:create", description: "Grant a salary advance" },

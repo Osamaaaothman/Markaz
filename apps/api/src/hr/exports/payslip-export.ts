@@ -36,11 +36,16 @@ export async function payslipToPdfHtml(params: {
     .map(([k, v]) => `<tr><th>${escapeHtml(k ?? "")}</th><td>${escapeHtml(v ?? "")}</td></tr>`)
     .join("");
 
-  const earnings = [
-    [t("payslip.basicSalary"), line.basicSalary],
-    [t("payslip.housingAllowance"), line.housingAllowance],
-    [t("payslip.otherAllowances"), line.otherAllowances],
-  ]
+  // Each allowance by name, as it was on the run. A run from before allowance types existed has none recorded, so it falls back
+  // to the two totals it was posted with.
+  const allowanceRows: [string, string][] =
+    line.allowances.length > 0
+      ? line.allowances.map((a) => [params.language === "ar" && a.nameAr ? a.nameAr : a.name, a.amount])
+      : [
+          [t("payslip.housingAllowance"), line.housingAllowance],
+          [t("payslip.otherAllowances"), line.otherAllowances],
+        ];
+  const earnings = [[t("payslip.basicSalary"), line.basicSalary] as [string, string], ...allowanceRows]
     .map(([k, v]) => `<tr><td>${escapeHtml(k ?? "")}</td><td class="amount">${money(v ?? "0")}</td></tr>`)
     .join("");
 

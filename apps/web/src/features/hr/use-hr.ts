@@ -20,8 +20,26 @@ export interface EmployeeSummary {
   readonly housingAllowance: string;
   readonly otherAllowances: string;
   readonly isActive: boolean;
+  // What the employee is paid besides basic salary, one entry per allowance type.
+  readonly allowances: readonly EmployeeAllowanceLine[];
   // The employee's own party and ledger accounts; null when they have none (payroll then uses the company-wide accounts).
   readonly accounts: EmployeeAccounts | null;
+}
+
+export interface EmployeeAllowanceLine {
+  readonly allowanceTypeId: string;
+  readonly code: string;
+  readonly name: string;
+  readonly nameAr: string | null;
+  readonly amount: string;
+  readonly isHousing: boolean;
+  readonly inGosiBase: boolean;
+  readonly inEosbBase: boolean;
+}
+
+export interface AllowanceInput {
+  readonly allowanceTypeId: string;
+  readonly amount: string;
 }
 
 export interface EmployeeLedgerAccount {
@@ -58,8 +76,7 @@ export interface CreateEmployeePayload {
   readonly bankName?: string;
   readonly hireDate: string;
   readonly basicSalary: string;
-  readonly housingAllowance?: string;
-  readonly otherAllowances?: string;
+  readonly allowances?: readonly AllowanceInput[];
 }
 
 export interface UpdateEmployeePayload {
@@ -70,8 +87,8 @@ export interface UpdateEmployeePayload {
   readonly bankIban?: string;
   readonly bankName?: string | null;
   readonly basicSalary?: string;
-  readonly housingAllowance?: string;
-  readonly otherAllowances?: string;
+  // Replaces the whole set; a type left out is removed.
+  readonly allowances?: readonly AllowanceInput[];
   readonly isActive?: boolean;
 }
 
@@ -168,6 +185,7 @@ export interface PayrollRunLine {
   readonly nationalId: string;
   readonly bankIban: string;
   readonly basicSalary: string;
+  readonly allowances: readonly { readonly name: string; readonly nameAr: string | null; readonly amount: string; readonly isHousing: boolean }[];
   readonly housingAllowance: string;
   readonly otherAllowances: string;
   readonly gross: string;

@@ -22,6 +22,8 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { AllowancesEditor, allowancePayload, hasInvalidAllowance, type AllowanceRow } from "./AllowancesEditor";
+import { useAllowanceTypes } from "./use-allowance-types";
 import { employeeErrorCode, useCreateEmployee, useEmployees, useProvisionMissingEmployeeAccounts, type EmployeeSummary } from "./use-hr";
 
 const EMPLOYEE_SCHEMA = z.object({
@@ -33,11 +35,9 @@ const EMPLOYEE_SCHEMA = z.object({
   bankName: z.string(),
   hireDate: z.date(),
   basicSalary: z.string().regex(/^\d{1,15}(\.\d{1,4})?$/, "invalid").refine((v) => Number(v) > 0, "required"),
-  housingAllowance: z.string().regex(/^\d{0,15}(\.\d{1,4})?$/, "invalid"),
-  otherAllowances: z.string().regex(/^\d{0,15}(\.\d{1,4})?$/, "invalid"),
 });
 type EmployeeFormValues = z.infer<typeof EMPLOYEE_SCHEMA>;
-const EMPTY_FORM: EmployeeFormValues = { name: "", nameAr: "", nationalId: "", isSaudi: true, bankIban: "", bankName: "", hireDate: new Date(), basicSalary: "", housingAllowance: "0", otherAllowances: "0" };
+const EMPTY_FORM: EmployeeFormValues = { name: "", nameAr: "", nationalId: "", isSaudi: true, bankIban: "", bankName: "", hireDate: new Date(), basicSalary: "" };
 
 export function EmployeesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -49,6 +49,8 @@ export function EmployeesPage(): React.JSX.Element {
   const [includeInactive, setIncludeInactive] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
+  const { data: allowanceTypes } = useAllowanceTypes();
+  const [allowanceRows, setAllowanceRows] = useState<readonly AllowanceRow[]>([]);
 
   const debouncedQuery = useDebouncedValue(query);
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useEmployees({ q: debouncedQuery, includeInactive });
@@ -62,10 +64,12 @@ export function EmployeesPage(): React.JSX.Element {
     if (!dialogOpen) return;
     createEmployee.reset();
     reset(EMPTY_FORM);
+    setAllowanceRows([]);
     // Deliberately keyed on `dialogOpen` alone — reset()/createEmployee.reset() are stable identities.
   }, [dialogOpen]);
 
   const onSubmit = handleSubmit((values) => {
+    if (hasInvalidAllowance(allowanceRows)) return;
     createEmployee.mutate(
       {
         name: values.name,
@@ -76,8 +80,7 @@ export function EmployeesPage(): React.JSX.Element {
         ...(values.bankName.trim() ? { bankName: values.bankName.trim() } : {}),
         hireDate: toDateOnlyIsoString(values.hireDate),
         basicSalary: values.basicSalary,
-        ...(values.housingAllowance.trim() ? { housingAllowance: values.housingAllowance.trim() } : {}),
-        ...(values.otherAllowances.trim() ? { otherAllowances: values.otherAllowances.trim() } : {}),
+        allowances: allowancePayload(allowanceRows),
       },
       {
         onSuccess: (saved) => {
@@ -206,15 +209,9 @@ export function EmployeesPage(): React.JSX.Element {
               <label htmlFor="empBasic">{t("hr.employees.basicSalary")}</label>
               <InputText id="empBasic" dir="ltr" {...register("basicSalary")} className={errors.basicSalary ? "p-invalid" : ""} />
             </div>
-            <div className="erp-field">
-              <label htmlFor="empHousing">{t("hr.employees.housingAllowance")}</label>
-              <InputText id="empHousing" dir="ltr" {...register("housingAllowance")} />
-            </div>
-            <div className="erp-field">
-              <label htmlFor="empOther">{t("hr.employees.otherAllowances")}</label>
-              <InputText id="empOther" dir="ltr" {...register("otherAllowances")} />
-            </div>
           </div>
+          <AllowancesEditor rows={allowanceRows} onChange={setAllowanceRows} types={allowanceTypes ?? []} />
+          {hasInvalidAllowance(allowanceRows) ? <p className="erp-field__error">{t("hr.allowances.invalidAmount")}</p> : null}
           {createEmployee.isError ? <p className="erp-auth-card__error">{t(`hr.accounts.errors.${employeeErrorCode(createEmployee.error) ?? ""}`, { defaultValue: t("hr.employees.createError") })}</p> : null}
           <div className="erp-form__actions">
             <Button type="button" label={t("actions.cancel")} text onClick={() => setDialogOpen(false)} />

@@ -23,6 +23,8 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { AllowancesEditor, allowancePayload, hasInvalidAllowance, type AllowanceRow } from "./AllowancesEditor";
+import { useAllowanceTypes } from "./use-allowance-types";
 import { employeeErrorCode, useEmployee, useGrantSalaryAdvance, useProvisionEmployeeAccounts, useRepaySalaryAdvance, useSalaryAdvances, useSettleEndOfService, useUpdateEmployee, type SalaryAdvanceSummary } from "./use-hr";
 
 const ADVANCE_SCHEMA = z.object({
@@ -58,6 +60,9 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: employee, isPending, isError, refetch } = useEmployee(id);
   const provisionAccounts = useProvisionEmployeeAccounts(id);
+  const { data: allowanceTypes } = useAllowanceTypes(true);
+  const [allowancesOpen, setAllowancesOpen] = useState(false);
+  const [allowanceRows, setAllowanceRows] = useState<readonly AllowanceRow[]>([]);
   const { data: advances } = useSalaryAdvances(id);
   const { data: accounts } = useChartOfAccounts();
   const updateEmployee = useUpdateEmployee(id);
@@ -211,11 +216,30 @@ export function EmployeeDetailPage(): React.JSX.Element {
             <dt>{t("hr.employees.basicSalary")}</dt>
             <dd dir="ltr">{formatMoney(employee.basicSalary, currency)}</dd>
           </div>
-          <div>
-            <dt>{t("hr.employees.housingAllowance")}</dt>
-            <dd dir="ltr">{formatMoney(employee.housingAllowance, currency)}</dd>
-          </div>
         </dl>
+        <h3 className="erp-form__section-title">{t("hr.allowances.title")}</h3>
+        {employee.allowances.length > 0 ? (
+          <dl className="mk-facts">
+            {employee.allowances.map((a) => (
+              <div key={a.allowanceTypeId}>
+                <dt>{localizedName(a, i18n.language)}</dt>
+                <dd dir="ltr">{formatMoney(a.amount, currency)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="erp-card__empty">{t("hr.allowances.none")}</p>
+        )}
+        <PermissionButton
+          allowed={can("employee:update")}
+          label={t("hr.allowances.edit")}
+          icon="pi pi-pencil"
+          text
+          onClick={() => {
+            setAllowanceRows(employee.allowances.map((a) => ({ allowanceTypeId: a.allowanceTypeId, amount: a.amount.replace(/\.?0+$/, "") })));
+            setAllowancesOpen(true);
+          }}
+        />
         {employee.isActive ? (
           <PermissionButton
             allowed={can("employee:update")}
@@ -409,6 +433,24 @@ export function EmployeeDetailPage(): React.JSX.Element {
             <Button type="submit" label={t("hr.eosb.settle")} severity="danger" loading={settleEosb.isPending} />
           </div>
         </form>
+      </Dialog>
+
+      <Dialog header={t("hr.allowances.edit")} visible={allowancesOpen} onHide={() => setAllowancesOpen(false)} className="erp-dialog" modal style={{ width: "min(40rem, 96vw)" }}>
+        <div className="erp-form">
+          <AllowancesEditor rows={allowanceRows} onChange={setAllowanceRows} types={allowanceTypes ?? []} />
+          {hasInvalidAllowance(allowanceRows) ? <p className="erp-field__error">{t("hr.allowances.invalidAmount")}</p> : null}
+          {updateEmployee.isError ? <p className="erp-auth-card__error">{t(`hr.allowances.errors.${employeeErrorCode(updateEmployee.error) ?? "generic"}`, { defaultValue: t("hr.allowances.errors.generic") })}</p> : null}
+          <div className="erp-form__actions">
+            <Button type="button" label={t("actions.cancel")} text onClick={() => setAllowancesOpen(false)} />
+            <Button
+              type="button"
+              label={t("actions.save")}
+              disabled={hasInvalidAllowance(allowanceRows)}
+              loading={updateEmployee.isPending}
+              onClick={() => updateEmployee.mutate({ allowances: allowancePayload(allowanceRows) }, { onSuccess: () => setAllowancesOpen(false) })}
+            />
+          </div>
+        </div>
       </Dialog>
 
       <CreatedDialog info={created} onHide={() => { setCreated(null); if (leaveAfterCreated) void navigate("/hr/employees"); }} />

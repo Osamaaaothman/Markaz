@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
-import { CreateEmployeeDto, CreatePayrollRunDto, GrantSalaryAdvanceDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./hr-dtos.js";
+import { CreateAllowanceTypeDto, CreateEmployeeDto, CreatePayrollRunDto, GrantSalaryAdvanceDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./hr-dtos.js";
 
 async function fieldsWithErrors<T extends object>(cls: new () => T, plain: object): Promise<string[]> {
   const errors = await validate(plainToInstance(cls, plain), { whitelist: true, forbidNonWhitelisted: true });
@@ -34,9 +34,24 @@ describe("CreateEmployeeDto", () => {
     expect(await fieldsWithErrors(CreateEmployeeDto, { ...VALID_EMPLOYEE, isSaudi: "yes" })).toEqual(["isSaudi"]);
   });
 
-  it("accepts optional housing and other allowances as decimal strings, zero included", async () => {
-    expect(await fieldsWithErrors(CreateEmployeeDto, { ...VALID_EMPLOYEE, housingAllowance: "0", otherAllowances: "1500" })).toEqual([]);
-    expect(await fieldsWithErrors(CreateEmployeeDto, { ...VALID_EMPLOYEE, housingAllowance: "not-a-number" })).toEqual(["housingAllowance"]);
+  it("accepts a list of allowances (type id + decimal amount, zero included) and refuses a bad one", async () => {
+    expect(await fieldsWithErrors(CreateEmployeeDto, { ...VALID_EMPLOYEE, allowances: [{ allowanceTypeId: "t1", amount: "0" }, { allowanceTypeId: "t2", amount: "1500.50" }] })).toEqual([]);
+    expect(await fieldsWithErrors(CreateEmployeeDto, { ...VALID_EMPLOYEE, allowances: [{ allowanceTypeId: "t1", amount: "not-a-number" }] })).toEqual(["allowances"]);
+    expect(await fieldsWithErrors(CreateEmployeeDto, { ...VALID_EMPLOYEE, allowances: [{ amount: "10" }] })).toEqual(["allowances"]);
+  });
+
+  it("no longer takes the old fixed housing and other fields", async () => {
+    expect(await fieldsWithErrors(CreateEmployeeDto, { ...VALID_EMPLOYEE, housingAllowance: "100" })).toEqual(["housingAllowance"]);
+  });
+});
+
+describe("CreateAllowanceTypeDto", () => {
+  it("needs a code of letters, digits and underscore and a name; the flags are optional booleans", async () => {
+    expect(await fieldsWithErrors(CreateAllowanceTypeDto, { code: "TRANSPORT", name: "Transport" })).toEqual([]);
+    expect(await fieldsWithErrors(CreateAllowanceTypeDto, { code: "NATURE_OF_WORK", name: "x", inGosiBase: true, inEosbBase: false, isHousing: false })).toEqual([]);
+    expect(await fieldsWithErrors(CreateAllowanceTypeDto, { code: "bad code!", name: "x" })).toEqual(["code"]);
+    expect(await fieldsWithErrors(CreateAllowanceTypeDto, { code: "A", name: "" })).toEqual(["name"]);
+    expect(await fieldsWithErrors(CreateAllowanceTypeDto, { code: "A", name: "x", inGosiBase: "yes" })).toEqual(["inGosiBase"]);
   });
 });
 

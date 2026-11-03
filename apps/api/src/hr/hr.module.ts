@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import {
   AccountMappingService,
+  AllowanceTypeService,
   EmployeeService,
   EndOfServiceService,
   PayrollRunService,
@@ -28,6 +29,11 @@ import { HR_ENGINE, HR_NUMBERING } from "./hr.tokens.js";
       provide: HR_ENGINE,
       useFactory: (prisma: PrismaService, numbering: PrismaNumberingService) => new PrismaAccountingEngine(prisma, numbering),
       inject: [PrismaService, HR_NUMBERING],
+    },
+    {
+      provide: AllowanceTypeService,
+      useFactory: (prisma: PrismaService, audit: IAuditLogger) => new AllowanceTypeService(prisma, audit),
+      inject: [PrismaService, AUDIT_LOGGER],
     },
     {
       provide: EmployeeService,
