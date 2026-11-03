@@ -4,6 +4,7 @@ import type { IAccountingEngine, IAuditLogger, JournalLineInput, TransactionClie
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
+import { loadOutstanding } from "../payments/outstanding.js";
 import { allocateDocumentNumber } from "../reference.js";
 import { expenseLineMath, invoiceTotals, poLineMath, type PoLineMath } from "./supplier-invoice.util.js";
 
@@ -93,6 +94,40 @@ export interface SupplierInvoiceResult {
   readonly number: string;
   readonly journalEntryId: string;
   readonly totalGross: string;
+}
+
+// One line of an invoice as it was posted: an order line (an item received and priced) or a direct expense.
+export interface SupplierInvoiceLineDetail {
+  readonly lineNumber: number;
+  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly itemCode: string | null;
+  readonly itemName: string | null;
+  readonly itemNameAr: string | null;
+  readonly accountCode: string | null;
+  readonly accountName: string | null;
+  readonly accountNameAr: string | null;
+  readonly description: string | null;
+  readonly quantity: string;
+  readonly unitPrice: string;
+  readonly netAmount: string;
+  readonly taxCode: string;
+  readonly taxRate: string;
+  readonly taxAmount: string;
+  readonly priceVariance: string;
+}
+
+export interface SupplierInvoiceDetail extends SupplierInvoiceSummary {
+  readonly notes: string | null;
+  readonly purchaseOrderId: string | null;
+  readonly purchaseOrderNumber: string | null;
+  readonly originalInvoiceNumber: string | null;
+  readonly journalEntryId: string;
+  readonly lines: readonly SupplierInvoiceLineDetail[];
+  // Payments set against this invoice, and the debit notes raised against it.
+  readonly payments: readonly { readonly paymentId: string; readonly number: string; readonly paymentDate: string; readonly amount: string }[];
+  readonly debitNotes: readonly { readonly id: string; readonly number: string; readonly totalGross: string }[];
+  // What is still owed (invoice only; null for a debit note), by the one definition payments and ageing use.
+  readonly outstanding: string | null;
 }
 
 export interface SupplierInvoiceSummary {
@@ -528,6 +563,67 @@ export class SupplierInvoiceService {
         totalGross: r.totalGross.toFixed(4),
       })),
       pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null },
+    };
+  }
+
+  async get(id: string, companyId: string): Promise<SupplierInvoiceDetail | null> {
+    const r = await this.prisma.supplierInvoice.findFirst({
+      where: { id, companyId },
+      include: {
+        supplier: true,
+        purchaseOrder: { select: { number: true } },
+        originalInvoice: { select: { number: true } },
+        debitNotes: { select: { id: true, number: true, totalGross: true }, orderBy: { createdAt: "asc" } },
+        paymentAllocations: { include: { payment: { select: { id: true, number: true, paymentDate: true } } } },
+        lines: {
+          orderBy: { lineNumber: "asc" },
+          include: { account: { select: { code: true, name: true, nameAr: true } }, taxCode: { select: { code: true } }, purchaseOrderLine: { include: { item: { select: { code: true, name: true, nameAr: true } } } } },
+        },
+      },
+    });
+    if (!r) return null;
+    const outstanding = r.documentType === "INVOICE" ? ((await loadOutstanding(this.prisma, companyId, "SUPPLIER", { ids: [id] }))[0]?.outstanding ?? null) : null;
+    return {
+      id: r.id,
+      documentType: r.documentType as "INVOICE" | "DEBIT_NOTE",
+      number: r.number,
+      supplierInvoiceNumber: r.supplierInvoiceNumber,
+      supplierId: r.supplierId,
+      supplierName: r.supplier.name,
+      supplierNameAr: r.supplier.nameAr,
+      originalInvoiceId: r.originalInvoiceId,
+      invoiceDate: dateOnly(r.invoiceDate),
+      dueDate: r.dueDate ? dateOnly(r.dueDate) : null,
+      currency: r.currency,
+      totalNet: r.totalNet.toFixed(4),
+      totalTax: r.totalTax.toFixed(4),
+      totalGross: r.totalGross.toFixed(4),
+      notes: r.notes,
+      purchaseOrderId: r.purchaseOrderId,
+      purchaseOrderNumber: r.purchaseOrder?.number ?? null,
+      originalInvoiceNumber: r.originalInvoice?.number ?? null,
+      journalEntryId: r.journalEntryId,
+      lines: r.lines.map((l) => ({
+        lineNumber: l.lineNumber,
+        kind: l.kind as "PO_LINE" | "EXPENSE",
+        itemCode: l.purchaseOrderLine?.item.code ?? null,
+        itemName: l.purchaseOrderLine?.item.name ?? null,
+        itemNameAr: l.purchaseOrderLine?.item.nameAr ?? null,
+        accountCode: l.account?.code ?? null,
+        accountName: l.account?.name ?? null,
+        accountNameAr: l.account?.nameAr ?? null,
+        description: l.description,
+        quantity: l.quantity.toFixed(4),
+        unitPrice: l.unitPrice.toFixed(4),
+        netAmount: l.netAmount.toFixed(4),
+        taxCode: l.taxCode.code,
+        taxRate: l.taxRate.toFixed(4),
+        taxAmount: l.taxAmount.toFixed(4),
+        priceVariance: l.priceVariance.toFixed(4),
+      })),
+      payments: r.paymentAllocations.map((a) => ({ paymentId: a.payment.id, number: a.payment.number, paymentDate: dateOnly(a.payment.paymentDate), amount: a.amount.toFixed(4) })),
+      debitNotes: r.debitNotes.map((d) => ({ id: d.id, number: d.number, totalGross: d.totalGross.toFixed(4) })),
+      outstanding: outstanding ? outstanding.toFixed(4) : null,
     };
   }
 

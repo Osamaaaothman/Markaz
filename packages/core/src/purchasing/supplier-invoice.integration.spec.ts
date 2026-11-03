@@ -256,4 +256,26 @@ describeIfDb("Supplier invoices (M5, three-way match) — real database", () => 
     expect(net).toBeCloseTo(184 + 96.6 + 1000 - 200, 4);
     expect(await balance(acc.ap!)).toBeCloseTo(-net, 4);
   });
+
+  it("reads one invoice back: its lines and tax, what is still owed after a debit note, the debit notes against it; nothing for another company", async () => {
+    const rent = (await invoices.get(rentInvoiceId, companyId))!;
+    expect(rent.documentType).toBe("INVOICE");
+    expect(rent.lines[0]).toMatchObject({ kind: "EXPENSE", itemCode: null });
+    expect(rent.lines[0]!.accountCode).not.toBeNull();
+    expect(rent.debitNotes.map((d) => d.id)).toContain(debitNoteId);
+    expect(Number(rent.outstanding)).toBeCloseTo(Number(rent.totalGross) - 200, 4);
+    expect(await prisma.journalEntry.count({ where: { id: rent.journalEntryId, companyId } })).toBe(1);
+
+    const note = (await invoices.get(debitNoteId, companyId))!;
+    expect(note).toMatchObject({ documentType: "DEBIT_NOTE", outstanding: null, originalInvoiceId: rentInvoiceId, originalInvoiceNumber: rent.number });
+
+    const matched = (await invoices.list(companyId, {})).data.find((r) => r.supplierInvoiceNumber === "INV-100")!;
+    const detail = (await invoices.get(matched.id, companyId))!;
+    expect(detail.lines[0]).toMatchObject({ kind: "PO_LINE", accountCode: null });
+    expect(detail.lines[0]!.itemCode).not.toBeNull();
+    expect(detail.purchaseOrderNumber).not.toBeNull();
+
+    expect(await invoices.get(rentInvoiceId, newId())).toBeNull();
+    expect(await invoices.get(newId(), companyId)).toBeNull();
+  });
 });

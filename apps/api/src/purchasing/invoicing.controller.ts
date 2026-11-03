@@ -8,6 +8,7 @@ import {
   type InvoiceableLine,
   type InvoicePreview,
   type SupplierInvoiceInput,
+  type SupplierInvoiceDetail,
   type SupplierInvoiceListPage,
   type SupplierInvoiceResult,
   type TaxCodeSummary,
@@ -58,6 +59,14 @@ export class InvoicingController {
   @RequirePermission("supplier_invoice", "create")
   invoiceable(@CurrentUser() actor: CurrentUserPayload, @Query() query: InvoiceableQueryDto): Promise<InvoiceableLine[]> {
     return this.invoices.listInvoiceable(actor.companyId, query.supplierId);
+  }
+
+  @Get("supplier-invoices/:id")
+  @RequirePermission("supplier_invoice", "read")
+  async get(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<SupplierInvoiceDetail> {
+    const invoice = await this.invoices.get(id, actor.companyId);
+    if (!invoice) throw new NotFoundException("Supplier invoice not found");
+    return invoice;
   }
 
   // Runs the match and the arithmetic without posting, so the buyer sees variances before accepting.

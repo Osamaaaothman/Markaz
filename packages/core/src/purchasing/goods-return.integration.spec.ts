@@ -242,4 +242,14 @@ describeIfDb("Purchase returns (M5) — real database", () => {
     expect((await returns.list(newId(), {})).data).toHaveLength(0);
     expect((await returns.list(companyId, { limit: "1" })).pageInfo.nextCursor).not.toBeNull();
   });
+
+  it("reads one return back with its lines and journal entry, and nothing for another company", async () => {
+    const first = (await returns.list(companyId, { limit: "1" })).data[0]!;
+    const detail = (await returns.get(first.id, companyId))!;
+    expect(detail).toMatchObject({ number: first.number, totalValue: first.totalValue, purchaseOrderNumber: first.purchaseOrderNumber });
+    expect(detail.lines).toEqual(first.lines);
+    expect(await prisma.journalEntry.count({ where: { id: detail.journalEntryId, companyId } })).toBe(1);
+    expect(await returns.get(first.id, newId())).toBeNull();
+    expect(await returns.get(newId(), companyId)).toBeNull();
+  });
 });
