@@ -407,7 +407,10 @@ Decided by Osama: allowances are a **table of types the company defines**, repla
   entries), and links to the order. A supplier invoice also shows what is still owed (the same definition payments and ageing
   use), the payments set against it and the debit notes raised against it. A new invoice or return opens on its page with the
   "saved" message over it; the lists link to the page.
-- Remaining: payment/receipt, stock count, goods receipt, stock issue (next slices).
+- Second slice: payment/receipt (`GET /v1/payments/:id`: bank account, the invoices it settled with links, what stayed on account)
+  and stock count (`GET /v1/stock-counts/:id`: lines as counted against what the books said, the entry a posted count made, and a
+  "post" button on a draft). A stock count stores no entry id of its own, so the page finds it through the lines it posted.
+- Remaining: goods receipt and stock issue (next slice; they have no list yet either).
 - Observed, not changed: goods returns, goods receipts, stock issues and stock counts are numbered `000001`, with no prefix
   (the numbering service creates their series without one, unlike purchase orders and invoices, which get `PO-2026-000001`).
   Changing it affects the format of numbers already issued, so it needs a decision.
