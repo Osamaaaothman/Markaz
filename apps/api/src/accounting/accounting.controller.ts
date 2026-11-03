@@ -3,7 +3,9 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Inject,
   NotFoundException,
   Param,
@@ -24,6 +26,7 @@ import {
   IncomeStatementService,
   TrialBalanceService,
   type AccountBalance,
+  type AccountUsageResult,
   type BalanceSheetResult,
   type CashFlowResult,
   type IncomeStatementResult,
@@ -50,6 +53,7 @@ import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
 import { CreateAccountDto } from "./dto/create-account.dto.js";
 import { UpdateAccountDto } from "./dto/update-account.dto.js";
 import { MoveAccountDto } from "./dto/move-account.dto.js";
+import { SetAccountActiveDto } from "./dto/set-account-active.dto.js";
 import type {
   AccountSummary,
   ChartOfAccountEntry,
@@ -92,9 +96,13 @@ export class AccountingController {
   // this one is for the chart of accounts screen, not the journal entry picker.
   @Get("chart-of-accounts")
   @RequirePermission("account", "read")
-  async listChartOfAccounts(@CurrentUser() actor: CurrentUserPayload): Promise<ChartOfAccountEntry[]> {
+  async listChartOfAccounts(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Query("includeInactive") includeInactive?: string,
+  ): Promise<ChartOfAccountEntry[]> {
+    // Pickers want active accounts only; the chart screen and the report labels also need the stopped ones.
     const accounts = await this.prisma.account.findMany({
-      where: { companyId: actor.companyId, isActive: true },
+      where: { companyId: actor.companyId, ...(includeInactive === "true" ? {} : { isActive: true }) },
       select: CHART_ENTRY_SELECT,
       orderBy: { code: "asc" },
     });
@@ -156,6 +164,37 @@ export class AccountingController {
     return this.mapChartErrors(this.chartOfAccounts.makeGroup(id, actor, correlationId));
   }
 
+  // What points at an account, so the screen can say why it cannot be deleted.
+  @Get("accounts/:id/usage")
+  @RequirePermission("account", "read")
+  accountUsage(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<AccountUsageResult> {
+    return this.mapChartErrors(this.chartOfAccounts.usage(id, actor));
+  }
+
+  // Deletes an account nothing uses; a used one answers 409 with the counts.
+  @Delete("accounts/:id")
+  @HttpCode(204)
+  @RequirePermission("account", "delete")
+  async deleteAccount(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    await this.mapChartErrors(this.chartOfAccounts.delete(id, actor, correlationId));
+  }
+
+  // Stops or restarts an account (its history stays; it just takes no new postings).
+  @Patch("accounts/:id/active")
+  @RequirePermission("account", "update")
+  setAccountActive(
+    @Param("id") id: string,
+    @Body() dto: SetAccountActiveDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<ChartOfAccountEntry> {
+    return this.mapChartErrors(this.chartOfAccounts.setActive(id, dto.isActive, dto.acknowledgeBalance ?? false, actor, correlationId));
+  }
+
   // The core service throws typed business-rule errors; without this they would surface as 500.
   private async mapChartErrors<T>(work: Promise<T>): Promise<T> {
     try {
@@ -166,6 +205,10 @@ export class AccountingController {
         case "DUPLICATE_CODE":
           throw new ConflictException(error.message);
         case "ACCOUNT_IN_USE":
+        case "ACCOUNT_MAPPED":
+        case "HAS_ACTIVE_CHILDREN":
+        case "BALANCE_NOT_ZERO":
+        case "PARENT_INACTIVE":
           throw new ConflictException({ message: error.message, code: error.code });
         case "ACCOUNT_NOT_FOUND":
         case "PARENT_NOT_FOUND":
