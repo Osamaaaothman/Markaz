@@ -461,3 +461,12 @@ button, never silently). New in this slice:
 - **Observed, not built:** the company record has no VAT registration number, commercial register number or address, and the printed
   invoices carry only the name and logo. A Saudi tax invoice needs the seller's VAT number and address, so this belongs to the
   compliance work (docs/06) and should be decided before the first real invoice.
+
+## N. The employee's third account is "dues" (2026-11-03)
+
+Decided by Osama: the third per-employee account is the employee's **dues** (what is owed to them besides salary), not an
+"end-of-service" account. It is created as "Employee dues - <name>" / "مستحقات - <name>" under the third folder in the account mapping
+(key `EMPLOYEE_EOSB_PARENT`, kept so nothing migrates; only its label changed). Today the end-of-service gratuity is posted to it, and
+leave pay or bonuses can use it later. In the standard chart the folder "Employees Other Dues" (2111102) fits. Choosing it makes the
+gratuity a **current** liability, whereas the chart's "End of Services - EOS" (2210201) is non-current: that is an accounting
+choice for Osama's accountant. Accounts already created keep the name they were given.
