@@ -2,6 +2,7 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
@@ -31,6 +32,7 @@ const EMPTY_LINE = { itemId: "", quantity: "" };
 
 export function StockIssuePage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { data: warehouses } = useAllWarehouses();
   const { data: items } = useAllItems();
   const createIssue = useCreateStockIssue();
@@ -56,6 +58,7 @@ export function StockIssuePage(): React.JSX.Element {
         onSuccess: (saved) => {
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
+            onOpen: () => void navigate(`/inventory/stock-issues/${saved.id}`),
             title: t("inventory.stockIssue.title"),
             headline: saved.number,
             rows: [

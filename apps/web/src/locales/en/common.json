@@ -571,7 +571,9 @@
       "total": "Total",
       "submit": "Post receipt",
       "postError": "Could not post this receipt.",
-      "postedSuccess": "Receipt {{number}} posted."
+      "postedSuccess": "Receipt {{number}} posted.",
+      "listTitle": "Goods receipts",
+      "listSubtitle": "Stock received, newest first. Each receipt is posted once and never edited."
     },
     "stockIssue": {
       "title": "Stock issue",
@@ -580,7 +582,9 @@
       "costCenterPlaceholder": "e.g. Project A — Villa 12",
       "submit": "Post issue",
       "postError": "Could not post this issue.",
-      "postedSuccess": "Issue {{number}} posted."
+      "postedSuccess": "Issue {{number}} posted.",
+      "listTitle": "Stock issues",
+      "listSubtitle": "Stock issued to projects, newest first. Each issue is posted once and never edited."
     },
     "stockCount": {
       "title": "Stock count",
@@ -1467,6 +1471,7 @@
     "countPostError": "Could not post this count.",
     "systemQuantity": "Books said",
     "countedQuantity": "Counted",
-    "difference": "Difference"
+    "difference": "Difference",
+    "costCenter": "Cost centre / project"
   }
 }
