@@ -274,3 +274,25 @@ Marked `// REVIEW:` / documented in `packages/core/src/sales/`. Confirm before t
 
 **Known gaps, M6:** no customer payments, statement or ageing yet (next slice); no invoice PDF or email yet; no
 ZATCA e-invoicing fields (UUID, hash, QR) — that is the compliance pack, M7, and is blocked on decision A4.
+
+## F. Chart of accounts: delete and stop (2026-11-03)
+
+Decided by Osama: an account **nothing points at** may be deleted for good; an account that is used is **never** deleted
+and can only be **stopped**.
+
+- **Used** means any of: a ledger line, an automatic-posting mapping, a supplier-invoice line, a sales-invoice line that names
+  it as revenue account, a payment or salary advance that names it as cash account, a sub-account, or a linked party.
+  `ChartOfAccountsService.usage` counts them; `delete` refuses with `ACCOUNT_IN_USE` (409) if any is non-zero.
+- The database is the second wall: every foreign key to `accounts` is `ON DELETE RESTRICT` (the parent key was `SET NULL`
+  and is now `RESTRICT`; the missing key on `sales_invoice_lines.revenue_account_id` was added `NOT VALID`, so old rows
+  cannot block a deployment but every new row is enforced). `erp_app` now has `DELETE` on `accounts` and nothing else
+  changed for other tables.
+- **Stopping** an account (`isActive=false`) keeps its history and reports, blocks new postings, and hides it from pickers.
+  Refused for: an account an automatic posting is mapped to, a folder with active sub-accounts, and (unless acknowledged)
+  an account whose balance is not zero. Restarting needs an active parent.
+- New permission `account:delete` (delete only); stop/restart uses `account:update`. Existing installations must run the
+  seed again so the Admin role receives it: `npm run seed --workspace=@erp/db`.
+- `// REVIEW:` the stopped/zero-balance rules are mine, not an accountant's. Confirm that stopping a folder or an account with
+  a non-zero balance is acceptable, and whether a stopped account with a balance should block closing a period.
+- Not done: the same "used? then no delete" rule for parties, items, warehouses, tax codes and employees. They have no
+  delete today, only a stop flag with no check (question 3 of the plan).
