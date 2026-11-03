@@ -461,7 +461,7 @@ function AccountLifecycleSection({ account, onDone }: { account: ChartOfAccountE
   const errorCode = (error: unknown): string | undefined =>
     error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } } | undefined)?.error?.code : undefined;
   const lines = usage.data
-    ? (["ledgerLines", "mappings", "supplierInvoiceLines", "salesInvoiceLines", "payments", "salaryAdvances", "children"] as const)
+    ? (["ledgerLines", "mappings", "supplierInvoiceLines", "salesInvoiceLines", "payments", "salaryAdvances", "salaryAdvanceRepayments", "children"] as const)
         .filter((key) => usage.data.usage[key] > 0)
         .map((key) => ({ key, count: usage.data.usage[key] }))
     : [];

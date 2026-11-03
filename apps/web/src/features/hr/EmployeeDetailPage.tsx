@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { AxiosError } from "axios";
+import { Money } from "@erp/shared";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
@@ -21,7 +23,7 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
-import { useEmployee, useGrantSalaryAdvance, useSalaryAdvances, useSettleEndOfService, useUpdateEmployee, type SalaryAdvanceSummary } from "./use-hr";
+import { useEmployee, useGrantSalaryAdvance, useRepaySalaryAdvance, useSalaryAdvances, useSettleEndOfService, useUpdateEmployee, type SalaryAdvanceSummary } from "./use-hr";
 
 const ADVANCE_SCHEMA = z.object({
   grantDate: z.date(),
@@ -30,6 +32,19 @@ const ADVANCE_SCHEMA = z.object({
   cashAccountId: z.string().min(1, "required"),
 });
 type AdvanceFormValues = z.infer<typeof ADVANCE_SCHEMA>;
+
+const REPAY_SCHEMA = z.object({
+  repaymentDate: z.date(),
+  amount: z.string().regex(/^\d{1,15}(\.\d{1,4})?$/, "invalid").refine((v) => Number(v) > 0, "required"),
+  cashAccountId: z.string().min(1, "required"),
+});
+type RepayFormValues = z.infer<typeof REPAY_SCHEMA>;
+
+// An amount inside an Arabic sentence is isolated and read left to right: "1,200.00 SAR", not "SAR 1,200.00".
+const ltr = (text: string): string => `\u2066${text}\u2069`;
+
+const apiErrorCode = (error: unknown): string | undefined =>
+  error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } } | undefined)?.error?.code : undefined;
 
 const EOSB_SCHEMA = z.object({ terminationDate: z.date(), reason: z.enum(["RESIGNATION", "TERMINATION", "OTHER"]) });
 type EosbFormValues = z.infer<typeof EOSB_SCHEMA>;
@@ -49,9 +64,49 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [eosbOpen, setEosbOpen] = useState(false);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
+  // Granting an advance or settling leaves the page (as before); repaying stays on it.
+  const [leaveAfterCreated, setLeaveAfterCreated] = useState(true);
+  const [repaying, setRepaying] = useState<SalaryAdvanceSummary | null>(null);
 
   const grantAdvance = useGrantSalaryAdvance();
   const settleEosb = useSettleEndOfService();
+  const repayAdvance = useRepaySalaryAdvance();
+
+  const {
+    control: repayControl,
+    register: registerRepay,
+    handleSubmit: handleRepaySubmit,
+    reset: resetRepay,
+    formState: { errors: repayErrors },
+  } = useForm<RepayFormValues>({ resolver: zodResolver(REPAY_SCHEMA), defaultValues: { repaymentDate: new Date(), amount: "", cashAccountId: "" } });
+
+  // What the employee still owes across all advances. While this is above zero the employee cannot be settled or stopped.
+  const owed = (advances ?? []).reduce((total, a) => total.add(Money.of(a.remaining, currency)), Money.of("0", currency));
+  const owesAdvances = Number(owed.toDecimalString(4)) > 0;
+
+  const onRepay = handleRepaySubmit((values) => {
+    if (!repaying) return;
+    repayAdvance.mutate(
+      { advanceId: repaying.id, repaymentDate: toDateOnlyIsoString(values.repaymentDate), amount: values.amount, cashAccountId: values.cashAccountId },
+      {
+        onSuccess: (saved) => {
+          const advance = repaying;
+          setRepaying(null);
+          resetRepay();
+          setLeaveAfterCreated(false);
+          setCreated({
+            title: t("hr.advances.repay"),
+            headline: saved.number,
+            rows: [
+              { label: t("hr.advances.title"), value: advance.number, ltr: true },
+              { label: t("created.amount"), value: formatMoney(values.amount, currency), ltr: true },
+              { label: t("hr.advances.remaining"), value: formatMoney(saved.remaining, currency), ltr: true },
+            ],
+          });
+        },
+      },
+    );
+  });
 
   const {
     control: advanceControl,
@@ -74,6 +129,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
         onSuccess: (saved) => {
           setAdvanceOpen(false);
           resetAdvance();
+          setLeaveAfterCreated(true);
           setCreated({ title: t("hr.advances.grant"), headline: saved.number, rows: [{ label: t("created.amount"), value: formatMoney(values.amount, currency), ltr: true }] });
         },
       },
@@ -86,6 +142,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
       {
         onSuccess: (result) => {
           setEosbOpen(false);
+          setLeaveAfterCreated(true);
           setCreated({
             title: t("hr.eosb.settle"),
             headline: result.number,
@@ -126,7 +183,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
         <div className="erp-page__header-actions">
           <Tag value={employee.isActive ? t("inventory.warehouses.active") : t("inventory.warehouses.inactive")} severity={employee.isActive ? "success" : "warning"} />
           <PermissionButton allowed={can("salary_advance:create") && employee.isActive} label={t("hr.advances.grant")} icon="pi pi-money-bill" outlined onClick={() => setAdvanceOpen(true)} />
-          <PermissionButton allowed={can("end_of_service:create") && employee.isActive} label={t("hr.eosb.settle")} icon="pi pi-sign-out" severity="danger" outlined onClick={() => setEosbOpen(true)} />
+          <PermissionButton allowed={can("end_of_service:create") && employee.isActive} disabled={owesAdvances} label={t("hr.eosb.settle")} icon="pi pi-sign-out" severity="danger" outlined onClick={() => setEosbOpen(true)} />
         </div>
       </div>
 
@@ -165,10 +222,13 @@ export function EmployeeDetailPage(): React.JSX.Element {
             icon="pi pi-ban"
             text
             severity="secondary"
+            disabled={owesAdvances}
             onClick={() => updateEmployee.mutate({ isActive: false })}
             loading={updateEmployee.isPending}
           />
         ) : null}
+        {employee.isActive && owesAdvances ? <p className="erp-auth-card__error">{t("hr.advances.blocked", { amount: ltr(formatMoney(owed.toDecimalString(4), currency)) })}</p> : null}
+        {apiErrorCode(updateEmployee.error) === "OUTSTANDING_ADVANCES" ? <p className="erp-auth-card__error">{t("hr.advances.blocked", { amount: ltr(formatMoney(owed.toDecimalString(4), currency)) })}</p> : null}
       </section>
 
       <section className="erp-card">
@@ -178,7 +238,27 @@ export function EmployeeDetailPage(): React.JSX.Element {
             <Column field="number" header={t("hr.payrollRuns.number")} body={(row: SalaryAdvanceSummary) => <span dir="ltr">{row.number}</span>} />
             <Column header={t("created.date")} body={(row: SalaryAdvanceSummary) => <span dir="ltr">{row.grantDate}</span>} />
             <Column header={t("created.amount")} align="right" body={(row: SalaryAdvanceSummary) => <span className="coa-amount">{formatMoney(row.amount, currency)}</span>} />
+            <Column header={t("hr.advances.repaid")} align="right" body={(row: SalaryAdvanceSummary) => <span className="coa-amount">{formatMoney(row.repaid, currency)}</span>} />
             <Column header={t("hr.advances.remaining")} align="right" body={(row: SalaryAdvanceSummary) => <span className="coa-amount">{formatMoney(row.remaining, currency)}</span>} />
+            <Column
+              header=""
+              body={(row: SalaryAdvanceSummary) =>
+                Number(row.remaining) > 0 ? (
+                  <PermissionButton
+                    allowed={can("salary_advance:repay")}
+                    label={t("hr.advances.repay")}
+                    icon="pi pi-undo"
+                    size="small"
+                    outlined
+                    onClick={() => {
+                      repayAdvance.reset();
+                      resetRepay({ repaymentDate: new Date(), amount: String(Number(row.remaining)), cashAccountId: "" });
+                      setRepaying(row);
+                    }}
+                  />
+                ) : null
+              }
+            />
           </DataGrid>
         ) : (
           <p className="erp-card__empty">{t("status.empty")}</p>
@@ -226,6 +306,47 @@ export function EmployeeDetailPage(): React.JSX.Element {
         </form>
       </Dialog>
 
+      <Dialog header={t("hr.advances.repay")} visible={repaying !== null} onHide={() => setRepaying(null)} className="erp-dialog" modal style={{ width: "min(28rem, 96vw)" }}>
+        <form onSubmit={(e) => void onRepay(e)} noValidate className="erp-form">
+          {repaying ? (
+            <p className="erp-field__hint">
+              {t("hr.advances.repayHint", { number: repaying.number, remaining: ltr(formatMoney(repaying.remaining, currency)) })}
+            </p>
+          ) : null}
+          <div className="erp-field">
+            <label htmlFor="repDate">{t("created.date")}</label>
+            <Controller control={repayControl} name="repaymentDate" render={({ field }) => <Calendar inputId="repDate" value={field.value} onChange={(e) => field.onChange(e.value)} dateFormat="yy-mm-dd" />} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="repAmount">{t("created.amount")}</label>
+            <InputText id="repAmount" dir="ltr" {...registerRepay("amount")} className={repayErrors.amount ? "p-invalid" : ""} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="repCash">{t("payments.bankAccount")}</label>
+            <Controller
+              control={repayControl}
+              name="cashAccountId"
+              render={({ field }) => (
+                <Dropdown
+                  inputId="repCash"
+                  value={field.value || null}
+                  onChange={(e) => field.onChange((e.value as string | null) ?? "")}
+                  options={postableAssets.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id }))}
+                  filter
+                  placeholder={t("payments.pickBank")}
+                  className={repayErrors.cashAccountId ? "p-invalid" : ""}
+                />
+              )}
+            />
+          </div>
+          {repayAdvance.isError ? <p className="erp-auth-card__error">{t(`hr.advances.errors.${apiErrorCode(repayAdvance.error) ?? "generic"}`, { defaultValue: t("hr.advances.errors.generic") })}</p> : null}
+          <div className="erp-form__actions">
+            <Button type="button" label={t("actions.cancel")} text onClick={() => setRepaying(null)} />
+            <Button type="submit" label={t("hr.advances.repay")} loading={repayAdvance.isPending} />
+          </div>
+        </form>
+      </Dialog>
+
       <Dialog header={t("hr.eosb.settle")} visible={eosbOpen} onHide={() => setEosbOpen(false)} className="erp-dialog" modal style={{ width: "min(26rem, 96vw)" }}>
         <form onSubmit={(e) => void onSettleEosb(e)} noValidate className="erp-form">
           <div className="erp-field">
@@ -251,6 +372,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
               )}
             />
           </div>
+          {settleEosb.isError ? <p className="erp-auth-card__error">{apiErrorCode(settleEosb.error) === "OUTSTANDING_ADVANCES" ? t("hr.advances.blocked", { amount: ltr(formatMoney(owed.toDecimalString(4), currency)) }) : t("hr.eosb.error")}</p> : null}
           {eosbErrors.terminationDate ? <small className="erp-field__error">{t("purchasing.requests.warehouseRequired")}</small> : null}
           <div className="erp-form__actions">
             <Button type="button" label={t("actions.cancel")} text onClick={() => setEosbOpen(false)} />
@@ -259,7 +381,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
         </form>
       </Dialog>
 
-      <CreatedDialog info={created} onHide={() => { setCreated(null); void navigate("/hr/employees"); }} />
+      <CreatedDialog info={created} onHide={() => { setCreated(null); if (leaveAfterCreated) void navigate("/hr/employees"); }} />
     </div>
   );
 }

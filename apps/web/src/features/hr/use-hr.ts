@@ -207,6 +207,8 @@ export interface SalaryAdvanceSummary {
   readonly amount: string;
   readonly installmentAmount: string;
   readonly deducted: string;
+  // Paid back directly (cash or bank), outside payroll.
+  readonly repaid: string;
   readonly remaining: string;
 }
 
@@ -238,6 +240,30 @@ export function useGrantSalaryAdvance() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["salaryAdvances"] });
       void qc.invalidateQueries({ queryKey: ["trialBalance"] });
+    },
+  });
+}
+
+export interface RepaySalaryAdvancePayload {
+  readonly advanceId: string;
+  readonly repaymentDate: string;
+  readonly amount: string;
+  readonly cashAccountId: string;
+}
+
+export function useRepaySalaryAdvance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ advanceId, ...payload }: RepaySalaryAdvancePayload) =>
+      (
+        await apiClient.post<{ id: string; number: string; remaining: string }>(`/v1/salary-advances/${advanceId}/repayments`, payload, {
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        })
+      ).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["salaryAdvances"] });
+      void qc.invalidateQueries({ queryKey: ["trialBalance"] });
+      void qc.invalidateQueries({ queryKey: ["accountBalances"] });
     },
   });
 }
