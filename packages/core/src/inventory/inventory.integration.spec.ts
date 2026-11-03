@@ -221,6 +221,8 @@ describeIfDb("Inventory (M4) — real database", () => {
     expect(levels[0]?.value).toBe("0.0000");
   });
 
+  let shortageCount: { id: string; journalEntryId: string | null } | null = null;
+
   it("a stock count shortage debits the loss account at the cost captured when the count was recorded", async () => {
     const before = await inventoryAccountBalance();
 
@@ -233,6 +235,7 @@ describeIfDb("Inventory (M4) — real database", () => {
 
     const posted = await stockCounts.post(recorded.id, actor, cid(), idk());
     expect(posted.journalEntryId).not.toBeNull();
+    shortageCount = { id: recorded.id, journalEntryId: posted.journalEntryId };
 
     const after = await inventoryAccountBalance();
     expect(before - after).toBeCloseTo(330, 4); // 3 short * 110 average captured at record time
@@ -252,6 +255,21 @@ describeIfDb("Inventory (M4) — real database", () => {
     expect(posted.journalEntryId).toBeNull();
 
     await expect(stockCounts.post(recorded.id, actor, cid(), idk())).rejects.toThrow("already posted");
+  });
+
+  it("reads one stock count back: the lines as counted, the entry a posted count made, and a draft with none", async () => {
+    const posted = (await stockCounts.get(shortageCount!.id, companyId))!;
+    expect(posted).toMatchObject({ isPosted: true, lineCount: 1, journalEntryId: shortageCount!.journalEntryId });
+    expect(posted.postedAt).not.toBeNull();
+    expect(posted.lines[0]).toMatchObject({ lineNumber: 1, systemQuantity: "15.0000", countedQuantity: "12.0000", difference: "-3.0000", unitCost: "110.0000" });
+
+    const draft = await stockCounts.record({ warehouseId, documentDate: new Date(), lines: [{ itemId, countedQuantity: "12" }] }, actor, cid());
+    const read = (await stockCounts.get(draft.id, companyId))!;
+    expect(read).toMatchObject({ isPosted: false, postedAt: null, journalEntryId: null });
+    expect(read.lines[0]!.difference).toBe("0.0000");
+
+    expect(await stockCounts.get(shortageCount!.id, newId())).toBeNull();
+    expect(await stockCounts.get(newId(), companyId)).toBeNull();
   });
 
   it("the Inventory control account always equals the sum of what the stock-levels screen shows", async () => {

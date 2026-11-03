@@ -101,6 +101,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
           const account = accounts?.find((a) => a.id === cashAccountId);
           setCreated({
             info: {
+              onOpen: () => void navigate(`/payments/${saved.id}`),
               title: t(`payments.${direction === "RECEIPT" ? "receipt" : "payment"}.title`),
               headline: saved.number,
               rows: [

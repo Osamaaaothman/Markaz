@@ -1,9 +1,10 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Query } from "@nestjs/common";
 import {
   PaymentError,
   PaymentService,
   UnmappedAccountError,
   type OpenInvoiceView,
+  type PaymentDetail,
   type PaymentDirection,
   type PaymentListPage,
   type PaymentResult,
@@ -52,6 +53,14 @@ export class PaymentsController {
   @RequirePermission("payment", "read")
   openInvoices(@CurrentUser() actor: CurrentUserPayload, @Query() query: OpenInvoicesQueryDto): Promise<OpenInvoiceView[]> {
     return this.payments.openInvoices(actor.companyId, query.partyId, query.direction);
+  }
+
+  @Get("payments/:id")
+  @RequirePermission("payment", "read")
+  async get(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<PaymentDetail> {
+    const payment = await this.payments.get(id, actor.companyId);
+    if (!payment) throw new NotFoundException("Payment not found");
+    return payment;
   }
 
   @Post("customer-receipts")

@@ -22,6 +22,23 @@ export interface PaymentSummary {
   readonly reference: string | null;
 }
 
+export interface PaymentAllocationView {
+  readonly invoiceId: string;
+  readonly invoiceNumber: string;
+  readonly invoiceKind: "SALES" | "SUPPLIER";
+  readonly amount: string;
+}
+
+export interface PaymentDetail extends PaymentSummary {
+  readonly cashAccountCode: string;
+  readonly cashAccountName: string;
+  readonly cashAccountNameAr: string | null;
+  readonly notes: string | null;
+  readonly journalEntryId: string;
+  readonly allocations: readonly PaymentAllocationView[];
+  readonly unallocated: string;
+}
+
 interface Page<T> {
   readonly data: readonly T[];
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
@@ -37,6 +54,15 @@ export function usePayments(direction: PaymentDirection | null) {
     getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
     staleTime: 10_000,
     enabled: can("payment:read"),
+  });
+}
+
+export function usePayment(id: string) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["payments", "detail", id],
+    queryFn: async () => (await apiClient.get<PaymentDetail>(`/v1/payments/${id}`)).data,
+    enabled: can("payment:read") && id !== "",
   });
 }
 

@@ -195,4 +195,24 @@ describeIfDb("Payments and allocation — real database", () => {
       payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "1", cashAccountId: acc.bank!, method: "CASH", allocations: [] }, stranger, cid(), newId()),
     ).rejects.toMatchObject({ code: "PARTY_NOT_FOUND" });
   });
+
+  it("reads one payment back: the bank account, what each invoice took, what stayed on account; nothing for another company", async () => {
+    const page = await payments.list(companyId, { limit: "100" });
+    const supplierPayment = page.data.find((p) => p.direction === "PAYMENT" && p.partyId === supplierId)!;
+    const detail = (await payments.get(supplierPayment.id, companyId))!;
+    expect(detail).toMatchObject({ number: supplierPayment.number, direction: "PAYMENT", amount: supplierPayment.amount, allocated: supplierPayment.allocated });
+    expect(detail.allocations).toHaveLength(1);
+    expect(detail.allocations[0]).toMatchObject({ invoiceId: supplierInvoiceId, invoiceKind: "SUPPLIER", amount: "300.0000" });
+    expect(detail.allocations[0]!.invoiceNumber).toMatch(/^SI-/);
+    expect(Number(detail.unallocated)).toBeCloseTo(Number(detail.amount) - 300, 4);
+    expect(detail.cashAccountCode).toBe("1010");
+    expect(await prisma.journalEntry.count({ where: { id: detail.journalEntryId, companyId } })).toBe(1);
+
+    const receipt = page.data.find((p) => p.direction === "RECEIPT")!;
+    const read = (await payments.get(receipt.id, companyId))!;
+    expect(read.allocations.every((a) => a.invoiceKind === "SALES")).toBe(true);
+
+    expect(await payments.get(supplierPayment.id, newId())).toBeNull();
+    expect(await payments.get(newId(), companyId)).toBeNull();
+  });
 });

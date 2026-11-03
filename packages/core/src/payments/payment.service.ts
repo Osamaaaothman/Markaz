@@ -74,6 +74,26 @@ export interface PaymentSummary {
   readonly reference: string | null;
 }
 
+// One invoice a payment was set against, and how much of the payment went to it.
+export interface PaymentAllocationView {
+  readonly invoiceId: string;
+  readonly invoiceNumber: string;
+  // Which side the invoice is on: a receipt settles sales invoices, a payment settles supplier invoices.
+  readonly invoiceKind: "SALES" | "SUPPLIER";
+  readonly amount: string;
+}
+
+export interface PaymentDetail extends PaymentSummary {
+  readonly cashAccountCode: string;
+  readonly cashAccountName: string;
+  readonly cashAccountNameAr: string | null;
+  readonly notes: string | null;
+  readonly journalEntryId: string;
+  readonly allocations: readonly PaymentAllocationView[];
+  // What was not set against any invoice: it stays on account for the party.
+  readonly unallocated: string;
+}
+
 export interface PaymentListQuery {
   readonly cursor?: string | undefined;
   readonly limit?: string | undefined;
@@ -217,6 +237,43 @@ export class PaymentService {
 
     await this.audit.log({ actorId: actor.id, action: input.direction === "RECEIPT" ? "customer_receipt.posted" : "supplier_payment.posted", entityType: "Payment", entityId: result.id, after: { ...result }, correlationId });
     return result;
+  }
+
+  async get(id: string, companyId: string): Promise<PaymentDetail | null> {
+    const p = await this.prisma.payment.findFirst({
+      where: { id, companyId },
+      include: {
+        party: true,
+        cashAccount: { select: { code: true, name: true, nameAr: true } },
+        allocations: { include: { salesInvoice: { select: { id: true, number: true } }, supplierInvoice: { select: { id: true, number: true } } } },
+      },
+    });
+    if (!p) return null;
+    const allocated = p.allocations.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0));
+    return {
+      id: p.id,
+      direction: p.direction as PaymentDirection,
+      number: p.number,
+      partyId: p.partyId,
+      partyName: p.party.name,
+      partyNameAr: p.party.nameAr,
+      paymentDate: dateOnly(p.paymentDate),
+      amount: p.amount.toFixed(4),
+      allocated: allocated.toFixed(4),
+      currency: p.currency,
+      method: p.method as PaymentMethod,
+      reference: p.reference,
+      cashAccountCode: p.cashAccount.code,
+      cashAccountName: p.cashAccount.name,
+      cashAccountNameAr: p.cashAccount.nameAr,
+      notes: p.notes,
+      journalEntryId: p.journalEntryId,
+      allocations: p.allocations.flatMap((a) => {
+        const invoice = a.salesInvoice ?? a.supplierInvoice;
+        return invoice ? [{ invoiceId: invoice.id, invoiceNumber: invoice.number, invoiceKind: a.salesInvoice ? ("SALES" as const) : ("SUPPLIER" as const), amount: a.amount.toFixed(4) }] : [];
+      }),
+      unallocated: p.amount.minus(allocated).toFixed(4),
+    };
   }
 
   async list(companyId: string, query: PaymentListQuery): Promise<PaymentListPage> {

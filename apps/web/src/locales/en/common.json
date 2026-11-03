@@ -1459,6 +1459,14 @@
     "debitNotesAgainst": "Debit notes against this invoice",
     "backToList": "Back to the list",
     "totalValue": "Total value",
-    "unitCost": "Unit cost"
+    "unitCost": "Unit cost",
+    "settledInvoices": "Invoices it settled",
+    "noSettledInvoices": "Not set against any invoice: the whole amount stays on account.",
+    "postedAt": "Posted on",
+    "countNoVariance": "Every line matched the books, so nothing was posted to the ledger.",
+    "countPostError": "Could not post this count.",
+    "systemQuantity": "Books said",
+    "countedQuantity": "Counted",
+    "difference": "Difference"
   }
 }
