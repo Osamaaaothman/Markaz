@@ -37,6 +37,8 @@ export interface AccountUsage {
   readonly payments: number;
   readonly salaryAdvances: number;
   readonly salaryAdvanceRepayments: number;
+  // Employees whose own advance / salary / end-of-service account this is, plus advances held on it.
+  readonly employeeAccounts: number;
   readonly children: number;
   readonly linkedParty: boolean;
 }
@@ -125,7 +127,7 @@ export const CHART_ENTRY_SELECT = {
 // True when anything at all points at the account.
 export function isUsed(usage: AccountUsage): boolean {
   return (
-    usage.ledgerLines + usage.mappings + usage.supplierInvoiceLines + usage.salesInvoiceLines + usage.payments + usage.salaryAdvances + usage.salaryAdvanceRepayments + usage.children > 0 ||
+    usage.ledgerLines + usage.mappings + usage.supplierInvoiceLines + usage.salesInvoiceLines + usage.payments + usage.salaryAdvances + usage.salaryAdvanceRepayments + usage.employeeAccounts + usage.children > 0 ||
     usage.linkedParty
   );
 }
@@ -223,11 +225,11 @@ export class ChartOfAccountsService {
 
   // Counts every record that points at the account. Takes the client so a delete can run it inside its transaction.
   private async usageOf(
-    db: Pick<PrismaClient, "journalEntryLine" | "accountMapping" | "supplierInvoiceLine" | "salesInvoiceLine" | "payment" | "salaryAdvance" | "salaryAdvanceRepayment" | "account">,
+    db: Pick<PrismaClient, "journalEntryLine" | "accountMapping" | "supplierInvoiceLine" | "salesInvoiceLine" | "payment" | "salaryAdvance" | "salaryAdvanceRepayment" | "employee" | "account">,
     id: string,
     partyId: string | null,
   ): Promise<AccountUsage> {
-    const [ledgerLines, mappings, supplierInvoiceLines, salesInvoiceLines, payments, salaryAdvances, salaryAdvanceRepayments, children] = await Promise.all([
+    const [ledgerLines, mappings, supplierInvoiceLines, salesInvoiceLines, payments, salaryAdvances, salaryAdvanceRepayments, employeesUsing, advancesHeld, children] = await Promise.all([
       db.journalEntryLine.count({ where: { accountId: id } }),
       db.accountMapping.count({ where: { accountId: id } }),
       db.supplierInvoiceLine.count({ where: { accountId: id } }),
@@ -235,9 +237,11 @@ export class ChartOfAccountsService {
       db.payment.count({ where: { cashAccountId: id } }),
       db.salaryAdvance.count({ where: { cashAccountId: id } }),
       db.salaryAdvanceRepayment.count({ where: { cashAccountId: id } }),
+      db.employee.count({ where: { OR: [{ advanceAccountId: id }, { salaryPayableAccountId: id }, { eosbAccountId: id }] } }),
+      db.salaryAdvance.count({ where: { receivableAccountId: id } }),
       db.account.count({ where: { parentId: id } }),
     ]);
-    return { ledgerLines, mappings, supplierInvoiceLines, salesInvoiceLines, payments, salaryAdvances, salaryAdvanceRepayments, children, linkedParty: partyId !== null };
+    return { ledgerLines, mappings, supplierInvoiceLines, salesInvoiceLines, payments, salaryAdvances, salaryAdvanceRepayments, employeeAccounts: employeesUsing + advancesHeld, children, linkedParty: partyId !== null };
   }
 
   async usage(id: string, actor: AccountActor): Promise<AccountUsageResult> {

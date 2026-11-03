@@ -68,7 +68,7 @@ export class HrController {
   @Post("employees")
   @RequirePermission("employee", "create")
   create(@Body() dto: CreateEmployeeDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<EmployeeSummary> {
-    return this.employees.create(
+    return this.mapEmployeeErrors(this.employees.create(
       {
         name: dto.name,
         ...(dto.nameAr !== undefined ? { nameAr: dto.nameAr } : {}),
@@ -84,7 +84,23 @@ export class HrController {
       },
       actor,
       correlationId,
-    );
+    ));
+  }
+
+  // Gives every active employee who lacks them a party and the three accounts. One transaction per employee.
+  @Post("employees/accounts/provision-missing")
+  @RequirePermission("employee", "update")
+  provisionMissing(@CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<{ readonly provisioned: number; readonly failed: readonly { readonly ref: string; readonly code: string }[] }> {
+    return this.mapEmployeeErrors(this.employees.provisionMissingAccounts(actor, correlationId));
+  }
+
+  // Gives one employee the party and accounts they are missing (no-op if complete).
+  @Post("employees/:id/accounts")
+  @RequirePermission("employee", "update")
+  async provisionAccounts(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<EmployeeSummary> {
+    const employee = await this.mapEmployeeErrors(this.employees.provisionAccounts(id, actor, correlationId));
+    if (!employee) throw new NotFoundException("Employee not found");
+    return employee;
   }
 
   @Put("employees/:id")

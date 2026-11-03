@@ -2,16 +2,33 @@ import type { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
 import { allocateRef } from "../reference.js";
+import { EmployeeAccountsError, loadParentGroups, provisionEmployeeAccounts, type CreatedLedgerRecord, type EmployeeForAccounts } from "./employee-accounts.js";
 import { outstandingAdvanceTotal } from "./salary-advance-balance.js";
 
 export class EmployeeError extends Error {
   constructor(
-    readonly code: "OUTSTANDING_ADVANCES",
+    readonly code: "OUTSTANDING_ADVANCES" | "ACCOUNTS_PARENTS_INCOMPLETE" | "ACCOUNTS_PARENTS_NOT_MAPPED" | "ACCOUNTS_PARENT_INVALID" | "ACCOUNTS_CODE_EXHAUSTED",
     message: string,
   ) {
     super(message);
     this.name = "EmployeeError";
   }
+}
+
+export interface EmployeeLedgerAccount {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly nameAr: string | null;
+}
+
+// The employee's own accounts; null for an employee who has none (created before this existed, or in a company that has not
+// set the three parent groups). Payroll and advances then use the company-wide accounts.
+export interface EmployeeAccounts {
+  readonly partyId: string;
+  readonly advance: EmployeeLedgerAccount;
+  readonly salaryPayable: EmployeeLedgerAccount;
+  readonly eosb: EmployeeLedgerAccount;
 }
 
 export interface EmployeeSummary {
@@ -30,6 +47,7 @@ export interface EmployeeSummary {
   readonly housingAllowance: string;
   readonly otherAllowances: string;
   readonly isActive: boolean;
+  readonly accounts: EmployeeAccounts | null;
 }
 
 export interface EmployeeListQuery {
@@ -94,6 +112,10 @@ const EMPLOYEE_SELECT = {
   housingAllowance: true,
   otherAllowances: true,
   isActive: true,
+  partyId: true,
+  advanceAccount: { select: { id: true, code: true, name: true, nameAr: true } },
+  salaryPayableAccount: { select: { id: true, code: true, name: true, nameAr: true } },
+  eosbAccount: { select: { id: true, code: true, name: true, nameAr: true } },
 } as const;
 
 function blankToNull(value: string | null | undefined): string | null {
@@ -121,6 +143,10 @@ type Row = {
   housingAllowance: { toFixed(n: number): string };
   otherAllowances: { toFixed(n: number): string };
   isActive: boolean;
+  partyId: string | null;
+  advanceAccount: EmployeeLedgerAccount | null;
+  salaryPayableAccount: EmployeeLedgerAccount | null;
+  eosbAccount: EmployeeLedgerAccount | null;
 };
 
 function toSummary(row: Row): EmployeeSummary {
@@ -140,7 +166,17 @@ function toSummary(row: Row): EmployeeSummary {
     housingAllowance: row.housingAllowance.toFixed(4),
     otherAllowances: row.otherAllowances.toFixed(4),
     isActive: row.isActive,
+    accounts:
+      row.partyId && row.advanceAccount && row.salaryPayableAccount && row.eosbAccount
+        ? { partyId: row.partyId, advance: row.advanceAccount, salaryPayable: row.salaryPayableAccount, eosb: row.eosbAccount }
+        : null,
   };
+}
+
+function accountsError(error: unknown): never {
+  if (!(error instanceof EmployeeAccountsError)) throw error;
+  const code = { PARENTS_INCOMPLETE: "ACCOUNTS_PARENTS_INCOMPLETE", PARENTS_NOT_MAPPED: "ACCOUNTS_PARENTS_NOT_MAPPED", PARENT_INVALID: "ACCOUNTS_PARENT_INVALID", CODE_EXHAUSTED: "ACCOUNTS_CODE_EXHAUSTED" } as const;
+  throw new EmployeeError(code[error.code], error.message);
 }
 
 // The employee master. Framework-free like every other core service -- the API wraps it and maps
@@ -189,9 +225,14 @@ export class EmployeeService {
 
   async create(input: CreateEmployeeInput, actor: EmployeeActor, correlationId: string): Promise<EmployeeSummary> {
     const id = newId();
+    let createdRecords: readonly CreatedLedgerRecord[] = [];
     const row = await this.prisma.$transaction(async (tx) => {
+      // If the three parent groups are set, the employee is given a party and three accounts in this same transaction, so
+      // an employee never exists half-provisioned; if none is set, the employee is created without them (see
+      // EmployeeSummary.accounts). A half-set mapping is refused.
+      const parents = await loadParentGroups(tx, actor.companyId).catch(accountsError);
       const ref = await allocateRef(tx, actor.companyId, "employee");
-      return tx.employee.create({
+      const created = await tx.employee.create({
         data: {
           id,
           ref,
@@ -212,11 +253,68 @@ export class EmployeeService {
         },
         select: EMPLOYEE_SELECT,
       });
+      if (!parents) return created;
+      const provisioned = await provisionEmployeeAccounts(tx, actor.companyId, actor.id, { id, name: created.name, nameAr: created.nameAr, partyId: null, advanceAccountId: null, salaryPayableAccountId: null, eosbAccountId: null }, parents).catch(accountsError);
+      createdRecords = provisioned.created;
+      return tx.employee.update({ where: { id }, data: provisioned.ids, select: EMPLOYEE_SELECT });
     });
 
     const summary = toSummary(row);
     await this.audit.log({ actorId: actor.id, action: "employee.created", entityType: "Employee", entityId: id, after: { ...summary }, correlationId });
+    await this.auditCreated(createdRecords, actor.id, correlationId);
     return summary;
+  }
+
+  private async auditCreated(records: readonly CreatedLedgerRecord[], actorId: string, correlationId: string): Promise<void> {
+    for (const record of records) {
+      await this.audit.log({ actorId, action: record.entityType === "Party" ? "party.created" : "account.created", entityType: record.entityType, entityId: record.id, after: { label: record.label, source: "employee" }, correlationId });
+    }
+  }
+
+  // Gives one employee the party and accounts they are missing, under the three mapped parent groups. For employees created
+  // before per-employee accounts existed, or before the groups were set. Nothing posted so far is moved: what an employee
+  // already owes or is owed stays on the company-wide accounts, and an advance keeps the account it was granted on.
+  async provisionAccounts(id: string, actor: EmployeeActor, correlationId: string): Promise<EmployeeSummary | null> {
+    let createdRecords: readonly CreatedLedgerRecord[] = [];
+    const row = await this.prisma.$transaction(async (tx) => {
+      const parents = await loadParentGroups(tx, actor.companyId).catch(accountsError);
+      if (!parents) throw new EmployeeError("ACCOUNTS_PARENTS_NOT_MAPPED", "Set the three employee account groups in the account mapping first");
+      const employee = await tx.employee.findFirst({ where: { id, companyId: actor.companyId }, select: { id: true, name: true, nameAr: true, partyId: true, advanceAccountId: true, salaryPayableAccountId: true, eosbAccountId: true } });
+      if (!employee) return null;
+      const provisioned = await provisionEmployeeAccounts(tx, actor.companyId, actor.id, employee satisfies EmployeeForAccounts, parents).catch(accountsError);
+      createdRecords = provisioned.created;
+      if (provisioned.created.length === 0) return tx.employee.findFirst({ where: { id }, select: EMPLOYEE_SELECT });
+      return tx.employee.update({ where: { id }, data: { ...provisioned.ids, updatedBy: actor.id, version: { increment: 1 } }, select: EMPLOYEE_SELECT });
+    });
+    if (!row) return null;
+    const summary = toSummary(row);
+    if (createdRecords.length > 0) {
+      await this.audit.log({ actorId: actor.id, action: "employee.accounts_created", entityType: "Employee", entityId: id, after: { accounts: summary.accounts?.partyId ?? null }, correlationId });
+      await this.auditCreated(createdRecords, actor.id, correlationId);
+    }
+    return summary;
+  }
+
+  // The same for every active employee who lacks any of the four. One transaction per employee, so one failure (for example
+  // a parent group that has run out of codes) leaves the others done and is reported by employee.
+  async provisionMissingAccounts(actor: EmployeeActor, correlationId: string): Promise<{ readonly provisioned: number; readonly failed: readonly { readonly ref: string; readonly code: string }[] }> {
+    const missing = await this.prisma.employee.findMany({
+      where: { companyId: actor.companyId, isActive: true, OR: [{ partyId: null }, { advanceAccountId: null }, { salaryPayableAccountId: null }, { eosbAccountId: null }] },
+      select: { id: true, ref: true },
+      orderBy: { ref: "asc" },
+    });
+    let provisioned = 0;
+    const failed: { ref: string; code: string }[] = [];
+    for (const employee of missing) {
+      try {
+        await this.provisionAccounts(employee.id, actor, correlationId);
+        provisioned += 1;
+      } catch (error) {
+        if (error instanceof EmployeeError && (error.code === "ACCOUNTS_PARENTS_NOT_MAPPED" || error.code === "ACCOUNTS_PARENTS_INCOMPLETE" || error.code === "ACCOUNTS_PARENT_INVALID")) throw error;
+        failed.push({ ref: employee.ref, code: error instanceof EmployeeError ? error.code : "UNEXPECTED" });
+      }
+    }
+    return { provisioned, failed };
   }
 
   async update(id: string, input: UpdateEmployeeInput, actor: EmployeeActor, correlationId: string): Promise<EmployeeSummary | null> {
