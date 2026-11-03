@@ -139,6 +139,32 @@ const PERMISSION_CATALOG = [
   { code: "hr_payment:read", description: "View salary, social insurance and gratuity payments" },
 ] as const;
 
+// Roles offered on a fresh install besides Admin, so a company does not start by building them. Each maps a resource to the actions it
+// gets ("*" = all of that resource's actions). They are a starting point the company edits, not rules: a preset is created only when
+// no role of that name exists, so re-running the seed never undoes a company's own changes (and a permission added in a later
+// version does not reach an existing preset role: grant it by hand).
+const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly string[] | "*">>>> = {
+  Accountant: {
+    journal_entry: "*", trial_balance: "*", balance_sheet: "*", income_statement: "*", aging_report: "*", party_statement: "*", fiscal_period: "*",
+    account: ["read", "create", "update"], account_mapping: "*", tax_code: "*", party: "*", payment: "*", customer_receipt: "*", supplier_payment: "*",
+    supplier_invoice: ["read"], sales_invoice: ["read"], purchase_order: ["read"], goods_receipt: ["read"], stock: ["read"], item: ["read"],
+    debit_note: "*", credit_note: "*", hr_payment: "*", payroll_run: ["read"], company: ["read"], attachment: "*",
+  },
+  Purchasing: {
+    purchase_request: ["create", "read", "reject", "review"], purchase_order: ["create", "read", "cancel"], goods_receipt: "*", goods_return: "*",
+    supplier_invoice: "*", debit_note: "*", party: ["read", "create", "update"], item: "*", warehouse: ["read"], stock: ["read"], attachment: ["read", "create"],
+  },
+  Warehouse: {
+    item: "*", warehouse: "*", stock: "*", goods_receipt: "*", stock_issue: "*", stock_count: "*", attachment: ["read", "create"],
+  },
+  Sales: {
+    quotation: "*", sales_order: "*", sales_invoice: "*", credit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], stock: ["read"], attachment: ["read", "create"],
+  },
+  "Human resources": {
+    employee: "*", payroll_run: "*", salary_advance: "*", end_of_service: "*", allowance_type: "*", hr_payment: "*", party: ["read"], attachment: ["read", "create"],
+  },
+};
+
 const PLACEHOLDER_VALUES = new Set(["changeme", "password", "admin", "test", ""]);
 
 interface AccountTemplateEntry {
@@ -218,6 +244,21 @@ async function seedCurrentFiscalYear(companyId: string): Promise<void> {
   }
 }
 
+async function seedPresetRoles(companyId: string): Promise<void> {
+  const permissions = await prisma.permission.findMany();
+  for (const [name, grants] of Object.entries(PRESET_ROLES)) {
+    const existing = await prisma.role.findUnique({ where: { companyId_name: { companyId, name } } });
+    if (existing) continue;
+    const role = await prisma.role.create({ data: { id: uuidv7(), ref: await allocateSeedRef(companyId, "role"), companyId, name } });
+    for (const permission of permissions) {
+      const [resource, action] = permission.code.split(":");
+      const allowed = grants[resource ?? ""];
+      if (allowed === undefined || (allowed !== "*" && !allowed.includes(action ?? ""))) continue;
+      await prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permission.id } });
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const adminEmail = process.env.SEED_ADMIN_EMAIL;
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -270,6 +311,7 @@ async function main(): Promise<void> {
     });
   }
 
+  await seedPresetRoles(company.id);
   await seedChartOfAccounts(company.id);
   await seedCurrentFiscalYear(company.id);
 

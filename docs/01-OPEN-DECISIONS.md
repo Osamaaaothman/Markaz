@@ -451,6 +451,28 @@ Payroll and end-of-service credited three debts (net salaries, social insurance,
 - Found and not fixed here: a settlement with a **zero** entitlement fails with a 500 (it posts a zero-amount entry the engine refuses).
   Tracked as a separate task; the fix needs `journal_entry_id` to become nullable on settlements.
 
+## P. First-run setup: roles, checklist, proposed account links (2026-11-03)
+
+What a fresh install gets from the seed: the company, SAR, the permission catalog, an Admin role, the standard chart, the current fiscal year
+and the first admin. It does **not** get account mappings, tax codes, a warehouse or allowance types (the last two kinds are added by a
+button, never silently). New in this slice:
+
+- **Preset roles** (Accountant, Purchasing, Warehouse, Sales, Human resources) are created by the seed only if no role of that name exists,
+  so re-running the seed never undoes a company's own edits; a permission added in a later version does not reach an existing preset
+  (grant it by hand). The permission sets are a starting point I chose, for the company to edit.
+- **"First-run setup" page** (menu, second entry): a checklist in the order to do things, required steps vs optional, with progress
+  (for example 9 of 19 accounts linked) and a link to each place. Counts only; no business data.
+- **Proposed account links** on the same page. The seeded chart is mostly folders with no postable account inside, so most proposals read
+  "create the account X inside folder Y and link it"; a few link an existing account (GRN payables 2110602, VAT input 1111701, service
+  revenue 4110301) and the three employee keys use folders (1111201, 2111101, 2111102). Nothing is created or linked until a person
+  ticks and confirms; creating accounts needs `account:create` as well as `account_mapping:update`.
+  `// REVIEW:` every proposal is my reading of the chart's names, not an accounting ruling: have an accountant check them.
+  No proposal on purpose for cost of goods sold, price variance, project issue expense, count loss/gain, GOSI employer expense and
+  end-of-service expense: the chart has no obvious place for them and choosing one is an accounting decision.
+- **Observed, not built:** the company record has no VAT registration number, commercial register number or address, and the printed
+  invoices carry only the name and logo. A Saudi tax invoice needs the seller's VAT number and address, so this belongs to the
+  compliance work (docs/06) and should be decided before the first real invoice.
+
 ## N. The employee's third account is "dues" (2026-11-03)
 
 Decided by Osama: the third per-employee account is the employee's **dues** (what is owed to them besides salary), not an

@@ -10,6 +10,7 @@ import { IncomeStatementPage } from "../features/accounting/IncomeStatementPage"
 import { CashFlowPage } from "../features/accounting/CashFlowPage";
 import { JournalEntriesPage } from "../features/accounting/JournalEntriesPage";
 import { PartiesPage } from "../features/parties/PartiesPage";
+import { SetupPage } from "../features/setup/SetupPage";
 import { AuditLogPage } from "../features/audit/AuditLogPage";
 import { AccountMappingPage } from "../features/inventory/AccountMappingPage";
 import { GoodsReceiptDetailPage } from "../features/inventory/GoodsReceiptDetailPage";
@@ -134,6 +135,9 @@ export function AppRoutes(): React.JSX.Element {
           <Route element={<RequirePermission anyOf={permissionsFor("/hr/employees")} />}>
             <Route path="/hr/employees" element={<EmployeesPage />} />
             <Route path="/hr/employees/:id" element={<EmployeeDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/setup")} />}>
+            <Route path="/setup" element={<SetupPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/hr/payments")} />}>
             <Route path="/hr/payments" element={<HrPaymentsPage />} />

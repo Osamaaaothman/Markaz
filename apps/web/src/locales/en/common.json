@@ -52,7 +52,8 @@
     "purchaseReview": "Purchase review",
     "allowanceTypes": "Allowance types",
     "hrPayments": "Pay salaries and dues",
-    "auditLog": "Audit log"
+    "auditLog": "Audit log",
+    "setup": "First-run setup"
   },
   "actions": {
     "save": "Save",
@@ -1532,5 +1533,63 @@
     "correlation": "Request id",
     "before": "Before",
     "after": "After"
+  },
+  "setup": {
+    "title": "First-run setup",
+    "subtitle": "What a new installation still needs, in the order to do it. The required steps must be done before real work.",
+    "readyHint": "The required steps are done. The rest can wait until you need them.",
+    "checklist": "Checklist",
+    "required": "Required",
+    "optional": "Optional",
+    "open": "Open",
+    "review": "Review",
+    "steps": {
+      "ACCOUNT_MAPPINGS": {
+        "title": "Link the accounts",
+        "hint": "Tell the system which accounts each kind of posting uses (inventory, receivables, payables, VAT, payroll...). Nothing can be posted before this."
+      },
+      "TAX_CODES": {
+        "title": "Add the tax codes",
+        "hint": "The VAT rates used on invoices. One button adds the Saudi ones."
+      },
+      "WAREHOUSE": {
+        "title": "Add the first warehouse",
+        "hint": "Stock lives in warehouses; you need one before receiving or selling stock."
+      },
+      "FISCAL_YEAR": {
+        "title": "Open next year's fiscal year",
+        "hint": "The current year is created for you; add the next one before it ends."
+      },
+      "COMPANY_LOGO": {
+        "title": "Add the company logo",
+        "hint": "Printed on invoices and payslips."
+      },
+      "ALLOWANCE_TYPES": {
+        "title": "Add the allowance types",
+        "hint": "Housing, transport, food... only if you run payroll."
+      },
+      "EMPLOYEE_FOLDERS": {
+        "title": "Set the employee account folders",
+        "hint": "Each new employee then gets their own advance, salary and dues accounts. Optional."
+      },
+      "WPS": {
+        "title": "Enter the wages-file (WPS) details",
+        "hint": "Bank and establishment ids for the monthly wages file. Only if you run payroll."
+      },
+      "APPROVAL_POLICY": {
+        "title": "Set the purchase approval limit",
+        "hint": "Orders above it wait for approval. Without one nothing waits."
+      }
+    },
+    "suggestionsTitle": "Proposed account links",
+    "suggestionsWarning": "These are proposals read from the standard chart, not accounting rulings. Review each one, ideally with your accountant, and tick only what you agree with. Nothing is created or linked until you confirm.",
+    "createUnder": "Create the account \"{{name}}\" ({{code}}) inside the folder {{folder}}, and link it",
+    "mapFolder": "Use the folder {{folder}}",
+    "mapExisting": "Link the existing account {{account}}",
+    "selectAll": "Tick all",
+    "apply": "Apply the {{count}} ticked",
+    "noSuggestions": "No proposals: everything that can be proposed is already linked, or your chart is not the standard one. Link the rest by hand.",
+    "applied": "{{applied}} applied, {{skipped}} skipped (no longer applicable).",
+    "applyError": "Could not apply the proposals."
   }
 }

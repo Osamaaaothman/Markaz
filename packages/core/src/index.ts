@@ -74,3 +74,5 @@ export * from "./hr/payroll-run.service.js";
 export * from "./hr/salary-advance.service.js";
 export * from "./hr/end-of-service.service.js";
 export * from "./hr/wps-file.js";
+export * from "./setup/mapping-suggestions.js";
+export * from "./setup/setup-status.service.js";

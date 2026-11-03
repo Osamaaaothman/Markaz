@@ -33,6 +33,7 @@ export const DEFAULT_GROUP_ICON = "pi pi-folder";
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: "pi pi-home" },
+  { to: "/setup", labelKey: "nav.setup", icon: "pi pi-list-check", permissions: ["account_mapping:read"] },
   { to: "/accounting/chart-of-accounts", labelKey: "nav.chartOfAccounts", icon: "pi pi-sitemap", permissions: ["account:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/journal-entries", labelKey: "nav.journalEntries", icon: "pi pi-book", permissions: ["journal_entry:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/account-statement", labelKey: "nav.accountStatement", icon: "pi pi-list", permissions: ["journal_entry:read"], groupKey: "nav.groups.accounting" },
