@@ -420,7 +420,68 @@ Decided by Osama: allowances are a **table of types the company defines**, repla
   (the numbering service creates their series without one, unlike purchase orders and invoices, which get `PO-2026-000001`).
   Changing it affects the format of numbers already issued, so it needs a decision.
 
-## N. End-of-service settlement with nothing owed (2026-11-03)
+## O. Reading the audit log (2026-11-03)
+
+- New page "Audit log" (Settings) and `GET /v1/audit-log` (+ `/filters`), permission `audit_log:read`: who changed what and when, with the
+  before and after of each change, filters by record type, user, action text and dates. Read-only; the table stays append-only for the
+  application role.
+- **Found while building it:** audit rows never recorded the company (`audit_log.company_id` was always null), so the log could not be
+  read per tenant. The logger now records the actor's company. Older rows are not rewritten (the log is append-only): the reader shows
+  a company its own rows plus older rows whose actor is one of its users, and never a row it cannot attribute.
+- Existing installations must run the seed again to give the Admin role `audit_log:read`. New migration only adds an index.
+- Not built: exporting the log, and showing a friendly name for the record (it shows the record type and its id).
+
+## M. Paying salaries, social insurance and end-of-service (2026-11-03)
+
+Payroll and end-of-service credited three debts (net salaries, social insurance, gratuity) and nothing ever paid them. Now:
+
+- **Three payments** (`hr_payments`, API `/v1/hr-payments/...`, page "Pay salaries and dues"): pay a payroll run's salaries (all unpaid,
+  or chosen employees), remit social insurance (partial allowed, never more than owed), pay an employee's gratuity (once).
+- **Posting is the mirror of the original entry, so no new accounting treatment:** salaries Dr the account each net pay was credited to,
+  GOSI Dr GOSI payable, gratuity Dr the account the gratuity was credited to; every one Cr the chosen bank or cash account.
+- **Which account was credited** is now stored on each payroll line (`net_pay_account_id`) and settlement (`payable_account_id`), so the
+  payment debits the same account. The migration backfilled existing rows exactly (an employee's own account only if the run's own entry
+  credited it); everything else stays null and uses the company-wide mapping, as it was posted.
+- **Guards:** a salary line and a settlement can be paid once (unique keys, plus an advisory lock so two clicks cannot both pay);
+  social insurance owed = what the runs credited minus what was remitted; the payment date cannot precede the run or termination date;
+  the bank must be an active postable asset account. Insert-only tables.
+- New permissions `hr_payment:create` and `hr_payment:read`. Existing installations must run the seed again.
+- Still not built: payment of advances to employees is a separate thing (advances already have grant and repayment); the settlement of
+  a gratuity against an employee's advance (a legal question, section G).
+- Found and not fixed here: a settlement with a **zero** entitlement fails with a 500 (it posts a zero-amount entry the engine refuses).
+  Tracked as a separate task; the fix needs `journal_entry_id` to become nullable on settlements.
+
+## P. First-run setup: roles, checklist, proposed account links (2026-11-03)
+
+What a fresh install gets from the seed: the company, SAR, the permission catalog, an Admin role, the standard chart, the current fiscal year
+and the first admin. It does **not** get account mappings, tax codes, a warehouse or allowance types (the last two kinds are added by a
+button, never silently). New in this slice:
+
+- **Preset roles** (Accountant, Purchasing, Warehouse, Sales, Human resources) are created by the seed only if no role of that name exists,
+  so re-running the seed never undoes a company's own edits; a permission added in a later version does not reach an existing preset
+  (grant it by hand). The permission sets are a starting point I chose, for the company to edit.
+- **"First-run setup" page** (menu, second entry): a checklist in the order to do things, required steps vs optional, with progress
+  (for example 9 of 19 accounts linked) and a link to each place. Counts only; no business data.
+- **Proposed account links** on the same page. The seeded chart is mostly folders with no postable account inside, so most proposals read
+  "create the account X inside folder Y and link it"; a few link an existing account (GRN payables 2110602, VAT input 1111701, service
+  revenue 4110301) and the three employee keys use folders (1111201, 2111101, 2111102). Nothing is created or linked until a person
+  ticks and confirms; creating accounts needs `account:create` as well as `account_mapping:update`.
+  `// REVIEW:` every proposal is my reading of the chart's names, not an accounting ruling: have an accountant check them.
+  No proposal on purpose for cost of goods sold, price variance, project issue expense, count loss/gain, GOSI employer expense and
+  end-of-service expense: the chart has no obvious place for them and choosing one is an accounting decision.
+- **Observed, not built:** the company record has no VAT registration number, commercial register number or address, and the printed
+  invoices carry only the name and logo. A Saudi tax invoice needs the seller's VAT number and address, so this belongs to the
+  compliance work (docs/06) and should be decided before the first real invoice.
+
+## N. The employee's third account is "dues" (2026-11-03)
+
+Decided by Osama: the third per-employee account is the employee's **dues** (what is owed to them besides salary), not an
+"end-of-service" account. It is created as "Employee dues - <name>" / "مستحقات - <name>" under the third folder in the account mapping
+(key `EMPLOYEE_EOSB_PARENT`, kept so nothing migrates; only its label changed). Today the end-of-service gratuity is posted to it, and
+leave pay or bonuses can use it later. In the standard chart the folder "Employees Other Dues" (2111102) fits. Choosing it makes the
+gratuity a **current** liability, whereas the chart's "End of Services - EOS" (2210201) is non-current: that is an accounting
+choice for Osama's accountant. Accounts already created keep the name they were given.
+## Q. End-of-service settlement with nothing owed (2026-11-03)
 
 Decided by Osama: a settlement whose net entitlement is **0** (e.g. a resignation under two years of service) is recorded, ends the
 employment (employee terminated and inactive) and writes the usual audit record, but **posts no journal entry**. Nothing is owed, so
@@ -432,6 +493,7 @@ there is no ledger event; the posting engine rejects zero-amount lines by design
 - **Contract:** `journalEntryId` in the settle response is `string | null`. The employee screen's confirmation shows
   "No entry — zero entitlement" instead of a link to the entry.
 - **Readers must handle null:** anything that reads settlements and follows the entry must treat null as "nothing owed". The payable
-  lists already select `netEntitlement > 0` (branch `feat/hr-payments`).
-- Known gap: the "no payable shown" check for a zero settlement is not in the integration test yet, because the payables list lives
-  on `feat/hr-payments`, which is not merged. To add as soon as it is.
+  lists already select `netEntitlement > 0` (`HrPaymentService`, section M).
+- **Follow-up (still open):** now that `feat/hr-payments` is merged, add the "no payable shown" assertion to
+  `end-of-service.integration.spec.ts` — after a zero settlement, `HrPaymentService.payables` must not list it, and paying it must fail
+  with `NOTHING_TO_PAY`. Not done as part of this merge.

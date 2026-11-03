@@ -10,6 +10,8 @@ import { IncomeStatementPage } from "../features/accounting/IncomeStatementPage"
 import { CashFlowPage } from "../features/accounting/CashFlowPage";
 import { JournalEntriesPage } from "../features/accounting/JournalEntriesPage";
 import { PartiesPage } from "../features/parties/PartiesPage";
+import { SetupPage } from "../features/setup/SetupPage";
+import { AuditLogPage } from "../features/audit/AuditLogPage";
 import { AccountMappingPage } from "../features/inventory/AccountMappingPage";
 import { GoodsReceiptDetailPage } from "../features/inventory/GoodsReceiptDetailPage";
 import { GoodsReceiptsPage } from "../features/inventory/GoodsReceiptsPage";
@@ -35,6 +37,8 @@ import { PurchaseOrderFormPage } from "../features/purchasing/PurchaseOrderFormP
 import { PurchaseOrdersPage } from "../features/purchasing/PurchaseOrdersPage";
 import { PurchaseRequestReviewPage } from "../features/purchasing/PurchaseRequestReviewPage";
 import { PurchaseRequestsPage } from "../features/purchasing/PurchaseRequestsPage";
+import { HrPaymentDetailPage } from "../features/hr/HrPaymentDetailPage";
+import { HrPaymentsPage } from "../features/hr/HrPaymentsPage";
 import { AllowanceTypesPage } from "../features/hr/AllowanceTypesPage";
 import { EmployeeDetailPage } from "../features/hr/EmployeeDetailPage";
 import { EmployeesPage } from "../features/hr/EmployeesPage";
@@ -132,6 +136,13 @@ export function AppRoutes(): React.JSX.Element {
             <Route path="/hr/employees" element={<EmployeesPage />} />
             <Route path="/hr/employees/:id" element={<EmployeeDetailPage />} />
           </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/setup")} />}>
+            <Route path="/setup" element={<SetupPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/hr/payments")} />}>
+            <Route path="/hr/payments" element={<HrPaymentsPage />} />
+            <Route path="/hr/payments/:id" element={<HrPaymentDetailPage />} />
+          </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/hr/allowance-types")} />}>
             <Route path="/hr/allowance-types" element={<AllowanceTypesPage />} />
           </Route>
@@ -213,6 +224,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/account-mapping")} />}>
             <Route path="/settings/account-mapping" element={<AccountMappingPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/settings/audit-log")} />}>
+            <Route path="/settings/audit-log" element={<AuditLogPage />} />
           </Route>
         </Route>
       </Route>

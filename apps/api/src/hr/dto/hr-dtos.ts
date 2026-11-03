@@ -226,6 +226,81 @@ export class RepaySalaryAdvanceDto {
   cashAccountId!: string;
 }
 
+// ── Paying salaries, social insurance and end-of-service ─────────────────────
+
+export class PaySalariesDto {
+  @IsString()
+  @IsNotEmpty()
+  payrollRunId!: string;
+
+  @IsDateString()
+  paymentDate!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  cashAccountId!: string;
+
+  // Left out = every employee on the run who has not been paid yet.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  employeeIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
+}
+
+export class PayGosiDto {
+  @IsDecimalString({ positive: true })
+  amount!: string;
+
+  @IsDateString()
+  paymentDate!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  cashAccountId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
+}
+
+export class PayEndOfServiceDto {
+  @IsString()
+  @IsNotEmpty()
+  settlementId!: string;
+
+  @IsDateString()
+  paymentDate!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  cashAccountId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
+}
+
+export class HrPaymentsQueryDto {
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @IsString()
+  limit?: string;
+
+  @IsOptional()
+  @IsIn(["SALARY", "GOSI", "END_OF_SERVICE"])
+  kind?: "SALARY" | "GOSI" | "END_OF_SERVICE";
+}
+
 // ── End of service ───────────────────────────────────────────────────────────
 
 const END_OF_SERVICE_REASONS = ["RESIGNATION", "TERMINATION", "OTHER"] as const;

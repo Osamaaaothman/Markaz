@@ -136,6 +136,7 @@ export class EndOfServiceService {
           grossEntitlement: settlement.grossEntitlement,
           entitlementFraction: settlement.entitlementFraction,
           netEntitlement,
+          payableAccountId: eosbPayableAccount,
           journalEntryId,
           actorId: actor.id,
           correlationId,

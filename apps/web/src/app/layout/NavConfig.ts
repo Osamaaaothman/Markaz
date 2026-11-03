@@ -33,6 +33,7 @@ export const DEFAULT_GROUP_ICON = "pi pi-folder";
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: "pi pi-home" },
+  { to: "/setup", labelKey: "nav.setup", icon: "pi pi-list-check", permissions: ["account_mapping:read"] },
   { to: "/accounting/chart-of-accounts", labelKey: "nav.chartOfAccounts", icon: "pi pi-sitemap", permissions: ["account:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/journal-entries", labelKey: "nav.journalEntries", icon: "pi pi-book", permissions: ["journal_entry:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/account-statement", labelKey: "nav.accountStatement", icon: "pi pi-list", permissions: ["journal_entry:read"], groupKey: "nav.groups.accounting" },
@@ -52,6 +53,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/inventory/stock-counts", labelKey: "nav.stockCount", icon: "pi pi-check-square", permissions: ["stock_count:read"], groupKey: "nav.groups.inventory" },
   { to: "/hr/employees", labelKey: "nav.employees", icon: "pi pi-id-card", permissions: ["employee:read"], groupKey: "nav.groups.hr" },
   { to: "/hr/allowance-types", labelKey: "nav.allowanceTypes", icon: "pi pi-tags", permissions: ["employee:read"], groupKey: "nav.groups.hr" },
+  { to: "/hr/payments", labelKey: "nav.hrPayments", icon: "pi pi-money-bill", permissions: ["hr_payment:read"], groupKey: "nav.groups.hr" },
   { to: "/hr/payroll-runs", labelKey: "nav.payrollRuns", icon: "pi pi-wallet", permissions: ["payroll_run:read"], groupKey: "nav.groups.hr" },
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/review", labelKey: "nav.purchaseReview", icon: "pi pi-check-square", permissions: ["purchase_request:review"], groupKey: "nav.groups.purchasing", badge: "review" },
@@ -65,6 +67,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/documents", labelKey: "nav.documents", icon: "pi pi-paperclip", permissions: ["attachment:read"], groupKey: "nav.groups.documents" },
   { to: "/settings/company", labelKey: "nav.company", icon: "pi pi-building-columns", permissions: ["company:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users", permissions: ["user:read", "role:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/audit-log", labelKey: "nav.auditLog", icon: "pi pi-history", permissions: ["audit_log:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/account-mapping", labelKey: "nav.accountMapping", icon: "pi pi-link", permissions: ["account_mapping:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/tax-codes", labelKey: "nav.taxCodes", icon: "pi pi-percentage", permissions: ["tax_code:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },

@@ -75,6 +75,7 @@ model Company {
   payments                Payment[]
   attachments             Attachment[]
   employees               Employee[]
+  hrPayments              HrPayment[]
   allowanceTypes          AllowanceType[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
@@ -202,6 +203,7 @@ model AuditLog {
   userAgent     String?  @map("user_agent")
 
   @@index([companyId])
+  @@index([companyId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_log")
 }
@@ -348,6 +350,10 @@ model Account {
   employeeSalaryPayableAccounts Employee[]               @relation("EmployeeSalaryPayableAccount")
   employeeEosbAccounts          Employee[]               @relation("EmployeeEosbAccount")
   advancesHeldHere              SalaryAdvance[]          @relation("AdvanceReceivableAccount")
+  netPayLines                   PayrollRunLine[]         @relation("NetPayAccount")
+  eosbSettlements               EndOfServiceSettlement[] @relation("EosbPayableAccount")
+  hrPaymentsFrom                HrPayment[]              @relation("HrPaymentCash")
+  hrPaymentItems                HrPaymentItem[]          @relation("HrPaymentItemAccount")
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -453,6 +459,7 @@ model JournalEntry {
   supplierInvoices        SupplierInvoice[]
   salesInvoices           SalesInvoice[]
   payments                Payment[]
+  hrPayments              HrPayment[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
   salaryAdvanceRepayments SalaryAdvanceRepayment[]
@@ -1481,6 +1488,7 @@ model Employee {
   advanceAccount          Account?                 @relation("EmployeeAdvanceAccount", fields: [advanceAccountId], references: [id], onDelete: Restrict)
   salaryPayableAccount    Account?                 @relation("EmployeeSalaryPayableAccount", fields: [salaryPayableAccountId], references: [id], onDelete: Restrict)
   eosbAccount             Account?                 @relation("EmployeeEosbAccount", fields: [eosbAccountId], references: [id], onDelete: Restrict)
+  hrPaymentItems          HrPaymentItem[]
   allowances              EmployeeAllowance[]
   payrollRunLines         PayrollRunLine[]
   salaryAdvances          SalaryAdvance[]
@@ -1513,6 +1521,7 @@ model PayrollRun {
   company      Company          @relation(fields: [companyId], references: [id])
   journalEntry JournalEntry     @relation(fields: [journalEntryId], references: [id])
   lines        PayrollRunLine[]
+  hrPayments   HrPayment[]
 
   @@unique([companyId, number])
   @@unique([companyId, periodYear, periodMonth])
@@ -1532,11 +1541,16 @@ model PayrollRunLine {
   gosiEmployerShare Decimal @map("gosi_employer_share") @db.Decimal(19, 4)
   advanceDeduction  Decimal @default(0) @map("advance_deduction") @db.Decimal(19, 4)
   net               Decimal @db.Decimal(19, 4)
+  // The account the net pay was credited to on the run (the employee's own salary-payable account, or the company-wide one); the
+  // payment of that salary debits the same account. Null only on a run made before this was stored.
+  netPayAccountId   String? @map("net_pay_account_id")
 
   payrollRun        PayrollRun                @relation(fields: [payrollRunId], references: [id])
   employee          Employee                  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   advanceDeductions SalaryAdvanceDeduction[]
   allowances        PayrollRunLineAllowance[]
+  netPayAccount     Account?                  @relation("NetPayAccount", fields: [netPayAccountId], references: [id], onDelete: Restrict)
+  paymentItem       HrPaymentItem?
 
   @@unique([payrollRunId, employeeId])
   @@index([companyId, employeeId])
@@ -1632,6 +1646,8 @@ model EndOfServiceSettlement {
   grossEntitlement    Decimal  @map("gross_entitlement") @db.Decimal(19, 4)
   entitlementFraction Decimal  @map("entitlement_fraction") @db.Decimal(6, 4)
   netEntitlement      Decimal  @map("net_entitlement") @db.Decimal(19, 4)
+  // The account the gratuity was credited to (the employee's own, or the company-wide one); paying it debits the same account.
+  payableAccountId    String?  @map("payable_account_id")
   // Null only when nothing is owed (net_entitlement = 0): no ledger event, so no entry. A CHECK in the database
   // ("end_of_service_settlements_journal_entry_check") refuses a null entry on a settlement that owes money.
   journalEntryId      String?  @map("journal_entry_id")
@@ -1639,9 +1655,11 @@ model EndOfServiceSettlement {
   correlationId       String   @map("correlation_id")
   createdAt           DateTime @default(now()) @map("created_at")
 
-  company      Company       @relation(fields: [companyId], references: [id])
-  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  company        Company       @relation(fields: [companyId], references: [id])
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  payableAccount Account?      @relation("EosbPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  payment        HrPayment?
 
   @@unique([companyId, number])
   @@index([companyId, employeeId])
@@ -1712,4 +1730,56 @@ model PayrollRunLineAllowance {
 
   @@index([payrollRunLineId])
   @@map("payroll_run_line_allowances")
+}
+
+// Money paid out against what payroll and end-of-service left owed: salaries, social insurance (GOSI), and an end-of-service gratuity.
+// Each one is the mirror of the entry that created the debt: it debits the account that was credited and credits the bank or cash
+// account. Insert-only like every posted record. A salary line and a settlement can each be paid only once (unique keys below).
+model HrPayment {
+  id             String   @id
+  companyId      String   @map("company_id")
+  kind           String // SALARY | GOSI | END_OF_SERVICE
+  number         String
+  paymentDate    DateTime @map("payment_date") @db.Date
+  amount         Decimal  @db.Decimal(19, 4)
+  currency       String
+  cashAccountId  String   @map("cash_account_id")
+  payrollRunId   String?  @map("payroll_run_id")
+  settlementId   String?  @unique @map("settlement_id")
+  notes          String?
+  journalEntryId String   @map("journal_entry_id")
+  actorId        String   @map("actor_id")
+  correlationId  String   @map("correlation_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  company      Company                 @relation(fields: [companyId], references: [id])
+  cashAccount  Account                 @relation("HrPaymentCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  payrollRun   PayrollRun?             @relation(fields: [payrollRunId], references: [id], onDelete: Restrict)
+  settlement   EndOfServiceSettlement? @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry            @relation(fields: [journalEntryId], references: [id])
+  items        HrPaymentItem[]
+
+  @@unique([companyId, number])
+  @@index([companyId, kind])
+  @@index([companyId, payrollRunId])
+  @@map("hr_payments")
+}
+
+// One employee's salary inside a salary payment. `payrollRunLineId` is unique: a line can be paid once.
+model HrPaymentItem {
+  id               String  @id
+  companyId        String  @map("company_id")
+  hrPaymentId      String  @map("hr_payment_id")
+  payrollRunLineId String  @unique @map("payroll_run_line_id")
+  employeeId       String  @map("employee_id")
+  amount           Decimal @db.Decimal(19, 4)
+  accountId        String  @map("account_id")
+
+  hrPayment      HrPayment      @relation(fields: [hrPaymentId], references: [id])
+  payrollRunLine PayrollRunLine @relation(fields: [payrollRunLineId], references: [id], onDelete: Restrict)
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  account        Account        @relation("HrPaymentItemAccount", fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([hrPaymentId])
+  @@map("hr_payment_items")
 }
