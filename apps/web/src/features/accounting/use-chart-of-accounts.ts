@@ -18,6 +18,8 @@ export interface ChartOfAccountEntry {
   readonly nameAr: string | null;
   readonly type: string;
   readonly isPostable: boolean;
+  // A stopped account keeps its history but takes no new postings. Only the chart screen and report labels see them.
+  readonly isActive: boolean;
   readonly parentId: string | null;
   readonly partyId: string | null;
   // #RRGGBB, set on top-level accounts only.
@@ -46,11 +48,14 @@ export interface UpdateAccountPayload {
 
 // Reference data — long staleTime (docs/08-FRONTEND-I18N-RULES.md §2), same as
 // the account picker list this pairs with.
-export function useChartOfAccounts() {
+// Pickers use the default (active accounts only). The chart screen and the report labels pass includeInactive, so a
+// stopped account is still shown and named.
+export function useChartOfAccounts(includeInactive = false) {
   const { can } = usePermissions();
   return useQuery({
-    queryKey: ["chartOfAccounts"],
-    queryFn: async () => (await apiClient.get<ChartOfAccountEntry[]>("/v1/chart-of-accounts")).data,
+    queryKey: ["chartOfAccounts", { includeInactive }],
+    queryFn: async () =>
+      (await apiClient.get<ChartOfAccountEntry[]>("/v1/chart-of-accounts", { params: includeInactive ? { includeInactive: "true" } : {} })).data,
     staleTime: 5 * 60_000,
     // Also read by the report pages (via use-account-label) only to show Arabic names, so a
     // user without account:read simply sees English names instead of a failed request.
@@ -75,6 +80,62 @@ export function useUpdateAccount(accountId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] });
       // Journal pickers show account names too.
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
+}
+
+export interface AccountUsage {
+  readonly ledgerLines: number;
+  readonly mappings: number;
+  readonly supplierInvoiceLines: number;
+  readonly salesInvoiceLines: number;
+  readonly payments: number;
+  readonly salaryAdvances: number;
+  readonly children: number;
+  readonly linkedParty: boolean;
+}
+
+export interface AccountUsageResult {
+  readonly id: string;
+  readonly code: string;
+  readonly usage: AccountUsage;
+  readonly canDelete: boolean;
+}
+
+// What points at an account, to say why it cannot be deleted. Fetched only while the edit dialog is open.
+export function useAccountUsage(accountId: string | null) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["accountUsage", accountId],
+    queryFn: async () => (await apiClient.get<AccountUsageResult>(`/v1/accounts/${accountId}/usage`)).data,
+    enabled: accountId !== null && can("account:read"),
+    staleTime: 0,
+  });
+}
+
+export function useDeleteAccount(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.delete(`/v1/accounts/${accountId}`);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] });
+      void qc.invalidateQueries({ queryKey: ["accounts"] });
+      void qc.invalidateQueries({ queryKey: ["accountBalances"] });
+    },
+  });
+}
+
+// Stops (false) or restarts (true) an account. Stopping one that still has a balance needs acknowledgeBalance.
+export function useSetAccountActive(accountId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { readonly isActive: boolean; readonly acknowledgeBalance?: boolean }) =>
+      (await apiClient.patch<ChartOfAccountEntry>(`/v1/accounts/${accountId}/active`, input)).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] });
       void qc.invalidateQueries({ queryKey: ["accounts"] });
     },
   });

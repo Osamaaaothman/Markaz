@@ -3,6 +3,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "primereact/button";
@@ -42,7 +43,10 @@ import { useAccountBalances, type AccountBalance } from "./use-account-balances"
 import {
   useChartOfAccounts,
   useCreateAccount,
+  useAccountUsage,
+  useDeleteAccount,
   useMakeAccountGroup,
+  useSetAccountActive,
   useUpdateAccount,
   type ChartOfAccountEntry,
 } from "./use-chart-of-accounts";
@@ -196,7 +200,7 @@ function AddAccountDialog({
   const parentOptions = [
     { label: t("accounting.chartOfAccounts.noParent"), value: NO_PARENT },
     ...accounts
-      .filter((a) => !a.isPostable)
+      .filter((a) => !a.isPostable && a.isActive)
       .map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
   ];
 
@@ -435,6 +439,112 @@ const editAccountSchema = z.object({
 });
 type EditAccountValues = z.infer<typeof editAccountSchema>;
 
+// Delete and stop/restart for one account, inside its edit dialog. Delete is possible only while nothing points at the
+// account (the list shows what does); a used account is stopped instead, which keeps its history and blocks new postings.
+function AccountLifecycleSection({ account, onDone }: { account: ChartOfAccountEntry; onDone: () => void }): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const { can } = usePermissions();
+  const usage = useAccountUsage(account.id);
+  const remove = useDeleteAccount(account.id);
+  const setActive = useSetAccountActive(account.id);
+  const [confirming, setConfirming] = useState<"delete" | "stop" | null>(null);
+  const [needsAck, setNeedsAck] = useState(false);
+
+  useEffect(() => {
+    setConfirming(null);
+    setNeedsAck(false);
+    remove.reset();
+    setActive.reset();
+  }, [account.id, account.isActive]);
+
+  if (!can("account:update") && !can("account:delete")) return null;
+  const errorCode = (error: unknown): string | undefined =>
+    error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } } | undefined)?.error?.code : undefined;
+  const lines = usage.data
+    ? (["ledgerLines", "mappings", "supplierInvoiceLines", "salesInvoiceLines", "payments", "salaryAdvances", "children"] as const)
+        .filter((key) => usage.data.usage[key] > 0)
+        .map((key) => ({ key, count: usage.data.usage[key] }))
+    : [];
+  const stopCode = errorCode(setActive.error);
+  const deleteCode = errorCode(remove.error);
+
+  const stop = (acknowledgeBalance: boolean): void =>
+    setActive.mutate(
+      { isActive: false, acknowledgeBalance },
+      {
+        onSuccess: onDone,
+        onError: (error) => {
+          if (errorCode(error) === "BALANCE_NOT_ZERO") setNeedsAck(true);
+        },
+      },
+    );
+
+  return (
+    <div className="erp-field coa-lifecycle">
+      <label>{t("accounting.chartOfAccounts.lifecycle.title")}</label>
+
+      {usage.data && !usage.data.canDelete ? (
+        <>
+          <small className="erp-field__hint">{t("accounting.chartOfAccounts.lifecycle.usedBy")}</small>
+          <ul className="coa-usage">
+            {lines.map(({ key, count }) => (
+              <li key={key}>
+                {t(`accounting.chartOfAccounts.lifecycle.usage.${key}`)}: <strong>{count}</strong>
+              </li>
+            ))}
+            {usage.data.usage.linkedParty ? <li>{t("accounting.chartOfAccounts.lifecycle.usage.linkedParty")}</li> : null}
+          </ul>
+          <small className="erp-field__hint">{t("accounting.chartOfAccounts.lifecycle.cannotDelete")}</small>
+        </>
+      ) : usage.data ? (
+        <small className="erp-field__hint">{t("accounting.chartOfAccounts.lifecycle.unused")}</small>
+      ) : null}
+
+      <div className="erp-form__actions">
+        {can("account:delete") ? (
+          confirming === "delete" ? (
+            <>
+              <small className="erp-field__hint">{t("accounting.chartOfAccounts.lifecycle.deleteConfirm")}</small>
+              <Button type="button" text label={t("actions.cancel")} onClick={() => setConfirming(null)} />
+              <Button type="button" severity="danger" icon="pi pi-trash" label={t("accounting.chartOfAccounts.lifecycle.deleteYes")} loading={remove.isPending} onClick={() => remove.mutate(undefined, { onSuccess: onDone })} />
+            </>
+          ) : (
+            <Button
+              type="button"
+              outlined
+              severity="danger"
+              icon="pi pi-trash"
+              label={t("accounting.chartOfAccounts.lifecycle.delete")}
+              disabled={!usage.data?.canDelete}
+              tooltip={usage.data && !usage.data.canDelete ? t("accounting.chartOfAccounts.lifecycle.cannotDelete") : undefined}
+              onClick={() => setConfirming("delete")}
+            />
+          )
+        ) : null}
+
+        {can("account:update") ? (
+          account.isActive ? (
+            confirming === "stop" ? (
+              <>
+                <small className="erp-field__hint">{t(needsAck ? "accounting.chartOfAccounts.lifecycle.balanceAsk" : "accounting.chartOfAccounts.lifecycle.stopConfirm")}</small>
+                <Button type="button" text label={t("actions.cancel")} onClick={() => setConfirming(null)} />
+                <Button type="button" severity="warning" icon="pi pi-pause" label={t("accounting.chartOfAccounts.lifecycle.stopYes")} loading={setActive.isPending} onClick={() => stop(needsAck)} />
+              </>
+            ) : (
+              <Button type="button" outlined severity="secondary" icon="pi pi-pause" label={t("accounting.chartOfAccounts.lifecycle.stop")} onClick={() => setConfirming("stop")} />
+            )
+          ) : (
+            <Button type="button" outlined icon="pi pi-play" label={t("accounting.chartOfAccounts.lifecycle.restart")} loading={setActive.isPending} onClick={() => setActive.mutate({ isActive: true }, { onSuccess: onDone })} />
+          )
+        ) : null}
+      </div>
+
+      {deleteCode ? <small className="erp-auth-card__error">{t(deleteCode === "ACCOUNT_IN_USE" ? "accounting.chartOfAccounts.lifecycle.cannotDelete" : "accounting.chartOfAccounts.lifecycle.error")}</small> : null}
+      {stopCode && stopCode !== "BALANCE_NOT_ZERO" ? <small className="erp-auth-card__error">{t(`accounting.chartOfAccounts.lifecycle.errors.${stopCode}`, { defaultValue: t("accounting.chartOfAccounts.lifecycle.error") })}</small> : null}
+    </div>
+  );
+}
+
 function EditAccountDialog({
   account,
   onHide,
@@ -531,6 +641,8 @@ function EditAccountDialog({
             ) : null}
           </div>
         ) : null}
+
+        {account ? <AccountLifecycleSection account={account} onDone={onHide} /> : null}
 
         <div className="erp-field">
           <label htmlFor="editAcctName">{t("accounting.chartOfAccounts.nameEn")}</label>
@@ -665,7 +777,8 @@ function typeLabelKey(type: string): string {
 
 export function ChartOfAccountsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const { data, isPending, isError, refetch } = useChartOfAccounts();
+  // Includes stopped accounts: the screen must show them (muted) so they can be restarted.
+  const { data, isPending, isError, refetch } = useChartOfAccounts(true);
   const { can } = usePermissions();
   const { data: currentUser } = useCurrentUser();
   const { data: balanceRows } = useAccountBalances();
@@ -715,8 +828,8 @@ export function ChartOfAccountsPage(): React.JSX.Element {
     setManualKeys(opened);
   };
   // Whether the dragged account may be dropped on this group (the same rules the server enforces).
-  const canDropOn = (target: Pick<ChartOfAccountEntry, "id" | "type" | "isPostable">): boolean => {
-    if (!data || !draggingId || draggingId === target.id || target.isPostable) return false;
+  const canDropOn = (target: Pick<ChartOfAccountEntry, "id" | "type" | "isPostable" | "isActive">): boolean => {
+    if (!data || !draggingId || draggingId === target.id || target.isPostable || !target.isActive) return false;
     const dragged = data.find((a) => a.id === draggingId);
     if (!dragged || dragged.type !== target.type || dragged.parentId === target.id) return false;
     return !descendantIds(data, dragged.id).has(target.id);
@@ -886,6 +999,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                 [`coa-row--${account.type.toLowerCase()}`]: true,
                 // The branch's colour (from its top-level account) arrives as a CSS variable on the row.
                 "coa-row--colored": account.branchColor !== null,
+                "coa-row--stopped": !account.isActive,
                 // Drag feedback: the row being carried, the folders it may go into, and the one it is over.
                 "coa-row--dragging": draggingId === account.id,
                 "coa-row--droppable": draggingId !== null && canDropOn(account),
@@ -966,6 +1080,7 @@ export function ChartOfAccountsPage(): React.JSX.Element {
                       aria-hidden="true"
                     />
                     <span className="coa-name">{localizedName(account, i18n.language)}</span>
+                    {account.isActive ? null : <Tag className="coa-stopped-tag" severity="secondary" value={t("accounting.chartOfAccounts.stopped")} />}
                     {account.childCount > 0 ? <span className="coa-count">{account.childCount}</span> : null}
                     {account.party ? (
                       <span className="coa-party" title={t(`parties.kinds.${account.party.kind}`, account.party.kind)}>

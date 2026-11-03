@@ -11,6 +11,8 @@ export interface AccountLike {
   readonly parentId: string | null;
   // #RRGGBB chosen for a top-level account; its whole branch is drawn in it.
   readonly color?: string | null;
+  // Absent means active. A stopped account is shown muted and is never offered as a parent.
+  readonly isActive?: boolean;
 }
 
 // PrimeReact's TreeTable does not hand a row's depth to a column template, so depth and the
@@ -153,7 +155,7 @@ export function descendantIds(accounts: readonly AccountLike[], id: string): Set
 // The server enforces the same rules; this only keeps invalid choices out of the picker.
 export function validMoveTargets<A extends AccountLike>(accounts: readonly A[], account: AccountLike): A[] {
   const below = descendantIds(accounts, account.id);
-  return accounts.filter((candidate) => !candidate.isPostable && candidate.type === account.type && candidate.id !== account.id && !below.has(candidate.id));
+  return accounts.filter((candidate) => !candidate.isPostable && candidate.isActive !== false && candidate.type === account.type && candidate.id !== account.id && !below.has(candidate.id));
 }
 
 // The ids of every ancestor of an account, nearest first.
