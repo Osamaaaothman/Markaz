@@ -4,12 +4,13 @@ import type { IAccountingEngine, IAuditLogger, JournalLineInput } from "../contr
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
+import { outstandingAdvanceTotal } from "./salary-advance-balance.js";
 import { allocateDocumentNumber } from "../reference.js";
 import { type EndOfServiceReason, computeEndOfServiceSettlement } from "./eosb.js";
 
 export class EndOfServiceError extends Error {
   constructor(
-    readonly code: "EMPLOYEE_NOT_FOUND" | "ALREADY_TERMINATED" | "TERMINATION_BEFORE_HIRE" | "NO_OPEN_PERIOD",
+    readonly code: "EMPLOYEE_NOT_FOUND" | "ALREADY_TERMINATED" | "TERMINATION_BEFORE_HIRE" | "NO_OPEN_PERIOD" | "OUTSTANDING_ADVANCES",
     message: string,
   ) {
     super(message);
@@ -59,6 +60,14 @@ export class EndOfServiceService {
       if (!employee.isActive || employee.terminationDate) throw new EndOfServiceError("ALREADY_TERMINATED", "This employee has already been settled");
       if (input.terminationDate.getTime() < employee.hireDate.getTime()) {
         throw new EndOfServiceError("TERMINATION_BEFORE_HIRE", "The termination date is before the hire date");
+      }
+
+      // An employee who still owes a salary advance cannot be settled: once the employee is inactive, payroll no longer
+      // recovers the advance and the receivable would stay on the books for good. The advance is repaid first.
+      // REVIEW: netting the balance against the gratuity is a different design (and a legal question); not built.
+      const owed = await outstandingAdvanceTotal(tx, actor.companyId, employee.id);
+      if (owed.greaterThan(0)) {
+        throw new EndOfServiceError("OUTSTANDING_ADVANCES", `This employee still owes ${owed.toFixed(4)} on salary advances; repay them first`);
       }
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.terminationDate);

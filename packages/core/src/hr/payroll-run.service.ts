@@ -4,6 +4,7 @@ import type { IAccountingEngine, IAuditLogger, JournalLineInput } from "../contr
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
+import { advanceBalance, lockAdvancesOf } from "./salary-advance-balance.js";
 import { allocateDocumentNumber } from "../reference.js";
 import { GosiLegacyTrackError, computeGosiContribution } from "./gosi.js";
 
@@ -126,21 +127,23 @@ export class PayrollRunService {
     const excluded = employees.filter((e) => e.gosiLegacyTrack).map((e) => ({ id: e.id, name: e.name }));
     if (eligible.length === 0) throw new PayrollRunError("NO_ACTIVE_EMPLOYEES", "No active employee is eligible for this run");
 
-    // Outstanding advances for every eligible employee, each with its remaining balance computed
-    // from its own deduction history -- never a stored balance (see the model's own comment).
-    const advances = await this.prisma.salaryAdvance.findMany({
-      where: { companyId: actor.companyId, employeeId: { in: eligible.map((e) => e.id) } },
-      include: { deductions: true },
-      orderBy: { grantDate: "asc" },
-    });
-    const advancesByEmployee = new Map<string, typeof advances>();
-    for (const advance of advances) {
-      const list = advancesByEmployee.get(advance.employeeId) ?? [];
-      list.push(advance);
-      advancesByEmployee.set(advance.employeeId, list);
-    }
-
     const result = await this.prisma.$transaction(async (tx) => {
+      // Outstanding advances for every eligible employee, read inside this transaction under a per-employee lock, so a repayment made at the
+      // same moment cannot be deducted a second time. The remaining balance is computed from each advance's own deductions
+      // and repayments, never from a stored number (see the model's own comment).
+      await lockAdvancesOf(tx, actor.companyId, eligible.map((e) => e.id));
+      const advances = await tx.salaryAdvance.findMany({
+        where: { companyId: actor.companyId, employeeId: { in: eligible.map((e) => e.id) } },
+        include: { deductions: true, repayments: true },
+        orderBy: { grantDate: "asc" },
+      });
+      const advancesByEmployee = new Map<string, typeof advances>();
+      for (const advance of advances) {
+        const list = advancesByEmployee.get(advance.employeeId) ?? [];
+        list.push(advance);
+        advancesByEmployee.set(advance.employeeId, list);
+      }
+
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.runDate);
       if (!period) throw new PayrollRunError("NO_OPEN_PERIOD", "No open fiscal period covers the run date");
       const currency = await companyCurrency(tx, actor.companyId);
@@ -192,8 +195,7 @@ export class PayrollRunService {
         let advanceDeduction = new Prisma.Decimal(0);
         const applied: { salaryAdvanceId: string; amount: Prisma.Decimal }[] = [];
         for (const advance of advancesByEmployee.get(employee.id) ?? []) {
-          const alreadyDeducted = advance.deductions.reduce((sum, d) => sum.plus(d.amount), new Prisma.Decimal(0));
-          const remaining = advance.amount.minus(alreadyDeducted);
+          const remaining = advanceBalance(advance).remaining;
           if (remaining.lessThanOrEqualTo(0)) continue;
           const take = Prisma.Decimal.min(remaining, advance.installmentAmount);
           if (take.lessThanOrEqualTo(0)) continue;

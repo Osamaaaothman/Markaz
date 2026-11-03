@@ -129,6 +129,7 @@ const PERMISSION_CATALOG = [
   { code: "payroll_run:read", description: "View payroll runs and payslips" },
   { code: "salary_advance:create", description: "Grant a salary advance" },
   { code: "salary_advance:read", description: "View salary advances" },
+  { code: "salary_advance:repay", description: "Record an employee repaying a salary advance" },
   { code: "end_of_service:create", description: "Settle an employee's end-of-service gratuity" },
 ] as const;
 

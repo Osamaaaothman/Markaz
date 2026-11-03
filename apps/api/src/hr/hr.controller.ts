@@ -3,6 +3,7 @@ import type { Response } from "express";
 import {
   AttachmentService,
   EmployeeService,
+  EmployeeError,
   EndOfServiceError,
   EndOfServiceService,
   PayrollRunError,
@@ -16,6 +17,7 @@ import {
   type EmployeeSummary,
   type EndOfServiceResult,
   type PayrollRunResult,
+  type SalaryAdvanceRepaymentResult,
   type SalaryAdvanceResult,
   type SalaryAdvanceSummary,
 } from "@erp/core";
@@ -27,7 +29,7 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
+import { CreateEmployeeDto, CreatePayrollRunDto, EmployeesQueryDto, GrantSalaryAdvanceDto, RepaySalaryAdvanceDto, SetWpsSettingsDto, SettleEndOfServiceDto, UpdateEmployeeDto } from "./dto/hr-dtos.js";
 import { payslipToPdfHtml } from "./exports/payslip-export.js";
 
 @Controller("v1")
@@ -93,7 +95,7 @@ export class HrController {
     @CurrentUser() actor: CurrentUserPayload,
     @CorrelationId() correlationId: string,
   ): Promise<EmployeeSummary> {
-    const updated = await this.employees.update(
+    const updated = await this.mapEmployeeErrors(this.employees.update(
       id,
       {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -109,9 +111,18 @@ export class HrController {
       },
       actor,
       correlationId,
-    );
+    ));
     if (!updated) throw new NotFoundException("Employee not found");
     return updated;
+  }
+
+  private async mapEmployeeErrors<T>(work: Promise<T>): Promise<T> {
+    try {
+      return await work;
+    } catch (error) {
+      if (error instanceof EmployeeError) throw new ConflictException({ message: error.message, code: error.code });
+      throw error;
+    }
   }
 
   // ── Payroll runs ─────────────────────────────────────────────────────────────
@@ -166,6 +177,21 @@ export class HrController {
         correlationId,
         idempotencyKey,
       ),
+    );
+  }
+
+  // The employee pays an advance back (cash or bank), outside payroll. Allowed for a leaver too.
+  @Post("salary-advances/:id/repayments")
+  @RequirePermission("salary_advance", "repay")
+  repayAdvance(
+    @Param("id") id: string,
+    @Body() dto: RepaySalaryAdvanceDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+    @IdempotencyKey() idempotencyKey: string,
+  ): Promise<SalaryAdvanceRepaymentResult> {
+    return this.mapAdvanceErrors(
+      this.salaryAdvances.repay(id, { repaymentDate: new Date(dto.repaymentDate), amount: dto.amount, cashAccountId: dto.cashAccountId }, actor, correlationId, idempotencyKey),
     );
   }
 
@@ -315,8 +341,12 @@ export class HrController {
       if (!(error instanceof SalaryAdvanceError)) throw error;
       switch (error.code) {
         case "EMPLOYEE_NOT_FOUND":
+        case "ADVANCE_NOT_FOUND":
         case "CASH_ACCOUNT_NOT_FOUND":
           throw new NotFoundException(error.message);
+        case "OVER_REPAYMENT":
+        case "NOTHING_TO_REPAY":
+          throw new ConflictException({ message: error.message, code: error.code });
         case "CASH_ACCOUNT_INVALID":
         case "NO_OPEN_PERIOD":
           throw new BadRequestException(error.message);
@@ -335,6 +365,8 @@ export class HrController {
           throw new NotFoundException(error.message);
         case "ALREADY_TERMINATED":
           throw new ConflictException(error.message);
+        case "OUTSTANDING_ADVANCES":
+          throw new ConflictException({ message: error.message, code: error.code });
         case "TERMINATION_BEFORE_HIRE":
         case "NO_OPEN_PERIOD":
           throw new BadRequestException(error.message);
