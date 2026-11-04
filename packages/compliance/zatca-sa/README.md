@@ -4,9 +4,9 @@ Saudi Arabia's ZATCA e-invoicing compliance pack — implements `@erp/compliance
 (`docs/06-COMPLIANCE-PACK-RULES.md`). The word "ZATCA" lives only in this package; no module
 outside it, and nothing in `packages/core`, may mention it (docs/06 §1).
 
-Status: **M7 Phases 1, 3, and 4 done** (data model; invoice XML generation; hashing, signing,
-QR). No onboarding (Phase 2) and no submission (Phase 5) yet — see `docs/14-MILESTONES.md` M7 and
-`docs/01-OPEN-DECISIONS.md` sections S, T, and U for what was decided and why.
+Status: **M7 Phases 1, 3, 4, and 5 done** (data model; invoice XML generation; hashing, signing,
+QR; submission). No onboarding (Phase 2) yet — see `docs/14-MILESTONES.md` M7 and
+`docs/01-OPEN-DECISIONS.md` sections S, T, U, and V for what was decided and why.
 
 ## Owns
 
@@ -59,6 +59,27 @@ national address) and `parties` (buyer VAT number and national address, for a B2
   `buildBareInvoiceXml`'s output. The resulting document's own signature verifies against its own
   certificate, and its top-level element order matches a real signed sample exactly
   (`xades-signature.spec.ts`).
+- `submission/zatca-environment.ts` — base URLs and CSR certificate template names per
+  environment. `// REVIEW:` not yet confirmed against the Integration Sandbox's own swagger
+  (still not reachable by this tool) — see `docs/01-OPEN-DECISIONS.md` section V.
+- `submission/zatca-api-client.ts` — `ZatcaApiClient` (`clearInvoice`/`reportInvoice`), built on
+  `node:fetch`. A pluggable `HttpTransport` keeps every test off the real network
+  (docs/06-COMPLIANCE-PACK-RULES.md §6). `ZatcaApiError.isTransient` is the retry/no-retry line:
+  network/5xx/429 vs. everything else.
+- `submission/submission-outcome.ts` — maps a ZATCA response (or a transport failure) onto
+  `@erp/compliance-contract`'s `ComplianceOutcome`. An auth failure (401/403) becomes
+  `PACK_UNAVAILABLE`, not `REJECTED` — it is our own credential/config problem, never a judgement
+  ZATCA made about the invoice, so it must not consume the chain's ICV.
+- `submission/invoice-submission.service.ts` — `InvoiceSubmissionService.submit(params)`.
+  Reserves the EGS's next ICV/PIH, builds and signs the invoice, calls ZATCA, and persists the
+  outcome — advancing the chain on any DEFINITIVE outcome (success or a genuine business
+  rejection: docs/06 §7, a correction is a new document) and leaving it untouched on a transient
+  failure or `PACK_UNAVAILABLE`, so a retry reuses the exact same chain position and
+  `ZatcaInvoiceRecord`. Does not hold the chain's row lock across the network call — see
+  "Dependencies" below for what makes that safe. Deliberately does not know how to turn a
+  `SalesInvoice` into a `ZatcaInvoiceInput`; the caller supplies that mapping
+  (`SubmitInvoiceParams.buildInvoiceInput`), which keeps this package independent of
+  `packages/core`.
 
 ## Dependencies
 
@@ -73,15 +94,25 @@ not a default). Used only for its C14N canonicalizer; ECDSA signing uses `node:c
 `xadesjs`/`xmldsigjs` were considered and rejected — the only dedicated XAdES library available,
 but archived by its own maintainer in Aug 2025.
 
-## Known gaps (Phases 1, 3, and 4 only)
+## Known gaps (Phases 1, 3, 4, and 5 only)
 
 - No onboarding flow (CSR → compliance CSID → compliance checks → production CSID) — Phase 2.
-  Nothing generates a real EGS key/CSR yet; Phase 4's tests sign with the SDK's own sample key.
-- No submission (clearance/reporting) — Phase 5.
+  Nothing generates a real EGS key/CSR yet; every test signs with the SDK's own sample key.
 - No API endpoints or UI anywhere yet — nothing creates an `EgsUnit` through a real use case;
-  the integration test creates one directly via Prisma. Nothing calls `buildBareInvoiceXml` or
-  `signInvoiceXml` from a real SalesInvoice either — Phase 5's job to map one onto
-  `ZatcaInvoiceInput` and wire in the encrypted key material from `EgsCredential`.
+  every test creates one directly via Prisma.
+- **The real integration point is still missing**: nothing maps an actual `SalesInvoice` onto
+  `ZatcaInvoiceInput`, decrypts a real `EgsCredential`, or decides which `EgsUnit` an invoice
+  belongs to. `InvoiceSubmissionService` and the BullMQ wrapper
+  (`apps/api/src/compliance/zatca-submission.job.ts`) are both built and tested against a
+  scripted transport, but nothing calls either from a real sales flow yet. Blocked on Phase 2 (a
+  real `EgsCredential` to decrypt) and a product decision this repo has not made — see
+  `zatca-submission.job.ts`'s own `ZatcaSubmissionParamsLoader` doc comment.
+- The submission HTTP client's exact endpoints/headers/JSON shape (`zatca-api-client.ts`) are
+  `// REVIEW:` — built from this task's brief plus consistent third-party write-ups, not ZATCA's
+  own swagger (still not reachable by this tool). Confirm before a real sandbox call.
+- `apps/api`'s per-EGS, concurrency-1 worker wiring (`createMonitoredWorker`'s new
+  `workerOptions` parameter) is ready but not registered in `worker.ts` — there is no list of
+  real `EgsUnit`s to enumerate yet (Phase 2).
 - `xades:CertDigest` could not be cross-checked: the official sample's own value does not match
   SHA-256 of its own embedded certificate (a sample-data inconsistency). This package computes it
   the spec-correct way; confirm against a real sandbox response once reachable.

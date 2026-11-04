@@ -1,4 +1,4 @@
-import { Queue, Worker, type Job, type Processor } from "bullmq";
+import { Queue, Worker, type Job, type Processor, type WorkerOptions } from "bullmq";
 import type IORedis from "ioredis";
 import { DEFAULT_JOB_OPTIONS, isFinalAttempt, type JobData } from "./job-conventions.js";
 import { workerLogger } from "./worker-logger.js";
@@ -35,8 +35,12 @@ export function createMonitoredWorker<T extends JobData>(
   queueName: string,
   connection: IORedis,
   processor: Processor<T>,
+  // e.g. { concurrency: 1 } — the ZATCA submission queue needs this per EGS unit, so the chain's
+  // row lock is never held across a network call (docs/06-COMPLIANCE-PACK-RULES.md §4):
+  // serialization comes from "only one job for this EGS at a time", not a held DB lock.
+  workerOptions?: Partial<Omit<WorkerOptions, "connection">>,
 ): MonitoredWorker {
-  const worker = new Worker<T>(queueName, processor, { connection });
+  const worker = new Worker<T>(queueName, processor, { ...workerOptions, connection });
   const deadLetterQueue = new Queue<DeadLetterPayload>(deadLetterQueueName(queueName), { connection });
 
   worker.on("failed", (job: Job<T> | undefined, error: Error) => {

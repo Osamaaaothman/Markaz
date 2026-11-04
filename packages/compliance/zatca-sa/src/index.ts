@@ -12,3 +12,7 @@ export * from "./xml/invoice-hash.js";
 export * from "./xml/qr.js";
 export * from "./xml/signing.js";
 export * from "./xml/xades-signature.js";
+export * from "./submission/zatca-environment.js";
+export * from "./submission/zatca-api-client.js";
+export * from "./submission/submission-outcome.js";
+export * from "./submission/invoice-submission.service.js";

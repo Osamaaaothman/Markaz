@@ -631,3 +631,44 @@ and in two places not even from this task's own starting assumptions.
   sign with the SDK's own sample key/certificate. Nothing wires a real `SalesInvoice`/`EgsCredential` into this pipeline
   yet (Phase 5). The encrypted-at-rest key material in `EgsCredential` is never touched by this phase — Phase 5 decrypts
   it just-in-time for a signing call, per `docs/SECURITY.md`.
+
+## V. M7 ZATCA — Phase 5 submission (2026-11-05)
+
+`InvoiceSubmissionService` (`packages/compliance/zatca-sa/src/submission/`) orchestrates one invoice's submission end to
+end: reserve the EGS's next ICV/PIH, build and sign the XML (Phases 3/4), call ZATCA, persist the outcome. A thin BullMQ
+wrapper (`apps/api/src/compliance/zatca-submission.job.ts`) adapts it to a job, mirroring `notification.job.ts`'s shape.
+
+- **The chain lock is never held across the network call.** docs/02-ARCHITECTURE-RULES.md §5 forbids calling external
+  HTTP from inside a DB transaction; docs/06-COMPLIANCE-PACK-RULES.md §4 offers the way out the task spec itself
+  suggested — "a per-EGS BullMQ queue with concurrency 1" — instead of a Postgres row lock held for the whole call.
+  `createMonitoredWorker` gained an optional `workerOptions` parameter so `{ concurrency: 1 }` can be set per EGS queue
+  (`zatcaSubmissionQueueName(egsUnitId)`); `EgsChainService.peekNext`'s row lock is held only for the instant it takes
+  to read-and-reserve, same as before, never across the call.
+- **Three-way outcome classification, not two.** A transient failure (network/5xx/429) is `PENDING_RETRY` — the ICV is
+  NOT consumed, a retry reuses the exact same `ZatcaInvoiceRecord` and chain position (verified:
+  `invoice-submission.service.spec.ts` "does NOT consume the ICV on a transient failure..."). A genuine business
+  rejection (ZATCA actually evaluated the invoice and said no) is `REJECTED` — the ICV IS consumed, per docs/06 §7 ("a
+  correction is a new document, not a resubmission under the same UUID/ICV"), and resubmitting after that throws
+  `AlreadySubmittedError`. **A third case the original design missed:** an auth failure (401/403) is neither — it is
+  our own credential/config problem, not ZATCA's judgement on this invoice, so burning the ICV over it would be wrong.
+  Reclassified to `PACK_UNAVAILABLE` (an existing `ComplianceOutcome` kind that fit this exactly) before writing any
+  test for it, not after a test caught it — the kind of thing worth getting right by inspection, not by accident.
+- **Idempotent retry by construction**: `submit()` checks for an existing `ZatcaInvoiceRecord` by `salesInvoiceId`
+  first. A definitive outcome refuses a second call outright; `SUBMITTING`/`FAILED_RETRYABLE` resumes at the SAME
+  stored `icv`/`previousInvoiceHash` (no new chain reservation) and re-signs (a fresh ECDSA signature — signatures are
+  not required to be byte-identical across attempts, only valid) rather than minting a new document.
+- **Credentials and key material never cross the job payload.** `ZatcaSubmissionJobData` carries only
+  `salesInvoiceId`/`egsUnitId`; a `ZatcaSubmissionParamsLoader` (not implemented — see below) is responsible for
+  decrypting `EgsCredential` fresh inside the job, never storing a decrypted secret in Redis (docs/09-SECURITY-RULES.md
+  §5).
+- **New dependency: none.** `node:fetch` (built into Node 18+) is the HTTP client; no package was added for Phase 5.
+- **Still blocked — the actual integration point**: nothing maps a real `SalesInvoice` onto `ZatcaInvoiceInput`,
+  decrypts a real `EgsCredential`, or decides which `EgsUnit` an invoice belongs to (`SalesInvoice` has no such field
+  today). This needs Phase 2 (a real `EgsCredential` to decrypt) and a product decision this repo has not made — not
+  guessed at here, per CLAUDE.md §4. `apps/api`'s per-EGS worker is not registered in `worker.ts` either — there is no
+  list of real `EgsUnit`s yet to enumerate.
+- **The HTTP contract itself is still `// REVIEW:`** — endpoints (`/invoices/clearance/single`,
+  `/invoices/reporting/single`), headers (`Accept-Version: V2`, `Clearance-Status: 1`), and the request/response JSON
+  shape come from this task's own brief plus multiple consistent third-party integration write-ups, not ZATCA's own
+  Integration Sandbox swagger (still unreachable by this tool — ADR-0004 flagged this as needed from Osama's browser
+  back in Phase 1, still not resolved). Confirm before any real sandbox call.
