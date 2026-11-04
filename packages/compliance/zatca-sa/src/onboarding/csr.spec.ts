@@ -77,10 +77,15 @@ describe("generateCsr", () => {
     expect(text).toContain("CN=Till-1");
   });
 
-  it("carries the certificateTemplateName extension with the given template", () => {
+  it("carries the certificateTemplateName extension with the given template, UTF8String-encoded", () => {
     const text = csrText(csrPem);
     expect(text).toContain("1.3.6.1.4.1.311.20.2");
-    expect(text).toContain("TSTZATCA-Code-Signing");
+    // UTF8String is confirmed against the official SDK's own CSR generator — see csr.ts's own
+    // comment at this line for how. Its DER tag/length prefix two bytes before the text aren't
+    // printable, so openssl's `-text` dump shows them as dots ahead of the plain text; assert on
+    // the raw DER bytes rather than depend on exactly how openssl renders that prefix.
+    const der = Buffer.from(csrPem.replace(/-----(BEGIN|END) CERTIFICATE REQUEST-----/g, "").replace(/\s/g, ""), "base64");
+    expect(der.includes(Buffer.from("TSTZATCA-Code-Signing", "utf8"))).toBe(true);
   });
 
   it("carries the SAN directoryName with EGS serial, VAT number, invoice type, location, and industry", () => {

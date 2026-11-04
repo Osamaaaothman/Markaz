@@ -6,7 +6,9 @@ outside it, and nothing in `packages/core`, may mention it (docs/06 §1).
 
 Status: **M7 Phases 1, 2, 3, 4, and 5 done** (data model; onboarding; invoice XML generation;
 hashing, signing, QR; submission). See `docs/14-MILESTONES.md` M7 and
-`docs/01-OPEN-DECISIONS.md` sections S, T, U, V, and W for what was decided and why.
+`docs/01-OPEN-DECISIONS.md` sections S, T, U, V, W, and X for what was decided and why — X in
+particular covers a real-sandbox smoke test that found and fixed two genuine CSR structure bugs,
+and an unresolved real-sandbox blocker that needs Osama's own portal account.
 
 ## Owns
 
@@ -125,6 +127,14 @@ but archived by its own maintainer in Aug 2025.
 
 ## Known gaps (Phases 1, 2, 3, 4, and 5 only)
 
+- **A real onboarding call against ZATCA's actual sandbox still fails** with
+  `{"errorCategory":"Invalid-CSR"}` — even after fixing two confirmed real CSR bugs this smoke
+  test found (see `docs/01-OPEN-DECISIONS.md` section X), and even though the fixed CSR is now
+  verified byte-for-byte structurally identical to the official SDK's own generator's output.
+  The same error comes back for a deliberately garbage request body too, so the real cause is
+  not CSR content — most likely something about the OTP's validity/binding or Osama's portal
+  account state that this tool cannot resolve on its own. **Blocking a real go-live**, not
+  blocking further local development.
 - No API endpoints or UI anywhere yet (Phase 7) — nothing creates an `EgsUnit` or triggers
   onboarding through a real use case; every test creates one directly via Prisma and drives
   `OnboardingService` directly. The OTP (from the FATOORA portal, or the fixed sandbox value) is

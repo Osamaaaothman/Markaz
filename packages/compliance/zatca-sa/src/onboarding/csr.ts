@@ -91,9 +91,22 @@ function buildCsrConfig(input: CsrInput): string {
     `CN = ${input.commonName}`,
     "",
     "[v3_req]",
-    "basicConstraints = CA:FALSE",
-    "keyUsage = digitalSignature, nonRepudiation, keyEncipherment",
-    `certificateTemplateName = ASN1:PRINTABLESTRING:${input.certificateTemplateName}`,
+    // No basicConstraints/keyUsage: confirmed against the official SDK's own CSR generator
+    // (com.zatca.sdk.service.CsrGenerationService, decompiled) — its "Requested Extensions"
+    // attribute carries exactly two extensions, certificateTemplateName and subjectAltName,
+    // nothing else. An earlier version of this config added both (plausible-looking defaults
+    // for a code-signing CSR), and a real sandbox call with them present was rejected
+    // ("errorCategory":"Invalid-CSR") — see docs/01-OPEN-DECISIONS.md section X.
+    //
+    // UTF8String, not PrintableString: also confirmed against the same decompiled generator —
+    // it builds this extension's value as `new DisplayText(DisplayText.CONTENT_TYPE_UTF8STRING,
+    // templateName)` wrapped in a DEROctetString (CONTENT_TYPE_UTF8STRING's actual value, read
+    // from DisplayText.class's own bytecode, is 2 — an easy constant to mis-guess from memory,
+    // as a first pass at this fix did, landing on BMPString instead; verified instead by
+    // generating a reference CSR with the SDK's own jar and diffing the extension's raw bytes
+    // byte-for-byte against this fix's output). The PrintableString encoding this line used to
+    // have was part of the same rejected CSR.
+    `certificateTemplateName = ASN1:UTF8:${input.certificateTemplateName}`,
     "subjectAltName = dirName:alt_names",
     "",
     // `subjectAltName = dirName:alt_names` means "one GeneralName of type dirName, whose RDN
