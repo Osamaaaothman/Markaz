@@ -1,5 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { X509Certificate } from "node:crypto";
 import { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import { decryptText } from "../key-encryption.js";
@@ -8,9 +7,9 @@ import { OnboardingError, OnboardingService, type StartOnboardingParams } from "
 import { ZatcaOnboardingApiClient, type CsidResponseBody, type ComplianceCheckResponseBody } from "./onboarding-api-client.js";
 import type { HttpResponse, HttpTransport } from "../http/zatca-http-transport.js";
 import { ZatcaApiError } from "../http/zatca-http-transport.js";
+import { generateTestCertificate } from "../testing/fixtures.js";
 
-const SDK_CERTS = join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk", "Data", "Certificates");
-const describeIfReady = process.env.DATABASE_URL && existsSync(SDK_CERTS) ? describe : describe.skip;
+const describeIfReady = process.env.DATABASE_URL ? describe : describe.skip;
 
 // Scripted, never-real-network transport (docs/06-COMPLIANCE-PACK-RULES.md §6) — same pattern as
 // ../submission/invoice-submission.service.spec.ts's ScriptedTransport.
@@ -39,14 +38,15 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
   const companyId = newId();
   let egsUnitId: string;
 
-  // The official SDK's real certificate — used as the "server-issued" certificate in every
+  // A generated certificate (testing/fixtures.ts) — used as the "server-issued" certificate in every
   // scripted response below. Its public key does NOT correspond to the private key this
   // service generates for itself in `startOnboarding` (there is no test CA to issue a matching
   // one) — fine for these tests, which verify the orchestration (encryption, status
   // transitions, request/response wiring, error classification), not cryptographic round-trip
   // fidelity between a generated key and a server-issued cert. That fidelity is what
   // ../xml/xades-signature.spec.ts already proves, against the SDK's own matching key+cert pair.
-  const sdkCertBase64 = readFileSync(join(SDK_CERTS, "cert.pem"), "utf8").trim();
+  const testCertificate = generateTestCertificate();
+  const sdkCertBase64 = testCertificate.certificateBase64;
 
   const csrInput: StartOnboardingParams["csr"] = {
     commonName: "Till-1",
@@ -196,9 +196,8 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
     const credential = await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } });
     expect(credential.status).toBe("ACTIVE");
     expect(decryptText(credential.productionSecretCiphertext!, ENCRYPTION_KEY)).toBe("production-secret");
-    // The SDK's own certificate's real NotAfter (2029-01-09, per its DER contents) — proves this
-    // is actually parsed from the certificate, not a placeholder.
-    expect(credential.certificateExpiresAt?.getUTCFullYear()).toBe(2029);
+    // Parsed from the certificate itself, not a placeholder: must equal the certificate's own NotAfter.
+    expect(credential.certificateExpiresAt?.getTime()).toBe(new X509Certificate(testCertificate.certificatePem).validToDate.getTime());
   });
 
   it("renewProductionCsid reuses the existing private key and updates the stored certificate", async () => {

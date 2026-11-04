@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 // Test-fixture only (posts a real, balanced journal entry so a SalesInvoice row satisfies its
@@ -8,10 +6,10 @@ import { PrismaAccountingEngine, PrismaNumberingService } from "@erp/core";
 import type { ZatcaInvoiceInput, ZatcaParty } from "../xml/invoice-xml.types.js";
 import { EgsChainService } from "../egs-chain.service.js";
 import { AlreadySubmittedError, InvoiceSubmissionService, type SubmitInvoiceParams } from "./invoice-submission.service.js";
+import { generateTestCertificate } from "../testing/fixtures.js";
 import { ZatcaApiClient, ZatcaApiError, type HttpResponse, type HttpTransport } from "./zatca-api-client.js";
 
-const SDK_CERTS = join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk", "Data", "Certificates");
-const describeIfReady = process.env.DATABASE_URL && existsSync(SDK_CERTS) ? describe : describe.skip;
+const describeIfReady = process.env.DATABASE_URL ? describe : describe.skip;
 
 // A scriptable transport: queue up responses (or errors) and they are returned/thrown in order,
 // one per call — this is docs/06-COMPLIANCE-PACK-RULES.md §6's "mock adapter by default in CI".
@@ -67,8 +65,7 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     vatNumber: "399999999800003",
     registrationName: "Fatoora Samples LTD",
   };
-  const certificatePem = readFileSync(join(SDK_CERTS, "cert.pem"), "utf8");
-  const privateKeyPem = readFileSync(join(SDK_CERTS, "ec-secp256k1-priv-key.pem"), "utf8");
+  const { certificatePem, privateKeyPem } = generateTestCertificate();
 
   const engine = new PrismaAccountingEngine(prisma, new PrismaNumberingService());
   let fiscalPeriodId: string;
