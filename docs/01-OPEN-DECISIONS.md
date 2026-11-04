@@ -506,16 +506,20 @@ not a placeholder. No network calls, no XML, no onboarding flow yet (that is Pha
 ZATCA PDFs already in `docs/vendor/zatca/` (extracted with `pypdf`, since this machine has no `pdftoppm`/poppler) where this
 phase touches spec detail.
 
-- **Curve: secp256k1, not the Security Features Standard's stated "P-256".** Confirmed from a second, independent primary
-  source (ZATCA's own Developer Portal SDK-download page, read live: "ذلك للمطابقة مع خوارزمية التشفير secp256k1") on top of
-  consistent third-party integration reports already noted in `docs/adr/0004-zatca-direct-integration.md`. The CSR/key code in
-  Phase 2 will use secp256k1; cross-check once more against the SDK's own docs once Osama has it downloaded, and flag loudly if
-  it disagrees.
-- **First-invoice PIH:** `EgsChainService.FIRST_INVOICE_PREVIOUS_HASH` = base64(SHA-256("0")), per this task's starting spec.
-  `// REVIEW:` **not yet verified against the current official documentation** (docs/06-COMPLIANCE-PACK-RULES.md §0) — nothing
-  in the three local PDFs states this exact bootstrap value in the sections read so far. Must be confirmed (or corrected) before
-  Phase 4/5 submit a real first invoice; wrong by even one byte and ZATCA rejects every invoice after it, since the whole chain
-  is tamper-evident.
+- **Curve: secp256k1, not the Security Features Standard's stated "P-256".** Confirmed from THREE independent sources now:
+  ZATCA's own Developer Portal SDK-download page (read live), the official SDK's own sample key file
+  (`docs/vendor/zatca/sdk/Data/Certificates/ec-secp256k1-priv-key.pem`), and consistent third-party integration reports
+  (`docs/adr/0004-zatca-direct-integration.md`). Settled — the CSR/key code in Phase 2 will use secp256k1.
+- **First-invoice PIH — verified, and the original implementation was WRONG.** `EgsChainService.FIRST_INVOICE_PREVIOUS_HASH`
+  is **not** base64 of the raw SHA-256("0") digest (this task's starting spec, and what the first commit of this file actually
+  computed). Checked against the official SDK's `Data/PIH/pih.txt` (`zatca-einvoicing-sdk-238-R3.4.8`, 2026-11-04): the correct
+  value is base64 of the digest's **hex-string** representation — hash, render as 64 lowercase hex characters, then base64
+  *that text*. Fixed in the same commit, pinned with a golden-value test (`egs-chain.service.spec.ts`) against the SDK's literal
+  value so a future refactor can never silently drift from it. **Open question this raises:** whether this same hex-then-base64
+  double-encoding applies to the invoice hash used elsewhere (the XAdES signing input, the QR code's tag-6 "XML Hash") — the
+  Security Standard's QR section states tag 6 is exactly 32 bytes, which is the *raw* digest, not this 44-byte double-encoded
+  form, so at least two different hash representations exist depending on where in the spec a hash is carried. Resolve this
+  explicitly per field in Phase 4, do not assume they all match the PIH's encoding.
 - **National address lives on `Company` (seller) and `Party` (buyer), not per-`EgsUnit`.** The CSR's SAN `registeredAddress`
   is technically a property of the issuing EGS/branch in the official model, so a company with EGS units at genuinely different
   physical addresses is not modelled correctly yet. Chosen because Tier 1 targets single-branch SMEs (docs/00 §1) and the task's

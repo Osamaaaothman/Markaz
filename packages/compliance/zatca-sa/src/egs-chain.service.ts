@@ -35,11 +35,15 @@ export interface NextChainValue {
   readonly previousInvoiceHash: string;
 }
 
-// base64(SHA-256("0")) — the starting assumption in this task's spec for an EGS unit's very
-// first invoice's previous-invoice-hash. // REVIEW: docs/06-COMPLIANCE-PACK-RULES.md §0 requires
-// verifying this against the *current* official documentation / SDK before Phase 4 relies on
-// it; not yet confirmed against a primary source.
-export const FIRST_INVOICE_PREVIOUS_HASH: string = createHash("sha256").update("0").digest("base64");
+// Verified against the official SDK's own Data/PIH/pih.txt (zatca-einvoicing-sdk-238-R3.4.8):
+// NOT base64 of the raw 32-byte SHA-256 digest (the task spec's starting assumption, which this
+// constant used to compute and which was WRONG). It is base64 of the digest's *hex-string*
+// representation — hash first, render as 64 lowercase hex characters, then base64 THAT text.
+// This double-encoding is specific to how the previous-invoice-hash is carried as plain text in
+// the XML; it does not necessarily apply to other hash usages (e.g. the QR code's tag-6 "XML
+// Hash" field is specified as exactly 32 bytes, i.e. the raw digest, not this 44-byte form —
+// check each usage against its own spec section in Phase 4, don't assume they match).
+export const FIRST_INVOICE_PREVIOUS_HASH: string = Buffer.from(createHash("sha256").update("0").digest("hex"), "utf8").toString("base64");
 
 interface ChainStateRow {
   readonly last_icv: bigint;

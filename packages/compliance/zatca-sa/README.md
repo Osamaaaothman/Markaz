@@ -47,11 +47,13 @@ import this package except via the compliance contract (enforced by
 - No submission (clearance/reporting) — Phase 5.
 - No API endpoints or UI anywhere yet — nothing creates an `EgsUnit` through a real use case;
   the integration test creates one directly via Prisma.
-- `FIRST_INVOICE_PREVIOUS_HASH` (base64(SHA-256("0"))) is this task's starting assumption, not
-  yet verified against the current official documentation — see the `// REVIEW:` comment next
-  to it and `docs/01-OPEN-DECISIONS.md` section S.
-- The curve for key generation (secp256k1) is confirmed from two independent sources (ADR-0004,
-  docs/01 section S) but not yet cross-checked against the SDK's own docs — do that before
-  Phase 2's CSR code ships.
+- `FIRST_INVOICE_PREVIOUS_HASH` is now verified against the official SDK's `Data/PIH/pih.txt`
+  and pinned with a golden-value test — see `docs/01-OPEN-DECISIONS.md` section S for what the
+  original (wrong) assumption was and the open question it raised about other hash encodings.
+- The curve for key generation (secp256k1) is now confirmed from three independent sources,
+  including the SDK's own sample key file — settled, see docs/01 section S.
 - No per-EGS address override — every EGS at one company currently shares the company's
   national address (docs/01 section S explains the trade-off).
+- Whether the PIH's hex-then-base64 double-encoding also applies to the invoice hash used in
+  the XAdES signature and the QR code's tag-6 field is still open — the Security Standard's QR
+  section implies tag 6 is the raw 32-byte digest, not this form. Resolve per field in Phase 4.
