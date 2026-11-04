@@ -4,9 +4,10 @@ Saudi Arabia's ZATCA e-invoicing compliance pack — implements `@erp/compliance
 (`docs/06-COMPLIANCE-PACK-RULES.md`). The word "ZATCA" lives only in this package; no module
 outside it, and nothing in `packages/core`, may mention it (docs/06 §1).
 
-Status: **M7 Phase 1 (data model) only.** No onboarding, no XML, no submission yet — see
-`docs/14-MILESTONES.md` M7 and `docs/01-OPEN-DECISIONS.md` section S for what was decided and
-why.
+Status: **M7 Phase 1 (data model) and Phase 3 (invoice XML generation) done.** No onboarding
+(Phase 2), no hashing/signing/QR (Phase 4), no submission (Phase 5) yet — see
+`docs/14-MILESTONES.md` M7 and `docs/01-OPEN-DECISIONS.md` sections S and T for what was decided
+and why.
 
 ## Owns
 
@@ -32,6 +33,14 @@ national address) and `parties` (buyer VAT number and national address, for a B2
   `peekNext` (row-locks and returns the ICV/PIH the next invoice must use), `advance` (writes
   the chain forward once that invoice has been built and hashed). Call `peekNext` and `advance`
   inside the same transaction that builds the invoice — the lock must be held across both.
+- `xml/invoice-xml-builder.ts` — `buildBareInvoiceXml(input: ZatcaInvoiceInput): string`. Builds
+  the UBL 2.1 invoice XML for all six document types Tier 1 needs (standard/simplified ×
+  invoice/credit note/debit note) — everything EXCEPT `ext:UBLExtensions`, `cac:Signature`, and
+  the QR `cac:AdditionalDocumentReference`, which Phase 4 adds after hashing and signing this
+  builder's output. Throws `ZatcaXmlError` for a missing billing reference/instruction note on a
+  credit/debit note, a missing buyer on a standard invoice, a missing exemption reason on a
+  zero-rated/exempt line, or no lines at all. Cross-checked against 5 of the SDK's 6 official
+  sample documents (`invoice-xml-builder.spec.ts`) — not just this package's own expectations.
 
 ## Dependencies
 
@@ -40,13 +49,23 @@ national address) and `parties` (buyer VAT number and national address, for a B2
 import this package except via the compliance contract (enforced by
 `.dependency-cruiser.cjs`'s `no-module-depends-on-zatca-directly` rule).
 
-## Known gaps (Phase 1 only)
+## Known gaps (Phases 1 and 3 only)
 
 - No onboarding flow (CSR → compliance CSID → compliance checks → production CSID) — Phase 2.
-- No XML builder, hashing, signature, or QR — Phase 3/4.
+- No hashing, signature, or QR — Phase 4. The XML builder produces the document those three
+  things get added to, never on its own.
 - No submission (clearance/reporting) — Phase 5.
 - No API endpoints or UI anywhere yet — nothing creates an `EgsUnit` through a real use case;
-  the integration test creates one directly via Prisma.
+  the integration test creates one directly via Prisma. Nothing calls `buildBareInvoiceXml` from
+  a real SalesInvoice either — Phase 5's job to map one onto `ZatcaInvoiceInput`.
+- The XML builder has no document-level discount/charge model (Tier 1's `SalesInvoice` has none
+  either — docs/01-OPEN-DECISIONS.md section E6) — it always emits the zero-amount
+  `AllowanceCharge` placeholder every official sample carries, never a real one.
+- Only 2dp currency amounts are supported (hard-coded, not looked up per currency) — fine for
+  SAR, would need revisiting for a 3dp currency (KWD/BHD) if ZATCA e-invoicing is ever needed
+  outside SAR.
+- Self-billing, export, summary, nominal-supply, and advance-payment invoice scenarios are not
+  modelled (the `InvoiceTypeCode` "name" attribute's other 6 digits) — out of Tier 1 scope.
 - `FIRST_INVOICE_PREVIOUS_HASH` is now verified against the official SDK's `Data/PIH/pih.txt`
   and pinned with a golden-value test — see `docs/01-OPEN-DECISIONS.md` section S for what the
   original (wrong) assumption was and the open question it raised about other hash encodings.

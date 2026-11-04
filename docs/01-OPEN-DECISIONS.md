@@ -548,3 +548,38 @@ phase touches spec detail.
   submission (Phase 5). `EgsUnit` rows do not exist yet outside tests — nothing creates one through a real use case.
 - **Known gap carried from section P:** the company record had no VAT/CR/address fields before this; they exist now but are
   still empty until Settings (or first-run setup) gets a screen to fill them in — not built in this slice.
+
+## T. M7 ZATCA — Phase 3 invoice XML generation (2026-11-04)
+
+`buildBareInvoiceXml` (`packages/compliance/zatca-sa/src/xml/invoice-xml-builder.ts`) builds the UBL 2.1 XML for all six
+document types Tier 1 needs. Built and verified directly against the official SDK's own sample XML files
+(`docs/vendor/zatca/sdk/Data/Samples`, `zatca-einvoicing-sdk-238-R3.4.8`), not from memory or the task spec's description —
+every element's presence, order, and attribute decoration was read from a real sample before being coded, and 5 of the 6
+samples are cross-checked by a dedicated test comparing top-level element order against the actual file on disk.
+
+- **Scope split confirmed against the samples themselves:** the builder's output deliberately excludes `ext:UBLExtensions`,
+  `cac:Signature`, and the QR `cac:AdditionalDocumentReference` — docs/06 §3's "remove before hashing" instruction actually
+  describes the *reverse* operation (recovering the pre-signature document from an already-signed one to verify its hash).
+  Phase 4 hashes this builder's bare output, signs it, and *adds* those three elements; it never has to remove anything.
+- **A real bug caught by the SDK cross-check, fixed in the same commit:** the invoice line's tax category must be wrapped in
+  `cac:ClassifiedTaxCategory`, not `cac:TaxCategory` (which is correct everywhere else — `AllowanceCharge` and
+  `TaxSubtotal`). Caught by the "decorates TaxCategory..." test failing against the real sample structure, not noticed by
+  inspection alone — exactly why the cross-check tests exist.
+- **Two three-way attribute-decoration rules, easy to get backwards:** `cac:TaxCategory` (inside `AllowanceCharge` and
+  `TaxSubtotal`) carries `schemeID="UN/ECE 5305" schemeAgencyID="6"` on its `ID` and `schemeID="UN/ECE 5153"
+  schemeAgencyID="6"` on `TaxScheme/ID`; `cac:ClassifiedTaxCategory` (inside an `InvoiceLine`'s `Item`) carries neither.
+- **Two `cac:TaxTotal` elements always, even when `DocumentCurrencyCode` == `TaxCurrencyCode`** (true for every Tier-1
+  scenario): a minimal one with only the grand total, then a full one with `TaxSubtotal` per tax category. Every official
+  sample does this regardless of whether the currencies actually differ — followed literally rather than theorised about.
+- **`cac:Delivery` is independent of standard vs. simplified** — confirmed by `Simplified_Credit_Note.xml` carrying one
+  while `Simplified_Invoice.xml` doesn't. The builder already treated it as purely "present if `actualDeliveryDate` is
+  given," which turned out to be correct; a test that first assumed otherwise was the one that needed fixing, not the code.
+- **`// REVIEW:` (not an accountant's ruling, a schema-compliance guess):** every invoice always emits one zero-amount
+  `AllowanceCharge` per tax category, matching every sample, because Tier 1's `SalesInvoice` has no discount/charge model
+  (section E6) to feed a real one. If ZATCA's schema actually *requires* this placeholder (rather than merely allowing it),
+  this is correct by accident; confirm against the Schematron rules in `docs/vendor/zatca/sdk/Data/Rules` before trusting it
+  for a real submission.
+- **Amounts are always rendered to 2 decimal places**, hard-coded rather than looked up per currency (`Money.round(2)`) —
+  correct for SAR, a known gap for any future 3dp currency (KWD/BHD) if ZATCA e-invoicing is ever needed outside SAR.
+- **Not built:** hashing/signing/QR (Phase 4), self-billing/export/summary/nominal-supply/advance-payment scenarios (other
+  `InvoiceTypeCode` name-attribute digits), anything wiring a real `SalesInvoice` into `ZatcaInvoiceInput` (Phase 5).

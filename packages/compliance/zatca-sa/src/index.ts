@@ -5,3 +5,5 @@
 // (docs/06 §1).
 export * from "./key-encryption.js";
 export * from "./egs-chain.service.js";
+export * from "./xml/invoice-xml.types.js";
+export * from "./xml/invoice-xml-builder.js";
