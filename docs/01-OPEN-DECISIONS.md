@@ -583,3 +583,51 @@ samples are cross-checked by a dedicated test comparing top-level element order 
   correct for SAR, a known gap for any future 3dp currency (KWD/BHD) if ZATCA e-invoicing is ever needed outside SAR.
 - **Not built:** hashing/signing/QR (Phase 4), self-billing/export/summary/nominal-supply/advance-payment scenarios (other
   `InvoiceTypeCode` name-attribute digits), anything wiring a real `SalesInvoice` into `ZatcaInvoiceInput` (Phase 5).
+
+## U. M7 ZATCA — Phase 4 hashing, signing, QR (2026-11-04)
+
+The task description itself calls this "the part most likely to break." Every structural piece and encoding below was
+verified against the official SDK's own signed sample files and key/certificate pair (`docs/vendor/zatca/sdk`), by
+decoding and recomputing ground truth directly — not from memory, not from the Security Features Standard's prose alone,
+and in two places not even from this task's own starting assumptions.
+
+- **New dependency: `xml-crypto`**, approved by Osama before installing (docs/09-SECURITY-RULES.md §8). XML
+  canonicalization (C14N) is the one piece of this phase that cannot be hand-rolled safely — the subtlety that makes it
+  risky (whitespace, attribute ordering, namespace-declaration inheritance across a removed subtree) is exactly the kind
+  of thing that silently breaks a hash chain, which is precisely what happened to the first-invoice PIH in Phase 1.
+  `xadesjs`/`xmldsigjs` (the only dedicated XAdES library) were considered and rejected — archived by their own
+  maintainer in Aug 2025, too risky a foundation for a multi-year product. ECDSA signing itself needed no new dependency:
+  `node:crypto` supports secp256k1 natively.
+- **Decisive verification, not just argument:** canonicalizing and hashing the official SDK's own bare (Phase-4-elements-
+  stripped) `Standard_Invoice.xml` and `Simplified_Invoice.xml` reproduces each one's own real `ds:Reference/DigestValue`
+  exactly — the value ZATCA itself accepted when clearing that invoice (`invoice-hash.spec.ts`). This proves
+  xml-crypto's inclusive **C14N 1.0** stands in correctly for the samples' declared C14N **1.1** (the two specs differ only
+  in rebasing inherited `xml:base`/`xml:lang`/`xml:space` across a removed ancestor, which none of these documents use).
+- **The QR TLV's tags 6 and 7 are UTF-8 TEXT of a base64 string, not raw bytes** — found by decoding two real samples'
+  embedded QR codes byte-for-byte, which directly contradicts the Security Features Standard's own prose ("length of hash
+  (SHA256) is 32 bytes" for tag 6). Empirical ground truth was trusted over the PDF text, and `qr.ts`'s golden-value
+  tests reproduce both samples' real QR codes byte-for-byte as proof. Tag 8 (EC public key) and tag 9 (certificate
+  signature, simplified only) ARE raw binary DER, confirmed the same way.
+- **One underlying digest, three different encodings depending on where it is carried** (this is the resolution to the
+  open question Phase 1 raised in section S):
+  - `InvoiceHash.digest` — the raw 32 bytes, used by nothing directly.
+  - `InvoiceHash.xmldsigBase64` = base64(raw digest) — `ds:Reference/DigestValue` and QR tag 6 (as text).
+  - `InvoiceHash.zatcaHash` = base64(hex-string(raw digest)) — the PIH, and `xades:SignedProperties`/`CertDigest`.
+  Tag 7 (the QR's "ECDSA signature") turned out to be literally the same base64 string as `ds:SignatureValue` — the
+  signature is computed once, over the canonicalized `ds:SignedInfo`, and reused verbatim, not recomputed differently
+  for the QR.
+- **`xades:CertDigest` could not be cross-checked**: the official sample's own `CertDigest` value does not match SHA-256
+  of its own embedded `ds:X509Certificate` — a sample-data inconsistency (likely assembled from two different example
+  runs), not a bug in this code. `zatcaHashOf(cert.raw)` is the spec-correct computation; confirm against a real sandbox
+  response once reachable, since this is the one field with no ground truth to verify against.
+- **`extractCertificateSignatureDer`** is a minimal, targeted DER/TLV reader for an X.509 certificate's fixed top-level
+  shape (`SEQUENCE { tbsCertificate, signatureAlgorithm, signatureValue }`) — not a general ASN.1 library, deliberately,
+  since this only ever parses our own certificate (trusted input, not adversarial). Verified to extract the exact bytes
+  the real sample's own QR tag 9 carries.
+- **`signInvoiceXml`'s self-verification**: the signature it produces, once its own `ds:SignedInfo` is canonicalized the
+  same way, verifies against its own certificate's public key — proven for both a standard and a simplified invoice
+  (`xades-signature.spec.ts`), and the resulting document's top-level element order matches a real signed sample exactly.
+- **Not built:** nothing in Phase 2 (onboarding) exists yet, so nothing generates a real EGS key/CSR — Phase 4's tests
+  sign with the SDK's own sample key/certificate. Nothing wires a real `SalesInvoice`/`EgsCredential` into this pipeline
+  yet (Phase 5). The encrypted-at-rest key material in `EgsCredential` is never touched by this phase — Phase 5 decrypts
+  it just-in-time for a signing call, per `docs/SECURITY.md`.

@@ -13,7 +13,9 @@
   "dependencies": {
     "@erp/compliance-contract": "*",
     "@erp/db": "*",
-    "@erp/shared": "*"
+    "@erp/shared": "*",
+    "@xmldom/xmldom": "^0.8.15",
+    "xml-crypto": "^6.4.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
