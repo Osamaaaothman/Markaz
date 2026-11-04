@@ -17,15 +17,15 @@ const describeIfReady = process.env.DATABASE_URL && existsSync(SDK_CERTS) ? desc
 // one per call — this is docs/06-COMPLIANCE-PACK-RULES.md §6's "mock adapter by default in CI".
 class ScriptedTransport implements HttpTransport {
   private readonly script: (HttpResponse | Error)[] = [];
-  readonly calls: { url: string; headers: Record<string, string>; body: unknown }[] = [];
+  readonly calls: { method: string; url: string; headers: Record<string, string>; body: unknown }[] = [];
 
   queue(...responses: (HttpResponse | Error)[]): this {
     this.script.push(...responses);
     return this;
   }
 
-  postJson(url: string, headers: Record<string, string>, body: unknown): Promise<HttpResponse> {
-    this.calls.push({ url, headers, body });
+  request(method: "POST" | "PATCH", url: string, headers: Record<string, string>, body: unknown): Promise<HttpResponse> {
+    this.calls.push({ method, url, headers, body });
     const next = this.script.shift();
     if (!next) throw new Error("ScriptedTransport ran out of queued responses");
     if (next instanceof Error) throw next;

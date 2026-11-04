@@ -4,9 +4,9 @@ Saudi Arabia's ZATCA e-invoicing compliance pack — implements `@erp/compliance
 (`docs/06-COMPLIANCE-PACK-RULES.md`). The word "ZATCA" lives only in this package; no module
 outside it, and nothing in `packages/core`, may mention it (docs/06 §1).
 
-Status: **M7 Phases 1, 3, 4, and 5 done** (data model; invoice XML generation; hashing, signing,
-QR; submission). No onboarding (Phase 2) yet — see `docs/14-MILESTONES.md` M7 and
-`docs/01-OPEN-DECISIONS.md` sections S, T, U, and V for what was decided and why.
+Status: **M7 Phases 1, 2, 3, 4, and 5 done** (data model; onboarding; invoice XML generation;
+hashing, signing, QR; submission). See `docs/14-MILESTONES.md` M7 and
+`docs/01-OPEN-DECISIONS.md` sections S, T, U, V, and W for what was decided and why.
 
 ## Owns
 
@@ -59,13 +59,42 @@ national address) and `parties` (buyer VAT number and national address, for a B2
   `buildBareInvoiceXml`'s output. The resulting document's own signature verifies against its own
   certificate, and its top-level element order matches a real signed sample exactly
   (`xades-signature.spec.ts`).
+- `onboarding/csr.ts` — `generateKeyAndCsr(input)`: generates a fresh secp256k1 EC key and a
+  PKCS#10 CSR for it by shelling out to the `openssl` CLI (array-arg `execFileSync`, never a
+  shell string — no injection surface; Node has no built-in CSR generator). `generateCsr` also
+  accepts an existing key, for renewal. The CSR's DN/SAN fields (serial, VAT number, invoice
+  type digits, location, industry) are corroborated against the SDK's own
+  `csr-config-*.properties` samples and the Security Standard PDF's RDN table
+  (`csr.spec.ts`, 8 tests, verified with `openssl req -verify`/`-text`/`-pubkey`).
+- `onboarding/onboarding-api-client.ts` — `ZatcaOnboardingApiClient`: `requestComplianceCsid`,
+  `submitComplianceInvoice`, `requestProductionCsid`, `renewProductionCsid`. Shares
+  `http/zatca-http-transport.ts`'s pluggable transport and error classification with the
+  submission client. `// REVIEW:` the renewal call's exact auth (current production CSID Basic
+  auth + a new OTP header, both at once) is this task's best corroborated guess, not confirmed
+  against ZATCA's own swagger or a reference implementation specific to renewal — see
+  docs/01-OPEN-DECISIONS.md section W.
+- `onboarding/onboarding.service.ts` — `OnboardingService`: `startOnboarding` (generate
+  key/CSR, request the compliance CSID, store everything encrypted), `runComplianceCheck` (sign
+  and submit one sample document, throwing `OnboardingError("COMPLIANCE_CHECK_FAILED")` on any
+  ZATCA-reported failure — never treats a rejection as a pass), `markComplianceChecksPassed`,
+  `requestProductionCsid` (guarded on `COMPLIANCE_CHECKS_PASSED`; sets
+  `certificateExpiresAt` from the issued certificate's real `notAfter`), `renewProductionCsid`
+  (reuses the existing private key — only the certificate and secret are replaced). All six
+  Prisma writes go through a `toBytesColumn()` cast documented at its own definition (a
+  `@types/node`-vs-Prisma `Buffer`/`Uint8Array<ArrayBuffer>` generics mismatch, not a real type
+  hole). Covered by `onboarding.service.spec.ts` against a real database and a scripted
+  transport — never the real network (docs/06 §6).
 - `submission/zatca-environment.ts` — base URLs and CSR certificate template names per
   environment. `// REVIEW:` not yet confirmed against the Integration Sandbox's own swagger
   (still not reachable by this tool) — see `docs/01-OPEN-DECISIONS.md` section V.
+- `http/zatca-http-transport.ts` — `HttpTransport` (generic `request(method, url, headers, body,
+  timeoutMs)`, `"POST"|"PATCH"`), `FetchHttpTransport` (built on `node:fetch`), `ZatcaApiError`
+  (`isTransient`: network/5xx/429 vs. everything else), `classifyErrorStatus`. Extracted in
+  Phase 2 so onboarding's CSID renewal (PATCH) could share it with submission (POST-only); a
+  pluggable transport keeps every test off the real network (docs/06-COMPLIANCE-PACK-RULES.md
+  §6).
 - `submission/zatca-api-client.ts` — `ZatcaApiClient` (`clearInvoice`/`reportInvoice`), built on
-  `node:fetch`. A pluggable `HttpTransport` keeps every test off the real network
-  (docs/06-COMPLIANCE-PACK-RULES.md §6). `ZatcaApiError.isTransient` is the retry/no-retry line:
-  network/5xx/429 vs. everything else.
+  `../http/zatca-http-transport.ts` (re-exports its types for backward compatibility).
 - `submission/submission-outcome.ts` — maps a ZATCA response (or a transport failure) onto
   `@erp/compliance-contract`'s `ComplianceOutcome`. An auth failure (401/403) becomes
   `PACK_UNAVAILABLE`, not `REJECTED` — it is our own credential/config problem, never a judgement
@@ -94,19 +123,34 @@ not a default). Used only for its C14N canonicalizer; ECDSA signing uses `node:c
 `xadesjs`/`xmldsigjs` were considered and rejected — the only dedicated XAdES library available,
 but archived by its own maintainer in Aug 2025.
 
-## Known gaps (Phases 1, 3, 4, and 5 only)
+## Known gaps (Phases 1, 2, 3, 4, and 5 only)
 
-- No onboarding flow (CSR → compliance CSID → compliance checks → production CSID) — Phase 2.
-  Nothing generates a real EGS key/CSR yet; every test signs with the SDK's own sample key.
-- No API endpoints or UI anywhere yet — nothing creates an `EgsUnit` through a real use case;
-  every test creates one directly via Prisma.
+- No API endpoints or UI anywhere yet (Phase 7) — nothing creates an `EgsUnit` or triggers
+  onboarding through a real use case; every test creates one directly via Prisma and drives
+  `OnboardingService` directly. The OTP (from the FATOORA portal, or the fixed sandbox value) is
+  passed in by whatever calls `startOnboarding`/`renewProductionCsid` — nothing captures it from
+  a user yet.
 - **The real integration point is still missing**: nothing maps an actual `SalesInvoice` onto
-  `ZatcaInvoiceInput`, decrypts a real `EgsCredential`, or decides which `EgsUnit` an invoice
-  belongs to. `InvoiceSubmissionService` and the BullMQ wrapper
+  `ZatcaInvoiceInput`, or decides which `EgsUnit` an invoice belongs to.
+  `InvoiceSubmissionService` and the BullMQ wrapper
   (`apps/api/src/compliance/zatca-submission.job.ts`) are both built and tested against a
-  scripted transport, but nothing calls either from a real sales flow yet. Blocked on Phase 2 (a
-  real `EgsCredential` to decrypt) and a product decision this repo has not made — see
-  `zatca-submission.job.ts`'s own `ZatcaSubmissionParamsLoader` doc comment.
+  scripted transport, but nothing calls either from a real sales flow yet. Phase 2 now provides
+  a real `EgsCredential` to decrypt; what's left is a product decision this repo has not made —
+  see `zatca-submission.job.ts`'s own `ZatcaSubmissionParamsLoader` doc comment.
+- Onboarding's HTTP client (`onboarding-api-client.ts`) is `// REVIEW:` on the same basis as the
+  submission client below — corroborated from this task's brief and one third-party reference
+  implementation, not ZATCA's own swagger. The CSID renewal call's exact auth combination
+  (current production CSID + a new OTP, both at once) has no reference implementation at all —
+  the least-confirmed call in this package. Confirm both before a real sandbox call.
+- Nothing yet tracks *which* of the required compliance-check sample documents (the 6 document
+  type/subtype combinations Tier 1 needs) have actually been run — `markComplianceChecksPassed`
+  is caller-driven; a caller could call it having only run one. No enforcement here that all
+  required samples passed before requesting the production CSID.
+- CSR field sourcing: the CN is free text (confirmed from the Security Standard PDF's own RDN
+  table, not a fixed format); the SAN's `SN` attribute carries the EGS serial using OpenSSL's
+  built-in "surname" (2.5.4.4) shortname by established real-world convention, not literal X.520
+  semantics (there is no "serialNumber" shortname built into OpenSSL's default config) — see
+  docs/01-OPEN-DECISIONS.md section W.
 - The submission HTTP client's exact endpoints/headers/JSON shape (`zatca-api-client.ts`) are
   `// REVIEW:` — built from this task's brief plus consistent third-party write-ups, not ZATCA's
   own swagger (still not reachable by this tool). Confirm before a real sandbox call.

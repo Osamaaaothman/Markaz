@@ -40,7 +40,7 @@ export function loadEncryptionKey(envVarName = "ZATCA_KEY_ENCRYPTION_KEY"): Buff
   return key;
 }
 
-export function encryptSecret(plaintext: Buffer, key: Buffer): Buffer {
+export function encryptSecret(plaintext: Uint8Array, key: Buffer): Buffer {
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
   const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
@@ -48,13 +48,19 @@ export function encryptSecret(plaintext: Buffer, key: Buffer): Buffer {
   return Buffer.concat([iv, ciphertext, authTag]);
 }
 
-export function decryptSecret(packed: Buffer, key: Buffer): Buffer {
+// Accepts `Uint8Array`, not just `Buffer`: a value read back from a Prisma Bytes column comes
+// typed as `Uint8Array<ArrayBuffer>` (current @types/node parameterizes `Buffer` more broadly,
+// over `ArrayBufferLike`, so the two are no longer the same type even though every Buffer IS a
+// Uint8Array at runtime) — callers like onboarding.service.ts pass a Prisma-read value straight
+// through without needing their own cast.
+export function decryptSecret(packed: Uint8Array, key: Buffer): Buffer {
   if (packed.length < IV_LENGTH + AUTH_TAG_LENGTH) {
     throw new KeyEncryptionError("CIPHERTEXT_TOO_SHORT", "Encrypted value is shorter than an IV + auth tag — corrupt or not one of ours.");
   }
-  const iv = packed.subarray(0, IV_LENGTH);
-  const authTag = packed.subarray(packed.length - AUTH_TAG_LENGTH);
-  const ciphertext = packed.subarray(IV_LENGTH, packed.length - AUTH_TAG_LENGTH);
+  const buf = Buffer.isBuffer(packed) ? packed : Buffer.from(packed.buffer, packed.byteOffset, packed.byteLength);
+  const iv = buf.subarray(0, IV_LENGTH);
+  const authTag = buf.subarray(buf.length - AUTH_TAG_LENGTH);
+  const ciphertext = buf.subarray(IV_LENGTH, buf.length - AUTH_TAG_LENGTH);
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
   try {
@@ -70,6 +76,6 @@ export function encryptText(plaintext: string, key: Buffer): Buffer {
   return encryptSecret(Buffer.from(plaintext, "utf8"), key);
 }
 
-export function decryptText(packed: Buffer, key: Buffer): string {
+export function decryptText(packed: Uint8Array, key: Buffer): string {
   return decryptSecret(packed, key).toString("utf8");
 }

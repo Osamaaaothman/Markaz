@@ -24,7 +24,14 @@ fi
 # pattern is looking for.
 STAGED_DIFF=$(git diff --cached -- . ':!.env.example' ':!docs/**/*.md' ':!**/*.spec.ts')
 
-if echo "$STAGED_DIFF" | grep -iE "(password|secret|api[_-]?key)[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9+/_-]{8,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|postgres(ql)?://[^ ]*:[^ @]{4,}@" >/dev/null; then
+MATCHES=$(echo "$STAGED_DIFF" | grep -iE "(password|secret|api[_-]?key)[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9+/_-]{8,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|postgres(ql)?://[^ ]*:[^ @]{4,}@")
+
+# A field literally named `secret` (ZATCA's own CSID-pair field, see
+# packages/compliance/zatca-sa/src/onboarding) whose value is a call to this package's own
+# decrypt helper, not a literal value — e.g. `secret: decryptText(credential.secretCiphertext,
+# key)`. The ERE above can't express "not followed by `(`" (no lookahead), so it flags the
+# decrypted field name itself; narrow this one shape back out instead of weakening the pattern.
+if [ -n "$MATCHES" ] && echo "$MATCHES" | grep -viE "secret[[:space:]]*:[[:space:]]*decrypt(Text|Secret)\(" | grep -q .; then
   echo ""
   echo "Possible secret detected in staged changes. Review before committing."
   echo "If this is a false positive, adjust the pattern in .husky/pre-commit — never skip with --no-verify."

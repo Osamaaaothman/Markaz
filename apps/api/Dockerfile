@@ -39,7 +39,11 @@ ENV TZ=UTC
 # Chromium falls back to a font with no Arabic glyphs and the PDF renders boxes
 # instead of text (docs/08-FRONTEND-I18N-RULES.md §5: "choose fonts with proper
 # Arabic support"). --with-deps installs Chromium's own OS-level dependencies.
-RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-core \
+# openssl: M7 ZATCA onboarding (packages/compliance/zatca-sa/src/onboarding/csr.ts) shells
+# out to the `openssl` CLI to generate the EGS's secp256k1 key and CSR — Node has no built-in
+# PKCS#10 CSR generator. bookworm-slim links libssl into Node itself but does not install the
+# standalone CLI tool, so it is listed explicitly here.
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-core openssl \
   && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r app && useradd -r -g app -m app
 WORKDIR /repo

@@ -672,3 +672,45 @@ wrapper (`apps/api/src/compliance/zatca-submission.job.ts`) adapts it to a job, 
   shape come from this task's own brief plus multiple consistent third-party integration write-ups, not ZATCA's own
   Integration Sandbox swagger (still unreachable by this tool — ADR-0004 flagged this as needed from Osama's browser
   back in Phase 1, still not resolved). Confirm before any real sandbox call.
+
+## W. M7 ZATCA — Phase 2 onboarding (2026-11-05)
+
+`OnboardingService` (`packages/compliance/zatca-sa/src/onboarding/`) drives the full CSR → compliance CSID →
+compliance checks → production CSID lifecycle, plus CSID renewal.
+
+- **New dependency: the `openssl` CLI, shelled out to, not a new npm package.** Node has no built-in PKCS#10 CSR
+  generator. `csr.ts` calls `openssl ecparam`/`openssl req` via `execFileSync` with array arguments only — never a
+  shell string, so there is no injection surface even though CSR field values (company name, address) ultimately
+  come from tenant data. Added `openssl` to `apps/api/Dockerfile`'s runtime stage (bookworm-slim links `libssl` into
+  Node itself but does not install the standalone CLI tool). No new JS dependency — a decision Osama did not need to
+  approve since nothing was added to `package.json`, but flagged here since it is still a new infrastructure
+  component per CLAUDE.md §4.
+- **CSR field sourcing, cross-checked against three sources, not one.** The task brief, the SDK's own
+  `Data/Input/csr-config-*.properties` samples, and a Microsoft Dynamics 365 onboarding guide's worked example all
+  agree on the field list and OIDs, with one exception: the Security Standard PDF's own "CSR Subject field content"
+  table appears to map both the invoice-type digits and the industry/business-category to OID 2.5.4.15, which is
+  almost certainly a transcription artifact in that PDF (two different fields cannot share one OID in a single
+  certificate extension). Went with the SDK-and-reference-implementation-corroborated mapping instead: `title`
+  (2.5.4.12) for invoice type digits, `businessCategory` (2.5.4.15) for industry.
+- **`SN` in the SAN is OpenSSL's "surname" shortname (2.5.4.4), not literal X.520 "serialNumber" (2.5.4.5).** OpenSSL
+  has no `serialNumber` shortname in its default config; every real-world ZATCA CSR implementation found uses `SN`
+  for the EGS serial by convention. Documented, not silently "corrected" to a technically purer OID with no evidence
+  ZATCA's own validator expects it.
+  **The CN field is free text**, not a fixed format — confirmed directly from the Security Standard PDF's own RDN
+  table, which lists no required structure for it (unlike every other field, which the standard pins down exactly).
+- **`// REVIEW:` — CSID renewal's auth is the least-confirmed call in this package.** `PATCH /production/csids`
+  sends both the current production CSID as `Authorization: Basic` AND a new OTP as a header. This task's brief says
+  only "PATCH with a new OTP"; no reference implementation specific to renewal (as opposed to initial compliance/
+  production CSID issuance, which two independent sources corroborate) was found. Flagged inline at the call site
+  and here rather than guessed at silently — confirm against the real sandbox, or ask ZATCA support, before this
+  path is ever exercised against production.
+- **Encryption, not a new scheme**: Phase 2 reuses Phase 1's `key-encryption.ts` envelope encryption unchanged (only
+  widened its parameter types from `Buffer` to `Uint8Array` so a Prisma-read ciphertext needs no caller-side cast).
+  The private key never leaves the service as plaintext except transiently in memory to build the CSR and to sign
+  compliance-check sample documents.
+- **`runComplianceCheck` never treats a ZATCA rejection as a pass.** Throws `OnboardingError("COMPLIANCE_CHECK_FAILED")`
+  on any non-empty `errorMessages` or a `NOT_CLEARED`/`NOT_REPORTED` status; `markComplianceChecksPassed` is a
+  separate, explicit, caller-driven step — this service does not itself track which of the required sample document
+  types were actually exercised (listed as a known gap in the package README, not silently assumed complete).
+- **Still blocked**: no API endpoint or UI captures an OTP or triggers onboarding yet (Phase 7); nothing enforces
+  that all required compliance-check sample types ran before `requestProductionCsid` is called.
