@@ -28,3 +28,6 @@ export * from "./onboarding/csr.js";
 // ComplianceCheckResponseBody/ZatcaOnboardingApiClient.
 export * from "./onboarding/onboarding-api-client.js";
 export * from "./onboarding/onboarding.service.js";
+export * from "./validation/validation-report.js";
+export { checkInvoiceConsistency } from "./validation/invoice-consistency.js";
+export { verifySignedInvoice, stripSignatureElements } from "./validation/signed-invoice-verifier.js";

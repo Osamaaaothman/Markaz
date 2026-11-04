@@ -779,3 +779,43 @@ Fatoora developer portal UI requires before this OTP is usable, or (b) get the a
 Postman collection (gated behind portal login — this tool could not reach it) so the correct endpoint and any
 required account-binding step can be confirmed instead of inferred. Phase 6 (local SDK validation — the jar's own
 `-validate`) does not depend on this and can proceed in parallel.
+
+## Y. M7 ZATCA — Phase 6 local validation (2026-11-06)
+
+Written in a cloud session that **could not reach ZATCA** (the network policy returns 403 for every ZATCA host) and has **no
+copy of the official SDK** (`docs/vendor/` is git-ignored). So this phase is built from what the repository itself can prove,
+and says plainly what it cannot.
+
+- **Found and fixed first: the pack's own tests failed anywhere without the SDK.** `describe.skip` still runs its callback,
+  and four suites read SDK files while registering, so on any cloud checkout or CI runner they crashed instead of skipping --
+  CI on this branch was red. `src/testing/fixtures.ts` now provides `describeIfSdk` (body not executed, the skip is reported
+  by name with the missing path) and `generateTestCertificate()` (a throw-away secp256k1 key + self-signed certificate made
+  with `openssl`), so signing, submission and onboarding orchestration run everywhere. The byte-for-byte comparisons against
+  the SDK samples still run, unchanged, wherever the SDK exists.
+- **`src/validation/invoice-consistency.ts` -- `checkInvoiceConsistency(xml)`.** Offline checks of a bare or signed document:
+  the EN 16931 arithmetic rules ZATCA's schema builds on (BR-CO-10, -13, -14, -15, -16, -17) in exact integer hundredths, the
+  per-category tax breakdown against the lines, header facts (UUID, ICV, PIH shape, issue date/time, type code and `name`
+  flags, billing reference + reason on credit/debit notes, buyer on a standard invoice, seller VAT is 15 digits), currency
+  consistency. **It is not ZATCA's validation:** the XSD and Schematron live in the SDK (`Data/Rules`) and are not
+  re-implemented. A `valid` report is never evidence of acceptance (docs/06 §7).
+  - `// REVIEW:` the per-line "tax ~ rate x net" and "net ~ quantity x price" checks are warnings with a 0.01 tolerance (the
+    exact per-line rounding rule was not confirmed); "VAT number starts and ends with 3" is a warning, remembered not re-read.
+- **`src/validation/signed-invoice-verifier.ts` -- `verifySignedInvoice(xml)`.** Recomputes the invoice hash with the three
+  uncovered elements stripped, verifies the signature over the canonicalized `SignedInfo` with the embedded certificate,
+  checks the SignedProperties and certificate digests, and decodes the QR: required tags present (9 only for simplified) and
+  **every QR value equal to the same fact in the XML**.
+- **Wired into submission (`InvoiceSubmissionService`).** Both checks now run before anything is sent. A failure writes the
+  reasons onto the `ZatcaInvoiceRecord` (`FAILED_RETRYABLE`, `validationErrors`, `attempts` untouched -- ZATCA was never
+  called), throws `InvoiceValidationError`, and leaves the chain position reserved but unconsumed, so a fixed resubmission
+  reuses the same ICV. The BullMQ wrapper turns it into `UnrecoverableError` (retrying the same data cannot succeed).
+  Tests: nothing is sent, chain untouched, resubmission reuses the ICV; a QR that disagrees with the document is refused.
+- **`src/validation/sdk-validator.ts` -- `runSdkValidation`.** Runs the SDK's own `-validate` (dev/test only, never in a
+  customer deployment). **Not run, and partly guessed:** the flags (`-validate -invoice <file>`) and the verdict line
+  (`GLOBAL VALIDATION RESULT = PASSED|FAILED`) are from the SDK's documented command line, not observed. An unrecognised
+  output is `UNKNOWN`, never a pass. `sdk-validator.spec.ts` (gated on the SDK) first checks the harness against the SDK's
+  own sample, then validates our signed output. **First run on a machine with the SDK may need the verdict pattern
+  adjusted -- read the printed output; do not loosen the test.**
+- **Not done / not provable here:** the official Schematron and XSD rules (SDK not available); the gated "agrees with the SDK
+  sample documents" suite in `validation.spec.ts` has not been run (it allows only the known `CERT_DIGEST_MISMATCH` sample
+  inconsistency from section U -- any other disagreement is a validator bug or a finding about the samples).
+

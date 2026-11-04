@@ -4,9 +4,9 @@ Saudi Arabia's ZATCA e-invoicing compliance pack — implements `@erp/compliance
 (`docs/06-COMPLIANCE-PACK-RULES.md`). The word "ZATCA" lives only in this package; no module
 outside it, and nothing in `packages/core`, may mention it (docs/06 §1).
 
-Status: **M7 Phases 1, 2, 3, 4, and 5 done** (data model; onboarding; invoice XML generation;
-hashing, signing, QR; submission). See `docs/14-MILESTONES.md` M7 and
-`docs/01-OPEN-DECISIONS.md` sections S, T, U, V, W, and X for what was decided and why — X in
+Status: **M7 Phases 1-6 done** (data model; onboarding; invoice XML generation;
+hashing, signing, QR; submission; local validation). See `docs/14-MILESTONES.md` M7 and
+`docs/01-OPEN-DECISIONS.md` sections S, T, U, V, W, X, and Y for what was decided and why — X in
 particular covers a real-sandbox smoke test that found and fixed two genuine CSR structure bugs,
 and an unresolved real-sandbox blocker that needs Osama's own portal account.
 
@@ -111,6 +111,17 @@ national address) and `parties` (buyer VAT number and national address, for a B2
   `SalesInvoice` into a `ZatcaInvoiceInput`; the caller supplies that mapping
   (`SubmitInvoiceParams.buildInvoiceInput`), which keeps this package independent of
   `packages/core`.
+
+- `validation/invoice-consistency.ts` -- `checkInvoiceConsistency`: offline arithmetic/structure checks on a
+  bare or signed document (EN 16931 BR-CO rules, tax breakdown, header facts). Our own safety net, **not** ZATCA's
+  XSD/Schematron.
+- `validation/signed-invoice-verifier.ts` -- `verifySignedInvoice`: hash, signature, SignedProperties/CertDigest and
+  QR-vs-XML checks on a signed document. `InvoiceSubmissionService` runs both before anything is sent and throws
+  `InvoiceValidationError` (nothing sent, ICV not consumed) on a failure.
+- `validation/sdk-validator.ts` -- `runSdkValidation`: runs the official SDK's `-validate` (dev/test only; flags and verdict
+  line unconfirmed, see docs/01 section Y).
+- `testing/fixtures.ts` -- test-only: `describeIfSdk` (SDK-dependent suites are skipped *by name* without the SDK) and
+  `generateTestCertificate` (an `openssl`-made key/self-signed certificate so pipeline tests run anywhere).
 
 ## Dependencies
 

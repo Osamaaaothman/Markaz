@@ -18,6 +18,9 @@ import type { ZatcaInvoiceInput } from "../xml/invoice-xml.types.js";
 import { signInvoiceXml, type SignedInvoice } from "../xml/xades-signature.js";
 import type { QrFields } from "../xml/qr.js";
 import { EgsChainService } from "../egs-chain.service.js";
+import { checkInvoiceConsistency } from "../validation/invoice-consistency.js";
+import { verifySignedInvoice } from "../validation/signed-invoice-verifier.js";
+import type { ValidationReport } from "../validation/validation-report.js";
 import { ZatcaApiClient, type ClearanceRequestBody, type ZatcaCredentials } from "./zatca-api-client.js";
 import { classifyClearanceResponse, classifyError, classifyReportingResponse, type SubmissionOutcome } from "./submission-outcome.js";
 import type { ZatcaEnvironment } from "./zatca-environment.js";
@@ -26,6 +29,21 @@ export class AlreadySubmittedError extends Error {
   constructor(readonly salesInvoiceId: string) {
     super(`Sales invoice ${salesInvoiceId} already has a definitive ZATCA outcome — a correction must be a new document, not a resubmission.`);
     this.name = "AlreadySubmittedError";
+  }
+}
+
+// Our own pre-flight checks (validation/) found a problem, so nothing was sent to ZATCA. The chain
+// position stays reserved and unconsumed on the record: fix the cause and submit the same invoice
+// again, and it reuses that position. Retrying without a fix cannot succeed, so a job wrapper
+// should not retry this blindly.
+export class InvoiceValidationError extends Error {
+  constructor(
+    readonly salesInvoiceId: string,
+    readonly stage: "BEFORE_SIGNING" | "AFTER_SIGNING",
+    readonly messages: readonly string[],
+  ) {
+    super(`Sales invoice ${salesInvoiceId} failed local validation ${stage === "BEFORE_SIGNING" ? "before signing" : "after signing"}: ${messages.join("; ")}`);
+    this.name = "InvoiceValidationError";
   }
 }
 
@@ -83,6 +101,7 @@ export class InvoiceSubmissionService {
     const invoiceInput = params.buildInvoiceInput({ icv, previousInvoiceHash });
 
     const bareXml = buildBareInvoiceXml(invoiceInput);
+    await this.requireValid(params.salesInvoiceId, recordId, "BEFORE_SIGNING", checkInvoiceConsistency(bareXml));
     const signed = signInvoiceXml(bareXml, {
       certificatePem: params.certificatePem,
       privateKeyPem: params.privateKeyPem,
@@ -91,9 +110,21 @@ export class InvoiceSubmissionService {
       qr: params.qr,
     });
 
+    // A signing bug must never reach ZATCA (or, worse, be accepted and then fail an audit).
+    await this.requireValid(params.salesInvoiceId, recordId, "AFTER_SIGNING", verifySignedInvoice(signed.signedXml));
+
     const outcome = await this.callZatca(params, invoiceInput, signed);
     await this.finalize(params.egsUnitId, recordId, signed, outcome);
     return { zatcaInvoiceRecordId: recordId, outcome };
+  }
+
+  // Warnings never block; any error stops the submission, is written onto the record where the UI
+  // shows it, and is thrown. `attempts` is not incremented: ZATCA was never called.
+  private async requireValid(salesInvoiceId: string, recordId: string, stage: InvoiceValidationError["stage"], report: ValidationReport): Promise<void> {
+    if (report.valid) return;
+    const messages = report.issues.filter((i) => i.severity === "error").map((i) => `${i.code}: ${i.message}`);
+    await this.prisma.zatcaInvoiceRecord.update({ where: { id: recordId }, data: { status: "FAILED_RETRYABLE", validationErrors: messages } });
+    throw new InvoiceValidationError(salesInvoiceId, stage, messages);
   }
 
   // Reads any existing record for this invoice first: refuses outright if it already has a
