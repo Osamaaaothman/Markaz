@@ -21,6 +21,7 @@ export class SalesError extends Error {
       | "ACCOUNT_NOT_FOUND"
       | "ACCOUNT_NOT_POSTABLE"
       | "CREDIT_EXCEEDS_INVOICE"
+      | "DEBIT_EXCEEDS_INVOICE"
       | "NOT_AN_INVOICE"
       | "NO_OPEN_PERIOD"
       | "ZERO_DOCUMENT",

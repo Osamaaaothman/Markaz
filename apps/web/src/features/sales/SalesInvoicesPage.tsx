@@ -17,17 +17,23 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
-import { useCreateCreditNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
+import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL = "ALL";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 
+function documentTypeSeverity(documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE"): "info" | "warning" | "danger" {
+  if (documentType === "INVOICE") return "info";
+  if (documentType === "CREDIT_NOTE") return "warning";
+  return "danger";
+}
+
 export function SalesInvoicesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const navigate = useNavigate();
-  const [type, setType] = useState<"INVOICE" | "CREDIT_NOTE" | null>(null);
+  const [type, setType] = useState<"INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | null>(null);
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSalesInvoices(type);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
@@ -46,11 +52,12 @@ export function SalesInvoicesPage(): React.JSX.Element {
           <span className="coa-levels__label">{t("sales.invoices.documentType")}</span>
           <Dropdown
             value={type ?? ALL}
-            onChange={(e) => setType(e.value === ALL ? null : (e.value as "INVOICE" | "CREDIT_NOTE"))}
+            onChange={(e) => setType(e.value === ALL ? null : (e.value as "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE"))}
             options={[
               { label: t("sales.invoices.allTypes"), value: ALL },
               { label: t("sales.invoices.types.INVOICE"), value: "INVOICE" },
               { label: t("sales.invoices.types.CREDIT_NOTE"), value: "CREDIT_NOTE" },
+              { label: t("sales.invoices.types.DEBIT_NOTE"), value: "DEBIT_NOTE" },
             ]}
           />
         </div>
@@ -69,7 +76,7 @@ export function SalesInvoicesPage(): React.JSX.Element {
         <>
           <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/invoices/${(e.data as SalesInvoiceSummary).id}`)}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
-            <Column header={t("sales.invoices.documentType")} style={{ width: "10rem" }} body={(r: SalesInvoiceSummary) => <Tag value={t(`sales.invoices.types.${r.documentType}`)} severity={r.documentType === "INVOICE" ? "info" : "warning"} />} />
+            <Column header={t("sales.invoices.documentType")} style={{ width: "10rem" }} body={(r: SalesInvoiceSummary) => <Tag value={t(`sales.invoices.types.${r.documentType}`)} severity={documentTypeSeverity(r.documentType)} />} />
             <Column header={t("sales.customer")} body={(r: SalesInvoiceSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("purchasing.invoices.invoiceDate")} style={{ width: "9rem" }} body={(r: SalesInvoiceSummary) => formatCalendarDate(r.invoiceDate, i18n.language)} />
             <Column header={t("purchasing.invoices.dueDate")} style={{ width: "9rem" }} body={(r: SalesInvoiceSummary) => (r.dueDate ? formatCalendarDate(r.dueDate, i18n.language) : "")} />
@@ -96,6 +103,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { data: invoice, isPending, isError, refetch } = useSalesInvoice(id);
   const [creditOpen, setCreditOpen] = useState(false);
+  const [debitOpen, setDebitOpen] = useState(false);
 
   if (isPending) return <PageSkeleton />;
   if (isError || !invoice) {
@@ -117,11 +125,12 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           <p className="erp-page__subtitle">{localizedName({ name: invoice.customerName, nameAr: invoice.customerNameAr }, i18n.language)}</p>
         </div>
         <div className="erp-page__header-actions">
-          <Tag value={t(`sales.invoices.types.${invoice.documentType}`)} severity={invoice.documentType === "INVOICE" ? "info" : "warning"} />
+          <Tag value={t(`sales.invoices.types.${invoice.documentType}`)} severity={documentTypeSeverity(invoice.documentType)} />
           <AttachmentsButton ownerType="SALES_INVOICE" ownerId={invoice.id} label={invoice.number} />
           <Button label={t("sales.invoices.downloadPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "pdf")} />
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "print")} />
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("credit_note:create")} label={t("sales.invoices.creditNote")} icon="pi pi-minus-circle" outlined onClick={() => setCreditOpen(true)} /> : null}
+          {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("debit_note:create")} label={t("sales.invoices.debitNote")} icon="pi pi-plus-circle" outlined onClick={() => setDebitOpen(true)} /> : null}
           {invoice.originalInvoiceId ? <Button label={t("sales.invoices.openOriginal")} text onClick={() => void navigate(`/sales/invoices/${invoice.originalInvoiceId}`)} /> : null}
         </div>
       </div>
@@ -158,6 +167,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         <Button type="button" label={t("sales.orders.back")} text onClick={() => void navigate("/sales/invoices")} />
       </div>
       <CreditNoteDialog invoiceId={invoice.id} visible={creditOpen} onHide={() => setCreditOpen(false)} />
+      <DebitNoteDialog invoiceId={invoice.id} visible={debitOpen} onHide={() => setDebitOpen(false)} />
     </div>
   );
 }
@@ -225,6 +235,79 @@ function CreditNoteDialog({ invoiceId, visible, onHide }: { invoiceId: string; v
             onClick={() =>
               create.mutate(
                 { creditDate: toDateOnlyIsoString(date), lines: [{ description: description.trim(), quantity, unitPrice, taxCodeId }] },
+                { onSuccess: onHide },
+              )
+            }
+          />
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+function DebitNoteDialog({ invoiceId, visible, onHide }: { invoiceId: string; visible: boolean; onHide: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  const { data: taxCodes } = useTaxCodes(false);
+  const create = useCreateDebitNote(invoiceId);
+  const [date, setDate] = useState<Date>(new Date());
+  const [description, setDescription] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [unitPrice, setUnitPrice] = useState("");
+  const [taxCodeId, setTaxCodeId] = useState("");
+
+  useEffect(() => {
+    if (!visible) return;
+    create.reset();
+    setDate(new Date());
+    setDescription("");
+    setQuantity("1");
+    setUnitPrice("");
+    setTaxCodeId((taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "");
+    // Reset each time the dialog opens.
+  }, [visible]);
+
+  const valid = description.trim() !== "" && DECIMAL.test(quantity) && /[1-9]/.test(quantity) && DECIMAL.test(unitPrice) && taxCodeId !== "";
+  const code = (create.error as { response?: { data?: { error?: { code?: string } } } } | null)?.response?.data?.error?.code;
+
+  return (
+    <Dialog header={t("sales.invoices.debitNote")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(40rem, 96vw)" }}>
+      <div className="erp-form">
+        <p className="erp-field__hint">{t("sales.invoices.debitNoteHint")}</p>
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="dnDate">{t("sales.invoices.debitDate")}</label>
+            <Calendar inputId="dnDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
+          </div>
+        </div>
+        <div className="erp-field">
+          <label htmlFor="dnDesc">{t("sales.description")}</label>
+          <InputText id="dnDesc" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="dnQty">{t("purchasing.quantity")}</label>
+            <InputText id="dnQty" dir="ltr" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="dnPrice">{t("purchasing.unitPrice")}</label>
+            <InputText id="dnPrice" dir="ltr" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="dnTax">{t("purchasing.invoices.taxCode")}</label>
+            <Dropdown inputId="dnTax" value={taxCodeId || null} onChange={(e) => setTaxCodeId((e.value as string | null) ?? "")} options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))} />
+          </div>
+        </div>
+        {create.isError ? <p className="erp-auth-card__error">{code === "DEBIT_EXCEEDS_INVOICE" ? t("sales.errors.DEBIT_EXCEEDS_INVOICE") : t("sales.errors.generic")}</p> : null}
+        <div className="erp-form__actions">
+          <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
+          <Button
+            type="button"
+            label={t("sales.invoices.postDebitNote")}
+            disabled={!valid}
+            loading={create.isPending}
+            onClick={() =>
+              create.mutate(
+                { debitDate: toDateOnlyIsoString(date), lines: [{ description: description.trim(), quantity, unitPrice, taxCodeId }] },
                 { onSuccess: onHide },
               )
             }

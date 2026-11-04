@@ -29,6 +29,7 @@ import { localizedCompanyName } from "../common/company-name.js";
 import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
+  CreateDebitNoteDto,
   CreateQuotationDto,
   CreateSalesInvoiceDto,
   CreateSalesOrderDto,
@@ -60,6 +61,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
       case "OVER_INVOICED":
       case "CUSTOMER_MISMATCH":
       case "CREDIT_EXCEEDS_INVOICE":
+      case "DEBIT_EXCEEDS_INVOICE":
       case "NOT_AN_INVOICE":
         throw new ConflictException(body);
       default:
@@ -236,6 +238,25 @@ export class SalesController {
     return mapSalesErrors(
       this.invoices.createCreditNote(
         { originalInvoiceId: id, creditDate: new Date(dto.creditDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
+        actor,
+        correlationId,
+        idempotencyKey,
+      ),
+    );
+  }
+
+  @Post("sales-invoices/:id/debit-notes")
+  @RequirePermission("debit_note", "create")
+  createDebitNote(
+    @Param("id") id: string,
+    @Body() dto: CreateDebitNoteDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+    @IdempotencyKey() idempotencyKey: string,
+  ): Promise<SalesInvoiceResult> {
+    return mapSalesErrors(
+      this.invoices.createDebitNote(
+        { originalInvoiceId: id, debitDate: new Date(dto.debitDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
         actor,
         correlationId,
         idempotencyKey,

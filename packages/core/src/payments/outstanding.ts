@@ -11,7 +11,7 @@ export interface OutstandingInvoice {
   readonly dueDate: string | null;
   readonly currency: string;
   readonly gross: Prisma.Decimal;
-  // gross minus what payments (and, for sales, credit notes) dated on or before the cut-off have settled.
+  // gross minus what payments and (for sales) credit notes have settled, plus (for sales) debit notes raised — all dated on or before the cut-off.
   readonly outstanding: Prisma.Decimal;
 }
 
@@ -31,7 +31,7 @@ const day = (d: Date): string => d.toISOString().slice(0, 10);
 
 // One place that knows what "still owed on an invoice" means, so payments, the open-items list and
 // the ageing reports can never disagree (the ageing report must tie to the ledger — docs/14 M6 gate).
-//   sales invoice   : gross - allocated receipts - credit notes raised against it
+//   sales invoice   : gross - allocated receipts - credit notes raised against it + debit notes raised against it
 //   supplier invoice: gross - allocated payments - debit notes raised against it
 // `asOf` rolls the position back to a past date: only documents dated on or before it count.
 // Pass `ids` to look at specific invoices, `partyId` for one party, neither for all of them.
@@ -54,7 +54,9 @@ export async function loadOutstanding(
                    - COALESCE((SELECT SUM(a.amount) FROM payment_allocations a JOIN payments p ON p.id = a.payment_id
                                WHERE a.sales_invoice_id = si.id AND p.payment_date <= ${asOf}::date), 0)
                    - COALESCE((SELECT SUM(cn.total_gross) FROM sales_invoices cn
-                               WHERE cn.original_invoice_id = si.id AND cn.invoice_date <= ${asOf}::date), 0))::text AS outstanding
+                               WHERE cn.original_invoice_id = si.id AND cn.document_type = 'CREDIT_NOTE' AND cn.invoice_date <= ${asOf}::date), 0)
+                   + COALESCE((SELECT SUM(dn.total_gross) FROM sales_invoices dn
+                               WHERE dn.original_invoice_id = si.id AND dn.document_type = 'DEBIT_NOTE' AND dn.invoice_date <= ${asOf}::date), 0))::text AS outstanding
           FROM sales_invoices si
           WHERE si.company_id = ${companyId} AND si.document_type = 'INVOICE' AND si.invoice_date <= ${asOf}::date
             AND (${ids}::text[] IS NULL OR si.id = ANY(${ids}::text[]))
