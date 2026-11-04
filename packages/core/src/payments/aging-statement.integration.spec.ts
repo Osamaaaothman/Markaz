@@ -36,6 +36,7 @@ describeIfDb("Ageing and party statements — real database", () => {
   let customerId: string;
   let supplierId: string;
   let vat0: string;
+  let invoiceBId: string;
 
   const service = (price: string) => ({ description: "Consulting", quantity: "1", unitPrice: price, taxCodeId: vat0 });
 
@@ -71,6 +72,7 @@ describeIfDb("Ageing and party statements — real database", () => {
     // Customer: A 1000 (Jan 10, due Feb 9), B 500 (Mar 20, due Apr 19), C 200 (Dec 10, after the report date).
     const a = await sales.createInvoice({ customerId, invoiceDate: on(1, 10), dueDate: on(2, 9), lines: [service("1000")] }, actor, cid(), newId());
     const b = await sales.createInvoice({ customerId, invoiceDate: on(3, 20), dueDate: on(4, 19), lines: [service("500")] }, actor, cid(), newId());
+    invoiceBId = b.id;
     await sales.createInvoice({ customerId, invoiceDate: on(12, 10), dueDate: on(12, 31), lines: [service("200")] }, actor, cid(), newId());
     await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: on(3, 1), amount: "300", cashAccountId: acc.bank!, method: "CASH", allocations: [{ invoiceId: a.id, amount: "300" }] }, actor, cid(), newId());
     await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: on(3, 15), amount: "100", cashAccountId: acc.bank!, method: "CASH", allocations: [] }, actor, cid(), newId());
@@ -155,5 +157,21 @@ describeIfDb("Ageing and party statements — real database", () => {
 
   it("does not show another company's party", async () => {
     await expect(statements.statement(newId(), customerId, "SALES", on(1, 1), on(12, 31))).rejects.toBeInstanceOf(PartyNotFoundError);
+  });
+
+  it("includes a sales debit note as a charge: it increases what the customer owes, in ageing and the statement", async () => {
+    await sales.createDebitNote({ originalInvoiceId: invoiceBId, debitDate: on(12, 15), lines: [service("50")] }, actor, cid(), newId());
+
+    const report = await aging.report(companyId, "SALES", on(12, 31));
+    expect(report.totals.total).toBe("1300.0000"); // 1250 (see "rolls the position back") + the 50 debit note
+    expect(report.difference).toBe("0.0000"); // still ties to the ledger
+
+    const statement = await statements.statement(companyId, customerId, "SALES", on(12, 1), on(12, 31));
+    expect(statement.openingBalance).toBe("1050.0000"); // unchanged since March
+    expect(statement.lines.map((l) => [l.kind, l.balance])).toEqual([
+      ["INVOICE", "1250.0000"], // invoice C, 200
+      ["DEBIT_NOTE", "1300.0000"], // +50
+    ]);
+    expect(statement.closingBalance).toBe("1300.0000");
   });
 });

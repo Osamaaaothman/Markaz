@@ -177,7 +177,7 @@ export function useCancelSalesOrder(id: string) {
 
 export interface SalesInvoiceSummary {
   readonly id: string;
-  readonly documentType: "INVOICE" | "CREDIT_NOTE";
+  readonly documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
   readonly number: string;
   readonly customerId: string;
   readonly customerName: string;
@@ -204,7 +204,7 @@ export interface SalesInvoiceDetail extends SalesInvoiceSummary {
   }[];
 }
 
-export function useSalesInvoices(documentType: "INVOICE" | "CREDIT_NOTE" | null) {
+export function useSalesInvoices(documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | null) {
   const { can } = usePermissions();
   return useInfiniteQuery({
     queryKey: ["salesInvoices", "list", documentType],
@@ -271,6 +271,25 @@ export function useCreateCreditNote(invoiceId: string) {
     mutationFn: async (payload: CreditNotePayload) =>
       (
         await apiClient.post<{ id: string; number: string }>(`/v1/sales-invoices/${invoiceId}/credit-notes`, payload, {
+          headers: { "Idempotency-Key": newId() },
+        })
+      ).data,
+    onSuccess: () => invalidateAfterPosting(qc),
+  });
+}
+
+export interface DebitNotePayload {
+  readonly debitDate: string;
+  readonly notes?: string;
+  readonly lines: readonly { readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string }[];
+}
+
+export function useCreateDebitNote(invoiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: DebitNotePayload) =>
+      (
+        await apiClient.post<{ id: string; number: string }>(`/v1/sales-invoices/${invoiceId}/debit-notes`, payload, {
           headers: { "Idempotency-Key": newId() },
         })
       ).data,

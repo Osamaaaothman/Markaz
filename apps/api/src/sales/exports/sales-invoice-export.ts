@@ -4,7 +4,7 @@ import { renderReportShell } from "../../accounting/exports/report-document.util
 import { escapeHtml } from "../../common/html-escape.js";
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18n/server-i18n.js";
 
-// A printable invoice or credit note, in Arabic (RTL) or English (LTR). It shows the figures as posted.
+// A printable invoice, credit note or debit note, in Arabic (RTL) or English (LTR). It shows the figures as posted.
 // It is NOT a ZATCA e-invoice: no UUID, hash, QR or signature — those come from the compliance pack (M7).
 export async function salesInvoiceToPdfHtml(params: {
   readonly invoice: SalesInvoiceDetail;
@@ -17,7 +17,9 @@ export async function salesInvoiceToPdfHtml(params: {
   const cur = invoice.currency;
   const money = (v: string): string => escapeHtml(`${Money.of(v, cur).toDecimalString()} ${cur}`);
   const customer = params.language === "ar" && invoice.customerNameAr ? invoice.customerNameAr : invoice.customerName;
-  const title = t(invoice.documentType === "INVOICE" ? "salesInvoice.invoiceTitle" : "salesInvoice.creditNoteTitle");
+  const title = t(
+    invoice.documentType === "INVOICE" ? "salesInvoice.invoiceTitle" : invoice.documentType === "DEBIT_NOTE" ? "salesInvoice.debitNoteTitle" : "salesInvoice.creditNoteTitle",
+  );
 
   const rows = invoice.lines
     .map(
