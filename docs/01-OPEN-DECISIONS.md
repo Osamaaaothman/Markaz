@@ -497,3 +497,50 @@ there is no ledger event; the posting engine rejects zero-amount lines by design
 - **Follow-up (still open):** now that `feat/hr-payments` is merged, add the "no payable shown" assertion to
   `end-of-service.integration.spec.ts` — after a zero settlement, `HrPaymentService.payables` must not list it, and paying it must fail
   with `NOTHING_TO_PAY`. Not done as part of this merge.
+
+## S. M7 ZATCA — Phase 1 data model (2026-11-04)
+
+A4 (direct integration) was already decided; this is the schema-only first slice, built with Osama's explicit instruction to
+build everything for real — no shortcuts anywhere in this integration — so every item below is a real, committed design choice,
+not a placeholder. No network calls, no XML, no onboarding flow yet (that is Phase 2+); verified against the three official
+ZATCA PDFs already in `docs/vendor/zatca/` (extracted with `pypdf`, since this machine has no `pdftoppm`/poppler) where this
+phase touches spec detail.
+
+- **Curve: secp256k1, not the Security Features Standard's stated "P-256".** Confirmed from a second, independent primary
+  source (ZATCA's own Developer Portal SDK-download page, read live: "ذلك للمطابقة مع خوارزمية التشفير secp256k1") on top of
+  consistent third-party integration reports already noted in `docs/adr/0004-zatca-direct-integration.md`. The CSR/key code in
+  Phase 2 will use secp256k1; cross-check once more against the SDK's own docs once Osama has it downloaded, and flag loudly if
+  it disagrees.
+- **First-invoice PIH:** `EgsChainService.FIRST_INVOICE_PREVIOUS_HASH` = base64(SHA-256("0")), per this task's starting spec.
+  `// REVIEW:` **not yet verified against the current official documentation** (docs/06-COMPLIANCE-PACK-RULES.md §0) — nothing
+  in the three local PDFs states this exact bootstrap value in the sections read so far. Must be confirmed (or corrected) before
+  Phase 4/5 submit a real first invoice; wrong by even one byte and ZATCA rejects every invoice after it, since the whole chain
+  is tamper-evident.
+- **National address lives on `Company` (seller) and `Party` (buyer), not per-`EgsUnit`.** The CSR's SAN `registeredAddress`
+  is technically a property of the issuing EGS/branch in the official model, so a company with EGS units at genuinely different
+  physical addresses is not modelled correctly yet. Chosen because Tier 1 targets single-branch SMEs (docs/00 §1) and the task's
+  own Phase 1 breakdown scoped address to the taxpayer profile; cheap to add a per-EGS override later (nullable column,
+  falls back to the company's address) without a breaking change. Flag if a real customer needs this before it is built.
+- **Buyer fields are not snapshotted onto the invoice.** `Party.vatNumber`/address are read live at XML-generation time, the
+  same way `SalesInvoice` already reads `customer.name` live today rather than copying it. The immutable legal record of what
+  was actually sent is the generated `signedXml`/`clearedXml` on `ZatcaInvoiceRecord`, not a frozen copy of the party row.
+- **Key custody:** `EgsCredential`'s `*Ciphertext` columns are AES-256-GCM, envelope-style (random IV + ciphertext + auth tag
+  packed into one `Bytes` value), decrypted only in memory for a signing operation. The decryption key
+  (`ZATCA_KEY_ENCRYPTION_KEY`) is a 32-byte base64 value in the environment, outside the database — this deployment has no KMS
+  (docs/09-SECURITY-RULES.md §5). **Losing that env var makes every stored key and CSID permanently unrecoverable** — this
+  belongs in the key/backup procedure the go-live report (Phase 8 deliverable) must spell out.
+- **`EgsCredential` is a mutable 1:1 row per EGS unit**, not an append-only history table: CSIDs rotate in place as onboarding
+  and renewal progress. History of who changed what and when comes from the audit log (`IAuditLogger`, not yet wired to this
+  table — that lands with Phase 2's onboarding service, which is the first thing to actually call these tables through a use
+  case rather than a raw Prisma call in a test).
+- **The ICV/PIH chain primitive is built and proven under concurrency now**, ahead of Phase 5 (Submission), because it is the
+  one piece of M7 that CLAUDE.md's invariant bar applies to immediately: two invoices must never receive the same ICV or PIH.
+  `EgsChainService.peekNext`/`advance`, row-locked (`SELECT ... FOR UPDATE`), same discipline as `PrismaNumberingService`. Proven
+  with a 20-way concurrent test (`egs-chain.integration.spec.ts`) — gapless, no duplicate ICV, no duplicate PIH, and the chain
+  ties together when sorted back into order.
+- **Migration `20261104130000_m7_zatca_schema`** (expand-only): seller/buyer address+VAT columns on `companies`/`parties`; new
+  tables `egs_units`, `egs_credentials`, `egs_chain_states`, `zatca_invoice_records`. No column was removed or narrowed.
+- **Not built in this slice:** any API endpoint, any UI, CSR/onboarding (Phase 2), XML/hash/signature/QR (Phase 3/4),
+  submission (Phase 5). `EgsUnit` rows do not exist yet outside tests — nothing creates one through a real use case.
+- **Known gap carried from section P:** the company record had no VAT/CR/address fields before this; they exist now but are
+  still empty until Settings (or first-run setup) gets a screen to fill them in — not built in this slice.

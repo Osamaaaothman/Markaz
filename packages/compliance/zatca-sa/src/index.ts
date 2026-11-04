@@ -1,5 +1,7 @@
 // Saudi (ZATCA) compliance pack — implements @erp/compliance-contract.
-// EMPTY in M0. Do not implement before docs/06-COMPLIANCE-PACK-RULES.md §0's
-// verification step is done (current ZATCA requirements confirmed against official
-// documentation) and docs/01-OPEN-DECISIONS.md A4 is settled. Real work starts M7.
-export const ZATCA_SA_PACKAGE_PLACEHOLDER = true;
+// docs/01-OPEN-DECISIONS.md A4 settled (direct integration, 2026-10-07) and
+// docs/06-COMPLIANCE-PACK-RULES.md §0's verification step done for M7 Phase 1 — real work
+// started. "ZATCA" appears only in this package, never in core/ or any other module
+// (docs/06 §1).
+export * from "./key-encryption.js";
+export * from "./egs-chain.service.js";
