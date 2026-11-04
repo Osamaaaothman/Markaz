@@ -498,6 +498,328 @@ there is no ledger event; the posting engine rejects zero-amount lines by design
   `end-of-service.integration.spec.ts` — after a zero settlement, `HrPaymentService.payables` must not list it, and paying it must fail
   with `NOTHING_TO_PAY`. Not done as part of this merge.
 
+## S. M7 ZATCA — Phase 1 data model (2026-11-04)
+
+A4 (direct integration) was already decided; this is the schema-only first slice, built with Osama's explicit instruction to
+build everything for real — no shortcuts anywhere in this integration — so every item below is a real, committed design choice,
+not a placeholder. No network calls, no XML, no onboarding flow yet (that is Phase 2+); verified against the three official
+ZATCA PDFs already in `docs/vendor/zatca/` (extracted with `pypdf`, since this machine has no `pdftoppm`/poppler) where this
+phase touches spec detail.
+
+- **Curve: secp256k1, not the Security Features Standard's stated "P-256".** Confirmed from THREE independent sources now:
+  ZATCA's own Developer Portal SDK-download page (read live), the official SDK's own sample key file
+  (`docs/vendor/zatca/sdk/Data/Certificates/ec-secp256k1-priv-key.pem`), and consistent third-party integration reports
+  (`docs/adr/0004-zatca-direct-integration.md`). Settled — the CSR/key code in Phase 2 will use secp256k1.
+- **First-invoice PIH — verified, and the original implementation was WRONG.** `EgsChainService.FIRST_INVOICE_PREVIOUS_HASH`
+  is **not** base64 of the raw SHA-256("0") digest (this task's starting spec, and what the first commit of this file actually
+  computed). Checked against the official SDK's `Data/PIH/pih.txt` (`zatca-einvoicing-sdk-238-R3.4.8`, 2026-11-04): the correct
+  value is base64 of the digest's **hex-string** representation — hash, render as 64 lowercase hex characters, then base64
+  *that text*. Fixed in the same commit, pinned with a golden-value test (`egs-chain.service.spec.ts`) against the SDK's literal
+  value so a future refactor can never silently drift from it. **Open question this raises:** whether this same hex-then-base64
+  double-encoding applies to the invoice hash used elsewhere (the XAdES signing input, the QR code's tag-6 "XML Hash") — the
+  Security Standard's QR section states tag 6 is exactly 32 bytes, which is the *raw* digest, not this 44-byte double-encoded
+  form, so at least two different hash representations exist depending on where in the spec a hash is carried. Resolve this
+  explicitly per field in Phase 4, do not assume they all match the PIH's encoding.
+- **National address lives on `Company` (seller) and `Party` (buyer), not per-`EgsUnit`.** The CSR's SAN `registeredAddress`
+  is technically a property of the issuing EGS/branch in the official model, so a company with EGS units at genuinely different
+  physical addresses is not modelled correctly yet. Chosen because Tier 1 targets single-branch SMEs (docs/00 §1) and the task's
+  own Phase 1 breakdown scoped address to the taxpayer profile; cheap to add a per-EGS override later (nullable column,
+  falls back to the company's address) without a breaking change. Flag if a real customer needs this before it is built.
+- **Buyer fields are not snapshotted onto the invoice.** `Party.vatNumber`/address are read live at XML-generation time, the
+  same way `SalesInvoice` already reads `customer.name` live today rather than copying it. The immutable legal record of what
+  was actually sent is the generated `signedXml`/`clearedXml` on `ZatcaInvoiceRecord`, not a frozen copy of the party row.
+- **Key custody:** `EgsCredential`'s `*Ciphertext` columns are AES-256-GCM, envelope-style (random IV + ciphertext + auth tag
+  packed into one `Bytes` value), decrypted only in memory for a signing operation. The decryption key
+  (`ZATCA_KEY_ENCRYPTION_KEY`) is a 32-byte base64 value in the environment, outside the database — this deployment has no KMS
+  (docs/09-SECURITY-RULES.md §5). **Losing that env var makes every stored key and CSID permanently unrecoverable** — this
+  belongs in the key/backup procedure the go-live report (Phase 8 deliverable) must spell out.
+- **`EgsCredential` is a mutable 1:1 row per EGS unit**, not an append-only history table: CSIDs rotate in place as onboarding
+  and renewal progress. History of who changed what and when comes from the audit log (`IAuditLogger`, not yet wired to this
+  table — that lands with Phase 2's onboarding service, which is the first thing to actually call these tables through a use
+  case rather than a raw Prisma call in a test).
+- **The ICV/PIH chain primitive is built and proven under concurrency now**, ahead of Phase 5 (Submission), because it is the
+  one piece of M7 that CLAUDE.md's invariant bar applies to immediately: two invoices must never receive the same ICV or PIH.
+  `EgsChainService.peekNext`/`advance`, row-locked (`SELECT ... FOR UPDATE`), same discipline as `PrismaNumberingService`. Proven
+  with a 20-way concurrent test (`egs-chain.integration.spec.ts`) — gapless, no duplicate ICV, no duplicate PIH, and the chain
+  ties together when sorted back into order.
+- **Migration `20261104130000_m7_zatca_schema`** (expand-only): seller/buyer address+VAT columns on `companies`/`parties`; new
+  tables `egs_units`, `egs_credentials`, `egs_chain_states`, `zatca_invoice_records`. No column was removed or narrowed.
+- **Not built in this slice:** any API endpoint, any UI, CSR/onboarding (Phase 2), XML/hash/signature/QR (Phase 3/4),
+  submission (Phase 5). `EgsUnit` rows do not exist yet outside tests — nothing creates one through a real use case.
+- **Known gap carried from section P:** the company record had no VAT/CR/address fields before this; they exist now but are
+  still empty until Settings (or first-run setup) gets a screen to fill them in — not built in this slice.
+
+## T. M7 ZATCA — Phase 3 invoice XML generation (2026-11-04)
+
+`buildBareInvoiceXml` (`packages/compliance/zatca-sa/src/xml/invoice-xml-builder.ts`) builds the UBL 2.1 XML for all six
+document types Tier 1 needs. Built and verified directly against the official SDK's own sample XML files
+(`docs/vendor/zatca/sdk/Data/Samples`, `zatca-einvoicing-sdk-238-R3.4.8`), not from memory or the task spec's description —
+every element's presence, order, and attribute decoration was read from a real sample before being coded, and 5 of the 6
+samples are cross-checked by a dedicated test comparing top-level element order against the actual file on disk.
+
+- **Scope split confirmed against the samples themselves:** the builder's output deliberately excludes `ext:UBLExtensions`,
+  `cac:Signature`, and the QR `cac:AdditionalDocumentReference` — docs/06 §3's "remove before hashing" instruction actually
+  describes the *reverse* operation (recovering the pre-signature document from an already-signed one to verify its hash).
+  Phase 4 hashes this builder's bare output, signs it, and *adds* those three elements; it never has to remove anything.
+- **A real bug caught by the SDK cross-check, fixed in the same commit:** the invoice line's tax category must be wrapped in
+  `cac:ClassifiedTaxCategory`, not `cac:TaxCategory` (which is correct everywhere else — `AllowanceCharge` and
+  `TaxSubtotal`). Caught by the "decorates TaxCategory..." test failing against the real sample structure, not noticed by
+  inspection alone — exactly why the cross-check tests exist.
+- **Two three-way attribute-decoration rules, easy to get backwards:** `cac:TaxCategory` (inside `AllowanceCharge` and
+  `TaxSubtotal`) carries `schemeID="UN/ECE 5305" schemeAgencyID="6"` on its `ID` and `schemeID="UN/ECE 5153"
+  schemeAgencyID="6"` on `TaxScheme/ID`; `cac:ClassifiedTaxCategory` (inside an `InvoiceLine`'s `Item`) carries neither.
+- **Two `cac:TaxTotal` elements always, even when `DocumentCurrencyCode` == `TaxCurrencyCode`** (true for every Tier-1
+  scenario): a minimal one with only the grand total, then a full one with `TaxSubtotal` per tax category. Every official
+  sample does this regardless of whether the currencies actually differ — followed literally rather than theorised about.
+- **`cac:Delivery` is independent of standard vs. simplified** — confirmed by `Simplified_Credit_Note.xml` carrying one
+  while `Simplified_Invoice.xml` doesn't. The builder already treated it as purely "present if `actualDeliveryDate` is
+  given," which turned out to be correct; a test that first assumed otherwise was the one that needed fixing, not the code.
+- **`// REVIEW:` (not an accountant's ruling, a schema-compliance guess):** every invoice always emits one zero-amount
+  `AllowanceCharge` per tax category, matching every sample, because Tier 1's `SalesInvoice` has no discount/charge model
+  (section E6) to feed a real one. If ZATCA's schema actually *requires* this placeholder (rather than merely allowing it),
+  this is correct by accident; confirm against the Schematron rules in `docs/vendor/zatca/sdk/Data/Rules` before trusting it
+  for a real submission.
+- **Amounts are always rendered to 2 decimal places**, hard-coded rather than looked up per currency (`Money.round(2)`) —
+  correct for SAR, a known gap for any future 3dp currency (KWD/BHD) if ZATCA e-invoicing is ever needed outside SAR.
+- **Not built:** hashing/signing/QR (Phase 4), self-billing/export/summary/nominal-supply/advance-payment scenarios (other
+  `InvoiceTypeCode` name-attribute digits), anything wiring a real `SalesInvoice` into `ZatcaInvoiceInput` (Phase 5).
+
+## U. M7 ZATCA — Phase 4 hashing, signing, QR (2026-11-04)
+
+The task description itself calls this "the part most likely to break." Every structural piece and encoding below was
+verified against the official SDK's own signed sample files and key/certificate pair (`docs/vendor/zatca/sdk`), by
+decoding and recomputing ground truth directly — not from memory, not from the Security Features Standard's prose alone,
+and in two places not even from this task's own starting assumptions.
+
+- **New dependency: `xml-crypto`**, approved by Osama before installing (docs/09-SECURITY-RULES.md §8). XML
+  canonicalization (C14N) is the one piece of this phase that cannot be hand-rolled safely — the subtlety that makes it
+  risky (whitespace, attribute ordering, namespace-declaration inheritance across a removed subtree) is exactly the kind
+  of thing that silently breaks a hash chain, which is precisely what happened to the first-invoice PIH in Phase 1.
+  `xadesjs`/`xmldsigjs` (the only dedicated XAdES library) were considered and rejected — archived by their own
+  maintainer in Aug 2025, too risky a foundation for a multi-year product. ECDSA signing itself needed no new dependency:
+  `node:crypto` supports secp256k1 natively.
+- **Decisive verification, not just argument:** canonicalizing and hashing the official SDK's own bare (Phase-4-elements-
+  stripped) `Standard_Invoice.xml` and `Simplified_Invoice.xml` reproduces each one's own real `ds:Reference/DigestValue`
+  exactly — the value ZATCA itself accepted when clearing that invoice (`invoice-hash.spec.ts`). This proves
+  xml-crypto's inclusive **C14N 1.0** stands in correctly for the samples' declared C14N **1.1** (the two specs differ only
+  in rebasing inherited `xml:base`/`xml:lang`/`xml:space` across a removed ancestor, which none of these documents use).
+- **The QR TLV's tags 6 and 7 are UTF-8 TEXT of a base64 string, not raw bytes** — found by decoding two real samples'
+  embedded QR codes byte-for-byte, which directly contradicts the Security Features Standard's own prose ("length of hash
+  (SHA256) is 32 bytes" for tag 6). Empirical ground truth was trusted over the PDF text, and `qr.ts`'s golden-value
+  tests reproduce both samples' real QR codes byte-for-byte as proof. Tag 8 (EC public key) and tag 9 (certificate
+  signature, simplified only) ARE raw binary DER, confirmed the same way.
+- **One underlying digest, three different encodings depending on where it is carried** (this is the resolution to the
+  open question Phase 1 raised in section S):
+  - `InvoiceHash.digest` — the raw 32 bytes, used by nothing directly.
+  - `InvoiceHash.xmldsigBase64` = base64(raw digest) — `ds:Reference/DigestValue` and QR tag 6 (as text).
+  - `InvoiceHash.zatcaHash` = base64(hex-string(raw digest)) — the PIH, and `xades:SignedProperties`/`CertDigest`.
+  Tag 7 (the QR's "ECDSA signature") turned out to be literally the same base64 string as `ds:SignatureValue` — the
+  signature is computed once, over the canonicalized `ds:SignedInfo`, and reused verbatim, not recomputed differently
+  for the QR.
+- **`xades:CertDigest` could not be cross-checked**: the official sample's own `CertDigest` value does not match SHA-256
+  of its own embedded `ds:X509Certificate` — a sample-data inconsistency (likely assembled from two different example
+  runs), not a bug in this code. `zatcaHashOf(cert.raw)` is the spec-correct computation; confirm against a real sandbox
+  response once reachable, since this is the one field with no ground truth to verify against.
+- **`extractCertificateSignatureDer`** is a minimal, targeted DER/TLV reader for an X.509 certificate's fixed top-level
+  shape (`SEQUENCE { tbsCertificate, signatureAlgorithm, signatureValue }`) — not a general ASN.1 library, deliberately,
+  since this only ever parses our own certificate (trusted input, not adversarial). Verified to extract the exact bytes
+  the real sample's own QR tag 9 carries.
+- **`signInvoiceXml`'s self-verification**: the signature it produces, once its own `ds:SignedInfo` is canonicalized the
+  same way, verifies against its own certificate's public key — proven for both a standard and a simplified invoice
+  (`xades-signature.spec.ts`), and the resulting document's top-level element order matches a real signed sample exactly.
+- **Not built:** nothing in Phase 2 (onboarding) exists yet, so nothing generates a real EGS key/CSR — Phase 4's tests
+  sign with the SDK's own sample key/certificate. Nothing wires a real `SalesInvoice`/`EgsCredential` into this pipeline
+  yet (Phase 5). The encrypted-at-rest key material in `EgsCredential` is never touched by this phase — Phase 5 decrypts
+  it just-in-time for a signing call, per `docs/SECURITY.md`.
+
+## V. M7 ZATCA — Phase 5 submission (2026-11-05)
+
+`InvoiceSubmissionService` (`packages/compliance/zatca-sa/src/submission/`) orchestrates one invoice's submission end to
+end: reserve the EGS's next ICV/PIH, build and sign the XML (Phases 3/4), call ZATCA, persist the outcome. A thin BullMQ
+wrapper (`apps/api/src/compliance/zatca-submission.job.ts`) adapts it to a job, mirroring `notification.job.ts`'s shape.
+
+- **The chain lock is never held across the network call.** docs/02-ARCHITECTURE-RULES.md §5 forbids calling external
+  HTTP from inside a DB transaction; docs/06-COMPLIANCE-PACK-RULES.md §4 offers the way out the task spec itself
+  suggested — "a per-EGS BullMQ queue with concurrency 1" — instead of a Postgres row lock held for the whole call.
+  `createMonitoredWorker` gained an optional `workerOptions` parameter so `{ concurrency: 1 }` can be set per EGS queue
+  (`zatcaSubmissionQueueName(egsUnitId)`); `EgsChainService.peekNext`'s row lock is held only for the instant it takes
+  to read-and-reserve, same as before, never across the call.
+- **Three-way outcome classification, not two.** A transient failure (network/5xx/429) is `PENDING_RETRY` — the ICV is
+  NOT consumed, a retry reuses the exact same `ZatcaInvoiceRecord` and chain position (verified:
+  `invoice-submission.service.spec.ts` "does NOT consume the ICV on a transient failure..."). A genuine business
+  rejection (ZATCA actually evaluated the invoice and said no) is `REJECTED` — the ICV IS consumed, per docs/06 §7 ("a
+  correction is a new document, not a resubmission under the same UUID/ICV"), and resubmitting after that throws
+  `AlreadySubmittedError`. **A third case the original design missed:** an auth failure (401/403) is neither — it is
+  our own credential/config problem, not ZATCA's judgement on this invoice, so burning the ICV over it would be wrong.
+  Reclassified to `PACK_UNAVAILABLE` (an existing `ComplianceOutcome` kind that fit this exactly) before writing any
+  test for it, not after a test caught it — the kind of thing worth getting right by inspection, not by accident.
+- **Idempotent retry by construction**: `submit()` checks for an existing `ZatcaInvoiceRecord` by `salesInvoiceId`
+  first. A definitive outcome refuses a second call outright; `SUBMITTING`/`FAILED_RETRYABLE` resumes at the SAME
+  stored `icv`/`previousInvoiceHash` (no new chain reservation) and re-signs (a fresh ECDSA signature — signatures are
+  not required to be byte-identical across attempts, only valid) rather than minting a new document.
+- **Credentials and key material never cross the job payload.** `ZatcaSubmissionJobData` carries only
+  `salesInvoiceId`/`egsUnitId`; a `ZatcaSubmissionParamsLoader` (not implemented — see below) is responsible for
+  decrypting `EgsCredential` fresh inside the job, never storing a decrypted secret in Redis (docs/09-SECURITY-RULES.md
+  §5).
+- **New dependency: none.** `node:fetch` (built into Node 18+) is the HTTP client; no package was added for Phase 5.
+- **Still blocked — the actual integration point**: nothing maps a real `SalesInvoice` onto `ZatcaInvoiceInput`,
+  decrypts a real `EgsCredential`, or decides which `EgsUnit` an invoice belongs to (`SalesInvoice` has no such field
+  today). This needs Phase 2 (a real `EgsCredential` to decrypt) and a product decision this repo has not made — not
+  guessed at here, per CLAUDE.md §4. `apps/api`'s per-EGS worker is not registered in `worker.ts` either — there is no
+  list of real `EgsUnit`s yet to enumerate.
+- **The HTTP contract itself is still `// REVIEW:`** — endpoints (`/invoices/clearance/single`,
+  `/invoices/reporting/single`), headers (`Accept-Version: V2`, `Clearance-Status: 1`), and the request/response JSON
+  shape come from this task's own brief plus multiple consistent third-party integration write-ups, not ZATCA's own
+  Integration Sandbox swagger (still unreachable by this tool — ADR-0004 flagged this as needed from Osama's browser
+  back in Phase 1, still not resolved). Confirm before any real sandbox call.
+
+## W. M7 ZATCA — Phase 2 onboarding (2026-11-05)
+
+`OnboardingService` (`packages/compliance/zatca-sa/src/onboarding/`) drives the full CSR → compliance CSID →
+compliance checks → production CSID lifecycle, plus CSID renewal.
+
+- **New dependency: the `openssl` CLI, shelled out to, not a new npm package.** Node has no built-in PKCS#10 CSR
+  generator. `csr.ts` calls `openssl ecparam`/`openssl req` via `execFileSync` with array arguments only — never a
+  shell string, so there is no injection surface even though CSR field values (company name, address) ultimately
+  come from tenant data. Added `openssl` to `apps/api/Dockerfile`'s runtime stage (bookworm-slim links `libssl` into
+  Node itself but does not install the standalone CLI tool). No new JS dependency — a decision Osama did not need to
+  approve since nothing was added to `package.json`, but flagged here since it is still a new infrastructure
+  component per CLAUDE.md §4.
+- **CSR field sourcing, cross-checked against three sources, not one.** The task brief, the SDK's own
+  `Data/Input/csr-config-*.properties` samples, and a Microsoft Dynamics 365 onboarding guide's worked example all
+  agree on the field list and OIDs, with one exception: the Security Standard PDF's own "CSR Subject field content"
+  table appears to map both the invoice-type digits and the industry/business-category to OID 2.5.4.15, which is
+  almost certainly a transcription artifact in that PDF (two different fields cannot share one OID in a single
+  certificate extension). Went with the SDK-and-reference-implementation-corroborated mapping instead: `title`
+  (2.5.4.12) for invoice type digits, `businessCategory` (2.5.4.15) for industry.
+- **`SN` in the SAN is OpenSSL's "surname" shortname (2.5.4.4), not literal X.520 "serialNumber" (2.5.4.5).** OpenSSL
+  has no `serialNumber` shortname in its default config; every real-world ZATCA CSR implementation found uses `SN`
+  for the EGS serial by convention. Documented, not silently "corrected" to a technically purer OID with no evidence
+  ZATCA's own validator expects it.
+  **The CN field is free text**, not a fixed format — confirmed directly from the Security Standard PDF's own RDN
+  table, which lists no required structure for it (unlike every other field, which the standard pins down exactly).
+- **`// REVIEW:` — CSID renewal's auth is the least-confirmed call in this package.** `PATCH /production/csids`
+  sends both the current production CSID as `Authorization: Basic` AND a new OTP as a header. This task's brief says
+  only "PATCH with a new OTP"; no reference implementation specific to renewal (as opposed to initial compliance/
+  production CSID issuance, which two independent sources corroborate) was found. Flagged inline at the call site
+  and here rather than guessed at silently — confirm against the real sandbox, or ask ZATCA support, before this
+  path is ever exercised against production.
+- **Encryption, not a new scheme**: Phase 2 reuses Phase 1's `key-encryption.ts` envelope encryption unchanged (only
+  widened its parameter types from `Buffer` to `Uint8Array` so a Prisma-read ciphertext needs no caller-side cast).
+  The private key never leaves the service as plaintext except transiently in memory to build the CSR and to sign
+  compliance-check sample documents.
+- **`runComplianceCheck` never treats a ZATCA rejection as a pass.** Throws `OnboardingError("COMPLIANCE_CHECK_FAILED")`
+  on any non-empty `errorMessages` or a `NOT_CLEARED`/`NOT_REPORTED` status; `markComplianceChecksPassed` is a
+  separate, explicit, caller-driven step — this service does not itself track which of the required sample document
+  types were actually exercised (listed as a known gap in the package README, not silently assumed complete).
+- **Still blocked**: no API endpoint or UI captures an OTP or triggers onboarding yet (Phase 7); nothing enforces
+  that all required compliance-check sample types ran before `requestProductionCsid` is called.
+
+## X. Real ZATCA sandbox smoke test — two confirmed CSR bugs found and fixed; one unresolved blocker (2026-11-05)
+
+Before starting Phase 6, Osama approved (relayed via the peer session) running a real onboarding call against ZATCA's
+actual sandbox (`https://gw-fatoora.zatca.gov.sa`, OTP `123345`, confirmed reachable). This is the first real network
+contact this package has ever made with ZATCA — everything before this was against a scripted mock
+(docs/06-COMPLIANCE-PACK-RULES.md §6 still holds for the committed test suite; this was a manual, uncommitted,
+immediately-deleted smoke-test file, never part of the repo).
+
+**Two real, confirmed bugs found and fixed, both now covered by the committed test suite:**
+
+1. **`ZATCA_BASE_URL.sandbox` pointed at the wrong path.** `.../e-invoicing/developer-portal` returns a generic
+   gateway-level `"Invalid Request"` (plain string, not JSON) for literally any request body, even garbage —
+   confirmed by sending `{"csr":"dGVzdA=="}` and getting the identical response as a real CSR. The actual
+   compliance-testing endpoint is `.../e-invoicing/simulation` (the path this file already called `"simulation"`),
+   which returns real structured backend errors (`{"errorCode","errorCategory","errorMessage"}`). **Not yet fixed in
+   code** — see "Still unresolved" below for why this is deliberately left alone for now.
+2. **The CSR's own structure was wrong in two ways**, found by decompiling the official SDK's own CSR generator
+   (`com.zatca.sdk.service.CsrGenerationService` inside `docs/vendor/zatca/sdk/Apps/zatca-einvoicing-sdk-238-R3.4.8.jar`
+   — this machine has a JRE, so the jar runs) and, for final confirmation, actually running that jar
+   (`java -jar ... -csr -csrConfig Data/Input/csr-config-example-EN.properties -pem`, with `SDK_CONFIG` env var
+   pointed at `Configuration/config.json` — needed to work around the jar's own hardcoded-absolute-path NPE) to
+   produce a real reference CSR and diffing it byte-for-byte (`openssl asn1parse`) against ours:
+   - The `certificateTemplateName` extension (OID `1.3.6.1.4.1.311.20.2`) must be **UTF8String**, not
+     PrintableString. First guess from the decompiled bytecode (`DisplayText(2, templateName)`) was BMPString —
+     **wrong**, from assuming `DisplayText`'s `int` constant ordering (IA5/BMP/UTF8/VISIBLE) from memory instead of
+     reading it; `DisplayText.class`'s own `ConstantValue` attributes show `CONTENT_TYPE_UTF8STRING = 2`. Caught by
+     diffing against the real jar's output rather than trusting the first guess — exactly the discipline CLAUDE.md
+     §6 asks for, including when the mistake is the agent's own.
+   - **Drop `basicConstraints` and `keyUsage`** from the CSR's requested extensions entirely. They looked like
+     reasonable defaults for a code-signing CSR, but the official generator's `Requested Extensions` attribute
+     contains exactly two extensions — `certificateTemplateName` and `subjectAltName` — nothing else. Confirmed by
+     the same bytecode read (`anewarray` of length 2) and the running jar's own `asn1parse` output.
+   - After both fixes, `csr.ts`'s output is byte-for-byte structurally identical to the official generator's own
+     output: same DN string types (`PrintableString` for `C`, `UTF8String` for `OU`/`O`/`CN`), same two extensions,
+     same OIDs throughout (including the SAN's `SN`=surname=2.5.4.4, which this package's own earlier `// REVIEW:`
+     had flagged as an unconfirmed convention — now confirmed directly from the official generator's own bytecode:
+     it uses `RFC4519Style.sn`, the exact same OID).
+   - `csr.spec.ts` updated to assert the UTF8String encoding on the raw DER bytes (openssl's human-readable `-text`
+     dump renders the extension's 2-byte tag/length prefix as dots ahead of the plain UTF-8 text, which looks
+     confusingly like an interleaved-null BMPString at a glance — asserting on raw bytes avoids that trap).
+
+**Still unresolved — a real, open blocker, not guessed around:** even with a CSR now verified byte-identical in
+structure to the official generator's own output, ZATCA's real `/simulation/compliance` endpoint still rejects it
+with `{"errorCategory":"Invalid-CSR"}` — and, critically, returns the **exact same error** for a deliberately
+garbage, non-CSR body (`{"csr":"dGVzdA=="}`). That means this specific rejection is not discriminating on CSR
+content at all at this call; the real cause is something about the request's context that a correct CSR alone
+cannot fix — most likely one of:
+- The OTP `123345` is not actually valid/bound for this attempt (it may need a per-EGS registration step on the
+  Fatoora developer portal UI first, which this tool cannot do — it needs Osama's own browser session).
+- The sandbox requires the CSR's values (VAT number, EGS serial) to correspond to something pre-registered on
+  Osama's actual portal account, rather than accepting arbitrary sample data the way the local SDK's own generator
+  does.
+- `.../developer-portal/compliance` (bug 1 above) vs `.../simulation/compliance` — maybe neither is the right one
+  for Osama's specific account/subscription state, and the correct path is `.../core/compliance` (seen in one
+  third-party forum post, unconfirmed) or something else entirely.
+
+This is exactly the kind of ZATCA behavior CLAUDE.md §6 says to stop and verify against official documentation
+rather than keep guessing against the live sandbox — 8 real calls were made in total (reasonable for finding and
+fixing two genuine structural bugs; not reasonable to keep spending on blind trial-and-error with no diagnostic
+detail left to go on). **DECISION NEEDED from Osama**: either (a) confirm/complete whatever onboarding step the
+Fatoora developer portal UI requires before this OTP is usable, or (b) get the actual ZATCA integration guide/
+Postman collection (gated behind portal login — this tool could not reach it) so the correct endpoint and any
+required account-binding step can be confirmed instead of inferred. Phase 6 (local SDK validation — the jar's own
+`-validate`) does not depend on this and can proceed in parallel.
+
+## Y. M7 ZATCA — Phase 6 local validation (2026-11-06)
+
+Written in a cloud session that **could not reach ZATCA** (the network policy returns 403 for every ZATCA host) and has **no
+copy of the official SDK** (`docs/vendor/` is git-ignored). So this phase is built from what the repository itself can prove,
+and says plainly what it cannot.
+
+- **Found and fixed first: the pack's own tests failed anywhere without the SDK.** `describe.skip` still runs its callback,
+  and four suites read SDK files while registering, so on any cloud checkout or CI runner they crashed instead of skipping --
+  CI on this branch was red. `src/testing/fixtures.ts` now provides `describeIfSdk` (body not executed, the skip is reported
+  by name with the missing path) and `generateTestCertificate()` (a throw-away secp256k1 key + self-signed certificate made
+  with `openssl`), so signing, submission and onboarding orchestration run everywhere. The byte-for-byte comparisons against
+  the SDK samples still run, unchanged, wherever the SDK exists.
+- **`src/validation/invoice-consistency.ts` -- `checkInvoiceConsistency(xml)`.** Offline checks of a bare or signed document:
+  the EN 16931 arithmetic rules ZATCA's schema builds on (BR-CO-10, -13, -14, -15, -16, -17) in exact integer hundredths, the
+  per-category tax breakdown against the lines, header facts (UUID, ICV, PIH shape, issue date/time, type code and `name`
+  flags, billing reference + reason on credit/debit notes, buyer on a standard invoice, seller VAT is 15 digits), currency
+  consistency. **It is not ZATCA's validation:** the XSD and Schematron live in the SDK (`Data/Rules`) and are not
+  re-implemented. A `valid` report is never evidence of acceptance (docs/06 §7).
+  - `// REVIEW:` the per-line "tax ~ rate x net" and "net ~ quantity x price" checks are warnings with a 0.01 tolerance (the
+    exact per-line rounding rule was not confirmed); "VAT number starts and ends with 3" is a warning, remembered not re-read.
+- **`src/validation/signed-invoice-verifier.ts` -- `verifySignedInvoice(xml)`.** Recomputes the invoice hash with the three
+  uncovered elements stripped, verifies the signature over the canonicalized `SignedInfo` with the embedded certificate,
+  checks the SignedProperties and certificate digests, and decodes the QR: required tags present (9 only for simplified) and
+  **every QR value equal to the same fact in the XML**.
+- **Wired into submission (`InvoiceSubmissionService`).** Both checks now run before anything is sent. A failure writes the
+  reasons onto the `ZatcaInvoiceRecord` (`FAILED_RETRYABLE`, `validationErrors`, `attempts` untouched -- ZATCA was never
+  called), throws `InvoiceValidationError`, and leaves the chain position reserved but unconsumed, so a fixed resubmission
+  reuses the same ICV. The BullMQ wrapper turns it into `UnrecoverableError` (retrying the same data cannot succeed).
+  Tests: nothing is sent, chain untouched, resubmission reuses the ICV; a QR that disagrees with the document is refused.
+- **`src/validation/sdk-validator.ts` -- `runSdkValidation`.** Runs the SDK's own `-validate` (dev/test only, never in a
+  customer deployment). **Not run, and partly guessed:** the flags (`-validate -invoice <file>`) and the verdict line
+  (`GLOBAL VALIDATION RESULT = PASSED|FAILED`) are from the SDK's documented command line, not observed. An unrecognised
+  output is `UNKNOWN`, never a pass. `sdk-validator.spec.ts` (gated on the SDK) first checks the harness against the SDK's
+  own sample, then validates our signed output. **First run on a machine with the SDK may need the verdict pattern
+  adjusted -- read the printed output; do not loosen the test.**
+- **Not done / not provable here:** the official Schematron and XSD rules (SDK not available); the gated "agrees with the SDK
+  sample documents" suite in `validation.spec.ts` has not been run (it allows only the known `CERT_DIGEST_MISMATCH` sample
+  inconsistency from section U -- any other disagreement is a validator bug or a finding about the samples).
+
+
 ## R. Sales debit notes (2026-11-04)
 
 Decided by Osama (relayed): sales debit notes are a real feature, not a throwaway document built only to pass ZATCA's
