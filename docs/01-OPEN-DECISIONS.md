@@ -819,3 +819,38 @@ and says plainly what it cannot.
   sample documents" suite in `validation.spec.ts` has not been run (it allows only the known `CERT_DIGEST_MISMATCH` sample
   inconsistency from section U -- any other disagreement is a validator bug or a finding about the samples).
 
+
+## R. Sales debit notes (2026-11-04)
+
+Decided by Osama (relayed): sales debit notes are a real feature, not a throwaway document built only to pass ZATCA's
+compliance check (M7 needs one of every invoice type it declares, including a debit note). Built as the AR mirror of
+`SupplierInvoiceService.createDebitNote` (decision D8), which is itself the AP mirror of the sales credit note (E2) —
+closing the symmetry Osama already approved on both ledger sides.
+
+- **What it is:** free-typed lines billed against an existing sales invoice, increasing what the customer owes (`Dr
+  Accounts receivable / Cr revenue accounts / Cr Output VAT`). `SalesInvoiceService.createDebitNote`,
+  `apps/api/src/sales/sales.controller.ts` `POST /v1/sales-invoices/:id/debit-notes`. Numbered `SDN-<year>-<seq>`
+  (kept distinct from purchasing's `DN-` prefix so the two kinds of debit note are never confused on sight).
+  `// REVIEW:` not an accountant's ruling — see below.
+- `// REVIEW:` **bounding cap.** Debit notes raised against one invoice, plus the new one, never exceed that invoice's
+  own gross — the same cap D8 and E2 both use. Unlike a credit note (which cannot sensibly exceed what was billed),
+  there is no inherent accounting reason a debit note must be capped at the original invoice's value; this just
+  carries over the existing pattern rather than introducing a third rule. Confirm with an accountant before the first
+  real one posts, same as D1-D9 and E1-E6.
+- **Reuses `sales_invoices`/`sales_invoice_lines`** — no new table. Migration `20261104120000_sales_debit_notes`
+  (expand-only) widens two existing CHECK constraints (`sales_invoices_type_check`,
+  `sales_invoices_credit_link_check`) to admit `DEBIT_NOTE` alongside `INVOICE`/`CREDIT_NOTE`.
+- **Permission:** reuses the existing `debit_note:create` permission (already granted to Accountant and Purchasing
+  for the supplier-side debit note); added to the Sales preset role. Existing installations must run the seed again:
+  `npm run seed --workspace=@erp/db`.
+- **Fixed in the same change, found while building this:** two places assumed a sales invoice's only non-INVOICE
+  document type was CREDIT_NOTE, and would have silently mis-stated money once DEBIT_NOTE existed —
+  `PartyStatementService.statement` (SALES side) labelled every non-invoice row "CREDIT_NOTE" and always treated it as
+  a reduction; `loadOutstanding` (SALES side) summed every row referencing an invoice as a credit regardless of type,
+  so a debit note would have *reduced* the reported receivable instead of increasing it. Both now branch on the
+  actual `document_type`. `DashboardService.salesSummary`'s "this month net sales" figure also now adds debit notes
+  the same side as invoices, for the same reason.
+- **Known gaps:** no UI for the ZATCA-required sample debit note yet (that is Phase 2 of M7, which needs a real
+  document to submit for the compliance check) — the feature here is the general AR capability; wiring it into the
+  compliance pack's sample-submission step is separate work. No "known gap" entry needed for sales credit notes'
+  existing behaviour; only the two statement/ageing queries above changed.

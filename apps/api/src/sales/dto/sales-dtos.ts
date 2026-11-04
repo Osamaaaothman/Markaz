@@ -145,6 +145,42 @@ export class CreateCreditNoteDto {
   lines!: CreditNoteLineDto[];
 }
 
+export class DebitNoteLineDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  description!: string;
+
+  @IsDecimalString({ positive: true })
+  quantity!: string;
+
+  @IsDecimalString()
+  unitPrice!: string;
+
+  @IsString()
+  taxCodeId!: string;
+
+  @IsOptional()
+  @IsString()
+  revenueAccountId?: string;
+}
+
+export class CreateDebitNoteDto {
+  @IsDateString()
+  debitDate!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => DebitNoteLineDto)
+  lines!: DebitNoteLineDto[];
+}
+
 export class QuotationsQueryDto {
   @IsOptional()
   @IsString()
@@ -191,6 +227,6 @@ export class SalesInvoicesQueryDto {
   customerId?: string;
 
   @IsOptional()
-  @IsIn(["INVOICE", "CREDIT_NOTE"])
-  documentType?: "INVOICE" | "CREDIT_NOTE";
+  @IsIn(["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"])
+  documentType?: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
 }

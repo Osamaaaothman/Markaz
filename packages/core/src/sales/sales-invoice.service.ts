@@ -41,6 +41,23 @@ export interface CreateCreditNoteInput {
   readonly lines: readonly CreditNoteLineInput[];
 }
 
+// Free-typed lines against a revenue account, the AR mirror of the purchasing debit note (D8):
+// docs/01-OPEN-DECISIONS.md section E.
+export interface SalesDebitNoteLineInput {
+  readonly description: string;
+  readonly quantity: string;
+  readonly unitPrice: string;
+  readonly taxCodeId: string;
+  readonly revenueAccountId?: string | undefined;
+}
+
+export interface CreateSalesDebitNoteInput {
+  readonly originalInvoiceId: string;
+  readonly debitDate: Date;
+  readonly notes?: string | undefined;
+  readonly lines: readonly SalesDebitNoteLineInput[];
+}
+
 export interface SalesInvoiceResult {
   readonly id: string;
   readonly number: string;
@@ -50,7 +67,7 @@ export interface SalesInvoiceResult {
 
 export interface SalesInvoiceSummary {
   readonly id: string;
-  readonly documentType: "INVOICE" | "CREDIT_NOTE";
+  readonly documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
   readonly number: string;
   readonly customerId: string;
   readonly customerName: string;
@@ -81,7 +98,7 @@ export interface SalesInvoiceListQuery {
   readonly cursor?: string | undefined;
   readonly limit?: string | undefined;
   readonly customerId?: string | undefined;
-  readonly documentType?: "INVOICE" | "CREDIT_NOTE" | undefined;
+  readonly documentType?: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | undefined;
 }
 
 export interface SalesInvoiceListPage {
@@ -94,7 +111,7 @@ type InvoiceRow = Prisma.SalesInvoiceGetPayload<{ include: { customer: true } }>
 function toSummary(row: InvoiceRow): SalesInvoiceSummary {
   return {
     id: row.id,
-    documentType: row.documentType as "INVOICE" | "CREDIT_NOTE",
+    documentType: row.documentType as "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE",
     number: row.number,
     customerId: row.customerId,
     customerName: row.customer.name,
@@ -340,8 +357,9 @@ export class SalesInvoiceService {
       if (totals.gross.isZero()) throw new SalesError("ZERO_DOCUMENT", "A credit note with nothing to credit cannot be posted");
 
       // Credits already raised against this invoice, plus this one, never exceed the invoice.
+      // Scoped to CREDIT_NOTE: a debit note (below) also sets originalInvoiceId, and must not count here.
       const credited = await tx.salesInvoice.aggregate({
-        where: { companyId: actor.companyId, originalInvoiceId: original.id },
+        where: { companyId: actor.companyId, originalInvoiceId: original.id, documentType: "CREDIT_NOTE" },
         _sum: { totalGross: true },
       });
       const already = credited._sum.totalGross ?? new Prisma.Decimal(0);
@@ -422,6 +440,118 @@ export class SalesInvoiceService {
     });
 
     await this.audit.log({ actorId: actor.id, action: "sales_credit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result }, correlationId });
+    return result;
+  }
+
+  // The AR mirror of the purchasing debit note (packages/core/src/purchasing/supplier-invoice.service.ts
+  // createDebitNote, decision D8): free-typed lines billed against an invoice to increase what the
+  // customer owes. // REVIEW: bounding debit notes to the original invoice's gross, the same choice
+  // D8 made for suppliers, is not an accountant's ruling — confirm before the first real one posts.
+  async createDebitNote(
+    input: CreateSalesDebitNoteInput,
+    actor: SalesActor,
+    correlationId: string,
+    idempotencyKey: string,
+  ): Promise<SalesInvoiceResult> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const original = await tx.salesInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId } });
+      if (!original) throw new SalesError("NOT_FOUND", "Invoice not found");
+      if (original.documentType !== "INVOICE") throw new SalesError("NOT_AN_INVOICE", "A debit note can only be raised against an invoice");
+      await lockCustomer(tx, actor.companyId, original.customerId);
+
+      const lines = await resolveSalesLines(
+        tx,
+        actor.companyId,
+        input.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, taxCodeId: l.taxCodeId })),
+      );
+      const totals = totalsOf(lines);
+      if (totals.gross.isZero()) throw new SalesError("ZERO_DOCUMENT", "A debit note with nothing to debit cannot be posted");
+
+      // Debit notes already raised against this invoice, plus this one, never exceed the invoice —
+      // the same symmetric rule as credit notes (above) and the purchasing debit note (D8).
+      const debited = await tx.salesInvoice.aggregate({
+        where: { companyId: actor.companyId, originalInvoiceId: original.id, documentType: "DEBIT_NOTE" },
+        _sum: { totalGross: true },
+      });
+      const already = debited._sum.totalGross ?? new Prisma.Decimal(0);
+      if (already.plus(totals.gross).greaterThan(original.totalGross)) {
+        throw new SalesError("DEBIT_EXCEEDS_INVOICE", "The debit notes would be worth more than the invoice");
+      }
+
+      const period = await findOpenFiscalPeriod(tx, actor.companyId, input.debitDate);
+      if (!period) throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the debit note date");
+      const currency = await companyCurrency(tx, actor.companyId);
+
+      const revenueByAccount = await this.revenueByAccount(tx, actor.companyId, lines, input.lines.map((l) => l.revenueAccountId));
+      const journalLines: JournalLineInput[] = [
+        { accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"), debit: totals.gross.toFixed(4), description: "Debit note" },
+      ];
+      for (const [accountId, amount] of revenueByAccount) {
+        if (!amount.isZero()) journalLines.push({ accountId, credit: amount.toFixed(4), description: "Debit note: revenue" });
+      }
+      if (!totals.tax.isZero()) {
+        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"), credit: totals.tax.toFixed(4), description: "Debit note: output VAT" });
+      }
+
+      const noteId = newId();
+      const posting = await this.engine.postEntry(
+        {
+          companyId: actor.companyId,
+          fiscalPeriodId: period.id,
+          entryDate: input.debitDate,
+          postingDate: input.debitDate,
+          currency,
+          lines: journalLines,
+          sourceModule: "sales",
+          sourceDocumentType: "sales_debit_note",
+          sourceDocumentId: noteId,
+          actorId: actor.id,
+          correlationId,
+          idempotencyKey,
+        },
+        tx,
+      );
+
+      const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.debitDate);
+      const number = await allocateDocumentNumber(tx, actor.companyId, "sales_debit_note_no", "SDN", fiscalYear);
+      await tx.salesInvoice.create({
+        data: {
+          id: noteId,
+          companyId: actor.companyId,
+          documentType: "DEBIT_NOTE",
+          number,
+          customerId: original.customerId,
+          originalInvoiceId: original.id,
+          invoiceDate: input.debitDate,
+          dueDate: null,
+          currency,
+          totalNet: totals.net,
+          totalTax: totals.tax,
+          totalGross: totals.gross,
+          journalEntryId: posting.journalEntryId,
+          notes: blankToNull(input.notes),
+          actorId: actor.id,
+          correlationId,
+          lines: {
+            create: lines.map((l) => ({
+              id: newId(),
+              description: l.description,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice,
+              netAmount: l.net,
+              taxCodeId: l.taxCodeId,
+              taxRate: l.taxRate,
+              taxAmount: l.tax,
+              revenueAccountId: input.lines[l.lineNumber - 1]?.revenueAccountId ?? null,
+              lineNumber: l.lineNumber,
+            })),
+          },
+        },
+      });
+      return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
+    });
+
+    await this.audit.log({ actorId: actor.id, action: "sales_debit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result }, correlationId });
     return result;
   }
 

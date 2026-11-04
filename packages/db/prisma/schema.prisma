@@ -1322,11 +1322,11 @@ model SalesOrderLine {
 model SalesInvoice {
   id                String    @id
   companyId         String    @map("company_id")
-  documentType      String    @map("document_type") // INVOICE | CREDIT_NOTE
+  documentType      String    @map("document_type") // INVOICE | CREDIT_NOTE | DEBIT_NOTE
   number            String
   customerId        String    @map("customer_id")
   salesOrderId      String?   @map("sales_order_id")
-  // CREDIT_NOTE only: the invoice it reduces.
+  // CREDIT_NOTE / DEBIT_NOTE only: the invoice it reduces or bills against.
   originalInvoiceId String?   @map("original_invoice_id")
   invoiceDate       DateTime  @map("invoice_date") @db.Date
   dueDate           DateTime? @map("due_date") @db.Date

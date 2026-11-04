@@ -63,9 +63,10 @@ export class PartyStatementService {
       side === "SALES"
         ? await this.prisma.$queryRaw<Row[]>`
             SELECT kind, id, number, doc_date, reference, charge::text AS charge, settlement::text AS settlement FROM (
-              SELECT CASE WHEN si.document_type = 'INVOICE' THEN 'INVOICE' ELSE 'CREDIT_NOTE' END AS kind,
+              SELECT CASE WHEN si.document_type = 'CREDIT_NOTE' THEN 'CREDIT_NOTE' WHEN si.document_type = 'DEBIT_NOTE' THEN 'DEBIT_NOTE' ELSE 'INVOICE' END AS kind,
                      si.id, si.number, si.invoice_date AS doc_date, NULL::text AS reference,
-                     CASE WHEN si.document_type = 'INVOICE' THEN si.total_gross ELSE 0 END AS charge,
+                     -- A debit note increases what the customer owes, same side as an invoice; a credit note reduces it.
+                     CASE WHEN si.document_type IN ('INVOICE', 'DEBIT_NOTE') THEN si.total_gross ELSE 0 END AS charge,
                      CASE WHEN si.document_type = 'CREDIT_NOTE' THEN si.total_gross ELSE 0 END AS settlement,
                      si.created_at
               FROM sales_invoices si WHERE si.company_id = ${companyId} AND si.customer_id = ${partyId} AND si.invoice_date <= ${to}::date

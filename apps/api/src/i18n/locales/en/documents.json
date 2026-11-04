@@ -110,6 +110,7 @@
   "salesInvoice": {
     "invoiceTitle": "Invoice",
     "creditNoteTitle": "Credit Note",
+    "debitNoteTitle": "Debit Note",
     "number": "Number",
     "date": "Date",
     "dueDate": "Due date",

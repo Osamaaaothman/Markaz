@@ -35,7 +35,7 @@ export function useAging(side: Side, asOf: string) {
 }
 
 export interface PartyStatementLine {
-  readonly kind: "INVOICE" | "CREDIT_NOTE" | "RECEIPT" | "PAYMENT";
+  readonly kind: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | "RECEIPT" | "PAYMENT";
   readonly documentId: string;
   readonly number: string;
   readonly date: string;

@@ -895,7 +895,8 @@
       "ZERO_DOCUMENT": "A document with nothing to pay cannot be posted.",
       "INVALID_STATE": "This document is no longer open for that action.",
       "ACCOUNT_NOT_POSTABLE": "A revenue line uses a group account. Choose a postable account.",
-      "CREDIT_EXCEEDS_INVOICE": "The credit notes would be worth more than the invoice."
+      "CREDIT_EXCEEDS_INVOICE": "The credit notes would be worth more than the invoice.",
+      "DEBIT_EXCEEDS_INVOICE": "The debit notes would be worth more than the invoice."
     },
     "quotations": {
       "title": "Quotations",
@@ -937,7 +938,7 @@
     },
     "invoices": {
       "title": "Sales invoices",
-      "subtitle": "Invoices and credit notes. Posting an invoice also takes the goods out of stock at cost.",
+      "subtitle": "Invoices, credit notes and debit notes. Posting an invoice also takes the goods out of stock at cost.",
       "new": "New invoice",
       "newTitle": "New sales invoice",
       "newSubtitle": "Choose the customer, then what is being sold. Items leave the warehouse you pick.",
@@ -946,15 +947,20 @@
       "dueDate": "Due date",
       "submit": "Post invoice",
       "documentType": "Type",
-      "allTypes": "Invoices and credit notes",
+      "allTypes": "Invoices, credit notes and debit notes",
       "types": {
         "INVOICE": "Invoice",
-        "CREDIT_NOTE": "Credit note"
+        "CREDIT_NOTE": "Credit note",
+        "DEBIT_NOTE": "Debit note"
       },
       "creditNote": "Credit note",
       "creditNoteHint": "A credit note reduces what the customer owes. It does not put goods back in stock.",
       "creditDate": "Credit note date",
       "postCreditNote": "Post credit note",
+      "debitNote": "Debit note",
+      "debitNoteHint": "A debit note increases what the customer owes, billed against this invoice.",
+      "debitDate": "Debit note date",
+      "postDebitNote": "Post debit note",
       "openOriginal": "Open the invoice",
       "downloadPdf": "Download PDF"
     }
@@ -1036,7 +1042,7 @@
   },
   "partyStatement": {
     "title": "Customer / supplier statement",
-    "subtitle": "Every invoice, credit note and payment, with a running balance.",
+    "subtitle": "Every invoice, credit note, debit note and payment, with a running balance.",
     "kind": "Statement for",
     "customer": "Customer",
     "supplier": "Supplier",
@@ -1054,6 +1060,7 @@
     "kinds": {
       "INVOICE": "Invoice",
       "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note",
       "RECEIPT": "Receipt",
       "PAYMENT": "Payment"
     }
