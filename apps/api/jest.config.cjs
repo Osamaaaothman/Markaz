@@ -11,6 +11,7 @@ module.exports = {
     "^@erp/db$": "<rootDir>/../../../packages/db/src/index.ts",
     "^@erp/shared$": "<rootDir>/../../../packages/shared/src/index.ts",
     "^@erp/core$": "<rootDir>/../../../packages/core/src/index.ts",
+    "^@erp/compliance-zatca-sa$": "<rootDir>/../../../packages/compliance/zatca-sa/src/index.ts",
   },
   // apps/api compiles to CommonJS at build time (tsconfig.json), but ts-jest's
   // default preset doesn't reliably infer that from a plain tsconfig extend chain —
