@@ -715,67 +715,64 @@ compliance checks → production CSID lifecycle, plus CSID renewal.
 - **Still blocked**: no API endpoint or UI captures an OTP or triggers onboarding yet (Phase 7); nothing enforces
   that all required compliance-check sample types ran before `requestProductionCsid` is called.
 
-## X. Real ZATCA sandbox smoke test — two confirmed CSR bugs found and fixed; one unresolved blocker (2026-11-05)
+## X. Real ZATCA sandbox smoke test — RESOLVED: real compliance CSID issued end to end (2026-11-05)
 
 Before starting Phase 6, Osama approved (relayed via the peer session) running a real onboarding call against ZATCA's
 actual sandbox (`https://gw-fatoora.zatca.gov.sa`, OTP `123345`, confirmed reachable). This is the first real network
 contact this package has ever made with ZATCA — everything before this was against a scripted mock
-(docs/06-COMPLIANCE-PACK-RULES.md §6 still holds for the committed test suite; this was a manual, uncommitted,
-immediately-deleted smoke-test file, never part of the repo).
+(docs/06-COMPLIANCE-PACK-RULES.md §6 still holds for the committed test suite; every real-network step below used a
+manual, uncommitted, immediately-deleted smoke-test file, never part of the repo).
 
-**Two real, confirmed bugs found and fixed, both now covered by the committed test suite:**
+**End state: our own code, calling the real sandbox, now succeeds.** `generateKeyAndCsr` + `ZatcaOnboardingApiClient
+.requestComplianceCsid("123345", csrBase64, "en")` against `ZATCA_BASE_URL.sandbox` (`.../e-invoicing/developer-portal`
+— **unchanged, correct, never actually broken**) returned a real `200`, `"dispositionMessage":"ISSUED"`, with a real
+`binarySecurityToken` and `secret`. This took three real findings to get to, two of them genuine code bugs (now fixed
+and covered by tests) and one a mistake in this investigation's own debugging, caught and corrected before it could
+cause a wrong "fix":
 
-1. **`ZATCA_BASE_URL.sandbox` pointed at the wrong path.** `.../e-invoicing/developer-portal` returns a generic
-   gateway-level `"Invalid Request"` (plain string, not JSON) for literally any request body, even garbage —
-   confirmed by sending `{"csr":"dGVzdA=="}` and getting the identical response as a real CSR. The actual
-   compliance-testing endpoint is `.../e-invoicing/simulation` (the path this file already called `"simulation"`),
-   which returns real structured backend errors (`{"errorCode","errorCategory","errorMessage"}`). **Not yet fixed in
-   code** — see "Still unresolved" below for why this is deliberately left alone for now.
-2. **The CSR's own structure was wrong in two ways**, found by decompiling the official SDK's own CSR generator
+1. **Two real CSR structure bugs**, found by decompiling the official SDK's own CSR generator
    (`com.zatca.sdk.service.CsrGenerationService` inside `docs/vendor/zatca/sdk/Apps/zatca-einvoicing-sdk-238-R3.4.8.jar`
-   — this machine has a JRE, so the jar runs) and, for final confirmation, actually running that jar
-   (`java -jar ... -csr -csrConfig Data/Input/csr-config-example-EN.properties -pem`, with `SDK_CONFIG` env var
-   pointed at `Configuration/config.json` — needed to work around the jar's own hardcoded-absolute-path NPE) to
-   produce a real reference CSR and diffing it byte-for-byte (`openssl asn1parse`) against ours:
+   — this machine has a working JRE 23, so the jar actually runs, despite the readme saying Java 11–15) and, for
+   confirmation, actually running that jar (`java -jar ... -csr -csrConfig Data/Input/csr-config-example-EN.properties
+   -pem`, with the `SDK_CONFIG` env var pointed at `Configuration/config.json` to work around a hardcoded-absolute-path
+   NPE in the jar's own config loader) to produce a real reference CSR and diff it byte-for-byte (`openssl asn1parse`)
+   against ours:
    - The `certificateTemplateName` extension (OID `1.3.6.1.4.1.311.20.2`) must be **UTF8String**, not
      PrintableString. First guess from the decompiled bytecode (`DisplayText(2, templateName)`) was BMPString —
      **wrong**, from assuming `DisplayText`'s `int` constant ordering (IA5/BMP/UTF8/VISIBLE) from memory instead of
      reading it; `DisplayText.class`'s own `ConstantValue` attributes show `CONTENT_TYPE_UTF8STRING = 2`. Caught by
-     diffing against the real jar's output rather than trusting the first guess — exactly the discipline CLAUDE.md
-     §6 asks for, including when the mistake is the agent's own.
+     diffing against the real jar's output rather than trusting the first guess.
    - **Drop `basicConstraints` and `keyUsage`** from the CSR's requested extensions entirely. They looked like
      reasonable defaults for a code-signing CSR, but the official generator's `Requested Extensions` attribute
-     contains exactly two extensions — `certificateTemplateName` and `subjectAltName` — nothing else. Confirmed by
-     the same bytecode read (`anewarray` of length 2) and the running jar's own `asn1parse` output.
-   - After both fixes, `csr.ts`'s output is byte-for-byte structurally identical to the official generator's own
-     output: same DN string types (`PrintableString` for `C`, `UTF8String` for `OU`/`O`/`CN`), same two extensions,
-     same OIDs throughout (including the SAN's `SN`=surname=2.5.4.4, which this package's own earlier `// REVIEW:`
-     had flagged as an unconfirmed convention — now confirmed directly from the official generator's own bytecode:
-     it uses `RFC4519Style.sn`, the exact same OID).
-   - `csr.spec.ts` updated to assert the UTF8String encoding on the raw DER bytes (openssl's human-readable `-text`
-     dump renders the extension's 2-byte tag/length prefix as dots ahead of the plain UTF-8 text, which looks
-     confusingly like an interleaved-null BMPString at a glance — asserting on raw bytes avoids that trap).
+     contains exactly two extensions — `certificateTemplateName` and `subjectAltName` — nothing else.
+   - `csr.ts`'s output is now byte-for-byte structurally identical to the official generator's own output: same DN
+     string types (`PrintableString` for `C`, `UTF8String` for `OU`/`O`/`CN`), same two extensions, same OIDs
+     throughout (including the SAN's `SN`=surname=2.5.4.4, which this package's own earlier `// REVIEW:` had flagged
+     as an unconfirmed convention — now confirmed directly from the official generator's own bytecode: it uses
+     `RFC4519Style.sn`, the exact same OID). `csr.spec.ts` updated to assert the UTF8String encoding on the raw DER
+     bytes (openssl's `-text` dump renders the extension's 2-byte tag/length prefix as dots ahead of the plain text,
+     which looks confusingly like an interleaved-null BMPString at a glance — asserting on raw bytes avoids that trap).
+2. **This investigation's own mistake, caught before it caused a wrong fix**: after the two real bugs above were
+   fixed, repeated calls to `.../e-invoicing/simulation/compliance` still returned `{"errorCategory":"Invalid-CSR"}`
+   — and, suspiciously, returned the *identical* error for a deliberately garbage, non-CSR body too. That pointed
+   investigation at "it must be an account/OTP problem, not CSR content" — a reasonable-sounding but **wrong**
+   conclusion. The peer session had Osama pull ZATCA's own live Swagger doc for this endpoint directly from the
+   authenticated sandbox portal, which gave an official example CSR request. Submitting that exact official sample
+   to `.../e-invoicing/developer-portal/compliance` (the ORIGINAL URL this file already had for `"sandbox"` — the
+   one earlier abandoned, mid-investigation, in favor of `/simulation` on the strength of one unconfirmed third-party
+   forum post) returned `200`/`"ISSUED"` immediately. **`/developer-portal` was correct all along; `/simulation` was
+   never the right endpoint for this call.** `ZATCA_BASE_URL.sandbox` needed no code change — the real lesson is
+   procedural: a plain-text `"Invalid Request"` from `/developer-portal` against a garbage body (seen early in this
+   investigation) was wrongly read as "this whole path is a dead end," when it was actually just that endpoint's
+   (less informative) way of rejecting a malformed body, same as `/simulation`'s JSON error was for the same body.
+   Re-running our own freshly generated CSR (fix 1 above, our own code, a fresh key) against `/developer-portal`
+   confirmed the full, final result: a real compliance CSID, issued by ZATCA's actual sandbox, from this package's
+   own code, unmodified in its URL mapping.
 
-**Still unresolved — a real, open blocker, not guessed around:** even with a CSR now verified byte-identical in
-structure to the official generator's own output, ZATCA's real `/simulation/compliance` endpoint still rejects it
-with `{"errorCategory":"Invalid-CSR"}` — and, critically, returns the **exact same error** for a deliberately
-garbage, non-CSR body (`{"csr":"dGVzdA=="}`). That means this specific rejection is not discriminating on CSR
-content at all at this call; the real cause is something about the request's context that a correct CSR alone
-cannot fix — most likely one of:
-- The OTP `123345` is not actually valid/bound for this attempt (it may need a per-EGS registration step on the
-  Fatoora developer portal UI first, which this tool cannot do — it needs Osama's own browser session).
-- The sandbox requires the CSR's values (VAT number, EGS serial) to correspond to something pre-registered on
-  Osama's actual portal account, rather than accepting arbitrary sample data the way the local SDK's own generator
-  does.
-- `.../developer-portal/compliance` (bug 1 above) vs `.../simulation/compliance` — maybe neither is the right one
-  for Osama's specific account/subscription state, and the correct path is `.../core/compliance` (seen in one
-  third-party forum post, unconfirmed) or something else entirely.
-
-This is exactly the kind of ZATCA behavior CLAUDE.md §6 says to stop and verify against official documentation
-rather than keep guessing against the live sandbox — 8 real calls were made in total (reasonable for finding and
-fixing two genuine structural bugs; not reasonable to keep spending on blind trial-and-error with no diagnostic
-detail left to go on). **DECISION NEEDED from Osama**: either (a) confirm/complete whatever onboarding step the
-Fatoora developer portal UI requires before this OTP is usable, or (b) get the actual ZATCA integration guide/
-Postman collection (gated behind portal login — this tool could not reach it) so the correct endpoint and any
-required account-binding step can be confirmed instead of inferred. Phase 6 (local SDK validation — the jar's own
-`-validate`) does not depend on this and can proceed in parallel.
+**Net effect**: two real, necessary code fixes landed (commit `951d4e1`); `ZATCA_BASE_URL` needed no change. 10 real
+calls were made in total across this investigation — finding and fixing two genuine structural bugs, and both
+confirming and then correcting one wrong turn in the investigation itself, is a reasonable amount of live-sandbox
+cost for the first-ever confirmed real network success this package has had. `onboarding-api-client.ts`'s `// REVIEW:`
+on the compliance-CSID call's endpoint/headers/body shape can now be considered **confirmed** for `requestComplianceCsid`
+specifically (not yet for `submitComplianceInvoice`/`requestProductionCsid`/`renewProductionCsid`, none of which have
+been exercised against the real sandbox yet).

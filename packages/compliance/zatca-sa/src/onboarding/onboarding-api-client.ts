@@ -1,10 +1,11 @@
 // The Fatoora onboarding HTTP client: compliance CSID, compliance checks, production CSID, and
 // renewal. Endpoints, headers, and the request/response JSON shape are corroborated by two
 // independent sources — this task's own brief and a Microsoft Dynamics 365 onboarding guide's
-// complete worked example (fetched 2026-11-05) — not just one secondary source, but still
-// // REVIEW: not confirmed against ZATCA's own Integration Sandbox swagger directly (still
-// unreachable by this tool; see docs/01-OPEN-DECISIONS.md section V's same caveat for the
-// submission client this shares its HTTP transport with).
+// complete worked example (fetched 2026-11-05) — not just one secondary source.
+// `requestComplianceCsid` is now CONFIRMED against the real sandbox: a real call issued a real
+// compliance CSID (docs/01-OPEN-DECISIONS.md section X). `submitComplianceInvoice`/
+// `requestProductionCsid`/`renewProductionCsid` are // REVIEW: still unconfirmed — none of them
+// has been exercised against the real sandbox yet.
 import { ZATCA_BASE_URL, type ZatcaEnvironment } from "../submission/zatca-environment.js";
 import { FetchHttpTransport, classifyErrorStatus, DEFAULT_ZATCA_TIMEOUT_MS, type HttpTransport } from "../http/zatca-http-transport.js";
 import type { ZatcaCredentials } from "../submission/zatca-api-client.js";
