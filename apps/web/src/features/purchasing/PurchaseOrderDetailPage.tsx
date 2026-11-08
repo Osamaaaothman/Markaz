@@ -12,7 +12,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
-import { useCreatedToast } from "../../shared/ui/created-toast";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useAllWarehouses } from "../inventory/use-warehouses";
@@ -46,6 +46,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
   const cancel = useOrderAction(id, "cancel");
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   if (isPending) return <PageSkeleton />;
   if (isError || !order) {
@@ -127,8 +128,9 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
         <Button type="button" label={t("purchasing.orders.backToList")} text onClick={() => void navigate("/purchasing/orders")} />
       </div>
 
-      <ReceiveDialog order={order} visible={receiveOpen} onHide={() => setReceiveOpen(false)} />
-      <ReturnDialog order={order} visible={returnOpen} onHide={() => setReturnOpen(false)} />
+      <ReceiveDialog order={order} visible={receiveOpen} onHide={() => setReceiveOpen(false)} onCreated={setCreated} />
+      <ReturnDialog order={order} visible={returnOpen} onHide={() => setReturnOpen(false)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }
@@ -152,8 +154,19 @@ function QuantityInput({ initial, disabled, onValue }: { initial: string; disabl
   );
 }
 
-function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; visible: boolean; onHide: () => void }): React.JSX.Element {
+function ReceiveDialog({
+  order,
+  visible,
+  onHide,
+  onCreated,
+}: {
+  order: PurchaseOrderDetail;
+  visible: boolean;
+  onHide: () => void;
+  onCreated: (info: CreatedInfo) => void;
+}): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { data: warehouses } = useAllWarehouses();
   const receive = useReceiveOrder(order.id);
   // The order already names the warehouse the goods are for; it is offered first and can still be changed.
@@ -234,7 +247,23 @@ function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail;
             onClick={() =>
               receive.mutate(
                 { warehouseId, documentDate: toDateOnlyIsoString(date), ...(reference.trim() ? { reference: reference.trim() } : {}), lines: chosen },
-                { onSuccess: onHide },
+                {
+                  onSuccess: (saved) => {
+                    onHide();
+                    const warehouse = warehouses?.find((w) => w.id === warehouseId);
+                    onCreated({
+                      title: t("purchasing.orders.receiveTitle"),
+                      headline: saved.number,
+                      onOpen: () => void navigate(`/inventory/goods-receipts/${saved.id}`),
+                      rows: [
+                        { label: t("inventory.warehouses.title"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+                        { label: t("created.date"), value: toDateOnlyIsoString(date), ltr: true },
+                        { label: t("created.reference"), value: reference.trim() },
+                        { label: t("created.lines"), value: String(chosen.length) },
+                      ],
+                    });
+                  },
+                },
               )
             }
           />
@@ -244,10 +273,19 @@ function ReceiveDialog({ order, visible, onHide }: { order: PurchaseOrderDetail;
   );
 }
 
-function ReturnDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; visible: boolean; onHide: () => void }): React.JSX.Element {
+function ReturnDialog({
+  order,
+  visible,
+  onHide,
+  onCreated,
+}: {
+  order: PurchaseOrderDetail;
+  visible: boolean;
+  onHide: () => void;
+  onCreated: (info: CreatedInfo) => void;
+}): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const showCreated = useCreatedToast((state) => state.show);
   const { data: warehouses } = useAllWarehouses();
   const returnGoods = useReturnGoods();
   const [warehouseId, setWarehouseId] = useState(order.warehouseId ?? "");
@@ -345,11 +383,21 @@ function ReturnDialog({ order, visible, onHide }: { order: PurchaseOrderDetail; 
                   lines: chosen,
                 },
                 {
-                  // The new return opens on its own page with the "saved" message over it.
                   onSuccess: (saved) => {
                     onHide();
-                    showCreated(t("purchasing.orders.returnGoods"), saved.number);
-                    void navigate(`/purchasing/returns/${saved.id}`);
+                    const warehouse = warehouses?.find((w) => w.id === warehouseId);
+                    onCreated({
+                      title: t("purchasing.orders.returnGoods"),
+                      headline: saved.number,
+                      onOpen: () => void navigate(`/purchasing/returns/${saved.id}`),
+                      rows: [
+                        { label: t("inventory.warehouses.title"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+                        { label: t("created.date"), value: toDateOnlyIsoString(date), ltr: true },
+                        { label: t("created.reference"), value: reference.trim() },
+                        { label: t("purchasing.returns.reason"), value: reason.trim() },
+                        { label: t("created.lines"), value: String(chosen.length) },
+                      ],
+                    });
                   },
                 },
               )

@@ -48,7 +48,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: items } = useAllItems();
   const { data: warehouses } = useAllWarehouses();
-  const [created, setCreated] = useState<{ info: CreatedInfo; id: string } | null>(null);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
   const { data: request } = usePurchaseRequest(requestId);
   const create = useCreatePurchaseOrder();
 
@@ -113,19 +113,16 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
         onSuccess: (saved) => {
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
-            id: saved.id,
-            info: {
-              onOpen: () => void navigate(`/purchasing/orders/${saved.id}`),
-              title: t("purchasing.orders.newTitle"),
-              headline: saved.number,
-              rows: [
-                { label: t("created.status"), value: t(`purchasing.orderStatus.${saved.status}`) },
-                { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
-                { label: t("created.date"), value: toDateOnlyIsoString(values.orderDate), ltr: true },
-                { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
-                { label: t("created.lines"), value: String(values.lines.length) },
-              ],
-            },
+            onOpen: () => void navigate(`/purchasing/orders/${saved.id}`),
+            title: t("purchasing.orders.newTitle"),
+            headline: saved.number,
+            rows: [
+              { label: t("created.status"), value: t(`purchasing.orderStatus.${saved.status}`) },
+              { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+              { label: t("created.date"), value: toDateOnlyIsoString(values.orderDate), ltr: true },
+              { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
+              { label: t("created.lines"), value: String(values.lines.length) },
+            ],
           });
         },
       },
@@ -241,7 +238,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
           <Button type="submit" label={t("actions.save")} loading={create.isPending} />
         </div>
       </form>
-      <CreatedDialog info={created?.info ?? null} onHide={() => (created ? void navigate(`/purchasing/orders/${created.id}`) : undefined)} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }

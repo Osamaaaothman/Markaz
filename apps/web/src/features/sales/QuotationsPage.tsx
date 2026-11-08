@@ -86,12 +86,11 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
   const { can } = usePermissions();
   const navigate = useNavigate();
   const { data } = useQuotation(id);
-  const convert = useQuotationAction(id ?? "", "convert");
   const reject = useQuotationAction(id ?? "", "reject");
   const cancel = useQuotationAction(id ?? "", "cancel");
 
   return (
-    <Dialog header={data?.number ?? t("sales.quotations.title")} visible={id !== null} onHide={onHide} className="erp-dialog" modal style={{ width: "min(48rem, 96vw)" }}>
+    <Dialog header={data?.number ?? t("sales.quotations.title")} visible={id !== null} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(64rem, 96vw)" }}>
       {!data ? (
         <PageSkeleton />
       ) : (
@@ -110,18 +109,11 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
               {t("purchasing.invoices.gross")}: <strong>{formatMoney(data.totalGross, data.currency)}</strong>
             </span>
           </div>
-          {convert.isError || reject.isError || cancel.isError ? <p className="erp-auth-card__error">{t("sales.errors.generic")}</p> : null}
+          {reject.isError || cancel.isError ? <p className="erp-auth-card__error">{t("sales.errors.generic")}</p> : null}
           {data.status === "OPEN" ? (
             <div className="erp-form__actions">
               <PermissionButton allowed={can("quotation:update")} label={t("sales.quotations.reject")} severity="danger" outlined loading={reject.isPending} onClick={() => reject.mutate(undefined, { onSuccess: onHide })} />
               <PermissionButton allowed={can("quotation:update")} label={t("sales.quotations.cancel")} severity="secondary" outlined loading={cancel.isPending} onClick={() => cancel.mutate(undefined, { onSuccess: onHide })} />
-              <PermissionButton
-                allowed={can("sales_order:create")}
-                label={t("sales.quotations.convert")}
-                icon={i18n.dir() === "rtl" ? "pi pi-arrow-left" : "pi pi-arrow-right"}
-                loading={convert.isPending}
-                onClick={() => convert.mutate(undefined, { onSuccess: (created) => void navigate(`/sales/orders/${created.id}`) })}
-              />
             </div>
           ) : data.salesOrderId ? (
             <div className="erp-form__actions">

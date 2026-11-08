@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
+import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
@@ -12,7 +13,17 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
-import { useCancelSalesOrder, useSalesOrder, useSalesOrders, type SalesLineView, type SalesOrderStatus, type SalesOrderSummary } from "./use-sales";
+import {
+  useCancelSalesOrder,
+  useQuotationAction,
+  useQuotations,
+  useSalesOrder,
+  useSalesOrders,
+  type QuotationSummary,
+  type SalesLineView,
+  type SalesOrderStatus,
+  type SalesOrderSummary,
+} from "./use-sales";
 
 const ALL = "ALL";
 const STATUSES: readonly SalesOrderStatus[] = ["OPEN", "PARTIALLY_INVOICED", "INVOICED", "CANCELLED"];
@@ -23,6 +34,7 @@ export function SalesOrdersPage(): React.JSX.Element {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [status, setStatus] = useState<SalesOrderStatus | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSalesOrders(status);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
@@ -33,7 +45,16 @@ export function SalesOrdersPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("sales.orders.title")}</h1>
           <p className="erp-page__subtitle">{t("sales.orders.subtitle")}</p>
         </div>
-        <PermissionButton allowed={can("sales_order:create")} label={t("sales.orders.new")} icon="pi pi-plus" onClick={() => void navigate("/sales/orders/new")} />
+        <div className="erp-page__header-actions">
+          <PermissionButton
+            allowed={can("sales_order:create")}
+            label={t("sales.quotations.convert")}
+            icon={i18n.dir() === "rtl" ? "pi pi-arrow-left" : "pi pi-arrow-right"}
+            outlined
+            onClick={() => setConvertOpen(true)}
+          />
+          <PermissionButton allowed={can("sales_order:create")} label={t("sales.orders.new")} icon="pi pi-plus" onClick={() => void navigate("/sales/orders/new")} />
+        </div>
       </div>
 
       <div className="coa-toolbar">
@@ -72,7 +93,57 @@ export function SalesOrdersPage(): React.JSX.Element {
           ) : null}
         </>
       )}
+      <ConvertQuotationDialog visible={convertOpen} onHide={() => setConvertOpen(false)} />
     </div>
+  );
+}
+
+// Starts a sales order from an OPEN quotation the customer accepted: the lines come straight from
+// the quotation, nothing to re-enter here.
+function ConvertQuotationDialog({ visible, onHide }: { visible: boolean; onHide: () => void }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const [quotationId, setQuotationId] = useState("");
+  const { data } = useQuotations("OPEN");
+  const convert = useQuotationAction(quotationId, "convert");
+  const quotations = data?.pages.flatMap((p) => p.data) ?? [];
+
+  const reset = (): void => {
+    setQuotationId("");
+    convert.reset();
+  };
+
+  return (
+    <Dialog header={t("sales.quotations.convert")} visible={visible} onHide={onHide} onShow={reset} className="erp-dialog" modal style={{ width: "min(32rem, 96vw)" }}>
+      <div className="erp-form">
+        <div className="erp-field">
+          <label htmlFor="convertQuotation">{t("sales.quotations.title")}</label>
+          <Dropdown
+            inputId="convertQuotation"
+            value={quotationId || null}
+            onChange={(e) => setQuotationId((e.value as string | null) ?? "")}
+            options={quotations.map((q: QuotationSummary) => ({
+              label: `${q.number} — ${localizedName({ name: q.customerName, nameAr: q.customerNameAr }, i18n.language)} — ${formatMoney(q.totalGross, q.currency)}`,
+              value: q.id,
+            }))}
+            filter
+            placeholder={t("sales.quotations.title")}
+            emptyMessage={t("status.empty")}
+          />
+        </div>
+        {convert.isError ? <p className="erp-auth-card__error">{t("sales.errors.generic")}</p> : null}
+        <div className="erp-form__actions">
+          <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
+          <Button
+            type="button"
+            label={t("sales.quotations.convert")}
+            disabled={quotationId === ""}
+            loading={convert.isPending}
+            onClick={() => convert.mutate(undefined, { onSuccess: (created) => { onHide(); void navigate(`/sales/orders/${created.id}`); } })}
+          />
+        </div>
+      </div>
+    </Dialog>
   );
 }
 

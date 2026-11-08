@@ -165,9 +165,9 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
       const gross = totals.net.add(totals.tax);
       setCreated({
         // An order or invoice opens on its own page; a quotation has none, so it goes back to the list.
+        // Closing the "saved" dialog (its only action here) takes the person there.
         to: mode === "quotation" ? listPath : `${listPath}/${saved.id}`,
         info: {
-          ...(mode === "quotation" ? {} : { onOpen: () => void navigate(`${listPath}/${saved.id}`) }),
           title: t(`sales.${mode === "quotation" ? "quotations" : mode === "order" ? "orders" : "invoices"}.newTitle`),
           headline: saved.number,
           rows: [

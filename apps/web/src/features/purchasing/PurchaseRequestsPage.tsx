@@ -265,7 +265,7 @@ export function RequestDetailDialog({ id, onHide }: { id: string | null; onHide:
   const { t, i18n } = useTranslation();
   const { data, isPending } = usePurchaseRequest(id);
   return (
-    <Dialog header={data?.number ?? t("purchasing.requests.title")} visible={id !== null} onHide={onHide} className="erp-dialog" modal style={{ width: "min(40rem, 96vw)" }}>
+    <Dialog header={data?.number ?? t("purchasing.requests.title")} visible={id !== null} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(56rem, 96vw)" }}>
       {isPending || !data ? (
         <PageSkeleton />
       ) : (

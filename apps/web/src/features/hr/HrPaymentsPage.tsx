@@ -12,7 +12,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
-import { useCreatedToast } from "../../shared/ui/created-toast";
+import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
@@ -38,6 +38,7 @@ export function HrPaymentsPage(): React.JSX.Element {
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useHrPayments();
   const { data: payables } = useHrPayables();
   const [dialog, setDialog] = useState<HrPaymentKind | null>(null);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
   const currency = payables?.currency ?? "SAR";
   const unpaidSalaries = payables?.runs.reduce((s, r) => s + Number(r.unpaidTotal), 0) ?? 0;
@@ -98,16 +99,24 @@ export function HrPaymentsPage(): React.JSX.Element {
         </>
       )}
 
-      <PayDialog kind={dialog} onHide={() => setDialog(null)} />
+      <PayDialog kind={dialog} onHide={() => setDialog(null)} onCreated={setCreated} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }
 
 // One dialog for the three payments: the same date and bank account, plus what is specific to each.
-function PayDialog({ kind, onHide }: { readonly kind: HrPaymentKind | null; readonly onHide: () => void }): React.JSX.Element {
+function PayDialog({
+  kind,
+  onHide,
+  onCreated,
+}: {
+  readonly kind: HrPaymentKind | null;
+  readonly onHide: () => void;
+  readonly onCreated: (info: CreatedInfo) => void;
+}): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const showCreated = useCreatedToast((s) => s.show);
   const { data: payables } = useHrPayables();
   const { data: accounts } = useChartOfAccounts();
   const salaries = usePaySalaries();
@@ -133,8 +142,24 @@ function PayDialog({ kind, onHide }: { readonly kind: HrPaymentKind | null; read
 
   const done = (saved: { id: string; number: string }): void => {
     onHide();
-    showCreated(t(`hr.payments.kinds.${kind ?? "SALARY"}`), saved.number);
-    void navigate(`/hr/payments/${saved.id}`);
+    const bank = banks.find((a) => a.id === cash);
+    const currency = payables?.currency ?? "SAR";
+    const paidAmount =
+      kind === "GOSI"
+        ? amount
+        : kind === "SALARY"
+          ? (payables?.runs.find((r) => r.payrollRunId === target)?.unpaidTotal ?? "")
+          : (payables?.settlements.find((s) => s.settlementId === target)?.amount ?? "");
+    onCreated({
+      title: t(`hr.payments.kinds.${kind ?? "SALARY"}`),
+      headline: saved.number,
+      onOpen: () => void navigate(`/hr/payments/${saved.id}`),
+      rows: [
+        { label: t("payments.date"), value: toDateOnlyIsoString(date), ltr: true },
+        { label: t("payments.bankAccount"), value: bank ? localizedName(bank, i18n.language) : "" },
+        { label: t("payments.amount"), value: paidAmount ? formatMoney(paidAmount, currency) : "", ltr: true },
+      ],
+    });
   };
 
   const common = { paymentDate: toDateOnlyIsoString(date), cashAccountId: cash };
