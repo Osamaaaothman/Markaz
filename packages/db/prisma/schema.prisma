@@ -1951,6 +1951,7 @@ model ZatcaInvoiceRecord {
   egsUnit      EgsUnit      @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
   salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
 
+  @@unique([egsUnitId, icv])
   @@index([companyId])
   @@index([egsUnitId])
   @@index([companyId, status])

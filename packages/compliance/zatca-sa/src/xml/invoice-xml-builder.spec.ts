@@ -4,6 +4,7 @@ import { buildBareInvoiceXml } from "./invoice-xml-builder.js";
 import type { ZatcaInvoiceInput, ZatcaParty } from "./invoice-xml.types.js";
 import { ZatcaXmlError } from "./invoice-xml.types.js";
 import { SDK_SAMPLES, describeIfSdk } from "../testing/fixtures.js";
+import { checkInvoiceConsistency } from "../validation/invoice-consistency.js";
 
 
 const supplier: ZatcaParty = {
@@ -188,6 +189,52 @@ describe("buildBareInvoiceXml — multiple tax categories on one invoice", () =>
     expect(xml.split("<cac:AllowanceCharge>").length - 1).toBe(2);
     expect(xml).toContain('<cbc:LineExtensionAmount currencyID="SAR">14.00</cbc:LineExtensionAmount>'); // 4.00 + 10.00
     expect(xml).toContain('<cbc:TaxInclusiveAmount currencyID="SAR">14.60</cbc:TaxInclusiveAmount>'); // 14.00 + 0.60 tax
+  });
+});
+
+// docs/zatca/HANDOFF.md Phase 8: "a rounding test with awkward amounts." Every other test in this
+// file uses amounts that are already clean at 2 decimal places. These are not: three lines in the
+// same tax category whose per-line tax amount (0.125, a real value a 4dp-precision tax calculation
+// elsewhere in this app -- docs/01-OPEN-DECISIONS.md D3/E3 -- can genuinely produce) sits exactly
+// on a rounding boundary at the 2dp display precision the XML format uses.
+describe("buildBareInvoiceXml — awkward (boundary) rounding amounts", () => {
+  // REVIEW / FOUND, not fixed: this reproduces a real self-consistency bug, not just a display
+  // quirk. Each InvoiceLine's own cbc:TaxAmount is rounded to 2dp independently (amountEl calls
+  // Money.round(2) on whatever string the caller gave it, per line). The document's cac:TaxTotal /
+  // cac:TaxSubtotal, by contrast, are built by buildTaxTotals summing the group's FULL-PRECISION
+  // Money total (every line's un-rounded taxAmount added together) and rounding that sum ONCE.
+  // These two roundings of the same underlying numbers can legitimately disagree by 0.01 -- and
+  // when they do, checkInvoiceConsistency's BR_CO_14/BR_CO_17_TAX checks (which recompute "sum of
+  // the lines' own rendered TaxAmount" and compare it to the document TaxTotal) correctly flag it
+  // as a hard ERROR, because the document genuinely is internally inconsistent at that point: a
+  // human adding up what each line says would get a different number than the subtotal states.
+  // This is a real, currently open gap (not guessed at a fix for, per CLAUDE.md §4 -- the correct
+  // ZATCA-compliant per-line rounding rule is unconfirmed, docs/01 section Y's own REVIEW note),
+  // tracked in docs/01-OPEN-DECISIONS.md section Z.
+  it("three lines whose per-line tax amount (0.125) sits on a rounding boundary: the line display and the subtotal display can legitimately disagree by 0.01, and local validation correctly catches it", () => {
+    const boundaryLine = { ...baseInvoice.lines[0]!, lineExtensionAmount: "0.833333", taxAmount: "0.125", taxPercent: "15.00" };
+    const xml = buildBareInvoiceXml({ ...baseInvoice, lines: [boundaryLine, { ...boundaryLine, id: "2" }, { ...boundaryLine, id: "3" }] });
+
+    // Every line independently rounds its own 0.125 tax to 0.13 (half-up) -- three of them read 0.13 each.
+    const lineTaxCount = xml.split('<cbc:TaxAmount currencyID="SAR">0.13</cbc:TaxAmount>').length - 1;
+    expect(lineTaxCount).toBe(3);
+    // But the subtotal/total sum the full-precision 0.125 three times (0.375) and round ONCE: 0.38, not 0.39.
+    expect(xml).toContain('<cac:TaxTotal><cbc:TaxAmount currencyID="SAR">0.38</cbc:TaxAmount></cac:TaxTotal>');
+    expect(xml).not.toContain('<cac:TaxTotal><cbc:TaxAmount currencyID="SAR">0.39</cbc:TaxAmount></cac:TaxTotal>');
+
+    // Proven end to end: this is exactly the kind of self-inconsistency checkInvoiceConsistency
+    // exists to catch before a document is ever signed or sent (docs/01 section Y).
+    const report = checkInvoiceConsistency(xml);
+    expect(report.valid).toBe(false);
+    const codes = report.issues.filter((i) => i.severity === "error").map((i) => i.code);
+    expect(codes).toContain("BR_CO_14");
+    expect(codes).toContain("BR_CO_17_TAX");
+  });
+
+  it("the same awkward amount on a SINGLE line (no cross-line summing involved) stays self-consistent", () => {
+    const xml = buildBareInvoiceXml({ ...baseInvoice, lines: [{ ...baseInvoice.lines[0]!, lineExtensionAmount: "0.833333", taxAmount: "0.125", taxPercent: "15.00" }] });
+    const report = checkInvoiceConsistency(xml);
+    expect(report.valid).toBe(true); // one line's own rounding can't disagree with "the sum of itself"
   });
 });
 

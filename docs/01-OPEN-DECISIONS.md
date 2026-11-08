@@ -816,6 +816,75 @@ and says plainly what it cannot.
   sample documents" suite in `validation.spec.ts` has not been run (it allows only the known `CERT_DIGEST_MISMATCH` sample
   inconsistency from section U -- any other disagreement is a validator bug or a finding about the samples).
 
+## Z. M7 ZATCA — Phase 7 admin API/UI, and what still blocks a real invoice from ever reaching ZATCA (2026-11-08)
+
+Phase 7 (`apps/api/src/compliance/compliance-admin.service.ts` + controller/DTO/module, `apps/web/src/features/compliance/`)
+gives a company a screen to fill its seller profile, create an EGS unit, run it through onboarding (CSR → compliance CSID →
+compliance checks → production CSID → renewal), and see a sales invoice's ZATCA status once one exists. Covered by a
+real-database integration suite (8 tests) and manually verified in a real browser against the real API — see the Phase 7b
+commit for what that testing found and fixed (a real data-wipe bug in `updateSellerProfile`, a silent-failure gap in the
+onboarding dialog, and a broken XML-download auth path).
+
+**What Phase 7 does NOT do, and nothing in this repo does yet: make a real sales invoice actually reach ZATCA.**
+`zatca-submission.job.ts` is a complete, tested *seam* — nothing calls it. The gap is the same one Phase 5 (section V) and
+the HANDOFF document already named; restated here as the formal "known gaps" section both of them pointed at, with each
+item re-checked against the schema as it stands today rather than copied forward unverified:
+
+- **Which `EgsUnit` issued a given `SalesInvoice`.** No field exists for it. A single-EGS company could default to "the
+  company's only active unit," but a multi-branch company needs a real choice — this is a product decision, not a guess
+  (CLAUDE.md §4).
+- **Standard vs. simplified invoice.** ZATCA treats these as genuinely different documents (different `InvoiceTypeCode`
+  name-attribute digits, different QR/signing requirements for simplified only). Nothing in this codebase decides which one
+  a given `SalesInvoice` is. Proposed rule carried over from the original task brief, never confirmed: a customer with a VAT
+  number on file is a standard (B2B) invoice, one without is simplified (B2C) — this needs Osama's sign-off, not silent
+  adoption, since it is the rule that decides a legal document's structure.
+- **Tax exemption reason code.** The XML builder itself already supports this correctly — `buildBareInvoiceXml` refuses a
+  Z/E line with no `exemptionReasonCode`/`exemptionReason` (Phase 3, `invoice-xml-builder.ts`). What is actually missing is
+  the source: `TaxCode.treatment` is `STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE` with no reason-code column, so nothing
+  maps a real company's zero-rated/exempt tax code to the specific ZATCA-coded reason (e.g. which exemption clause) it
+  needs. Inventing a default reason would be a tax-law guess (CLAUDE.md §4 — likely needs the accountant, not just Osama).
+- **Item unit of measure.** `Item.unit` is free text today; ZATCA's schema wants a UN/ECE Recommendation 20 unit code
+  (e.g. `PCE`, `KGM`). No mapping exists from the free-text values already on real items to a code list.
+- **`SalesInvoice.invoiceDate` has no time component** (`@db.Date`). ZATCA's issue-date/time pair is part of the hash input
+  and the clearance deadline calculation; a real submission needs a real timestamp, not a date defaulted to midnight.
+- **Payment means code.** Not captured anywhere on a sales invoice today; ZATCA's schema expects one (cash, credit transfer,
+  etc. — UNCL4461).
+- **Corrected from the Phase 7a hand-off note that first listed this gap list:** "sales has no debit note" is no longer
+  true — section R (2026-11-04) built it as a real AR feature, and it is usable as one of the required ZATCA compliance
+  samples once Phase 7's sample-submission step needs one. The rest of this list still stands as written.
+
+None of this blocks Phase 7's admin screens, which only need a seller profile, an EGS unit, and a sandbox OTP to exercise —
+none of it reads or writes a real `SalesInvoice`. It blocks exactly one thing: a worker that maps a real invoice to
+`SubmitInvoiceParams` and calls `createZatcaSubmissionProcessor`. That worker is the next piece of real, user-facing ZATCA
+work, and it cannot be built correctly without the decisions above — guessing any one of them risks a legally wrong invoice
+reaching a government system, which is a different order of mistake than guessing a UI label.
+
+**Found while writing Phase 8's "rounding test with awkward amounts" (2026-11-08), not yet fixed — this one is urgent,
+likely to affect a normal real invoice, not a contrived edge case:** `buildBareInvoiceXml` can produce a document that
+fails its own local validation on perfectly ordinary numbers. Each `InvoiceLine`'s own `cbc:TaxAmount` is rounded to 2
+decimal places independently (`amountEl` → `Money.round(2)`, per line). The document's `cac:TaxTotal`/`cac:TaxSubtotal`,
+by contrast, are built by summing every line's **full-precision, un-rounded** tax amount and rounding that sum **once**
+(`buildTaxTotals`). These two roundings of the same underlying numbers can legitimately disagree by 0.01 — proven with
+three lines each carrying a per-line tax amount of exactly `0.125` (a real value a 4-decimal-precision tax calculation
+elsewhere in this app can genuinely produce, per D3/E3's "tax is rounded per invoice line to four decimals"): each line
+independently displays `0.13`, but the subtotal sums `0.125 × 3 = 0.375` and rounds once to `0.38`, not `0.13 × 3 = 0.39`.
+`checkInvoiceConsistency` correctly flags this as **hard errors** `BR_CO_14`/`BR_CO_17_TAX` — correctly, because the
+document genuinely is self-inconsistent at that point: a human adding up what each line says gets a different number than
+the subtotal states. In production this throws `InvoiceValidationError`, which the job wrapper classifies as
+`UnrecoverableError` — the invoice does not just fail once, it sits permanently stuck until someone manually intervenes,
+for an invoice that did nothing wrong.
+  - Test: `invoice-xml-builder.spec.ts` "buildBareInvoiceXml — awkward (boundary) rounding amounts" (two tests, both
+    passing — proving the current, broken behavior, not a fix).
+  - **Not fixed here on purpose.** The safe-looking fix (sum the already-rounded per-line display values for the
+    subtotal, instead of summing full precision and rounding once — which makes "sum of what's shown per line" and "the
+    subtotal" agree by construction, regardless of which convention is "right") touches exactly the kind of ZATCA
+    Schematron rounding behavior section Y's own `// REVIEW:` already flags as unconfirmed (no SDK/Schematron access in
+    this or any prior session). Guessing the wrong convention here is not a cosmetic risk — it is a legal-document
+    rounding rule. **This needs either ZATCA's official Schematron rules (`docs/vendor/zatca/sdk/Data/Rules`, which
+    Osama has locally) or a real sandbox submission with deliberately awkward amounts to observe what ZATCA itself
+    accepts, before it is fixed.**
+  - Blocking: not Phase 7 (already delivered), but it blocks any real invoice submission (the worker above) from being
+    trustworthy — this should be resolved before that worker is built, not discovered later against a customer's books.
 
 ## R. Sales debit notes (2026-11-04)
 

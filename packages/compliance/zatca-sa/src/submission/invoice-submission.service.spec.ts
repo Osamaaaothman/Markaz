@@ -304,4 +304,70 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     expect(recordB.icv).toBe(2n);
     expect(recordB.previousInvoiceHash).toBe(recordA.invoiceHash);
   });
+
+  it("many invoices submitted one after another on the same EGS (the real shape: a per-EGS BullMQ worker at concurrency 1) stay gapless", async () => {
+    const COUNT = 12;
+    let previousHash: string | null = null;
+    for (let i = 1; i <= COUNT; i++) {
+      const transport = new ScriptedTransport().queue(CLEARED_RESPONSE);
+      const { service, ...params } = await makeParams({ transport });
+      const result = await service.submit(params);
+      const record = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: result.zatcaInvoiceRecordId } });
+      expect(record.icv).toBe(BigInt(i));
+      if (previousHash) expect(record.previousInvoiceHash).toBe(previousHash);
+      previousHash = record.invoiceHash;
+    }
+    expect((await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } })).lastIcv).toBe(BigInt(COUNT));
+  });
+
+  // docs/06-COMPLIANCE-PACK-RULES.md §4 / this file's own top comment: submit()'s chain-position
+  // reservation and its advance() are two SEPARATE transactions with the ZATCA network call
+  // between them, and are safe only because the caller (apps/api, a per-EGS BullMQ worker at
+  // concurrency 1) guarantees at most one submit() runs per EGS at a time -- that worker does not
+  // exist yet (docs/01-OPEN-DECISIONS.md section Z). This test deliberately breaks that contract
+  // (two real concurrent submit() calls on the same EGS) to prove, not assume, what actually
+  // happens if it is ever violated in production.
+  //
+  // What this test FOUND, before the egs_unit_id+icv unique constraint below existed: both
+  // reservations read the chain state before either advanced it (peekNext's row lock is held only
+  // for the instant of reservation, not across the network call that follows), so both got icv=1.
+  // Each one then independently built, signed and "sent" a real invoice to ZATCA with the SAME
+  // chain position -- and only the second to reach advance() (after its own real network call)
+  // discovered the collision, as a late EgsChainError that rolled back its own finalize()
+  // transaction and silently lost its own ZATCA response. The `@@unique([egsUnitId, icv])`
+  // constraint (migration 20261108180000) turns that into a fast, cheap failure at the INSERT in
+  // reserveChainPosition -- before any XML is built or any network call made -- so the worst case
+  // of a concurrency:1 violation is "the second caller's job fails and must retry" rather than "an
+  // invoice was actually submitted to ZATCA and our own record of it was lost."
+  it("two real concurrent submit() calls for the same EGS: the DB constraint rejects the duplicate before it ever reaches ZATCA, and a retry recovers cleanly", async () => {
+    const transportA = new ScriptedTransport().queue(CLEARED_RESPONSE);
+    const transportB = new ScriptedTransport().queue(CLEARED_RESPONSE);
+    const { service: serviceA, ...paramsA } = await makeParams({ transport: transportA });
+    const { service: serviceB, ...paramsB } = await makeParams({ transport: transportB });
+
+    const [settledA, settledB] = await Promise.allSettled([serviceA.submit(paramsA), serviceB.submit(paramsB)]);
+    const outcomes = [settledA, settledB];
+    const fulfilled = outcomes.filter((o) => o.status === "fulfilled");
+    const rejected = outcomes.filter((o) => o.status === "rejected");
+    expect(fulfilled).toHaveLength(1); // exactly one of the two actually reached ZATCA
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ code: "P2002" }); // Prisma unique-constraint violation, not a late chain error
+
+    const winner = (fulfilled[0] as PromiseFulfilledResult<Awaited<ReturnType<typeof serviceA.submit>>>).value;
+    const winnerRecord = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: winner.zatcaInvoiceRecordId } });
+    expect(winnerRecord.icv).toBe(1n);
+    expect((await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } })).lastIcv).toBe(1n);
+
+    // The loser's create() failed before any network call, so its ScriptedTransport still has its
+    // queued response unused -- a plain retry with the same params (the loser never got a
+    // ZatcaInvoiceRecord at all, so this starts fresh rather than resuming) lands on the next free
+    // ICV, gapless.
+    const loserParams = winnerRecord.salesInvoiceId === paramsA.salesInvoiceId ? paramsB : paramsA;
+    const loserService = winnerRecord.salesInvoiceId === paramsA.salesInvoiceId ? serviceB : serviceA;
+    const retryResult = await loserService.submit(loserParams);
+    const retryRecord = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: retryResult.zatcaInvoiceRecordId } });
+    expect(retryRecord.icv).toBe(2n);
+    expect(retryRecord.previousInvoiceHash).toBe(winnerRecord.invoiceHash);
+    expect((await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } })).lastIcv).toBe(2n);
+  });
 });

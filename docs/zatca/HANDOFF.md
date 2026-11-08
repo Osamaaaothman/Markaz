@@ -22,20 +22,23 @@ template in docs/11-GIT-WORKFLOW.md and merge with a MERGE COMMIT (never squash)
 done and what is blocked; never fake a green result or a sandbox success.
 ```
 
-## Where things stand
+## Where things stand (updated 2026-11-08 — Phase 7 and Phase 8 are now done; read this before the stale "What remains" section below)
 
-Branch `feat/compliance-zatca`. Phases 1-5 were built by an earlier session; this session added Phase 6 and the start of 7.
+**This file's own "What remains, in order" section (below) is now historical** — it describes the
+state as of 2026-11-05/06. Everything in it is done except what's flagged here. **Read
+`docs/zatca/PRODUCTION_GO_LIVE.md` and `docs/01-OPEN-DECISIONS.md` section Z first** — they are the
+current, authoritative statement of what is built and what actually remains. Do not re-do Phase
+7a/7b or re-derive the Phase 8 gaps from the stale section below.
 
 | Area | State |
 |---|---|
-| Phases 1-5 (schema, key encryption, ICV/PIH chain, XML for 6 document types, hash/XAdES/QR, submission, onboarding service) | done, 101 pack tests green |
-| Real sandbox onboarding | **BLOCKED** (docs/01 section X): ZATCA answers `Invalid-CSR` even to a garbage body; needs Osama to check his Fatoora portal / OTP. Do not retry blindly. |
-| Phase 6 local validation | done (docs/01 section Y): `checkInvoiceConsistency`, `verifySignedInvoice`, wired into `InvoiceSubmissionService`; `runSdkValidation` written but **never run** (no SDK in the cloud) |
-| Packaging | pack now builds to `dist` and `apps/api` depends on it (before, the API container could not load it at all) |
-| Phase 7a back end | **half done**: `compliance-samples.ts` (pack, tested) and `apps/api/src/compliance/compliance-admin.service.ts` (compiles, lints, **no tests yet, not exposed by any controller**) |
-| Phase 7b web UI | not started |
-| Phase 8 | partly covered by existing specs; see below |
-| `docs/zatca/PRODUCTION_GO_LIVE.md` | not written |
+| Phases 1-6 | done (as this file already said) |
+| Real sandbox onboarding | **RESOLVED** (docs/01 section X): a real compliance CSID was issued end to end, two real CSR bugs found and fixed. |
+| Phase 7a back end | **done**: full `compliance.controller.ts`/`dto.ts`/`module.ts`, permissions, real-DB integration tests. |
+| Phase 7b web UI | **done**: seller profile, EGS units, onboarding dialog, invoice ZATCA panel — real-browser-tested. Found and fixed 3 real bugs along the way (a partial-update data-wipe, a silent onboarding-error gap, a broken authenticated XML download) — see commit `7711945`. |
+| Phase 8 | **done**: a 12-invoice sequential submission concurrency test, a real concurrent-submission test (found and fixed a genuine duplicate-ICV race — migration `20261108180000`, `@@unique([egsUnitId, icv])`), and a rounding test with awkward amounts that **found a real, unfixed self-consistency bug** — see `docs/01-OPEN-DECISIONS.md` section Z and `PRODUCTION_GO_LIVE.md` §6 item 1. **This is the most urgent open item in the whole package.** |
+| `docs/zatca/PRODUCTION_GO_LIVE.md` | **written** — the real next-steps document; this file is superseded by it for anything beyond "how did we get here." |
+| Still not built, still blocking a real invoice from reaching ZATCA | the submission worker itself (`ZatcaSubmissionParamsLoader`), which needs the product decisions in docs/01 section Z first. |
 
 ## Environment facts the last session hit (save yourself the time)
 
