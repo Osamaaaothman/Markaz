@@ -26,6 +26,7 @@ import { StockLevelsPage } from "../features/inventory/StockLevelsPage";
 import { StockMovementsPage } from "../features/inventory/StockMovementsPage";
 import { WarehousesPage } from "../features/inventory/WarehousesPage";
 import { ApprovalPolicyPage } from "../features/purchasing/ApprovalPolicyPage";
+import { CompliancePage } from "../features/compliance/CompliancePage";
 import { SupplierInvoiceFormPage } from "../features/purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "../features/purchasing/SupplierInvoicesPage";
 import { TaxCodesPage } from "../features/purchasing/TaxCodesPage";
@@ -221,6 +222,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/approvals")} />}>
             <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/settings/zatca")} />}>
+            <Route path="/settings/zatca" element={<CompliancePage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/account-mapping")} />}>
             <Route path="/settings/account-mapping" element={<AccountMappingPage />} />

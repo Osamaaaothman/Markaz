@@ -18,6 +18,8 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ComplianceAdminService } from "./compliance-admin.service.js";
+import { UpdateSellerProfileDto } from "./compliance.dto.js";
+import { plainToInstance } from "class-transformer";
 
 const describeIfReady = process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -193,6 +195,24 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     await expect(service.updateSellerProfile({ vatNumber: "399999999900004" }, actor, newId())).rejects.toMatchObject({ code: "SELLER_LOCKED" });
     // A no-op edit (same value, or editing a field not covered by the certificate) is not a change.
     await expect(service.updateSellerProfile({ vatNumber: completeProfile.vatNumber }, actor, newId())).resolves.toMatchObject({ locked: true });
+  });
+
+  // Regression: a plain object `{ field }` with unset keys simply absent is not what the controller actually
+  // passes. Nest's ValidationPipe builds the input via class-transformer's `plainToInstance`, and on this API's
+  // ES2022 target every `@IsOptional()` class field is an own property (value `undefined`) whether the client
+  // sent it or not. A field check that used `field in input` passed every test above (plain objects have no such
+  // property) while still wiping every other seller-profile field on a real HTTP request. This test goes through
+  // the same `plainToInstance` step the controller does, so it only passes if the service tells "sent" apart from
+  // "declared on the class" correctly.
+  it("a partial update built the way Nest's ValidationPipe builds it does not touch fields the client did not send", async () => {
+    await service.updateSellerProfile(completeProfile, actor, newId());
+
+    const partial = plainToInstance(UpdateSellerProfileDto, { countryCode: "SA" });
+    const after = await service.updateSellerProfile(partial, actor, newId());
+
+    expect(after).toMatchObject({ ...completeProfile, countryCode: "SA" });
+    expect(after.complete).toBe(true);
+    expect(after.missing).toEqual([]);
   });
 
   // ── EGS units ─────────────────────────────────────────────────────────────────────────────

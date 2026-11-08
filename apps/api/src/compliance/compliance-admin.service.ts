@@ -206,18 +206,23 @@ export class ComplianceAdminService {
 
   async updateSellerProfile(input: SellerProfileInput, actor: Actor, correlationId: string): Promise<SellerProfileView> {
     const before = await this.sellerProfile(actor.companyId);
+    // A field counts as "sent" only if it is not `undefined`. Checking `field in input` here is a trap: when
+    // `input` is a class-validator DTO instance (built by Nest's ValidationPipe), every `@IsOptional()` property is
+    // an own property of the instance -- set to `undefined` -- whether or not the client's JSON body included it,
+    // because the API's ES2022 target defines class fields in the constructor (`useDefineForClassFields`). So `in`
+    // cannot distinguish "sent as null" from "not sent at all"; only an explicit `!== undefined` check can, which is
+    // why the loop below reads `raw` once and skips the field entirely while it is still `undefined`.
+    const data: Record<string, string | null> = {};
+    for (const field of SELLER_PROFILE_FIELDS) {
+      const raw = input[field];
+      if (raw === undefined) continue;
+      data[field] = raw === null || raw.trim() === "" ? null : raw.trim();
+    }
     if (before.locked) {
       // The certificate carries the VAT number, the registration and the address; changing them afterwards would make
       // every new invoice disagree with its own certificate. Reissuing a certificate is a deliberate, separate act.
-      const changed = SELLER_PROFILE_FIELDS.filter((f) => f in input && (input[f] ?? null) !== (before[f] ?? null));
+      const changed = Object.keys(data).filter((f) => data[f] !== (before[f as SellerProfileField] ?? null));
       if (changed.length > 0) throw new ComplianceError("SELLER_LOCKED", "The seller profile is bound into an issued certificate and can no longer be edited here", { fields: changed });
-    }
-    const data: Record<string, string | null> = {};
-    for (const field of SELLER_PROFILE_FIELDS) {
-      if (field in input) {
-        const raw = input[field];
-        data[field] = raw === null || raw === undefined || raw.trim() === "" ? null : raw.trim();
-      }
     }
     await this.prisma.company.update({ where: { id: actor.companyId }, data: { ...data, updatedBy: actor.id, version: { increment: 1 } } });
     const after = await this.sellerProfile(actor.companyId);

@@ -35,6 +35,7 @@
     "purchaseRequests": "طلبات الشراء",
     "purchaseOrders": "أوامر الشراء",
     "approvalLimits": "حدود الموافقة",
+    "zatca": "الفوترة الإلكترونية (زاتكا)",
     "supplierInvoices": "فواتير الموردين",
     "taxCodes": "رموز الضريبة",
     "quotations": "عروض الأسعار",
@@ -75,7 +76,9 @@
     "copied": "تم النسخ",
     "print": "طباعة",
     "edit": "تعديل",
-    "search": "بحث"
+    "search": "بحث",
+    "close": "إغلاق",
+    "create": "إنشاء"
   },
   "status": {
     "loading": "جارٍ التحميل…",
@@ -1541,6 +1544,115 @@
     "correlation": "معرّف الطلب",
     "before": "قبل",
     "after": "بعد"
+  },
+  "compliance": {
+    "title": "الفوترة الإلكترونية (زاتكا)",
+    "subtitle": "بيانات البائع، أجهزة إصدار الفواتير (EGS)، وربطها مع منصة الفوترة الإلكترونية التابعة لهيئة الزكاة والضريبة والجمارك.",
+    "environment": {
+      "sandbox": "بيئة تجريبية (Sandbox)",
+      "simulation": "بيئة المحاكاة",
+      "production": "بيئة الإنتاج"
+    },
+    "sellerProfile": {
+      "title": "بيانات البائع",
+      "locked": "مقفلة بشهادة صادرة",
+      "lockedHint": "تم إصدار شهادة بناءً على هذه البيانات. أغلب الحقول ما عاد تقدر تتعدّل من هنا.",
+      "incomplete": "قبل بدء الربط، لازم تكمّل: {{fields}}",
+      "saveError": "تعذّر حفظ بيانات البائع.",
+      "nameAr": "الاسم القانوني (عربي)",
+      "vatNumber": "الرقم الضريبي",
+      "crNumber": "رقم السجل التجاري",
+      "crNumberScheme": "نوع السجل",
+      "crNumberSchemePlaceholder": "اختر النوع",
+      "address": "العنوان",
+      "streetName": "الشارع",
+      "buildingNumber": "رقم المبنى",
+      "district": "الحي",
+      "city": "المدينة",
+      "postalCode": "الرمز البريدي",
+      "countryCode": "رمز الدولة"
+    },
+    "egsUnits": {
+      "title": "أجهزة إصدار الفواتير (EGS)",
+      "add": "إضافة جهاز",
+      "empty": "لا يوجد أي جهاز بعد.",
+      "needsProfile": "أكمل بيانات البائع أعلاه قبل إضافة جهاز.",
+      "name": "الاسم",
+      "branch": "الفرع",
+      "status": "الحالة",
+      "certificate": "الشهادة",
+      "manage": "إدارة",
+      "businessCategory": "نشاط العمل",
+      "businessCategoryPlaceholder": "مثال: تجزئة، خدمات",
+      "invoiceTypes": "أنواع الفواتير المُصدرة",
+      "invoiceTypesStandardAndSimplified": "قياسي ومبسّط",
+      "invoiceTypesStandardOnly": "قياسي فقط (منشآت)",
+      "invoiceTypesSimplifiedOnly": "مبسّط فقط (أفراد)",
+      "createError": "تعذّر إنشاء الجهاز."
+    },
+    "egsStatus": {
+      "NEW": "لم يبدأ الربط",
+      "CSR_GENERATED": "تم توليد طلب الشهادة",
+      "COMPLIANCE_CSID_ISSUED": "صدرت شهادة الامتثال",
+      "COMPLIANCE_CHECKS_PASSED": "اجتاز فحوصات الامتثال",
+      "PRODUCTION_CSID_ISSUED": "صدرت شهادة الإنتاج",
+      "ACTIVE": "نشط"
+    },
+    "expiry": {
+      "OK": "سارية (باقي {{days}} يوم)",
+      "EXPIRING_SOON": "قاربت على الانتهاء (باقي {{days}} يوم)",
+      "EXPIRED": "منتهية"
+    },
+    "onboarding": {
+      "title": "ربط الجهاز",
+      "titleFor": "ربط الجهاز — {{name}}",
+      "otp": "رمز التفعيل (OTP)",
+      "otpPlaceholder": "الرمز لمرة واحدة من بوابة فاتورة",
+      "requestError": "فشل الطلب قبل أن تستجيب هيئة الزكاة والضريبة والجمارك. تحقق من إعدادات الخادم وحاول مرة أخرى.",
+      "step1": "١. طلب شهادة الامتثال",
+      "step2": "٢. تشغيل فحوصات الامتثال",
+      "step3": "٣. طلب شهادة الإنتاج",
+      "renew": "تجديد الشهادة",
+      "active": "هذا الجهاز نشط ويصدر فواتير.",
+      "hint": {
+        "NEW": "أدخل رمز التفعيل (OTP) من بوابة فاتورة للمطورين لطلب شهادة الامتثال.",
+        "CSR_GENERATED": "أدخل رمز التفعيل (OTP) من بوابة فاتورة للمطورين لطلب شهادة الامتثال.",
+        "COMPLIANCE_CSID_ISSUED": "صدرت شهادة الامتثال. الخطوة التالية تشغيل فحوصات الامتثال — تُجرَّب كل عينة مطلوبة ولازم تنجح كلها.",
+        "COMPLIANCE_CHECKS_PASSED": "اجتازت كل فحوصات الامتثال. اطلب شهادة الإنتاج لتفعيل هذا الجهاز.",
+        "default": "اتبع الخطوات بالأسفل لربط هذا الجهاز مع زاتكا."
+      },
+      "steps": {
+        "COMPLIANCE_CSID": "شهادة الامتثال",
+        "COMPLIANCE_CHECKS": "فحوصات الامتثال",
+        "PRODUCTION_CSID": "شهادة الإنتاج",
+        "RENEWAL": "التجديد"
+      }
+    },
+    "complianceSamples": {
+      "STANDARD_INVOICE": "فاتورة قياسية",
+      "STANDARD_CREDIT_NOTE": "إشعار دائن قياسي",
+      "STANDARD_DEBIT_NOTE": "إشعار مدين قياسي",
+      "SIMPLIFIED_INVOICE": "فاتورة مبسّطة",
+      "SIMPLIFIED_CREDIT_NOTE": "إشعار دائن مبسّط",
+      "SIMPLIFIED_DEBIT_NOTE": "إشعار مدين مبسّط"
+    },
+    "invoicePanel": {
+      "title": "حالة زاتكا",
+      "downloadSigned": "تنزيل XML الموقّع",
+      "downloadCleared": "تنزيل XML المعتمد",
+      "resubmit": "إعادة الإرسال",
+      "resubmitError": "تعذّر طلب إعادة الإرسال."
+    },
+    "invoiceStatus": {
+      "PENDING": "بالانتظار",
+      "SUBMITTING": "جارٍ الإرسال",
+      "REPORTED": "تمت المشاركة",
+      "CLEARED": "معتمدة",
+      "WARNING": "معتمدة مع تحذيرات",
+      "REJECTED": "مرفوضة",
+      "FAILED": "فشلت",
+      "FAILED_RETRYABLE": "فشلت، ستُعاد المحاولة"
+    }
   },
   "setup": {
     "title": "الإعداد الأولي",

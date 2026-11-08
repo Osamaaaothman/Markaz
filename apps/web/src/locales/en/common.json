@@ -35,6 +35,7 @@
     "purchaseRequests": "Purchase requests",
     "purchaseOrders": "Purchase orders",
     "approvalLimits": "Approval limits",
+    "zatca": "ZATCA e-invoicing",
     "supplierInvoices": "Supplier invoices",
     "taxCodes": "Tax codes",
     "quotations": "Quotations",
@@ -75,7 +76,9 @@
     "copied": "Copied",
     "print": "Print",
     "edit": "Edit",
-    "search": "Search"
+    "search": "Search",
+    "close": "Close",
+    "create": "Create"
   },
   "status": {
     "loading": "Loading…",
@@ -1541,6 +1544,115 @@
     "correlation": "Request id",
     "before": "Before",
     "after": "After"
+  },
+  "compliance": {
+    "title": "ZATCA e-invoicing",
+    "subtitle": "The seller profile, EGS devices and their onboarding with ZATCA's e-invoicing platform.",
+    "environment": {
+      "sandbox": "Sandbox",
+      "simulation": "Simulation",
+      "production": "Production"
+    },
+    "sellerProfile": {
+      "title": "Seller profile",
+      "locked": "Locked by an issued certificate",
+      "lockedHint": "A certificate has already been issued for this profile. Most fields can no longer be changed here.",
+      "incomplete": "Before onboarding can start, fill in: {{fields}}",
+      "saveError": "Could not save the seller profile.",
+      "nameAr": "Legal name (Arabic)",
+      "vatNumber": "VAT number",
+      "crNumber": "CR number",
+      "crNumberScheme": "CR scheme",
+      "crNumberSchemePlaceholder": "Choose a scheme",
+      "address": "Address",
+      "streetName": "Street",
+      "buildingNumber": "Building number",
+      "district": "District",
+      "city": "City",
+      "postalCode": "Postal code",
+      "countryCode": "Country code"
+    },
+    "egsUnits": {
+      "title": "EGS devices",
+      "add": "Add device",
+      "empty": "No EGS devices yet.",
+      "needsProfile": "Complete the seller profile above before adding a device.",
+      "name": "Name",
+      "branch": "Branch",
+      "status": "Status",
+      "certificate": "Certificate",
+      "manage": "Manage",
+      "businessCategory": "Business category",
+      "businessCategoryPlaceholder": "e.g. Retail, Services",
+      "invoiceTypes": "Invoice types issued",
+      "invoiceTypesStandardAndSimplified": "Standard and simplified",
+      "invoiceTypesStandardOnly": "Standard only (B2B)",
+      "invoiceTypesSimplifiedOnly": "Simplified only (B2C)",
+      "createError": "Could not create the EGS device."
+    },
+    "egsStatus": {
+      "NEW": "Not onboarded",
+      "CSR_GENERATED": "CSR generated",
+      "COMPLIANCE_CSID_ISSUED": "Compliance certificate issued",
+      "COMPLIANCE_CHECKS_PASSED": "Compliance checks passed",
+      "PRODUCTION_CSID_ISSUED": "Production certificate issued",
+      "ACTIVE": "Active"
+    },
+    "expiry": {
+      "OK": "Valid ({{days}} days left)",
+      "EXPIRING_SOON": "Expires soon ({{days}} days left)",
+      "EXPIRED": "Expired"
+    },
+    "onboarding": {
+      "title": "Onboarding",
+      "titleFor": "Onboarding — {{name}}",
+      "otp": "OTP",
+      "otpPlaceholder": "The one-time code from the Fatoora portal",
+      "requestError": "The request failed before ZATCA could respond. Check the server configuration and try again.",
+      "step1": "1. Request compliance certificate",
+      "step2": "2. Run compliance checks",
+      "step3": "3. Request production certificate",
+      "renew": "Renew certificate",
+      "active": "This device is active and issuing invoices.",
+      "hint": {
+        "NEW": "Enter the OTP from the Fatoora developer portal to request a compliance certificate.",
+        "CSR_GENERATED": "Enter the OTP from the Fatoora developer portal to request a compliance certificate.",
+        "COMPLIANCE_CSID_ISSUED": "The compliance certificate is issued. Run the compliance checks next — every required sample document is tried, and all must pass.",
+        "COMPLIANCE_CHECKS_PASSED": "All compliance checks passed. Request the production certificate to activate this device.",
+        "default": "Follow the steps below to onboard this device with ZATCA."
+      },
+      "steps": {
+        "COMPLIANCE_CSID": "Compliance certificate",
+        "COMPLIANCE_CHECKS": "Compliance checks",
+        "PRODUCTION_CSID": "Production certificate",
+        "RENEWAL": "Renewal"
+      }
+    },
+    "complianceSamples": {
+      "STANDARD_INVOICE": "Standard invoice",
+      "STANDARD_CREDIT_NOTE": "Standard credit note",
+      "STANDARD_DEBIT_NOTE": "Standard debit note",
+      "SIMPLIFIED_INVOICE": "Simplified invoice",
+      "SIMPLIFIED_CREDIT_NOTE": "Simplified credit note",
+      "SIMPLIFIED_DEBIT_NOTE": "Simplified debit note"
+    },
+    "invoicePanel": {
+      "title": "ZATCA status",
+      "downloadSigned": "Download signed XML",
+      "downloadCleared": "Download cleared XML",
+      "resubmit": "Resubmit",
+      "resubmitError": "Could not request a resubmission."
+    },
+    "invoiceStatus": {
+      "PENDING": "Pending",
+      "SUBMITTING": "Submitting",
+      "REPORTED": "Reported",
+      "CLEARED": "Cleared",
+      "WARNING": "Cleared with warnings",
+      "REJECTED": "Rejected",
+      "FAILED": "Failed",
+      "FAILED_RETRYABLE": "Failed, will retry"
+    }
   },
   "setup": {
     "title": "First-run setup",

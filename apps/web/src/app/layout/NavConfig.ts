@@ -71,4 +71,5 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings/account-mapping", labelKey: "nav.accountMapping", icon: "pi pi-link", permissions: ["account_mapping:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/tax-codes", labelKey: "nav.taxCodes", icon: "pi pi-percentage", permissions: ["tax_code:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/zatca", labelKey: "nav.zatca", icon: "pi pi-shield", permissions: ["compliance:read"], groupKey: "nav.groups.settings" },
 ];

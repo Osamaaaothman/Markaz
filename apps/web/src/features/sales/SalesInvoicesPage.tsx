@@ -19,6 +19,7 @@ import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
 import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
+import { ZatcaInvoicePanel } from "../compliance/ZatcaInvoicePanel";
 
 const ALL = "ALL";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
@@ -163,6 +164,8 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           {t("purchasing.invoices.gross")}: <strong>{formatMoney(invoice.totalGross, invoice.currency)}</strong>
         </span>
       </div>
+      <ZatcaInvoicePanel salesInvoiceId={invoice.id} resubmitEnabled={false} />
+
       <div className="erp-form__actions">
         <Button type="button" label={t("sales.orders.back")} text onClick={() => void navigate("/sales/invoices")} />
       </div>
