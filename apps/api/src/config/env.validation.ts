@@ -27,6 +27,14 @@ class EnvSchema {
   @IsOptional()
   @IsString()
   LICENSE_MASTER_KEY?: string;
+
+  // ZATCA_KEY_ENCRYPTION_KEY is deliberately NOT validated here: compliance.module.ts builds the
+  // OnboardingService lazily, so the API boots and every read-only compliance route works even
+  // before that key is configured — only onboarding/signing routes need it, and they fail with a
+  // clear 503 (ENCRYPTION_KEY_MISSING) rather than the whole process refusing to start.
+  @IsOptional()
+  @IsIn(["sandbox", "simulation", "production"])
+  ZATCA_ENVIRONMENT?: string;
 }
 
 export function validateEnv(env: Record<string, unknown>): void {

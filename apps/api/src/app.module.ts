@@ -18,6 +18,7 @@ import { JobsModule } from "./jobs/jobs.module.js";
 import { SetupModule } from "./setup/setup.module.js";
 import { AuditModule } from "./audit/audit.module.js";
 import { AttachmentsModule } from "./attachments/attachments.module.js";
+import { ComplianceModule } from "./compliance/compliance.module.js";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { PermissionGuard } from "./identity/permission.guard.js";
 import { HttpExceptionFilter } from "./common/http-exception.filter.js";
@@ -52,6 +53,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
     SetupModule,
     AuditModule,
     AttachmentsModule,
+    ComplianceModule,
   ],
   controllers: [HealthController],
   providers: [

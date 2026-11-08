@@ -137,6 +137,9 @@ const PERMISSION_CATALOG = [
   { code: "end_of_service:create", description: "Settle an employee's end-of-service gratuity" },
   { code: "hr_payment:create", description: "Pay salaries, social insurance and end-of-service gratuities" },
   { code: "hr_payment:read", description: "View salary, social insurance and gratuity payments" },
+  // M7 — ZATCA e-invoicing compliance
+  { code: "compliance:read", description: "View the seller profile, EGS units and ZATCA status of invoices" },
+  { code: "compliance:manage", description: "Edit the seller profile, add an EGS unit, and run onboarding (CSR, OTP, certificates) — docs/06 §5: a separately audited privilege" },
 ] as const;
 
 // Roles offered on a fresh install besides Admin, so a company does not start by building them. Each maps a resource to the actions it
@@ -148,7 +151,7 @@ const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly str
     journal_entry: "*", trial_balance: "*", balance_sheet: "*", income_statement: "*", aging_report: "*", party_statement: "*", fiscal_period: "*",
     account: ["read", "create", "update"], account_mapping: "*", tax_code: "*", party: "*", payment: "*", customer_receipt: "*", supplier_payment: "*",
     supplier_invoice: ["read"], sales_invoice: ["read"], purchase_order: ["read"], goods_receipt: ["read"], stock: ["read"], item: ["read"],
-    debit_note: "*", credit_note: "*", hr_payment: "*", payroll_run: ["read"], company: ["read"], attachment: "*",
+    debit_note: "*", credit_note: "*", hr_payment: "*", payroll_run: ["read"], company: ["read"], attachment: "*", compliance: ["read"],
   },
   Purchasing: {
     purchase_request: ["create", "read", "reject", "review"], purchase_order: ["create", "read", "cancel"], goods_receipt: "*", goods_return: "*",
