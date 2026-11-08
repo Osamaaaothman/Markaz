@@ -61,6 +61,10 @@ export function GoodsReceiptPage(): React.JSX.Element {
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
   const lines = watch("lines");
 
+  // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
+  // right before validation runs, instead of blocking the save button or forcing a manual delete.
+  const isBlankLine = (l: FormValues["lines"][number]): boolean => l.itemId === "" && l.quantity.trim() === "" && l.unitCost.trim() === "";
+
   const total = lines.reduce((sum, line) => {
     try {
       if (line.quantity && line.unitCost) {
@@ -71,6 +75,12 @@ export function GoodsReceiptPage(): React.JSX.Element {
     }
     return sum;
   }, Money.zero(currency));
+
+  const submitWithCleanup = (e: React.BaseSyntheticEvent): void => {
+    const blankIndexes = watch("lines").reduce<number[]>((acc, l, i) => (isBlankLine(l) ? [...acc, i] : acc), []);
+    if (blankIndexes.length > 0) remove(blankIndexes);
+    void onSubmit(e);
+  };
 
   const onSubmit = handleSubmit((values) => {
     createReceipt.mutate(
@@ -111,7 +121,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
         </div>
       </div>
 
-      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+      <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="grWarehouse">{t("inventory.warehouses.title")}</label>

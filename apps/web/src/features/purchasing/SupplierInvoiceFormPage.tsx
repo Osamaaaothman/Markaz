@@ -119,9 +119,15 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const setLine = (key: string, patch: Partial<LineState>): void => edit(() => setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l))));
   const removeLine = (key: string): void => edit(() => setLines((prev) => prev.filter((l) => l.key !== key)));
 
+  // An EXPENSE line the auto-new-line-on-Enter feature added but the user never touched — dropped
+  // silently at save time rather than blocking it or forcing a manual delete (a PO_LINE is always
+  // pre-filled from its source, so it is never "blank" in this sense).
+  const isBlankLine = (l: LineState): boolean => l.kind === "EXPENSE" && l.accountId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
+  const meaningfulLines = lines.filter((l) => !isBlankLine(l));
+
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) && /[1-9]/.test(l.quantity) && DECIMAL.test(l.unitPrice) && l.taxCodeId !== "" && (l.kind === "PO_LINE" ? l.purchaseOrderLineId !== "" : l.accountId !== "");
-  const formValid = supplierId !== "" && number.trim() !== "" && lines.length > 0 && lines.every(lineValid);
+  const formValid = supplierId !== "" && number.trim() !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid);
 
   const payload: InvoicePayload = {
     supplierId,
@@ -130,7 +136,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
     ...(dueDate ? { dueDate: toDateOnlyIsoString(dueDate) } : {}),
     ...(notes.trim() ? { notes: notes.trim() } : {}),
     ...(accept ? { acceptPriceVariance: true } : {}),
-    lines: lines.map(
+    lines: meaningfulLines.map(
       (l): InvoiceLinePayload => ({
         kind: l.kind,
         ...(l.kind === "PO_LINE" ? { purchaseOrderLineId: l.purchaseOrderLineId } : { accountId: l.accountId }),

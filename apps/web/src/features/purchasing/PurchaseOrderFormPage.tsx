@@ -66,6 +66,15 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
   const lines = watch("lines");
 
+  // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
+  // right before validation runs, instead of blocking the save button or forcing a manual delete.
+  const isBlankLine = (l: FormValues["lines"][number]): boolean => l.itemId === "" && l.quantity.trim() === "" && l.unitPrice.trim() === "";
+  const submitWithCleanup = (e: React.BaseSyntheticEvent): void => {
+    const blankIndexes = watch("lines").reduce<number[]>((acc, l, i) => (isBlankLine(l) ? [...acc, i] : acc), []);
+    if (blankIndexes.length > 0) remove(blankIndexes);
+    void onSubmit(e);
+  };
+
   useEffect(() => {
     if (!request || request.status !== "ACCEPTED") return;
     reset({
@@ -132,7 +141,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
         </div>
       </div>
 
-      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+      <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="poSupplier">{t("purchasing.supplier")}</label>

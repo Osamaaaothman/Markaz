@@ -121,6 +121,12 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   };
 
+  // A line the auto-new-line-on-Enter feature added but the user never actually touched — no item,
+  // no description, no price typed in. Dropped silently at save time rather than blocking the save
+  // button or forcing a manual delete; a line the user DID start filling in still needs to be complete.
+  const isBlankLine = (l: LineState): boolean => l.salesOrderLineId === "" && l.itemId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
+  const meaningfulLines = lines.filter((l) => !isBlankLine(l));
+
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) &&
     /[1-9]/.test(l.quantity) &&
@@ -128,9 +134,9 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     l.taxCodeId !== "" &&
     (l.itemId !== "" || l.description.trim() !== "") &&
     (mode !== "invoice" || l.itemId === "" || l.warehouseId !== "");
-  const valid = customerId !== "" && lines.length > 0 && lines.every(lineValid);
+  const valid = customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid);
 
-  const totals = lines.reduce(
+  const totals = meaningfulLines.reduce(
     (sum, l) => {
       if (!lineValid(l)) return sum;
       const net = Money.of(l.quantity, currency).multiply(l.unitPrice).round(4);
@@ -142,7 +148,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   );
 
   const submit = (): void => {
-    const payloadLines: SalesLinePayload[] = lines.map((l) => ({
+    const payloadLines: SalesLinePayload[] = meaningfulLines.map((l) => ({
       ...(l.itemId ? { itemId: l.itemId } : {}),
       ...(l.description.trim() ? { description: l.description.trim() } : {}),
       quantity: l.quantity,
@@ -170,7 +176,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             { label: t("created.net"), value: formatMoney(totals.net.toDecimalString(4), currency), ltr: true },
             { label: t("created.tax"), value: formatMoney(totals.tax.toDecimalString(4), currency), ltr: true },
             { label: t("created.gross"), value: formatMoney(gross.toDecimalString(4), currency), ltr: true },
-            { label: t("created.lines"), value: String(lines.length) },
+            { label: t("created.lines"), value: String(meaningfulLines.length) },
           ].filter((row) => row.label !== ""),
         },
       });
