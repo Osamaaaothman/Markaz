@@ -240,6 +240,20 @@ html body .p-calendar .p-datepicker-trigger {
   color: var(--mk-text-muted);
 }
 
+/* The theme positions the clear ("x") icon with a hardcoded physical `right`, which does not flip for
+   RTL the way the trigger button (placed by flexbox) does — it was landing on top of the right-aligned
+   label text instead of next to the trigger. [[project-stay-on-primereact]]: PrimeReact's own CSS is
+   physical, so the override has to be physical too, mirrored explicitly for `dir="rtl"`. */
+html[dir="rtl"] body .p-dropdown-clearable .p-dropdown-label {
+  padding-right: 0.8rem;
+  padding-left: 1.75rem;
+}
+
+html[dir="rtl"] body .p-dropdown .p-dropdown-clear-icon {
+  right: auto;
+  left: 3rem;
+}
+
 html body .p-calendar .p-datepicker-trigger {
   border-radius: var(--mk-radius-sm);
   background: var(--mk-surface-3);
