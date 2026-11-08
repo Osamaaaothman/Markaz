@@ -8,6 +8,7 @@ import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
+import { tafqeetAmount } from "@erp/shared";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -158,6 +159,7 @@ function PayDialog({
         { label: t("payments.date"), value: toDateOnlyIsoString(date), ltr: true },
         { label: t("payments.bankAccount"), value: bank ? localizedName(bank, i18n.language) : "" },
         { label: t("payments.amount"), value: paidAmount ? formatMoney(paidAmount, currency) : "", ltr: true },
+        { label: t("created.inWords"), value: paidAmount ? tafqeetAmount(paidAmount, currency) : "" },
       ],
     });
   };

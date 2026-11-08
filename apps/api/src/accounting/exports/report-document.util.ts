@@ -47,6 +47,7 @@ export function renderReportShell(params: {
   td.amount, th.amount { text-align: end; font-variant-numeric: tabular-nums; }
   .total-row td { font-weight: 600; background: #fafafa; }
   .grand-total { margin-block-start: 10pt; font-weight: 700; font-size: 11pt; }
+  .amount-words { margin-block-start: 6pt; font-weight: 600; }
   ${params.extraCss ?? ""}
 </style>
 </head>

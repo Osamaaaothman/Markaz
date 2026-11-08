@@ -7,7 +7,7 @@ import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -107,6 +107,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
               rows: [
                 { label: t("payments.date"), value: toDateOnlyIsoString(date), ltr: true },
                 { label: t("created.amount"), value: formatMoney(amount, currency), ltr: true },
+                { label: t("created.inWords"), value: tafqeetAmount(amount, currency) },
                 { label: t("created.method"), value: t(`payments.methods.${method}`) },
                 { label: t("payments.bankAccount"), value: account ? `${account.code} — ${localizedName(account, i18n.language)}` : "" },
                 { label: t("payments.allocated"), value: formatMoney(allocated.toDecimalString(4), currency), ltr: true },

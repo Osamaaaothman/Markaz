@@ -121,7 +121,8 @@
     "net": "Net",
     "taxRate": "VAT %",
     "tax": "VAT",
-    "total": "Total"
+    "total": "Total",
+    "inWords": "Amount in words"
   },
   "payslip": {
     "title": "Payslip",

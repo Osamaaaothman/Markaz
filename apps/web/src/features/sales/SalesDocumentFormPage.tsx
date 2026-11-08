@@ -6,7 +6,7 @@ import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -176,6 +176,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             { label: t("created.net"), value: formatMoney(totals.net.toDecimalString(4), currency), ltr: true },
             { label: t("created.tax"), value: formatMoney(totals.tax.toDecimalString(4), currency), ltr: true },
             { label: t("created.gross"), value: formatMoney(gross.toDecimalString(4), currency), ltr: true },
+            { label: t("created.inWords"), value: tafqeetAmount(gross.toDecimalString(4), currency) },
             { label: t("created.lines"), value: String(meaningfulLines.length) },
           ].filter((row) => row.label !== ""),
         },

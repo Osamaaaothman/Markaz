@@ -26,6 +26,7 @@ describe("sales invoice PDF html", () => {
     expect(html).toContain("العميل");
     expect(html).toContain("345.00 SAR");
     expect(html).toContain("45.00 SAR");
+    expect(html).toContain("فقط ثلاثمائة وخمسة وأربعون ريال لا غير");
   });
 
   it("escapes values, and titles a credit note differently", async () => {

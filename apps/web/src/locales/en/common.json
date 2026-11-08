@@ -1294,7 +1294,8 @@
     "gross": "Gross",
     "permissions": "Permissions",
     "nameAr": "Arabic name",
-    "open": "Open"
+    "open": "Open",
+    "inWords": "Amount in words"
   },
   "hr": {
     "employees": {

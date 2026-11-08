@@ -9,7 +9,7 @@ import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -121,6 +121,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
               { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
               { label: t("created.date"), value: toDateOnlyIsoString(values.orderDate), ltr: true },
               { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
+              { label: t("created.inWords"), value: tafqeetAmount(total.toDecimalString(4), currency) },
               { label: t("created.lines"), value: String(values.lines.length) },
             ],
           });

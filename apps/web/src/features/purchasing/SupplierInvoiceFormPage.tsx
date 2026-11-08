@@ -9,6 +9,7 @@ import { DataTable } from "primereact/datatable";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
+import { tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -340,6 +341,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                           { label: t("created.net"), value: formatMoney(result.totalNet, currency), ltr: true },
                           { label: t("created.tax"), value: formatMoney(result.totalTax, currency), ltr: true },
                           { label: t("created.gross"), value: formatMoney(saved.totalGross, currency), ltr: true },
+                          { label: t("created.inWords"), value: tafqeetAmount(saved.totalGross, currency) },
                           { label: t("created.lines"), value: String(lines.length) },
                         ],
                       }),

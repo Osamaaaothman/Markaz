@@ -1,5 +1,5 @@
 import type { SalesInvoiceDetail } from "@erp/core";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
 import { escapeHtml } from "../../common/html-escape.js";
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18n/server-i18n.js";
@@ -52,6 +52,8 @@ export async function salesInvoiceToPdfHtml(params: {
 <tr><th>${escapeHtml(t("salesInvoice.net"))}</th><td class="amount">${money(invoice.totalNet)}</td></tr>
 <tr><th>${escapeHtml(t("salesInvoice.tax"))}</th><td class="amount">${money(invoice.totalTax)}</td></tr>
 <tr class="total-row"><th>${escapeHtml(t("salesInvoice.total"))}</th><td class="amount">${money(invoice.totalGross)}</td></tr>
-</table>${invoice.notes ? `<p class="subtitle">${escapeHtml(invoice.notes)}</p>` : ""}`,
+</table>
+<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
+${invoice.notes ? `<p class="subtitle">${escapeHtml(invoice.notes)}</p>` : ""}`,
   });
 }
