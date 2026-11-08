@@ -99,7 +99,7 @@ const PERMISSION_CATALOG = [
   { code: "approval_policy:update", description: "Change approval thresholds" },
   { code: "supplier_invoice:create", description: "Post a supplier invoice" },
   { code: "supplier_invoice:read", description: "View supplier invoices and debit notes" },
-  { code: "debit_note:create", description: "Post a debit note against a supplier invoice" },
+  { code: "debit_note:create", description: "Post a debit note against a supplier invoice or a sales invoice" },
   { code: "tax_code:read", description: "View tax codes" },
   { code: "tax_code:create", description: "Create tax codes" },
   { code: "tax_code:update", description: "Edit or deactivate tax codes" },
@@ -158,7 +158,7 @@ const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly str
     item: "*", warehouse: "*", stock: "*", goods_receipt: "*", stock_issue: "*", stock_count: "*", attachment: ["read", "create"],
   },
   Sales: {
-    quotation: "*", sales_order: "*", sales_invoice: "*", credit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], stock: ["read"], attachment: ["read", "create"],
+    quotation: "*", sales_order: "*", sales_invoice: "*", credit_note: "*", debit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], stock: ["read"], attachment: ["read", "create"],
   },
   "Human resources": {
     employee: "*", payroll_run: "*", salary_advance: "*", end_of_service: "*", allowance_type: "*", hr_payment: "*", party: ["read"], attachment: ["read", "create"],

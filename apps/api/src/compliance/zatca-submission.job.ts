@@ -8,8 +8,8 @@
 // submission runs per EGS unit at a time. That guarantee comes from here, not from the DB —
 // create one Worker per EGS unit, each with `concurrency: 1` (createMonitoredWorker's new
 // `workerOptions` parameter), on the queue `zatcaSubmissionQueueName(egsUnitId)`.
-import type { Job, Processor } from "bullmq";
-import type { InvoiceSubmissionService, SubmitInvoiceParams } from "@erp/compliance-zatca-sa";
+import { UnrecoverableError, type Job, type Processor } from "bullmq";
+import { InvoiceValidationError, type InvoiceSubmissionService, type SubmitInvoiceParams } from "@erp/compliance-zatca-sa";
 import type { JobData } from "../jobs/job-conventions.js";
 
 export interface ZatcaSubmissionJobData extends JobData {
@@ -41,7 +41,16 @@ export interface ZatcaSubmissionParamsLoader {
 export function createZatcaSubmissionProcessor(service: InvoiceSubmissionService, loader: ZatcaSubmissionParamsLoader): Processor<ZatcaSubmissionJobData> {
   return async (job: Job<ZatcaSubmissionJobData>): Promise<void> => {
     const params = await loader.load(job.data);
-    const result = await service.submit(params);
+    let result: Awaited<ReturnType<InvoiceSubmissionService["submit"]>>;
+    try {
+      result = await service.submit(params);
+    } catch (error) {
+      // Our own pre-flight checks failed: the same data fails the same way, so BullMQ's backoff/retry
+      // would only burn attempts. The reasons are on the ZatcaInvoiceRecord for the UI; a fix + an
+      // explicit resubmit is what moves it forward.
+      if (error instanceof InvoiceValidationError) throw new UnrecoverableError(error.message);
+      throw error;
+    }
     // PENDING_RETRY is the one outcome that must actually fail the BullMQ job — that is what
     // triggers DEFAULT_JOB_OPTIONS' backoff/retry (and eventually the dead-letter queue).
     // Every other outcome (including REJECTED and PACK_UNAVAILABLE) is already a final,

@@ -216,6 +216,29 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
     expect((await trialBalance.compute(companyId)).isBalanced).toBe(true);
   });
 
+  it("debits an invoice in part, never beyond its value, and increases the receivable", async () => {
+    const ar = await balance(acc.ar!);
+    const note = await invoices.createDebitNote(
+      { originalInvoiceId: invoiceId, debitDate: today, lines: [{ description: "Extra freight", quantity: "1", unitPrice: "100", taxCodeId: vat15 }] },
+      actor,
+      cid(),
+      newId(),
+    );
+    expect(note.number).toMatch(/^SDN-.*-000001$/);
+    expect(note.totalGross).toBe("115.0000");
+    expect(await balance(acc.ar!)).toBeCloseTo(ar + 115, 4);
+
+    // The invoice was 345; 115 is debited, so at most 230 more (debit notes are capped against the
+    // invoice's own gross, independent of any credit notes already raised against it).
+    await expect(
+      invoices.createDebitNote({ originalInvoiceId: invoiceId, debitDate: today, lines: [{ description: "Too much", quantity: "1", unitPrice: "300", taxCodeId: vat15 }] }, actor, cid(), newId()),
+    ).rejects.toMatchObject({ code: "DEBIT_EXCEEDS_INVOICE" });
+    await expect(
+      invoices.createDebitNote({ originalInvoiceId: note.id, debitDate: today, lines: [{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat15 }] }, actor, cid(), newId()),
+    ).rejects.toMatchObject({ code: "NOT_AN_INVOICE" });
+    expect((await trialBalance.compute(companyId)).isBalanced).toBe(true);
+  });
+
   it("keeps companies apart", async () => {
     const stranger = { id: "stranger", companyId: newId() };
     await expect(invoices.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }] }, stranger, cid(), newId())).rejects.toMatchObject({

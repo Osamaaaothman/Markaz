@@ -1,9 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { hashInvoiceXml } from "./invoice-hash.js";
+import { SDK_SAMPLES, describeIfSdk } from "../testing/fixtures.js";
 
-const SDK_SAMPLES = join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk", "Data", "Samples");
-const describeIfSdk = existsSync(SDK_SAMPLES) ? describe : describe.skip;
 
 function stripPhase4Elements(xml: string): string {
   return xml

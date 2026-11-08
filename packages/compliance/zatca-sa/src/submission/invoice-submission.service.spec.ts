@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 // Test-fixture only (posts a real, balanced journal entry so a SalesInvoice row satisfies its
@@ -7,11 +5,11 @@ import { newId } from "@erp/shared";
 import { PrismaAccountingEngine, PrismaNumberingService } from "@erp/core";
 import type { ZatcaInvoiceInput, ZatcaParty } from "../xml/invoice-xml.types.js";
 import { EgsChainService } from "../egs-chain.service.js";
-import { AlreadySubmittedError, InvoiceSubmissionService, type SubmitInvoiceParams } from "./invoice-submission.service.js";
+import { AlreadySubmittedError, InvoiceSubmissionService, InvoiceValidationError, type SubmitInvoiceParams } from "./invoice-submission.service.js";
+import { generateTestCertificate } from "../testing/fixtures.js";
 import { ZatcaApiClient, ZatcaApiError, type HttpResponse, type HttpTransport } from "./zatca-api-client.js";
 
-const SDK_CERTS = join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk", "Data", "Certificates");
-const describeIfReady = process.env.DATABASE_URL && existsSync(SDK_CERTS) ? describe : describe.skip;
+const describeIfReady = process.env.DATABASE_URL ? describe : describe.skip;
 
 // A scriptable transport: queue up responses (or errors) and they are returned/thrown in order,
 // one per call — this is docs/06-COMPLIANCE-PACK-RULES.md §6's "mock adapter by default in CI".
@@ -67,8 +65,7 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     vatNumber: "399999999800003",
     registrationName: "Fatoora Samples LTD",
   };
-  const certificatePem = readFileSync(join(SDK_CERTS, "cert.pem"), "utf8");
-  const privateKeyPem = readFileSync(join(SDK_CERTS, "ec-secp256k1-priv-key.pem"), "utf8");
+  const { certificatePem, privateKeyPem } = generateTestCertificate();
 
   const engine = new PrismaAccountingEngine(prisma, new PrismaNumberingService());
   let fiscalPeriodId: string;
@@ -198,6 +195,35 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     const state = await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } });
     expect(state.lastIcv).toBe(1n);
     expect(state.lastInvoiceHash).toBe(record.invoiceHash);
+  });
+
+  it("stops on a local validation error: nothing is sent, the chain is untouched, and a fixed resubmission reuses the same ICV", async () => {
+    const transport = new ScriptedTransport().queue(CLEARED_RESPONSE);
+    const { service, ...params } = await makeParams({ transport });
+    const good = params.buildInvoiceInput;
+    // A mapper bug: the seller's VAT number is not 15 digits.
+    const broken: SubmitInvoiceParams = { ...params, buildInvoiceInput: (c) => ({ ...good(c), supplier: { ...supplier, vatNumber: "12345" } }) };
+
+    await expect(service.submit(broken)).rejects.toBeInstanceOf(InvoiceValidationError);
+    expect(transport.calls).toHaveLength(0);
+
+    const record = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { salesInvoiceId: params.salesInvoiceId } });
+    expect(record.status).toBe("FAILED_RETRYABLE");
+    expect(record.attempts).toBe(0);
+    expect((record.validationErrors as string[]).join(" ")).toContain("SELLER_VAT_INVALID");
+    expect((await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } })).lastIcv).toBe(0n);
+
+    const result = await service.submit(params);
+    expect(result.outcome.complianceOutcome).toEqual({ kind: "CLEARED" });
+    expect(result.zatcaInvoiceRecordId).toBe(record.id);
+    expect((await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: record.id } })).icv).toBe(record.icv);
+  });
+
+  it("refuses to send a QR code that disagrees with the document", async () => {
+    const transport = new ScriptedTransport();
+    const { service, ...params } = await makeParams({ transport });
+    await expect(service.submit({ ...params, qr: { ...params.qr, vatTotal: "9.99" } })).rejects.toMatchObject({ name: "InvoiceValidationError", stage: "AFTER_SIGNING" });
+    expect(transport.calls).toHaveLength(0);
   });
 
   it("reports a simplified invoice", async () => {

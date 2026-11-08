@@ -60,3 +60,22 @@ export function buildQrTlv(fields: QrFields): Buffer {
 export function buildQrBase64(fields: QrFields): string {
   return buildQrTlv(fields).toString("base64");
 }
+
+// The inverse of buildQrTlv: splits a QR payload into its tag -> value map. Throws on a payload
+// that does not parse cleanly (a length running past the end, or a repeated tag), because a QR
+// that cannot be read back is exactly what a verifier has to flag.
+export function parseQrTlv(qrBase64: string): ReadonlyMap<number, Buffer> {
+  const buf = Buffer.from(qrBase64, "base64");
+  const tags = new Map<number, Buffer>();
+  let i = 0;
+  while (i < buf.length) {
+    if (i + 2 > buf.length) throw new RangeError(`QR payload is truncated at byte ${i}`);
+    const tag = buf[i]!;
+    const length = buf[i + 1]!;
+    if (i + 2 + length > buf.length) throw new RangeError(`QR tag ${tag} declares ${length} bytes but the payload ends first`);
+    if (tags.has(tag)) throw new RangeError(`QR tag ${tag} appears more than once`);
+    tags.set(tag, buf.subarray(i + 2, i + 2 + length));
+    i += 2 + length;
+  }
+  return tags;
+}

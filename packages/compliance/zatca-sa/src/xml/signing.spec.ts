@@ -1,10 +1,9 @@
 import { generateKeyPairSync } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extractCertificateSignatureDer, extractPublicKeyDer, publicKeyOf, signData, toPem, verifyData, ZatcaSigningError } from "./signing.js";
+import { SDK_CERTS, describeIfSdk } from "../testing/fixtures.js";
 
-const SDK_CERTS = join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk", "Data", "Certificates");
-const describeIfSdk = existsSync(SDK_CERTS) ? describe : describe.skip;
 
 describe("toPem", () => {
   it("wraps raw base64 with the given label, 64 characters per line", () => {

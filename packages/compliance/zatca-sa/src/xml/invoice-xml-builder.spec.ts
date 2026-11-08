@@ -1,11 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildBareInvoiceXml } from "./invoice-xml-builder.js";
 import type { ZatcaInvoiceInput, ZatcaParty } from "./invoice-xml.types.js";
 import { ZatcaXmlError } from "./invoice-xml.types.js";
+import { SDK_SAMPLES, describeIfSdk } from "../testing/fixtures.js";
 
-const SDK_SAMPLES = join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk", "Data", "Samples");
-const describeIfSdk = existsSync(SDK_SAMPLES) ? describe : describe.skip;
 
 const supplier: ZatcaParty = {
   partyIdentification: { schemeId: "CRN", id: "1010010000" },

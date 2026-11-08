@@ -776,3 +776,78 @@ cost for the first-ever confirmed real network success this package has had. `on
 on the compliance-CSID call's endpoint/headers/body shape can now be considered **confirmed** for `requestComplianceCsid`
 specifically (not yet for `submitComplianceInvoice`/`requestProductionCsid`/`renewProductionCsid`, none of which have
 been exercised against the real sandbox yet).
+
+## Y. M7 ZATCA — Phase 6 local validation (2026-11-06)
+
+Written in a cloud session that **could not reach ZATCA** (the network policy returns 403 for every ZATCA host) and has **no
+copy of the official SDK** (`docs/vendor/` is git-ignored). So this phase is built from what the repository itself can prove,
+and says plainly what it cannot.
+
+- **Found and fixed first: the pack's own tests failed anywhere without the SDK.** `describe.skip` still runs its callback,
+  and four suites read SDK files while registering, so on any cloud checkout or CI runner they crashed instead of skipping --
+  CI on this branch was red. `src/testing/fixtures.ts` now provides `describeIfSdk` (body not executed, the skip is reported
+  by name with the missing path) and `generateTestCertificate()` (a throw-away secp256k1 key + self-signed certificate made
+  with `openssl`), so signing, submission and onboarding orchestration run everywhere. The byte-for-byte comparisons against
+  the SDK samples still run, unchanged, wherever the SDK exists.
+- **`src/validation/invoice-consistency.ts` -- `checkInvoiceConsistency(xml)`.** Offline checks of a bare or signed document:
+  the EN 16931 arithmetic rules ZATCA's schema builds on (BR-CO-10, -13, -14, -15, -16, -17) in exact integer hundredths, the
+  per-category tax breakdown against the lines, header facts (UUID, ICV, PIH shape, issue date/time, type code and `name`
+  flags, billing reference + reason on credit/debit notes, buyer on a standard invoice, seller VAT is 15 digits), currency
+  consistency. **It is not ZATCA's validation:** the XSD and Schematron live in the SDK (`Data/Rules`) and are not
+  re-implemented. A `valid` report is never evidence of acceptance (docs/06 §7).
+  - `// REVIEW:` the per-line "tax ~ rate x net" and "net ~ quantity x price" checks are warnings with a 0.01 tolerance (the
+    exact per-line rounding rule was not confirmed); "VAT number starts and ends with 3" is a warning, remembered not re-read.
+- **`src/validation/signed-invoice-verifier.ts` -- `verifySignedInvoice(xml)`.** Recomputes the invoice hash with the three
+  uncovered elements stripped, verifies the signature over the canonicalized `SignedInfo` with the embedded certificate,
+  checks the SignedProperties and certificate digests, and decodes the QR: required tags present (9 only for simplified) and
+  **every QR value equal to the same fact in the XML**.
+- **Wired into submission (`InvoiceSubmissionService`).** Both checks now run before anything is sent. A failure writes the
+  reasons onto the `ZatcaInvoiceRecord` (`FAILED_RETRYABLE`, `validationErrors`, `attempts` untouched -- ZATCA was never
+  called), throws `InvoiceValidationError`, and leaves the chain position reserved but unconsumed, so a fixed resubmission
+  reuses the same ICV. The BullMQ wrapper turns it into `UnrecoverableError` (retrying the same data cannot succeed).
+  Tests: nothing is sent, chain untouched, resubmission reuses the ICV; a QR that disagrees with the document is refused.
+- **`src/validation/sdk-validator.ts` -- `runSdkValidation`.** Runs the SDK's own `-validate` (dev/test only, never in a
+  customer deployment). **Not run, and partly guessed:** the flags (`-validate -invoice <file>`) and the verdict line
+  (`GLOBAL VALIDATION RESULT = PASSED|FAILED`) are from the SDK's documented command line, not observed. An unrecognised
+  output is `UNKNOWN`, never a pass. `sdk-validator.spec.ts` (gated on the SDK) first checks the harness against the SDK's
+  own sample, then validates our signed output. **First run on a machine with the SDK may need the verdict pattern
+  adjusted -- read the printed output; do not loosen the test.**
+- **Not done / not provable here:** the official Schematron and XSD rules (SDK not available); the gated "agrees with the SDK
+  sample documents" suite in `validation.spec.ts` has not been run (it allows only the known `CERT_DIGEST_MISMATCH` sample
+  inconsistency from section U -- any other disagreement is a validator bug or a finding about the samples).
+
+
+## R. Sales debit notes (2026-11-04)
+
+Decided by Osama (relayed): sales debit notes are a real feature, not a throwaway document built only to pass ZATCA's
+compliance check (M7 needs one of every invoice type it declares, including a debit note). Built as the AR mirror of
+`SupplierInvoiceService.createDebitNote` (decision D8), which is itself the AP mirror of the sales credit note (E2) —
+closing the symmetry Osama already approved on both ledger sides.
+
+- **What it is:** free-typed lines billed against an existing sales invoice, increasing what the customer owes (`Dr
+  Accounts receivable / Cr revenue accounts / Cr Output VAT`). `SalesInvoiceService.createDebitNote`,
+  `apps/api/src/sales/sales.controller.ts` `POST /v1/sales-invoices/:id/debit-notes`. Numbered `SDN-<year>-<seq>`
+  (kept distinct from purchasing's `DN-` prefix so the two kinds of debit note are never confused on sight).
+  `// REVIEW:` not an accountant's ruling — see below.
+- `// REVIEW:` **bounding cap.** Debit notes raised against one invoice, plus the new one, never exceed that invoice's
+  own gross — the same cap D8 and E2 both use. Unlike a credit note (which cannot sensibly exceed what was billed),
+  there is no inherent accounting reason a debit note must be capped at the original invoice's value; this just
+  carries over the existing pattern rather than introducing a third rule. Confirm with an accountant before the first
+  real one posts, same as D1-D9 and E1-E6.
+- **Reuses `sales_invoices`/`sales_invoice_lines`** — no new table. Migration `20261104120000_sales_debit_notes`
+  (expand-only) widens two existing CHECK constraints (`sales_invoices_type_check`,
+  `sales_invoices_credit_link_check`) to admit `DEBIT_NOTE` alongside `INVOICE`/`CREDIT_NOTE`.
+- **Permission:** reuses the existing `debit_note:create` permission (already granted to Accountant and Purchasing
+  for the supplier-side debit note); added to the Sales preset role. Existing installations must run the seed again:
+  `npm run seed --workspace=@erp/db`.
+- **Fixed in the same change, found while building this:** two places assumed a sales invoice's only non-INVOICE
+  document type was CREDIT_NOTE, and would have silently mis-stated money once DEBIT_NOTE existed —
+  `PartyStatementService.statement` (SALES side) labelled every non-invoice row "CREDIT_NOTE" and always treated it as
+  a reduction; `loadOutstanding` (SALES side) summed every row referencing an invoice as a credit regardless of type,
+  so a debit note would have *reduced* the reported receivable instead of increasing it. Both now branch on the
+  actual `document_type`. `DashboardService.salesSummary`'s "this month net sales" figure also now adds debit notes
+  the same side as invoices, for the same reason.
+- **Known gaps:** no UI for the ZATCA-required sample debit note yet (that is Phase 2 of M7, which needs a real
+  document to submit for the compliance check) — the feature here is the general AR capability; wiring it into the
+  compliance pack's sample-submission step is separate work. No "known gap" entry needed for sales credit notes'
+  existing behaviour; only the two statement/ageing queries above changed.

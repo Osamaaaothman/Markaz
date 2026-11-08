@@ -110,6 +110,7 @@
   "salesInvoice": {
     "invoiceTitle": "فاتورة",
     "creditNoteTitle": "إشعار دائن",
+    "debitNoteTitle": "إشعار مدين",
     "number": "الرقم",
     "date": "التاريخ",
     "dueDate": "تاريخ الاستحقاق",

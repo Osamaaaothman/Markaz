@@ -1,16 +1,13 @@
 import { X509Certificate } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildBareInvoiceXml } from "./invoice-xml-builder.js";
 import type { ZatcaInvoiceInput, ZatcaParty } from "./invoice-xml.types.js";
 import { verifyData } from "./signing.js";
 import { signInvoiceXml } from "./xades-signature.js";
 import { canonicalizeElementByLocalName } from "./canonicalize.js";
+import { SDK_SAMPLES, describeIfSdk, generateTestCertificate } from "../testing/fixtures.js";
 
-const SDK_ROOT = join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk");
-const SDK_CERTS = join(SDK_ROOT, "Data", "Certificates");
-const SDK_SAMPLES = join(SDK_ROOT, "Data", "Samples");
-const describeIfSdk = existsSync(SDK_CERTS) ? describe : describe.skip;
 
 function topLevelChildTags(xml: string): string[] {
   const withoutDecl = xml.replace(/<\?xml[^?]*\?>/, "");
@@ -35,9 +32,8 @@ function topLevelChildTags(xml: string): string[] {
   return tags;
 }
 
-describeIfSdk("signInvoiceXml — verified against the official SDK's sample key and certificate", () => {
-  const certificatePem = readFileSync(join(SDK_CERTS, "cert.pem"), "utf8");
-  const privateKeyPem = readFileSync(join(SDK_CERTS, "ec-secp256k1-priv-key.pem"), "utf8");
+describe("signInvoiceXml — signature round trip with a generated secp256k1 key and certificate", () => {
+  const { certificatePem, privateKeyPem } = generateTestCertificate();
 
   const supplier: ZatcaParty = {
     partyIdentification: { schemeId: "CRN", id: "1010010000" },
@@ -96,9 +92,11 @@ describeIfSdk("signInvoiceXml — verified against the official SDK's sample key
     expect(tag7?.toString("utf8")).toBe(result.signatureBase64);
   });
 
-  it("places ext:UBLExtensions first, and cac:Signature plus the QR reference right after PIH, matching the real sample's top-level order", () => {
-    const sample = readFileSync(join(SDK_SAMPLES, "Standard", "Invoice", "Standard_Invoice.xml"), "utf8");
-    expect(topLevelChildTags(result.signedXml)).toEqual(topLevelChildTags(sample));
+  describeIfSdk("against the official SDK sample", () => {
+    it("places ext:UBLExtensions first, and cac:Signature plus the QR reference right after PIH, matching the real sample's top-level order", () => {
+      const sample = readFileSync(join(SDK_SAMPLES, "Standard", "Invoice", "Standard_Invoice.xml"), "utf8");
+      expect(topLevelChildTags(result.signedXml)).toEqual(topLevelChildTags(sample));
+    });
   });
 
   it("never duplicates or drops the invoice's own content while splicing in the signature", () => {
