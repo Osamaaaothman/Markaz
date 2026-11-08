@@ -138,7 +138,18 @@ export function StockIssuePage(): React.JSX.Element {
                   />
                 )}
               />
-              <InputText placeholder={t("inventory.goodsReceipt.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} />
+              <InputText
+                placeholder={t("inventory.goodsReceipt.quantity")}
+                dir="ltr"
+                {...register(`lines.${index}.quantity`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && index === fields.length - 1) {
+                    e.preventDefault();
+                    append(EMPTY_LINE);
+                  }
+                }}
+                className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`}
+              />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
           ))}

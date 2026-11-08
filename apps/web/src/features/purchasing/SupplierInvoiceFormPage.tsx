@@ -230,7 +230,19 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                     />
                   )}
                   <InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} />
-                  <InputText dir="ltr" placeholder={t("purchasing.unitPrice")} value={l.unitPrice} onChange={(e) => setLine(l.key, { unitPrice: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`} />
+                  <InputText
+                    dir="ltr"
+                    placeholder={t("purchasing.unitPrice")}
+                    value={l.unitPrice}
+                    onChange={(e) => setLine(l.key, { unitPrice: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && supplierId && lines[lines.length - 1]?.key === l.key) {
+                        e.preventDefault();
+                        addExpenseLine();
+                      }
+                    }}
+                    className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`}
+                  />
                   <Dropdown
                     value={l.taxCodeId || null}
                     onChange={(e) => setLine(l.key, { taxCodeId: (e.value as string | null) ?? "" })}

@@ -256,6 +256,12 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
               <InputText
                 placeholder={t("accounting.journalEntries.description")}
                 {...register(`lines.${index}.description`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && index === fields.length - 1) {
+                    e.preventDefault();
+                    append(EMPTY_LINE);
+                  }
+                }}
                 className="erp-lines__description"
               />
               <Button

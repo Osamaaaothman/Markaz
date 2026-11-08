@@ -41,7 +41,20 @@ export function AllowancesEditor({
               placeholder={t("hr.allowances.chooseType")}
               aria-label={t("hr.allowances.chooseType")}
             />
-            <InputText className="erp-lines__amount" dir="ltr" value={row.amount} onChange={(e) => update(index, { amount: e.target.value })} aria-label={t("hr.allowances.amount")} placeholder={t("hr.allowances.amount")} />
+            <InputText
+              className="erp-lines__amount"
+              dir="ltr"
+              value={row.amount}
+              onChange={(e) => update(index, { amount: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && types.length > 0 && index === rows.length - 1) {
+                  e.preventDefault();
+                  onChange([...rows, { allowanceTypeId: "", amount: "" }]);
+                }
+              }}
+              aria-label={t("hr.allowances.amount")}
+              placeholder={t("hr.allowances.amount")}
+            />
             <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => onChange(rows.filter((_, i) => i !== index))} />
           </div>
         ))}

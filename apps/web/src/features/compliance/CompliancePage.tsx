@@ -227,7 +227,7 @@ function CreateEgsUnitDialog({ visible, onHide }: { readonly visible: boolean; r
           <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
           <Button
             type="button"
-            label={t("actions.create")}
+            label={t("actions.save")}
             disabled={!valid}
             loading={create.isPending}
             onClick={() =>

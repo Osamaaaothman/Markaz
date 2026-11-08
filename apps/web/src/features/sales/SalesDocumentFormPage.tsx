@@ -235,7 +235,19 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                 <InputText placeholder={t("sales.description")} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={l.salesOrderLineId !== ""} />
               ) : null}
               <InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} />
-              <InputText dir="ltr" placeholder={t("purchasing.unitPrice")} value={l.unitPrice} onChange={(e) => setLine(l.key, { unitPrice: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`} />
+              <InputText
+                dir="ltr"
+                placeholder={t("purchasing.unitPrice")}
+                value={l.unitPrice}
+                onChange={(e) => setLine(l.key, { unitPrice: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !orderId && index === lines.length - 1) {
+                    e.preventDefault();
+                    setLines((prev) => [...prev, blankLine()]);
+                  }
+                }}
+                className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`}
+              />
               <Dropdown
                 value={l.taxCodeId || null}
                 onChange={(e) => setLine(l.key, { taxCodeId: (e.value as string | null) ?? "" })}
@@ -282,7 +294,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate(-1)} />
-          <Button type="button" label={t(`${prefix}.submit`)} icon="pi pi-check" disabled={!valid} loading={mutation.isPending} onClick={submit} />
+          <Button type="button" label={mode === "invoice" ? t("sales.invoices.submit") : t("actions.save")} icon="pi pi-check" disabled={!valid} loading={mutation.isPending} onClick={submit} />
         </div>
       </div>
       <CreatedDialog info={created?.info ?? null} onHide={() => created && void navigate(created.to)} />

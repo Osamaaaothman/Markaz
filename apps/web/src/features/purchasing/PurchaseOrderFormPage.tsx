@@ -200,7 +200,18 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
                 )}
               />
               <InputText placeholder={t("purchasing.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} />
-              <InputText placeholder={t("purchasing.unitPrice")} dir="ltr" {...register(`lines.${index}.unitPrice`)} className={`erp-lines__amount${errors.lines?.[index]?.unitPrice ? " p-invalid" : ""}`} />
+              <InputText
+                placeholder={t("purchasing.unitPrice")}
+                dir="ltr"
+                {...register(`lines.${index}.unitPrice`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && index === fields.length - 1) {
+                    e.preventDefault();
+                    append(EMPTY_LINE);
+                  }
+                }}
+                className={`erp-lines__amount${errors.lines?.[index]?.unitPrice ? " p-invalid" : ""}`}
+              />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
           ))}
@@ -218,7 +229,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate("/purchasing/orders")} />
-          <Button type="submit" label={t("purchasing.orders.create")} loading={create.isPending} />
+          <Button type="submit" label={t("actions.save")} loading={create.isPending} />
         </div>
       </form>
       <CreatedDialog info={created?.info ?? null} onHide={() => (created ? void navigate(`/purchasing/orders/${created.id}`) : undefined)} />

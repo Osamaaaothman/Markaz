@@ -164,7 +164,19 @@ export function StockCountPage(): React.JSX.Element {
                 control={control}
                 name={`lines.${index}.unitCostIfNoStock`}
                 render={({ field: f }) => (
-                  <InputText placeholder={t("inventory.stockCount.unitCostIfNoStock")} dir="ltr" value={f.value} onChange={f.onChange} className="erp-lines__amount" />
+                  <InputText
+                    placeholder={t("inventory.stockCount.unitCostIfNoStock")}
+                    dir="ltr"
+                    value={f.value}
+                    onChange={f.onChange}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && index === fields.length - 1) {
+                        e.preventDefault();
+                        append(EMPTY_LINE);
+                      }
+                    }}
+                    className="erp-lines__amount"
+                  />
                 )}
               />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
