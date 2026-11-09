@@ -3,6 +3,12 @@
 Product: **ERP-Lite / commercial accounting system for the Saudi + Gulf market.**
 Owner: **Osama** (.NET full-stack developer; this project is TypeScript).
 
+## Coding workflow
+
+For every coding task in this project, automatically load and follow the `optimize-coding-tokens` skill before implementation. Reuse its policy within the session.
+Delegate suitable bounded work to its approved free OpenCode models, then verify the actual changes and checks.
+After each task, return only Done / Not done / Alert in Osama's language. Explain details only when asked; keep blockers and urgent consequences actionable in one line.
+
 Read this file completely before your first action in any session, then read the
 `docs/` file relevant to what you are about to touch.
 
