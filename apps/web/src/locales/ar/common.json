@@ -926,11 +926,31 @@
       "cancel": "سحب العرض",
       "convert": "تحويل إلى أمر بيع",
       "openOrder": "فتح أمر البيع",
+      "downloadPdf": "تنزيل PDF",
       "status": {
         "OPEN": "مفتوح",
         "CONVERTED": "تم تحويله لأمر",
         "REJECTED": "مرفوض",
         "CANCELLED": "مسحوب"
+      },
+      "email": {
+        "sendButton": "إرسال بالإيميل",
+        "title": "إرسال عرض السعر بالإيميل",
+        "recipient": "الإرسال إلى",
+        "language": "اللغة",
+        "languages": { "en": "إنجليزي", "ar": "عربي" },
+        "preview": "معاينة",
+        "previewHint": "عاين الرسالة قبل إرسالها — لم يتم إرسال شيء بعد.",
+        "sendNow": "إرسال الآن",
+        "sendDisabledHint": "عاينها أولاً.",
+        "openInGmail": "فتح في Gmail",
+        "openInGmailHint": "سيتم تنزيل ملف PDF على جهازك — أرفقه في نافذة Gmail التي ستُفتح.",
+        "gmailSubject": "عرض سعر {{number}}",
+        "gmailBody": "عزيزنا {{customer}}،\n\nمرفق لكم عرض السعر رقم {{number}} بإجمالي {{total}}.\nتم تنزيل ملف PDF الخاص بالعرض على جهازك الآن — الرجاء إرفاقه بهذا الإيميل قبل الإرسال.\n\nمع خالص التحية.",
+        "success": "تم الإرسال.",
+        "errors": {
+          "generic": "تعذّر إرسال الإيميل. تحقق من المستلم وحاول مرة أخرى."
+        }
       }
     },
     "orders": {

@@ -926,11 +926,31 @@
       "cancel": "Withdraw",
       "convert": "Convert to sales order",
       "openOrder": "Open the sales order",
+      "downloadPdf": "Download PDF",
       "status": {
         "OPEN": "Open",
         "CONVERTED": "Ordered",
         "REJECTED": "Rejected",
         "CANCELLED": "Withdrawn"
+      },
+      "email": {
+        "sendButton": "Email quotation",
+        "title": "Email this quotation",
+        "recipient": "Send to",
+        "language": "Language",
+        "languages": { "en": "English", "ar": "Arabic" },
+        "preview": "Preview",
+        "previewHint": "Preview the email before sending it — nothing is sent yet.",
+        "sendNow": "Send now",
+        "sendDisabledHint": "Preview it first.",
+        "openInGmail": "Open in Gmail",
+        "openInGmailHint": "The PDF downloads to your device — attach it in the Gmail window that opens.",
+        "gmailSubject": "Quotation {{number}}",
+        "gmailBody": "Dear {{customer}},\n\nPlease find our quotation {{number}}, total {{total}}.\nThe quotation PDF just downloaded to your device — please attach it to this email before sending.\n\nBest regards.",
+        "success": "Sent.",
+        "errors": {
+          "generic": "Could not send the email. Check the recipient and try again."
+        }
       }
     },
     "orders": {

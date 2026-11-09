@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsDateString, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
 import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 // A line on a quotation or sales order: an item, or a free-text service line.
@@ -229,4 +229,17 @@ export class SalesInvoicesQueryDto {
   @IsOptional()
   @IsIn(["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"])
   documentType?: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
+}
+
+export class QuotationEmailPreviewDto {
+  @IsIn(["en", "ar"])
+  language!: "en" | "ar";
+}
+
+export class SendQuotationEmailDto {
+  @IsEmail()
+  to!: string;
+
+  @IsIn(["en", "ar"])
+  language!: "en" | "ar";
 }

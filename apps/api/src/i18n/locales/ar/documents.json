@@ -129,6 +129,33 @@
     "total": "الإجمالي",
     "inWords": "المبلغ كتابةً"
   },
+  "quotation": {
+    "title": "عرض سعر",
+    "number": "الرقم",
+    "date": "التاريخ",
+    "validUntil": "ساري حتى",
+    "to": "إلى",
+    "description": "البيان",
+    "quantity": "الكمية",
+    "unitPrice": "سعر الوحدة",
+    "net": "الصافي",
+    "taxRate": "الضريبة %",
+    "tax": "الضريبة",
+    "total": "الإجمالي",
+    "inWords": "المبلغ كتابةً",
+    "computerGenerated": "هذا مستند صادر من النظام ولا يحتاج إلى توقيع يدوي.",
+    "email": {
+      "subject": "عرض سعر {{number}} من {{company}}",
+      "greeting": "عزيزنا {{customer}}،",
+      "intro": "يسعدنا إرفاق عرض السعر رقم {{number}}، الساري حتى {{validUntil}}.",
+      "introNoExpiry": "يسعدنا إرفاق عرض السعر رقم {{number}}.",
+      "viewAttached": "عرض السعر التفصيلي الكامل مرفق بصيغة PDF.",
+      "totalLabel": "إجمالي المبلغ",
+      "closing": "نتطلع للعمل معكم. لا تترددوا بالتواصل معنا لأي استفسار.",
+      "regards": "مع خالص التحية،",
+      "attachmentNote": "المرفق: {{filename}}"
+    }
+  },
   "seller": {
     "vatNumber": "الرقم الضريبي",
     "crNumber": "السجل التجاري",

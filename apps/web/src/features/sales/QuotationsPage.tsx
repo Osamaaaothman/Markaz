@@ -6,6 +6,7 @@ import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
+import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate } from "../../shared/lib/format-date";
@@ -13,7 +14,18 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
-import { useQuotation, useQuotationAction, useQuotations, type QuotationStatus, type QuotationSummary, type SalesLineView } from "./use-sales";
+import { exportReport } from "../accounting/export-report";
+import {
+  useQuotation,
+  useQuotationAction,
+  useQuotations,
+  usePreviewQuotationEmail,
+  useSendQuotationEmail,
+  type QuotationDetail,
+  type QuotationStatus,
+  type QuotationSummary,
+  type SalesLineView,
+} from "./use-sales";
 
 const ALL = "ALL";
 const STATUSES: readonly QuotationStatus[] = ["OPEN", "CONVERTED", "REJECTED", "CANCELLED"];
@@ -88,6 +100,7 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
   const { data } = useQuotation(id);
   const reject = useQuotationAction(id ?? "", "reject");
   const cancel = useQuotationAction(id ?? "", "cancel");
+  const [emailOpen, setEmailOpen] = useState(false);
 
   return (
     <Dialog header={data?.number ?? t("sales.quotations.title")} visible={id !== null} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(64rem, 96vw)" }}>
@@ -95,7 +108,13 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
         <PageSkeleton />
       ) : (
         <>
-          <p>{localizedName({ name: data.customerName, nameAr: data.customerNameAr }, i18n.language)}</p>
+          <div className="erp-row-actions">
+            <p style={{ margin: 0 }}>{localizedName({ name: data.customerName, nameAr: data.customerNameAr }, i18n.language)}</p>
+            <div className="erp-page__header-actions">
+              <Button label={t("sales.quotations.downloadPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/quotations/${data.id}/pdf`, { lang: i18n.language }, data.number, "pdf")} />
+              <PermissionButton allowed={can("quotation:create")} label={t("sales.quotations.email.sendButton")} icon="pi pi-send" onClick={() => setEmailOpen(true)} />
+            </div>
+          </div>
           {data.notes ? <p>{data.notes}</p> : null}
           <DataGrid value={[...data.lines]} className="erp-table" size="small" showGridlines>
             <Column header={t("sales.description")} body={(l: SalesLineView) => l.description} />
@@ -122,6 +141,105 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
           ) : null}
         </>
       )}
+      {data ? <QuotationEmailDialog quotation={data} visible={emailOpen} onHide={() => setEmailOpen(false)} /> : null}
+    </Dialog>
+  );
+}
+
+const DECIMAL_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Two ways to send: "Send now" renders the real email server-side and mails it directly once the
+// user has previewed it at least once — nothing goes out before that. "Open in Gmail" is the
+// manual fallback: it downloads the PDF (a compose URL cannot pre-attach a file) and opens Gmail
+// with the recipient, subject and a plain-text body already filled in.
+function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: QuotationDetail; visible: boolean; onHide: () => void }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const [language, setLanguage] = useState<"en" | "ar">(i18n.language.startsWith("ar") ? "ar" : "en");
+  const [to, setTo] = useState(quotation.customerEmail ?? "");
+  const preview = usePreviewQuotationEmail(quotation.id);
+  const send = useSendQuotationEmail(quotation.id);
+
+  const openDialog = (): void => {
+    setTo(quotation.customerEmail ?? "");
+    setLanguage(i18n.language.startsWith("ar") ? "ar" : "en");
+    preview.reset();
+    send.reset();
+  };
+
+  const toValid = DECIMAL_EMAIL.test(to);
+
+  const doPreview = (): void => {
+    preview.mutate(language);
+  };
+
+  const doSend = (): void => {
+    if (!toValid) return;
+    send.mutate({ to, language });
+  };
+
+  const openInGmail = (): void => {
+    void exportReport(`/v1/quotations/${quotation.id}/pdf`, { lang: language }, quotation.number, "pdf");
+    const customer = language === "ar" && quotation.customerNameAr ? quotation.customerNameAr : quotation.customerName;
+    const subject = t("sales.quotations.email.gmailSubject", { number: quotation.number });
+    const body = t("sales.quotations.email.gmailBody", { customer, number: quotation.number, total: formatMoney(quotation.totalGross, quotation.currency) });
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <Dialog header={t("sales.quotations.email.title")} visible={visible} onHide={onHide} onShow={openDialog} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(52rem, 96vw)" }}>
+      <div className="erp-form">
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="qeTo">{t("sales.quotations.email.recipient")}</label>
+            <InputText id="qeTo" dir="ltr" value={to} onChange={(e) => { setTo(e.target.value); preview.reset(); send.reset(); }} className={to !== "" && !toValid ? "p-invalid" : ""} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="qeLang">{t("sales.quotations.email.language")}</label>
+            <Dropdown
+              inputId="qeLang"
+              value={language}
+              onChange={(e) => { setLanguage(e.value as "en" | "ar"); preview.reset(); send.reset(); }}
+              options={[
+                { label: t("sales.quotations.email.languages.en"), value: "en" },
+                { label: t("sales.quotations.email.languages.ar"), value: "ar" },
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="erp-form__actions" style={{ justifyContent: "flex-start" }}>
+          <Button type="button" label={t("sales.quotations.email.preview")} icon="pi pi-eye" outlined loading={preview.isPending} disabled={!toValid} onClick={doPreview} />
+        </div>
+        {preview.isError ? <p className="erp-auth-card__error">{t("sales.quotations.email.errors.generic")}</p> : null}
+        {!preview.data ? <p className="erp-field__hint">{t("sales.quotations.email.previewHint")}</p> : null}
+
+        {preview.data ? (
+          <iframe
+            title="email-preview"
+            sandbox=""
+            srcDoc={preview.data.html}
+            style={{ width: "100%", height: "60vh", border: "1px solid var(--surface-border, #ddd)", borderRadius: "8px", background: "#fff" }}
+          />
+        ) : null}
+
+        {send.isError ? <p className="erp-auth-card__error">{t("sales.quotations.email.errors.generic")}</p> : null}
+        {send.isSuccess ? <p className="erp-field__hint">{t("sales.quotations.email.success")}</p> : null}
+
+        <div className="erp-form__actions">
+          <Button type="button" label={t("sales.quotations.email.openInGmail")} icon="pi pi-google" text disabled={!toValid} onClick={openInGmail} />
+          <Button
+            type="button"
+            label={t("sales.quotations.email.sendNow")}
+            icon="pi pi-send"
+            disabled={!preview.data || send.isSuccess}
+            loading={send.isPending}
+            title={!preview.data ? t("sales.quotations.email.sendDisabledHint") : undefined}
+            onClick={doSend}
+          />
+        </div>
+        <p className="erp-field__hint">{t("sales.quotations.email.openInGmailHint")}</p>
+      </div>
     </Dialog>
   );
 }
