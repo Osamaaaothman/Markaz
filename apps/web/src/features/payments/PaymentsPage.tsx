@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
-import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
 import { Money } from "@erp/shared";
 import { usePermissions } from "../../shared/auth/use-permissions";
@@ -16,41 +14,38 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { usePayments, type PaymentDirection, type PaymentSummary } from "./use-payments";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
-const ALL = "ALL";
+export function ReceiptsPage(): React.JSX.Element {
+  return <PaymentsPage direction="RECEIPT" />;
+}
 
-export function PaymentsPage(): React.JSX.Element {
+export function SupplierPaymentsPage(): React.JSX.Element {
+  return <PaymentsPage direction="PAYMENT" />;
+}
+
+function PaymentsPage({ direction }: { direction: PaymentDirection }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const navigate = useNavigate();
-  const [direction, setDirection] = useState<PaymentDirection | null>(null);
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePayments(direction);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
+
+  const isReceipts = direction === "RECEIPT";
+  const titleKey = isReceipts ? "payments.receiptsTitle" : "payments.paymentsTitle";
+  const subtitleKey = isReceipts ? "payments.receiptsSubtitle" : "payments.paymentsSubtitle";
 
   return (
     <div className="erp-page erp-page--wide">
       <div className="erp-page__header">
         <div>
-          <h1 className="erp-page__title">{t("payments.title")}</h1>
-          <p className="erp-page__subtitle">{t("payments.subtitle")}</p>
+          <h1 className="erp-page__title">{t(titleKey)}</h1>
+          <p className="erp-page__subtitle">{t(subtitleKey)}</p>
         </div>
         <div className="erp-page__header-actions">
-          <PermissionButton allowed={can("customer_receipt:create")} label={t("payments.newReceipt")} icon="pi pi-arrow-down-left" onClick={() => void navigate("/payments/receipts/new")} />
-          <PermissionButton allowed={can("supplier_payment:create")} label={t("payments.newPayment")} icon="pi pi-arrow-up-right" outlined onClick={() => void navigate("/payments/supplier/new")} />
-        </div>
-      </div>
-
-      <div className="coa-toolbar">
-        <div className="coa-levels">
-          <span className="coa-levels__label">{t("payments.direction")}</span>
-          <Dropdown
-            value={direction ?? ALL}
-            onChange={(e) => setDirection(e.value === ALL ? null : (e.value as PaymentDirection))}
-            options={[
-              { label: t("payments.allDirections"), value: ALL },
-              { label: t("payments.directions.RECEIPT"), value: "RECEIPT" },
-              { label: t("payments.directions.PAYMENT"), value: "PAYMENT" },
-            ]}
-          />
+          {isReceipts ? (
+            <PermissionButton allowed={can("customer_receipt:create")} label={t("payments.newReceipt")} icon="pi pi-plus" onClick={() => void navigate("/payments/receipts/new")} />
+          ) : (
+            <PermissionButton allowed={can("supplier_payment:create")} label={t("payments.newPayment")} icon="pi pi-plus" onClick={() => void navigate("/payments/supplier/new")} />
+          )}
         </div>
       </div>
 

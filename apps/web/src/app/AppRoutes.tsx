@@ -51,7 +51,7 @@ import { SalesInvoiceDetailPage, SalesInvoicesPage } from "../features/sales/Sal
 import { SalesOrderDetailPage, SalesOrdersPage } from "../features/sales/SalesOrdersPage";
 import { CustomerReceiptPage, SupplierPaymentPage } from "../features/payments/PaymentFormPage";
 import { PaymentDetailPage } from "../features/payments/PaymentDetailPage";
-import { PaymentsPage } from "../features/payments/PaymentsPage";
+import { ReceiptsPage, SupplierPaymentsPage } from "../features/payments/PaymentsPage";
 import { AgingPage } from "../features/payments/AgingPage";
 import { PartyStatementPage } from "../features/payments/PartyStatementPage";
 import { UsersPage } from "../features/settings/UsersPage";
@@ -205,7 +205,8 @@ export function AppRoutes(): React.JSX.Element {
             <Route path="/sales/invoices/new" element={<SalesInvoiceFormPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/payments")} />}>
-            <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/payments/receipts" element={<ReceiptsPage />} />
+            <Route path="/payments/supplier" element={<SupplierPaymentsPage />} />
             <Route path="/payments/:id" element={<PaymentDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={["customer_receipt:create"]} />}>

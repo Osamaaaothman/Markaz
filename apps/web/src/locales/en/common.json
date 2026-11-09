@@ -42,6 +42,8 @@
     "salesOrders": "Sales orders",
     "salesInvoices": "Sales invoices",
     "payments": "Payments",
+    "receipts": "Customer Receipts",
+    "supplierPayments": "Supplier Payments",
     "aging": "Ageing",
     "partyStatement": "Customer / supplier statement",
     "stockMovements": "Stock movements",
@@ -978,8 +980,12 @@
   "payments": {
     "title": "Payments",
     "subtitle": "Money received from customers and paid to suppliers, and the invoices each settles.",
-    "newReceipt": "Customer receipt",
-    "newPayment": "Supplier payment",
+    "receiptsTitle": "Customer Receipts",
+    "receiptsSubtitle": "Money received from customers and the invoices settled.",
+    "paymentsTitle": "Supplier Payments",
+    "paymentsSubtitle": "Money paid to suppliers and the invoices settled.",
+    "newReceipt": "New receipt",
+    "newPayment": "New payment",
     "direction": "Direction",
     "allDirections": "Received and paid",
     "directions": {

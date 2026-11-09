@@ -42,6 +42,8 @@
     "salesOrders": "أوامر البيع",
     "salesInvoices": "فواتير المبيعات",
     "payments": "المدفوعات",
+    "receipts": "سندات القبض",
+    "supplierPayments": "سندات الدفع",
     "aging": "أعمار الديون",
     "partyStatement": "كشف حساب عميل / مورد",
     "stockMovements": "حركات المخزون",
@@ -978,8 +980,12 @@
   "payments": {
     "title": "المدفوعات",
     "subtitle": "الأموال المقبوضة من العملاء والمدفوعة للموردين، والفواتير التي يسدّدها كل منها.",
-    "newReceipt": "سند قبض من عميل",
-    "newPayment": "دفعة لمورد",
+    "receiptsTitle": "سندات القبض",
+    "receiptsSubtitle": "المبالغ المقبوضة من العملاء والفواتير المسدَّدة.",
+    "paymentsTitle": "سندات الدفع",
+    "paymentsSubtitle": "المبالغ المدفوعة للموردين والفواتير المسدَّدة.",
+    "newReceipt": "سند قبض جديد",
+    "newPayment": "سند دفع جديد",
     "direction": "الاتجاه",
     "allDirections": "المقبوض والمدفوع",
     "directions": {
