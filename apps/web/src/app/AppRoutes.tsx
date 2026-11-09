@@ -64,6 +64,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { RequirePermission } from "./RequirePermission";
 import { DocumentsPage } from "../features/attachments/DocumentsPage";
 import { CompanyPage } from "../features/settings/CompanyPage";
+import { InterfaceSettingsPage } from "../features/settings/InterfaceSettingsPage";
 
 // The permissions a route needs come from NAV_ITEMS, so hiding a nav entry and guarding its
 // page can never disagree.
@@ -246,6 +247,7 @@ export function AppRoutes(): React.JSX.Element {
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/audit-log")} />}>
             <Route path="/settings/audit-log" element={<AuditLogPage />} />
           </Route>
+          <Route path="/settings/interface" element={<InterfaceSettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -13,6 +13,7 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyPicker } from "../accounting/PartyPicker";
+import { useComplianceOverview } from "../compliance/use-compliance";
 import { useAllItems } from "../inventory/use-items";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { useTaxCodes } from "../purchasing/use-invoicing";
@@ -37,6 +38,8 @@ const KNOWN_ERRORS = new Set([
   "ZERO_DOCUMENT",
   "INVALID_STATE",
   "ACCOUNT_NOT_POSTABLE",
+  "EGS_UNIT_REQUIRED",
+  "EGS_UNIT_NOT_FOUND",
 ]);
 
 interface LineState {
@@ -68,6 +71,12 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const { data: warehouses } = useAllWarehouses();
   const { data: taxCodes } = useTaxCodes(false);
   const { data: order } = useSalesOrder(orderId);
+  // Which ZATCA issuing unit (EGS) this invoice belongs to -- only relevant/shown once a company
+  // has more than one active unit (docs/01-OPEN-DECISIONS.md); otherwise the backend assigns it
+  // (or leaves it null) automatically, and this never needs to be asked.
+  const { data: complianceOverview } = useComplianceOverview();
+  const activeEgsUnits = useMemo(() => (complianceOverview?.egsUnits ?? []).filter((u) => u.isActive), [complianceOverview]);
+  const [egsUnitId, setEgsUnitId] = useState("");
 
   const createQuotation = useCreateQuotation();
   const createOrder = useCreateSalesOrder();
@@ -134,7 +143,8 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     l.taxCodeId !== "" &&
     (l.itemId !== "" || l.description.trim() !== "") &&
     (mode !== "invoice" || l.itemId === "" || l.warehouseId !== "");
-  const valid = customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid);
+  const egsUnitChoiceNeeded = mode === "invoice" && activeEgsUnits.length > 1;
+  const valid = customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
 
   const totals = meaningfulLines.reduce(
     (sum, l) => {
@@ -185,7 +195,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
     if (mode === "quotation") createQuotation.mutate({ ...common, quotationDate: dateIso, ...(secondIso ? { validUntil: secondIso } : {}) }, { onSuccess: done });
     else if (mode === "order") createOrder.mutate({ ...common, orderDate: dateIso }, { onSuccess: done });
-    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(secondIso ? { dueDate: secondIso } : {}) }, { onSuccess: done });
+    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(secondIso ? { dueDate: secondIso } : {}), ...(egsUnitId ? { egsUnitId } : {}) }, { onSuccess: done });
   };
 
   const err = (mutation.error as { response?: { status?: number; data?: { error?: { code?: string; details?: { lineNumber?: number }[] } } } } | null)?.response;
@@ -220,6 +230,19 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             <div className="erp-field">
               <label htmlFor="sdSecond">{t(mode === "quotation" ? "sales.quotations.validUntil" : "sales.invoices.dueDate")}</label>
               <Calendar inputId="sdSecond" value={secondDate} onChange={(e) => setSecondDate((e.value as Date | null) ?? null)} dateFormat="yy-mm-dd" showButtonBar />
+            </div>
+          ) : null}
+          {egsUnitChoiceNeeded ? (
+            <div className="erp-field">
+              <label htmlFor="sdEgsUnit">{t("sales.invoices.egsUnit")}</label>
+              <Dropdown
+                inputId="sdEgsUnit"
+                value={egsUnitId || null}
+                onChange={(e) => setEgsUnitId((e.value as string | null) ?? "")}
+                options={activeEgsUnits.map((u) => ({ label: u.branchName ? `${u.name} — ${u.branchName}` : u.name, value: u.id }))}
+                placeholder={t("sales.invoices.egsUnitPlaceholder")}
+                className={egsUnitId === "" ? "p-invalid" : ""}
+              />
             </div>
           ) : null}
         </div>

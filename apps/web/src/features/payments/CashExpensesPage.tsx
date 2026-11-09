@@ -41,7 +41,7 @@ export function CashExpensesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid emptyAction={{ allowed: can("cash_expense:create"), label: t("cashExpenses.new"), onClick: () => void navigate("/payments/cash-expenses/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: CashExpenseSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("cashExpenses.date")} style={{ width: "9rem" }} body={(r: CashExpenseSummary) => formatCalendarDate(r.expenseDate, i18n.language)} />
             <Column header={t("cashExpenses.cashAccount")} body={(r: CashExpenseSummary) => `${r.cashAccountCode} — ${localizedName({ name: r.cashAccountName, nameAr: r.cashAccountNameAr }, i18n.language)}`} />

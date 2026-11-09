@@ -74,4 +74,21 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings/tax-codes", labelKey: "nav.taxCodes", icon: "pi pi-percentage", permissions: ["tax_code:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/zatca", labelKey: "nav.zatca", icon: "pi pi-shield", permissions: ["compliance:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/interface", labelKey: "nav.interface", icon: "pi pi-sliders-h", groupKey: "nav.groups.settings" },
 ];
+
+// Every group key, in NavConfig's own order — the default sidebar section order, and the full set a
+// user's saved groupOrder (layout-store.ts) is reordered against. A group added here later has no saved
+// position yet, so sortGroups appends it at the end rather than hiding it.
+export const SIDEBAR_GROUPS: readonly string[] = Array.from(new Set(NAV_ITEMS.map((item) => item.groupKey).filter((key): key is string => key !== undefined)));
+
+// Orders `groupKeys` by the user's saved preference, falling back to NavConfig's built-in order for any
+// key missing from `savedOrder` (new groups, or before the user has ever reordered anything).
+export function sortGroups(groupKeys: readonly string[], savedOrder: readonly string[]): string[] {
+  const rank = (key: string): number => {
+    const saved = savedOrder.indexOf(key);
+    if (saved !== -1) return saved;
+    return savedOrder.length + SIDEBAR_GROUPS.indexOf(key);
+  };
+  return [...groupKeys].sort((a, b) => rank(a) - rank(b));
+}

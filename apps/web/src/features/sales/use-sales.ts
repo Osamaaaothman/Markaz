@@ -255,6 +255,8 @@ export interface CreateSalesInvoicePayload {
   readonly dueDate?: string;
   readonly notes?: string;
   readonly lines: readonly SalesLinePayload[];
+  // Required only when the company has more than one active ZATCA issuing unit.
+  readonly egsUnitId?: string;
 }
 
 function invalidateAfterPosting(qc: ReturnType<typeof useQueryClient>): void {

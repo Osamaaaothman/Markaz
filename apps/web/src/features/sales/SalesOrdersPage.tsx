@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
+import { selectFilter } from "../../shared/ui/column-filters";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
@@ -79,12 +80,12 @@ export function SalesOrdersPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/orders/${(e.data as SalesOrderSummary).id}`)}>
-            <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesOrderSummary) => <span className="coa-code">{r.number}</span>} />
+          <DataGrid emptyAction={{ allowed: can("sales_order:create"), label: t("sales.orders.new"), onClick: () => void navigate("/sales/orders/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/orders/${(e.data as SalesOrderSummary).id}`)}>
+            <Column field="number" filter header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesOrderSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("sales.customer")} body={(r: SalesOrderSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("sales.orders.date")} style={{ width: "9rem" }} body={(r: SalesOrderSummary) => formatCalendarDate(r.orderDate, i18n.language)} />
             <Column header={t("purchasing.invoices.gross")} align="right" style={{ width: "11rem" }} body={(r: SalesOrderSummary) => formatMoney(r.totalGross, r.currency)} />
-            <Column header={t("purchasing.status")} style={{ width: "11rem" }} body={(r: SalesOrderSummary) => <Tag value={t(`sales.orders.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
+            <Column field="status" filter filterMatchMode="equals" filterElement={selectFilter(Object.keys(SEVERITY).map((v) => ({ label: t(`sales.orders.status.${v}`), value: v })), t("table.filterPlaceholder"))} header={t("purchasing.status")} style={{ width: "11rem" }} body={(r: SalesOrderSummary) => <Tag value={t(`sales.orders.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">

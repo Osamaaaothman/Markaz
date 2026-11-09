@@ -8,6 +8,7 @@ import "@fontsource/ibm-plex-sans-arabic/latin-500.css";
 import "@fontsource/ibm-plex-sans-arabic/latin-600.css";
 import "@fontsource/ibm-plex-sans-arabic/latin-700.css";
 import "./design/tokens.css";
+import "./design/themes.css";
 import "./design/base.css";
 import "./app/app.css";
 import "./design/shell.css";
@@ -17,12 +18,14 @@ import "./design/motion.css";
 import "./design/auth-life.css";
 import { useDocumentDirection } from "./shared/i18n/use-document-direction";
 import { usePrimeTheme } from "./shared/theme/use-prime-theme";
+import { usePrimeLocale } from "./shared/prime/use-prime-locale";
 import { AppProviders } from "./app/AppProviders";
 import { AppRoutes } from "./app/AppRoutes";
 
 export function App(): React.JSX.Element {
   useDocumentDirection();
   usePrimeTheme();
+  usePrimeLocale();
   return (
     <AppProviders>
       <AppRoutes />

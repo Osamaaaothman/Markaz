@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
 import { ExportProgress } from "./ExportProgress";
@@ -14,12 +13,6 @@ export function AppShell(): React.JSX.Element {
   const mobileSidebarOpen = useLayoutStore((state) => state.mobileSidebarOpen);
   const closeMobileSidebar = useLayoutStore((state) => state.closeMobileSidebar);
   const collapsed = useLayoutStore((state) => state.sidebarCollapsed);
-  const density = useLayoutStore((state) => state.density);
-
-  // Density is a document-level setting: every table, field and button reads it from the root.
-  useEffect(() => {
-    document.documentElement.dataset.density = density;
-  }, [density]);
 
   useLineGridKeys();
 

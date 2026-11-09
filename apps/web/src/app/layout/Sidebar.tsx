@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 import { Tooltip } from "primereact/tooltip";
@@ -6,9 +7,20 @@ import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { useApiImageUrl } from "../../shared/ui/ApiImage";
 import { localizedName } from "../../shared/lib/localized-name";
 import { Logo } from "../../shared/ui/Logo";
-import { DEFAULT_GROUP_ICON, GROUP_ICONS, NAV_ITEMS } from "./NavConfig";
+import { DEFAULT_GROUP_ICON, GROUP_ICONS, NAV_ITEMS, sortGroups, type NavItem } from "./NavConfig";
 import { usePurchasingCounts, type PurchasingCounts } from "../../features/purchasing/use-purchasing";
 import { useLayoutStore } from "./layout-store";
+
+// Ungrouped items keep NavConfig's order and stay first; grouped items are reordered by the user's
+// saved section order (layout-store.groupOrder) while keeping each group's own items in place.
+function orderByGroup(items: readonly NavItem[], groupOrder: readonly string[]): NavItem[] {
+  const ungrouped = items.filter((item) => item.groupKey === undefined);
+  const grouped = items.filter((item) => item.groupKey !== undefined);
+  const groupKeysPresent = Array.from(new Set(grouped.map((item) => item.groupKey as string)));
+  const orderedGroupKeys = sortGroups(groupKeysPresent, groupOrder);
+  const itemsOf = (key: string): NavItem[] => grouped.filter((item) => item.groupKey === key);
+  return [...ungrouped, ...orderedGroupKeys.flatMap(itemsOf)];
+}
 
 export interface SidebarProps {
   readonly variant: "desktop" | "mobile-drawer";
@@ -24,11 +36,14 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
   const toggleSidebar = useLayoutStore((state) => state.toggleSidebar);
   const collapsedGroups = useLayoutStore((state) => state.collapsedGroups);
   const toggleGroup = useLayoutStore((state) => state.toggleGroup);
+  const groupOrder = useLayoutStore((state) => state.groupOrder);
+  const openPalette = useLayoutStore((state) => state.openPalette);
   const { data: currentUser } = useCurrentUser();
   const { canAny } = usePermissions();
   const { url: companyLogo } = useApiImageUrl("/v1/company/logo", "current");
   const collapsed = variant === "desktop" && collapsedPref;
-  const visibleItems = NAV_ITEMS.filter((item) => canAny(item.permissions ?? []));
+  const permittedItems = NAV_ITEMS.filter((item) => canAny(item.permissions ?? []));
+  const visibleItems = useMemo(() => orderByGroup(permittedItems, groupOrder), [permittedItems, groupOrder]);
   const { data: counts } = usePurchasingCounts();
   const badgeOf = (badge: "review" | "orders" | undefined): number => (badge ? badgeCount(badge, counts) : 0);
 
@@ -42,13 +57,29 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
         <Tooltip target=".erp-sidebar--desktop [data-pr-tooltip]" position={i18n.dir() === "rtl" ? "left" : "right"} showDelay={collapsed ? 150 : 700} />
       ) : null}
 
+      <button
+        type="button"
+        className="erp-sidebar__search"
+        onClick={() => {
+          openPalette();
+          if (variant === "mobile-drawer") closeMobileSidebar();
+        }}
+        data-pr-tooltip={t("shell.search")}
+      >
+        <i className="pi pi-search" aria-hidden="true" />
+        <span className="erp-sidebar__label">{t("shell.search")}</span>
+        <kbd className="erp-sidebar__kbd" aria-hidden="true">
+          Ctrl K
+        </kbd>
+      </button>
+
       <ul className="erp-sidebar__nav">
         {visibleItems.map((item, index) => {
           const groupKey = item.groupKey;
           const groupStarts = groupKey !== undefined && groupKey !== visibleItems[index - 1]?.groupKey;
           const groupFolded = groupKey !== undefined && Boolean(collapsedGroups[groupKey]);
           return (
-            <li key={item.to} className="erp-sidebar__item">
+            <li key={item.to} className={`erp-sidebar__item${groupKey !== undefined ? " erp-sidebar__item--grouped" : ""}`}>
               {groupStarts ? (
                 <button
                   type="button"
@@ -73,7 +104,9 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
                   className={({ isActive }) => `erp-sidebar__link${isActive ? " erp-sidebar__link--active" : ""}`}
                   onClick={variant === "mobile-drawer" ? closeMobileSidebar : undefined}
                 >
-                  <i className={item.icon} aria-hidden="true" />
+                  <span className="erp-sidebar__icon">
+                    <i className={item.icon} aria-hidden="true" />
+                  </span>
                   <span className="erp-sidebar__label">{t(item.labelKey)}</span>
                   {badgeOf(item.badge) > 0 ? (
                     <span className="erp-sidebar__badge" aria-label={t("shell.pendingCount", { count: badgeOf(item.badge) })}>

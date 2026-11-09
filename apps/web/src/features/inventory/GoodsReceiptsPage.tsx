@@ -43,7 +43,7 @@ export function GoodsReceiptsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={receipts} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid emptyAction={{ allowed: can("goods_receipt:create"), label: t("inventory.goodsReceipt.title"), onClick: () => void navigate("/inventory/goods-receipts/new") }} value={receipts} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "11rem" }} body={(r: GoodsReceiptSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/inventory/goods-receipts/${r.id}`)}>{r.number}</button>} />
             <Column header={t("inventory.goodsReceipt.documentDate")} style={{ width: "9rem" }} body={(r: GoodsReceiptSummary) => formatCalendarDate(r.documentDate, i18n.language)} />
             <Column header={t("inventory.stockLevels.warehouse")} body={(r: GoodsReceiptSummary) => localizedName({ name: r.warehouseName, nameAr: r.warehouseNameAr }, i18n.language)} />

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
+import { selectFilter } from "../../shared/ui/column-filters";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
@@ -72,13 +73,13 @@ export function QuotationsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => setViewId((e.data as QuotationSummary).id)}>
-            <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: QuotationSummary) => <span className="coa-code">{r.number}</span>} />
+          <DataGrid emptyAction={{ allowed: can("quotation:create"), label: t("sales.quotations.new"), onClick: () => void navigate("/sales/quotations/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => setViewId((e.data as QuotationSummary).id)}>
+            <Column field="number" filter header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: QuotationSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("sales.customer")} body={(r: QuotationSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("sales.quotations.date")} style={{ width: "9rem" }} body={(r: QuotationSummary) => formatCalendarDate(r.quotationDate, i18n.language)} />
             <Column header={t("sales.quotations.validUntil")} style={{ width: "9rem" }} body={(r: QuotationSummary) => (r.validUntil ? formatCalendarDate(r.validUntil, i18n.language) : "")} />
             <Column header={t("purchasing.invoices.gross")} align="right" style={{ width: "11rem" }} body={(r: QuotationSummary) => formatMoney(r.totalGross, r.currency)} />
-            <Column header={t("purchasing.status")} style={{ width: "10rem" }} body={(r: QuotationSummary) => <Tag value={t(`sales.quotations.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
+            <Column field="status" filter filterMatchMode="equals" filterElement={selectFilter(Object.keys(SEVERITY).map((v) => ({ label: t(`sales.quotations.status.${v}`), value: v })), t("table.filterPlaceholder"))} header={t("purchasing.status")} style={{ width: "10rem" }} body={(r: QuotationSummary) => <Tag value={t(`sales.quotations.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
           </DataGrid>
           {hasNextPage ? (
             <div className="erp-table-footer erp-table-footer--center">

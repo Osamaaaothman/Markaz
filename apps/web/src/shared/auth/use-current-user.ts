@@ -10,6 +10,8 @@ export interface CurrentUserProfile {
   // The company name in Arabic, or null when none is set.
   readonly companyNameAr: string | null;
   readonly companyDefaultCurrency: string;
+  readonly ref: string;
+  readonly roles: readonly { readonly id: string; readonly name: string }[];
   readonly permissions: string[];
 }
 

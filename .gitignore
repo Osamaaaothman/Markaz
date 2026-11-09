@@ -31,3 +31,6 @@ docs/vendor/
 
 # Redis snapshots a local test server may leave in the working directory
 *.rdb
+
+# Scratch files an agent session may drop in the repo root — never project content
+.tmp-shim/

@@ -106,7 +106,7 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 
 .mk-brand__name {
   font-size: 1.28rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -118,22 +118,79 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 }
 
 /* ---------- sidebar ---------- */
+/* A floating card inset from the viewport edge. Surface, text, hover and the filled active pill all come from
+   the --mk-side-* variables, which follow the active theme (tokens.css / themes.css). */
+
+.erp-shell__desktop-sidebar {
+  box-sizing: border-box;
+  padding: 0.75rem;
+  padding-inline-end: 0;
+}
 
 .erp-sidebar {
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: var(--mk-space-3);
   height: 100%;
-  padding: var(--mk-space-5) var(--mk-space-3) var(--mk-space-3);
+  padding: var(--mk-space-4) var(--mk-space-3) var(--mk-space-3);
   color: var(--mk-side-text);
-  background: var(--mk-side-bg-from);
+  background: var(--mk-side-bg);
+  border: 1px solid var(--mk-side-border);
+  border-radius: var(--mk-radius-xl);
+  box-shadow: var(--mk-shadow-md);
   overflow: hidden;
 }
 
+.erp-sidebar--mobile-drawer {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .erp-sidebar__brand {
-  padding-inline: var(--mk-space-2);
-  margin-block-end: var(--mk-space-5);
+  padding: var(--mk-space-1) var(--mk-space-2);
   color: var(--mk-side-text-strong);
+}
+
+/* search / command palette entry */
+.erp-sidebar__search {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  inline-size: 100%;
+  block-size: 2.5rem;
+  padding-inline: 0.8rem;
+  border: 1px solid transparent;
+  border-radius: var(--mk-radius);
+  background: var(--mk-side-tile);
+  color: var(--mk-side-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease;
+}
+
+.erp-sidebar__search:hover {
+  border-color: var(--mk-border-strong);
+  color: var(--mk-side-text-strong);
+}
+
+.erp-sidebar__search .erp-sidebar__label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.erp-sidebar__kbd {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--mk-side-border);
+  border-radius: var(--mk-radius-xs);
+  background: var(--mk-side-bg);
+  color: var(--mk-side-muted);
+  font: inherit;
+  font-size: 0.68rem;
+  direction: ltr;
 }
 
 .erp-sidebar__nav {
@@ -143,10 +200,9 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   overflow-x: hidden;
   list-style: none;
   margin: 0;
-  padding: 0 0 var(--mk-space-3);
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
   /* still scrolls with wheel, touch and keyboard; the bar itself is not drawn */
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -156,28 +212,51 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   display: none;
 }
 
+/* an entry under a section heading hangs off a thin guide line */
+.erp-sidebar__item--grouped {
+  position: relative;
+}
+
+.erp-sidebar__item--grouped::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 1.05rem;
+  inline-size: 1px;
+  background: var(--mk-side-border);
+}
+
+.erp-sidebar__item--grouped > .erp-sidebar__link {
+  margin-inline-start: 1.7rem;
+}
+
 .erp-sidebar__link {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.62rem 0.8rem;
-  border-radius: var(--mk-radius-sm);
+  gap: 0.7rem;
+  margin-block: 1px;
+  padding: 0.3rem 0.45rem;
+  border-radius: var(--mk-radius);
   color: var(--mk-side-text);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 500;
   white-space: nowrap;
-  transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, transform var(--mk-dur-fast) ease;
+  transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, box-shadow var(--mk-dur) ease;
 }
 
-.erp-sidebar__link i {
+.erp-sidebar__icon {
   flex-shrink: 0;
-  width: 1.25rem;
-  text-align: center;
-  font-size: 1.02rem;
-  opacity: 0.78;
-  transition: transform var(--mk-dur) var(--mk-ease), color var(--mk-dur-fast) ease, opacity var(--mk-dur-fast) ease;
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-side-tile);
+  color: var(--mk-side-muted);
+  font-size: 0.95rem;
+  transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, transform var(--mk-dur) var(--mk-ease);
 }
 
 .erp-sidebar__link:hover {
@@ -185,42 +264,30 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   color: var(--mk-side-text-strong);
 }
 
-.erp-sidebar__link:hover i {
-  opacity: 1;
-  transform: scale(1.1);
+.erp-sidebar__link:hover .erp-sidebar__icon {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  transform: scale(1.06);
 }
 
-.erp-sidebar__link--active {
-  background: var(--mk-side-active);
-  color: var(--mk-side-text-strong);
+.erp-sidebar__link--active,
+.erp-sidebar__link--active:hover {
+  background: var(--mk-side-active-bg);
+  color: var(--mk-side-active-text);
   font-weight: 600;
+  box-shadow: 0 8px 18px -8px var(--mk-primary-ring);
 }
 
-.erp-sidebar__link--active i {
-  color: var(--mk-brand-300);
-  opacity: 1;
+.erp-sidebar__link--active .erp-sidebar__icon,
+.erp-sidebar__link--active:hover .erp-sidebar__icon {
+  background: rgb(255 255 255 / 0.2);
+  color: var(--mk-side-active-text);
+  transform: none;
 }
 
-/* the gold marker on the active entry, at the inline-start edge */
-.erp-sidebar__link--active::before {
-  content: "";
-  position: absolute;
-  inset-block: 22%;
-  inset-inline-start: -0.75rem;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--mk-brass-400);
-  animation: mk-grow-y var(--mk-dur-slow) var(--mk-ease) both;
-}
-
-html[dir="rtl"] .erp-sidebar__link--active::before {
-  border-radius: 3px 0 0 3px;
-}
-
+/* section headings */
 .erp-sidebar__item:not(:first-child) > .erp-sidebar__group {
-  margin-block-start: var(--mk-space-2);
-  padding-block-start: var(--mk-space-3);
-  border-block-start: 1px solid rgb(255 255 255 / 0.08);
+  margin-block-start: var(--mk-space-3);
 }
 
 .erp-sidebar__group {
@@ -230,14 +297,14 @@ html[dir="rtl"] .erp-sidebar__link--active::before {
   gap: var(--mk-space-2);
   width: 100%;
   margin-block-end: var(--mk-space-1);
-  padding: 0.4rem var(--mk-space-3);
+  padding: 0.35rem 0.55rem;
   border: 0;
   background: none;
   color: var(--mk-side-muted);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   white-space: nowrap;
   cursor: pointer;
   border-radius: var(--mk-radius-sm);
@@ -245,8 +312,8 @@ html[dir="rtl"] .erp-sidebar__link--active::before {
 }
 
 .erp-sidebar__group:hover {
-  color: var(--mk-side-text);
-  background: rgb(255 255 255 / 0.06);
+  color: var(--mk-side-text-strong);
+  background: var(--mk-side-hover);
 }
 
 .erp-sidebar__group-title {
@@ -258,12 +325,12 @@ html[dir="rtl"] .erp-sidebar__link--active::before {
 
 .erp-sidebar__group-icon {
   flex-shrink: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .erp-sidebar__group-chevron {
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   opacity: 0.7;
   transition: transform var(--mk-dur-fast) var(--mk-ease), opacity var(--mk-dur-fast) ease;
 }
@@ -280,12 +347,11 @@ html[dir="rtl"] .erp-sidebar__group-chevron--folded {
   transform: rotate(90deg);
 }
 
+/* footer: company card + collapse */
 .erp-sidebar__footer {
   display: flex;
   align-items: center;
   gap: var(--mk-space-2);
-  padding-block-start: var(--mk-space-3);
-  border-block-start: 1px solid rgb(255 255 255 / 0.09);
 }
 
 .erp-sidebar__company {
@@ -294,15 +360,16 @@ html[dir="rtl"] .erp-sidebar__group-chevron--folded {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.45rem 0.6rem;
-  border-radius: var(--mk-radius-sm);
-  background: rgb(255 255 255 / 0.05);
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--mk-side-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-side-card);
 }
 
 .erp-sidebar__company .erp-sidebar__label {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: 1.25;
   min-width: 0;
 }
 
@@ -322,30 +389,31 @@ html[dir="rtl"] .erp-sidebar__group-chevron--folded {
 
 .erp-sidebar__company-dot {
   flex-shrink: 0;
-  width: 0.55rem;
-  height: 0.55rem;
+  inline-size: 0.6rem;
+  block-size: 0.6rem;
+  margin: 0.45rem;
   border-radius: 50%;
-  background: var(--mk-brand-400);
-  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.18);
+  background: var(--mk-primary);
+  box-shadow: 0 0 0 4px var(--mk-primary-soft);
 }
 
 .erp-sidebar__collapse {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  border: 0;
-  border-radius: var(--mk-radius-sm);
-  background: rgb(255 255 255 / 0.06);
+  inline-size: 2.4rem;
+  block-size: 2.4rem;
+  border: 1px solid var(--mk-side-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-side-card);
   color: var(--mk-side-text);
   cursor: pointer;
-  transition: background-color var(--mk-dur-fast) ease;
+  transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease;
 }
 
 .erp-sidebar__collapse:hover {
-  background: rgb(255 255 255 / 0.14);
-  color: #fff;
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
 }
 
 .erp-sidebar__collapse i {
@@ -382,8 +450,8 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
 /* collapsed rail: no room for the number, so it floats over the icon corner */
 .erp-sidebar--collapsed .erp-sidebar__badge {
   position: absolute;
-  inset-block-start: 0.2rem;
-  inset-inline-end: 0.55rem;
+  inset-block-start: 0;
+  inset-inline-end: 0.2rem;
   min-width: 1rem;
   padding: 0 0.28rem;
   font-size: 0.62rem;
@@ -391,11 +459,25 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
 
 /* collapsed rail: icons only */
 .erp-sidebar--collapsed .erp-sidebar__label,
+.erp-sidebar--collapsed .erp-sidebar__kbd,
 .erp-sidebar--collapsed .mk-brand__text,
 .erp-sidebar--collapsed .erp-sidebar__group-text,
 .erp-sidebar--collapsed .erp-sidebar__group-chevron,
 .erp-sidebar--collapsed .erp-sidebar__company .erp-sidebar__label {
   display: none;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__item--grouped::before {
+  display: none;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__item--grouped > .erp-sidebar__link {
+  margin-inline-start: 0;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__search {
+  justify-content: center;
+  padding-inline: 0;
 }
 
 /* collapsed rail: the section heading becomes its icon, still clickable to fold the section */
@@ -419,15 +501,12 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
   padding-inline: 0;
 }
 
-.erp-sidebar--collapsed .erp-sidebar__link--active::before {
-  inset-inline-start: -0.75rem;
-}
-
 .erp-sidebar--collapsed .erp-sidebar__footer {
   flex-direction: column;
 }
 
 .erp-sidebar--collapsed .erp-sidebar__company {
+  border: 0;
   background: none;
   padding: 0;
   justify-content: center;
@@ -748,3 +827,121 @@ html body .p-tooltip.p-tooltip-left .p-tooltip-arrow { border-left-color: var(--
 html body .p-tooltip.p-tooltip-right .p-tooltip-arrow { border-right-color: var(--mk-ink-950); }
 html body .p-tooltip.p-tooltip-top .p-tooltip-arrow { border-top-color: var(--mk-ink-950); }
 html body .p-tooltip.p-tooltip-bottom .p-tooltip-arrow { border-bottom-color: var(--mk-ink-950); }
+
+/* ---------- profile card (top bar avatar) ---------- */
+
+html body .p-overlaypanel.erp-profile {
+  inline-size: min(22rem, calc(100vw - 1.5rem));
+  border-radius: var(--mk-radius-lg);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  border: 1px solid var(--mk-border);
+  box-shadow: var(--mk-shadow-lg);
+}
+
+html body .p-overlaypanel.erp-profile .p-overlaypanel-content {
+  padding: var(--mk-space-4);
+}
+
+.erp-profile__head {
+  display: flex;
+  align-items: center;
+  gap: var(--mk-space-3);
+  padding-block-end: var(--mk-space-3);
+  border-block-end: 1px solid var(--mk-border);
+}
+
+.erp-profile__id {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  line-height: 1.35;
+}
+
+.erp-profile__id strong {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.erp-profile__id span,
+.erp-profile__id small {
+  color: var(--mk-text-muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.erp-profile__title {
+  margin: var(--mk-space-3) 0 var(--mk-space-2);
+  color: var(--mk-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.erp-profile__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.erp-profile__perms {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: 13rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.erp-profile__perms li {
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--mk-radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.erp-profile__perms li:nth-child(odd) {
+  background: var(--mk-surface-2);
+}
+
+.erp-profile__perms small {
+  color: var(--mk-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.erp-profile__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-block-start: var(--mk-space-3);
+  padding-block-start: var(--mk-space-3);
+  border-block-start: 1px solid var(--mk-border);
+}
+
+.erp-profile__action {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: var(--mk-radius-sm);
+  background: none;
+  color: var(--mk-text);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.erp-profile__action:hover {
+  background: var(--mk-surface-3);
+}
+
+.erp-profile__action--danger {
+  color: var(--mk-danger);
+}

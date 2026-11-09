@@ -358,7 +358,7 @@ html body .p-inputswitch:not(.p-disabled):has(.p-inputswitch-input:focus-visible
 }
 
 html body .p-checkbox .p-checkbox-box {
-  border-radius: 6px;
+  border-radius: var(--mk-radius-xs);
   border-color: var(--mk-border-strong);
   background: var(--mk-surface);
 }
@@ -1618,11 +1618,11 @@ html body .mk-grid__columns .p-overlaypanel-content {
 }
 
 .erp-sidebar__company-logo {
-  inline-size: 1.5rem;
-  block-size: 1.5rem;
-  border-radius: 6px;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--mk-radius-sm);
   object-fit: contain;
-  background: rgb(255 255 255 / 0.9);
+  background: #fff;
   flex-shrink: 0;
 }
 
@@ -1642,6 +1642,46 @@ html body .mk-grid__columns .p-overlaypanel-content {
 .mk-facts dd {
   margin: 0;
   font-weight: 700;
+}
+
+/* In RTL mode a dd with dir="ltr" becomes a block LTR element and defaults to text-align:left,
+   while the dt above it stays right-aligned — the label and value end up on opposite sides
+   of the grid cell. Force right alignment so both sit on the same reading edge. */
+html[dir="rtl"] .mk-facts dd {
+  text-align: right;
+}
+
+.mk-reorder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.mk-reorder-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface);
+}
+
+.mk-reorder-list__icon {
+  color: var(--mk-text-muted);
+}
+
+.mk-reorder-list__label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.mk-reorder-list__actions {
+  display: flex;
+  gap: 0.25rem;
 }
 
 /* An icon-only button has an empty label (a non-breaking space) that, with the button's gap, pushed the icon off
@@ -1841,4 +1881,185 @@ html body .p-toast {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ---- theme picker (Settings > Interface) ---- */
+.mk-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 0.9rem;
+}
+
+.mk-theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem;
+  border: 2px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--mk-dur-fast) ease, box-shadow var(--mk-dur-fast) ease;
+}
+
+.mk-theme-card:hover {
+  border-color: var(--mk-border-strong);
+}
+
+.mk-theme-card--active {
+  border-color: var(--mk-primary);
+  box-shadow: 0 0 0 3px var(--mk-primary-ring);
+}
+
+.mk-theme-card__preview {
+  display: flex;
+  gap: 0.3rem;
+  block-size: 4.2rem;
+  padding: 0.35rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-sm);
+}
+
+.mk-theme-card__side {
+  inline-size: 28%;
+  border-radius: var(--mk-radius-xs);
+}
+
+.mk-theme-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.mk-theme-card__bar {
+  block-size: 0.7rem;
+  border-radius: 4px;
+}
+
+.mk-theme-card__dots {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.mk-theme-card__dots span {
+  inline-size: 1rem;
+  block-size: 1rem;
+  border-radius: 50%;
+}
+
+.mk-theme-card__name {
+  font-weight: 700;
+}
+
+.mk-theme-card__mode {
+  color: var(--mk-text-muted);
+  font-size: 0.75rem;
+}
+
+/* ---------- empty states ---------- */
+
+.mk-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+.mk-empty__icon {
+  display: grid;
+  place-items: center;
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  margin-block-end: 0.25rem;
+  border-radius: 50%;
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  font-size: 1.9rem;
+}
+
+.mk-empty__title {
+  color: var(--mk-text);
+  font-size: var(--mk-text-lg);
+  font-weight: 600;
+}
+
+.mk-empty__hint {
+  max-inline-size: 36ch;
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-sm);
+}
+
+.mk-empty .p-button {
+  margin-block-start: 0.4rem;
+}
+
+/* ---------- loading: spinner, panel, whole page ---------- */
+
+.mk-spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: 3px solid var(--mk-primary-soft);
+  border-block-start-color: var(--mk-primary);
+  border-radius: 50%;
+  animation: mk-spin-slow 0.8s linear infinite;
+}
+
+.mk-spinner--sm {
+  inline-size: 1rem;
+  block-size: 1rem;
+  border-width: 2px;
+}
+
+.mk-spinner--lg {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-width: 4px;
+}
+
+.mk-panel-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 2.5rem 1rem;
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-sm);
+}
+
+.mk-page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  background: var(--mk-bg);
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-sm);
+}
+
+.mk-column-filter {
+  inline-size: 100%;
+}
+
+/* ---------- type, shape, icons: one set of rules ---------- */
+
+/* Digits take the same width in every font and place, so columns of amounts and dates line up. */
+html body {
+  font-variant-numeric: tabular-nums;
+}
+
+.pi {
+  font-weight: 400;
+  line-height: 1;
 }

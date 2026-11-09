@@ -57,6 +57,7 @@
     "allowanceTypes": "Allowance types",
     "hrPayments": "Pay salaries and dues",
     "auditLog": "Audit log",
+    "interface": "Interface",
     "setup": "First-run setup"
   },
   "actions": {
@@ -912,7 +913,9 @@
       "INVALID_STATE": "This document is no longer open for that action.",
       "ACCOUNT_NOT_POSTABLE": "A revenue line uses a group account. Choose a postable account.",
       "CREDIT_EXCEEDS_INVOICE": "The credit notes would be worth more than the invoice.",
-      "DEBIT_EXCEEDS_INVOICE": "The debit notes would be worth more than the invoice."
+      "DEBIT_EXCEEDS_INVOICE": "The debit notes would be worth more than the invoice.",
+      "EGS_UNIT_REQUIRED": "This company has more than one active ZATCA issuing unit. Choose which one issues this document.",
+      "EGS_UNIT_NOT_FOUND": "The chosen ZATCA issuing unit was not found or is not active."
     },
     "quotations": {
       "title": "Quotations",
@@ -979,6 +982,8 @@
       "fromOrder": "Invoicing what is left on order {{number}}.",
       "date": "Invoice date",
       "dueDate": "Due date",
+      "egsUnit": "ZATCA issuing unit",
+      "egsUnitPlaceholder": "Choose which unit issues this invoice",
       "submit": "Post invoice",
       "documentType": "Type",
       "allTypes": "Invoices, credit notes and debit notes",
@@ -1146,6 +1151,9 @@
     }
   },
   "shell": {
+    "profile": "Your profile",
+    "profileRole": "Role",
+    "profileCanDo": "What you can do",
     "search": "Search or jump to…",
     "searchPlaceholder": "Type a screen, a document to create, or a setting",
     "noResults": "Nothing matches that.",
@@ -1163,9 +1171,6 @@
     "expandSection": "Expand {{section}}",
     "openMenu": "Open menu",
     "breadcrumb": "You are here",
-    "density": "Row density",
-    "densityCompact": "Compact rows (click for comfortable)",
-    "densityComfortable": "Comfortable rows (click for compact)",
     "toggleTheme": "Switch light / dark",
     "designSystem": "Design system",
     "pendingCount": "{{count}} waiting for action"
@@ -1271,6 +1276,9 @@
     "dismiss": "Dismiss"
   },
   "table": {
+    "filterPlaceholder": "Filter…",
+    "copyId": "Copy ID",
+    "copied": "Copied",
     "search": "Search in this list…",
     "rowCount": "{{total}} rows",
     "columns": "Columns",
@@ -1334,6 +1342,27 @@
     "logoHint": "Shown in the side bar and at the top of invoices. A PNG with a transparent background, about 400 px wide, looks best.",
     "nameEn": "Company name (English)",
     "nameAr": "Company name (Arabic)"
+  },
+  "interfaceSettings": {
+    "title": "Interface",
+    "subtitle": "Personal display preferences, kept on this device only.",
+    "sidebarOrder": "Sidebar section order",
+    "sidebarOrderHint": "Move sections up or down to match how you work. Only you see this order.",
+    "moveUp": "Move {{section}} up",
+    "moveDown": "Move {{section}} down",
+    "resetOrder": "Reset to default order",
+    "theme": "Colour theme",
+    "themeHint": "Pick the look you like. It applies instantly and is remembered on this device only.",
+    "modeLight": "Light",
+    "modeDark": "Dark",
+    "themes": {
+      "forest": "Forest",
+      "ocean": "Ocean",
+      "sand": "Sand",
+      "plum": "Plum",
+      "night": "Night",
+      "graphite": "Graphite"
+    }
   },
   "created": {
     "title": "Saved successfully",

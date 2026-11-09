@@ -344,7 +344,7 @@
   max-width: 100%;
   padding: 0.15rem 0.5rem;
   border: 1px solid var(--erp-border);
-  border-radius: 6px;
+  border-radius: var(--mk-radius-xs);
   background: var(--erp-page-bg);
   color: var(--erp-text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
