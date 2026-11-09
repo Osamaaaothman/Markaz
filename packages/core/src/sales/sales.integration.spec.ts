@@ -247,3 +247,94 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
     await expect(quotations.get(stranger.companyId, orderId)).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+// docs/01-OPEN-DECISIONS.md: which ZATCA issuing unit (EgsUnit) a sales document belongs to. A
+// separate, isolated company so the EgsUnit count here never affects the suite above.
+describeIfDb("Sales invoices — ZATCA issuing unit (EgsUnit) resolution — real database", () => {
+  const prisma = new PrismaClient();
+  const audit = new PrismaAuditLogger(prisma);
+  const engine = new PrismaAccountingEngine(prisma, new PrismaNumberingService());
+  const mappings = new AccountMappingService(prisma, audit);
+  const taxCodes = new TaxCodeService(prisma, audit);
+  const invoices = new SalesInvoiceService(prisma, engine, mappings, audit);
+
+  const companyId = newId();
+  const actor = { id: "sales", companyId };
+  const cid = (): string => newId();
+  const today = new Date();
+  const year = today.getUTCFullYear();
+
+  let customerId: string;
+  let vat0: string;
+  let invoiceId: string;
+
+  async function makeEgsUnit(isActive: boolean): Promise<string> {
+    // uuidv7's leading characters are time-based, not random -- units created close together in
+    // this test would collide on the (companyId, serial) unique constraint if the serial used
+    // `id.slice(0, N)`; the id's own randomness is at the END, so the full id is used instead.
+    const id = newId();
+    await prisma.egsUnit.create({
+      data: { id, companyId, name: `EGS ${id}`, serial: `1-test|2-test|3-${id}`, businessCategory: "Retail", invoiceTypes: "1100", environment: "sandbox", isActive },
+    });
+    return id;
+  }
+
+  function invoice(lines: readonly { readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string }[], egsUnitId?: string) {
+    return invoices.createInvoice({ customerId, invoiceDate: today, ...(egsUnitId !== undefined ? { egsUnitId } : {}), lines }, actor, cid(), newId());
+  }
+
+  beforeAll(async () => {
+    await prisma.company.create({ data: { id: companyId, name: `Sales EGS Test ${companyId}`, defaultCurrency: "SAR" } });
+    const fiscalYear = await prisma.fiscalYear.create({
+      data: { id: newId(), companyId, name: `FY${year}-${companyId.slice(0, 6)}`, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) },
+    });
+    await prisma.fiscalPeriod.create({
+      data: { id: newId(), companyId, fiscalYearId: fiscalYear.id, periodNumber: 1, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) },
+    });
+    const make = async (code: string, name: string, type: string, normalBalance: string): Promise<string> =>
+      (await prisma.account.create({ data: { id: newId(), ref: `TEST-${code}-${companyId.slice(0, 6)}`, companyId, code, name, type, normalBalance } })).id;
+    const ar = await make("1200", "Accounts receivable", "ASSET", "DEBIT");
+    const revenue = await make("4100", "Sales", "REVENUE", "CREDIT");
+    const vat = await make("2300", "Output VAT", "LIABILITY", "CREDIT");
+    await mappings.set("ACCOUNTS_RECEIVABLE", ar, actor, cid());
+    await mappings.set("SALES_REVENUE", revenue, actor, cid());
+    await mappings.set("VAT_OUTPUT", vat, actor, cid());
+    vat0 = (await taxCodes.addSaudiDefaults(actor, cid())).find((c) => c.code === "VAT0")!.id;
+    customerId = (await prisma.party.create({ data: { id: newId(), ref: `TEST-C1-${companyId.slice(0, 6)}`, companyId, name: "Customer Co", kind: "COMPANY" } })).id;
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it("assigns no unit when the company has none yet (ordinary invoicing, unaffected)", async () => {
+    const result = await invoice([{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }]);
+    expect((await prisma.salesInvoice.findUniqueOrThrow({ where: { id: result.id } })).egsUnitId).toBeNull();
+  });
+
+  it("assigns the single active unit automatically", async () => {
+    const unitId = await makeEgsUnit(true);
+    const result = await invoice([{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }]);
+    expect((await prisma.salesInvoice.findUniqueOrThrow({ where: { id: result.id } })).egsUnitId).toBe(unitId);
+  });
+
+  it("requires an explicit choice with more than one active unit, and accepts the one chosen", async () => {
+    const second = await makeEgsUnit(true);
+    await expect(invoice([{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }])).rejects.toMatchObject({ code: "EGS_UNIT_REQUIRED" });
+    const result = await invoice([{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }], second);
+    invoiceId = result.id;
+    expect((await prisma.salesInvoice.findUniqueOrThrow({ where: { id: result.id } })).egsUnitId).toBe(second);
+  });
+
+  it("refuses a chosen unit that is not active or not this company's", async () => {
+    const inactive = await makeEgsUnit(false);
+    await expect(invoice([{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }], inactive)).rejects.toMatchObject({ code: "EGS_UNIT_NOT_FOUND" });
+    await expect(invoice([{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }], newId())).rejects.toMatchObject({ code: "EGS_UNIT_NOT_FOUND" });
+  });
+
+  it("a credit note inherits its original invoice's unit by default", async () => {
+    const note = await invoices.createCreditNote({ originalInvoiceId: invoiceId, creditDate: today, lines: [{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }] }, actor, cid(), newId());
+    const original = await prisma.salesInvoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    expect((await prisma.salesInvoice.findUniqueOrThrow({ where: { id: note.id } })).egsUnitId).toBe(original.egsUnitId);
+  });
+});

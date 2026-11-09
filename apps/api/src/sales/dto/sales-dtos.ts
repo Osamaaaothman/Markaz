@@ -107,6 +107,11 @@ export class CreateSalesInvoiceDto {
   @ValidateNested({ each: true })
   @Type(() => SalesInvoiceLineDto)
   lines!: SalesInvoiceLineDto[];
+
+  // Required only when the company has more than one active ZATCA issuing unit.
+  @IsOptional()
+  @IsString()
+  egsUnitId?: string;
 }
 
 export class CreditNoteLineDto {
@@ -143,6 +148,11 @@ export class CreateCreditNoteDto {
   @ValidateNested({ each: true })
   @Type(() => CreditNoteLineDto)
   lines!: CreditNoteLineDto[];
+
+  // Overrides the original invoice's issuing unit; usually omitted.
+  @IsOptional()
+  @IsString()
+  egsUnitId?: string;
 }
 
 export class DebitNoteLineDto {
@@ -179,6 +189,11 @@ export class CreateDebitNoteDto {
   @ValidateNested({ each: true })
   @Type(() => DebitNoteLineDto)
   lines!: DebitNoteLineDto[];
+
+  // Overrides the original invoice's issuing unit; usually omitted.
+  @IsOptional()
+  @IsString()
+  egsUnitId?: string;
 }
 
 export class QuotationsQueryDto {

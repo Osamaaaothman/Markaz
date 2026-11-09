@@ -85,6 +85,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
       case "WAREHOUSE_NOT_FOUND":
       case "ORDER_LINE_NOT_FOUND":
       case "ACCOUNT_NOT_FOUND":
+      case "EGS_UNIT_NOT_FOUND":
         throw new NotFoundException(body);
       case "INVALID_STATE":
       case "INSUFFICIENT_STOCK":
@@ -93,6 +94,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
       case "CREDIT_EXCEEDS_INVOICE":
       case "DEBIT_EXCEEDS_INVOICE":
       case "NOT_AN_INVOICE":
+      case "EGS_UNIT_REQUIRED":
         throw new ConflictException(body);
       default:
         throw new BadRequestException(body);
@@ -358,6 +360,7 @@ export class SalesController {
           invoiceDate: new Date(dto.invoiceDate),
           ...(dto.dueDate !== undefined ? { dueDate: new Date(dto.dueDate) } : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
           lines: dto.lines,
         },
         actor,
@@ -378,7 +381,13 @@ export class SalesController {
   ): Promise<SalesInvoiceResult> {
     return mapSalesErrors(
       this.invoices.createCreditNote(
-        { originalInvoiceId: id, creditDate: new Date(dto.creditDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
+        {
+          originalInvoiceId: id,
+          creditDate: new Date(dto.creditDate),
+          ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
+          lines: dto.lines,
+        },
         actor,
         correlationId,
         idempotencyKey,
@@ -397,7 +406,13 @@ export class SalesController {
   ): Promise<SalesInvoiceResult> {
     return mapSalesErrors(
       this.invoices.createDebitNote(
-        { originalInvoiceId: id, debitDate: new Date(dto.debitDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
+        {
+          originalInvoiceId: id,
+          debitDate: new Date(dto.debitDate),
+          ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
+          lines: dto.lines,
+        },
         actor,
         correlationId,
         idempotencyKey,

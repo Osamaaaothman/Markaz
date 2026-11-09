@@ -1360,6 +1360,10 @@ model SalesInvoice {
   totalCost         Decimal   @default(0) @map("total_cost") @db.Decimal(19, 4)
   journalEntryId    String    @map("journal_entry_id")
   notes             String?
+  // The ZATCA issuing unit (EGS) this document belongs to. Null means the company has no ZATCA
+  // units yet (ordinary invoicing, unaffected) or exactly one, which is assigned automatically;
+  // with more than one active unit a caller must choose explicitly (docs/01-OPEN-DECISIONS.md).
+  egsUnitId         String?   @map("egs_unit_id")
   actorId           String    @map("actor_id")
   correlationId     String    @map("correlation_id")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -1370,6 +1374,7 @@ model SalesInvoice {
   originalInvoice    SalesInvoice?       @relation("CreditNotes", fields: [originalInvoiceId], references: [id], onDelete: Restrict)
   creditNotes        SalesInvoice[]      @relation("CreditNotes")
   journalEntry       JournalEntry        @relation(fields: [journalEntryId], references: [id])
+  egsUnit            EgsUnit?            @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
   lines              SalesInvoiceLine[]
   paymentAllocations PaymentAllocation[]
   zatcaRecord        ZatcaInvoiceRecord?
@@ -1912,6 +1917,7 @@ model EgsUnit {
   credential     EgsCredential?
   chainState     EgsChainState?
   invoiceRecords ZatcaInvoiceRecord[]
+  salesInvoices  SalesInvoice[]
 
   @@unique([companyId, serial])
   @@index([companyId])

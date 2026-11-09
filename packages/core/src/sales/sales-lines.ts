@@ -24,7 +24,9 @@ export class SalesError extends Error {
       | "DEBIT_EXCEEDS_INVOICE"
       | "NOT_AN_INVOICE"
       | "NO_OPEN_PERIOD"
-      | "ZERO_DOCUMENT",
+      | "ZERO_DOCUMENT"
+      | "EGS_UNIT_NOT_FOUND"
+      | "EGS_UNIT_REQUIRED",
     message: string,
     readonly lineNumber?: number,
   ) {
@@ -120,4 +122,21 @@ export async function lockCustomer(tx: TransactionClient, companyId: string, cus
     SELECT id FROM parties WHERE id = ${customerId} AND company_id = ${companyId} AND is_active = true FOR UPDATE
   `;
   if (rows.length === 0) throw new SalesError("CUSTOMER_NOT_FOUND", "Customer not found");
+}
+
+// Which ZATCA issuing unit (EGS) a sales document belongs to (docs/01-OPEN-DECISIONS.md). A company
+// with no active units yet is unaffected (ordinary invoicing continues; the compliance pack has
+// nothing to submit until a real unit exists). Exactly one active unit is assigned automatically.
+// More than one requires an explicit choice -- never guessed, since it decides which legal entity's
+// certificate signs the document.
+export async function resolveEgsUnitId(tx: TransactionClient, companyId: string, egsUnitId: string | undefined): Promise<string | null> {
+  if (egsUnitId) {
+    const unit = await tx.egsUnit.findFirst({ where: { id: egsUnitId, companyId, isActive: true } });
+    if (!unit) throw new SalesError("EGS_UNIT_NOT_FOUND", "The chosen ZATCA issuing unit was not found or is not active");
+    return unit.id;
+  }
+  const active = await tx.egsUnit.findMany({ where: { companyId, isActive: true }, select: { id: true } });
+  if (active.length === 0) return null;
+  if (active.length === 1) return active[0]!.id;
+  throw new SalesError("EGS_UNIT_REQUIRED", "This company has more than one active ZATCA issuing unit; choose which one issues this document");
 }
