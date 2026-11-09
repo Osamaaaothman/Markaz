@@ -988,6 +988,7 @@
     "paymentsSubtitle": "المبالغ المدفوعة للموردين والفواتير المسدَّدة.",
     "newReceipt": "سند قبض جديد",
     "newPayment": "سند دفع جديد",
+    "recordPayment": "تسجيل دفعة",
     "direction": "الاتجاه",
     "allDirections": "المقبوض والمدفوع",
     "directions": {

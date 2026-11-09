@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
@@ -34,13 +34,14 @@ const trim = (v: string): string => (v.includes(".") ? v.replace(/\.?0+$/, "") :
 function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: accounts } = useChartOfAccounts();
   const create = useCreatePayment(direction);
   const [created, setCreated] = useState<{ info: CreatedInfo } | null>(null);
 
-  const [partyId, setPartyId] = useState("");
+  const [partyId, setPartyId] = useState(searchParams.get("party") ?? "");
   const [date, setDate] = useState<Date>(new Date());
   const [amount, setAmount] = useState("");
   const [cashAccountId, setCashAccountId] = useState("");

@@ -988,6 +988,7 @@
     "paymentsSubtitle": "Money paid to suppliers and the invoices settled.",
     "newReceipt": "New receipt",
     "newPayment": "New payment",
+    "recordPayment": "Record payment",
     "direction": "Direction",
     "allDirections": "Received and paid",
     "directions": {

@@ -4,10 +4,12 @@ import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
 import { Tag } from "primereact/tag";
+import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
 import { useSupplierInvoice, type SupplierInvoiceLineDetail } from "./use-invoicing";
 
@@ -16,6 +18,7 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const { can } = usePermissions();
   const { data: invoice, isPending, isError, refetch } = useSupplierInvoice(id);
 
   if (isPending) return <PageSkeleton />;
@@ -44,6 +47,7 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-page__header-actions">
           <Tag value={t(`purchasing.invoices.types.${invoice.documentType}`)} severity={isInvoice ? "info" : "warning"} />
+          {invoice.outstanding !== null && Number(invoice.outstanding) > 0 ? <PermissionButton allowed={can("supplier_payment:create")} label={t("payments.recordPayment")} icon="pi pi-wallet" outlined onClick={() => void navigate(`/payments/supplier/new?party=${invoice.supplierId}`)} /> : null}
           <JournalEntryLinkButton entryId={invoice.journalEntryId} />
         </div>
       </div>

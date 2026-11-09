@@ -132,6 +132,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "print")} />
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("credit_note:create")} label={t("sales.invoices.creditNote")} icon="pi pi-minus-circle" outlined onClick={() => setCreditOpen(true)} /> : null}
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("debit_note:create")} label={t("sales.invoices.debitNote")} icon="pi pi-plus-circle" outlined onClick={() => setDebitOpen(true)} /> : null}
+          {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("customer_receipt:create")} label={t("payments.recordPayment")} icon="pi pi-wallet" outlined onClick={() => void navigate(`/payments/receipts/new?party=${invoice.customerId}`)} /> : null}
           {invoice.originalInvoiceId ? <Button label={t("sales.invoices.openOriginal")} text onClick={() => void navigate(`/sales/invoices/${invoice.originalInvoiceId}`)} /> : null}
         </div>
       </div>
