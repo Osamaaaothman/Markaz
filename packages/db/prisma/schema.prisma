@@ -1412,10 +1412,16 @@ model Payment {
   method         String // CASH | BANK_TRANSFER | CHEQUE | CARD | OTHER
   reference      String?
   notes          String?
-  journalEntryId String   @map("journal_entry_id")
-  actorId        String   @map("actor_id")
-  correlationId  String   @map("correlation_id")
-  createdAt      DateTime @default(now()) @map("created_at")
+  journalEntryId       String    @map("journal_entry_id")
+  actorId              String    @map("actor_id")
+  correlationId        String    @map("correlation_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  // Reversal / void: a voided payment has voidedAt set and reversedByPaymentId pointing to the
+  // new reversing payment. The reversing payment has reversesPaymentId pointing back. The original
+  // journal entry and allocations are never edited — the reversal posts a new counter-entry.
+  voidedAt             DateTime? @map("voided_at")
+  reversesPaymentId    String?   @map("reverses_payment_id")
+  reversedByPaymentId  String?   @map("reversed_by_payment_id")
 
   company      Company             @relation(fields: [companyId], references: [id])
   party        Party               @relation(fields: [partyId], references: [id], onDelete: Restrict)

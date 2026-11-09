@@ -37,6 +37,9 @@ export interface PaymentDetail extends PaymentSummary {
   readonly journalEntryId: string;
   readonly allocations: readonly PaymentAllocationView[];
   readonly unallocated: string;
+  readonly voidedAt: string | null;
+  readonly reversesPaymentId: string | null;
+  readonly reversedByPaymentId: string | null;
 }
 
 interface Page<T> {
@@ -106,6 +109,20 @@ export function useCreatePayment(direction: PaymentDirection) {
           headers: { "Idempotency-Key": newId() },
         })
       ).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["payments"] });
+      void qc.invalidateQueries({ queryKey: ["salesInvoices"] });
+      void qc.invalidateQueries({ queryKey: ["supplierInvoices"] });
+      void qc.invalidateQueries({ queryKey: ["accountBalances"] });
+    },
+  });
+}
+
+export function useReversePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await apiClient.post<{ id: string; number: string; journalEntryId: string }>(`/v1/payments/${id}/reverse`, {}, { headers: { "Idempotency-Key": newId() } })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["payments"] });
       void qc.invalidateQueries({ queryKey: ["salesInvoices"] });

@@ -22,7 +22,8 @@ export class PaymentError extends Error {
       | "ALLOCATION_EXCEEDS_PAYMENT"
       | "DUPLICATE_ALLOCATION"
       | "NO_OPEN_PERIOD"
-      | "NOT_FOUND",
+      | "NOT_FOUND"
+      | "ALREADY_VOIDED",
     message: string,
   ) {
     super(message);
@@ -92,6 +93,21 @@ export interface PaymentDetail extends PaymentSummary {
   readonly allocations: readonly PaymentAllocationView[];
   // What was not set against any invoice: it stays on account for the party.
   readonly unallocated: string;
+  readonly voidedAt: string | null;
+  readonly reversesPaymentId: string | null;
+  readonly reversedByPaymentId: string | null;
+}
+
+export interface ReversePaymentInput {
+  readonly paymentId: string;
+  readonly reversalDate: Date;
+  readonly notes?: string | undefined;
+}
+
+export interface ReversePaymentResult {
+  readonly id: string;
+  readonly number: string;
+  readonly journalEntryId: string;
 }
 
 export interface PaymentListQuery {
@@ -273,7 +289,97 @@ export class PaymentService {
         return invoice ? [{ invoiceId: invoice.id, invoiceNumber: invoice.number, invoiceKind: a.salesInvoice ? ("SALES" as const) : ("SUPPLIER" as const), amount: a.amount.toFixed(4) }] : [];
       }),
       unallocated: p.amount.minus(allocated).toFixed(4),
+      voidedAt: p.voidedAt ? p.voidedAt.toISOString() : null,
+      reversesPaymentId: p.reversesPaymentId,
+      reversedByPaymentId: p.reversedByPaymentId,
     };
+  }
+
+  // Reverse a posted payment: post a counter journal entry, remove the allocations (restoring
+  // invoice outstanding), mark the original voided, and create a new reversal payment record.
+  async reverse(input: ReversePaymentInput, actor: PaymentActor, correlationId: string, idempotencyKey: string): Promise<ReversePaymentResult> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const original = await tx.payment.findFirst({ where: { id: input.paymentId, companyId: actor.companyId }, include: { allocations: true } });
+      if (!original) throw new PaymentError("NOT_FOUND", "Payment not found");
+      if (original.voidedAt !== null) throw new PaymentError("ALREADY_VOIDED", "This payment has already been reversed");
+
+      const period = await findOpenFiscalPeriod(tx, actor.companyId, input.reversalDate);
+      if (!period) throw new PaymentError("NO_OPEN_PERIOD", "No open fiscal period covers the reversal date");
+      const currency = await companyCurrency(tx, actor.companyId);
+
+      const controlKey = original.direction === "RECEIPT" ? "ACCOUNTS_RECEIVABLE" : "ACCOUNTS_PAYABLE";
+      const controlId = await this.accountMappings.resolve(tx, actor.companyId, controlKey);
+      const amount = original.amount;
+
+      // Counter-entry: flip the original journal lines
+      const journalLines: JournalLineInput[] =
+        original.direction === "RECEIPT"
+          ? [
+              { accountId: controlId, debit: amount.toFixed(4), description: "Receipt reversal" },
+              { accountId: original.cashAccountId, credit: amount.toFixed(4), description: "Receipt reversal" },
+            ]
+          : [
+              { accountId: original.cashAccountId, debit: amount.toFixed(4), description: "Payment reversal" },
+              { accountId: controlId, credit: amount.toFixed(4), description: "Payment reversal" },
+            ];
+
+      const reversalId = newId();
+      const posting = await this.engine.postEntry(
+        {
+          companyId: actor.companyId,
+          fiscalPeriodId: period.id,
+          entryDate: input.reversalDate,
+          postingDate: input.reversalDate,
+          currency,
+          lines: journalLines,
+          sourceModule: "payments",
+          sourceDocumentType: original.direction === "RECEIPT" ? "customer_receipt" : "supplier_payment",
+          sourceDocumentId: reversalId,
+          actorId: actor.id,
+          correlationId,
+          idempotencyKey,
+        },
+        tx,
+      );
+
+      const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.reversalDate);
+      const number =
+        original.direction === "RECEIPT"
+          ? await allocateDocumentNumber(tx, actor.companyId, "payment_receipt_no", "RCT", fiscalYear)
+          : await allocateDocumentNumber(tx, actor.companyId, "payment_out_no", "PAY", fiscalYear);
+
+      // Remove allocations from the original so the invoices go back to open
+      await tx.paymentAllocation.deleteMany({ where: { paymentId: original.id } });
+
+      // Mark original voided
+      await tx.payment.update({ where: { id: original.id }, data: { voidedAt: input.reversalDate, reversedByPaymentId: reversalId } });
+
+      // Create the reversal payment (zero allocations — amount fully on account to cancel out)
+      await tx.payment.create({
+        data: {
+          id: reversalId,
+          companyId: actor.companyId,
+          direction: original.direction,
+          number,
+          partyId: original.partyId,
+          paymentDate: input.reversalDate,
+          amount,
+          currency: original.currency,
+          cashAccountId: original.cashAccountId,
+          method: original.method,
+          notes: blankToNull(input.notes),
+          journalEntryId: posting.journalEntryId,
+          actorId: actor.id,
+          correlationId,
+          reversesPaymentId: original.id,
+        },
+      });
+
+      return { id: reversalId, number, journalEntryId: posting.journalEntryId };
+    });
+
+    await this.audit.log({ actorId: actor.id, action: "payment.reversed", entityType: "Payment", entityId: input.paymentId, after: { reversalId: result.id }, correlationId });
+    return result;
   }
 
   async list(companyId: string, query: PaymentListQuery): Promise<PaymentListPage> {

@@ -129,6 +129,32 @@
     "total": "الإجمالي",
     "inWords": "المبلغ كتابةً"
   },
+  "payment": {
+    "receiptTitle": "سند قبض",
+    "paymentTitle": "سند دفع",
+    "number": "الرقم",
+    "date": "التاريخ",
+    "method": "طريقة الدفع",
+    "bankAccount": "الحساب",
+    "reference": "المرجع",
+    "customer": "استُلم من",
+    "supplier": "دُفع إلى",
+    "settledInvoices": "الفواتير المسوّاة",
+    "invoiceNumber": "الفاتورة",
+    "invoiceAmount": "المبلغ",
+    "settled": "المسوّى",
+    "onAccount": "على الحساب",
+    "total": "الإجمالي",
+    "inWords": "المبلغ كتابةً",
+    "computerGenerated": "هذا مستند صادر من النظام ولا يحتاج إلى توقيع يدوي.",
+    "methods": {
+      "CASH": "نقداً",
+      "BANK_TRANSFER": "تحويل بنكي",
+      "CHEQUE": "شيك",
+      "CARD": "بطاقة",
+      "OTHER": "أخرى"
+    }
+  },
   "payslip": {
     "title": "قسيمة راتب",
     "employee": "الموظف",

@@ -1033,8 +1033,15 @@
       "CASH_ACCOUNT_INVALID": "Choose a postable asset account for the bank or cash.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
       "INVOICE_NOT_FOUND": "An invoice to settle was not found for this party.",
-      "DUPLICATE_ALLOCATION": "An invoice appears twice."
-    }
+      "DUPLICATE_ALLOCATION": "An invoice appears twice.",
+      "ALREADY_VOIDED": "This payment has already been reversed."
+    },
+    "voided": "Voided",
+    "reverse": "Reverse",
+    "reverseTitle": "Reverse payment",
+    "confirmReverse": "This will post a counter journal entry and restore any settled invoices to open. The action cannot be undone.",
+    "reversalOf": "Reversal of",
+    "viewOriginal": "View original"
   },
   "aging": {
     "title": "Ageing",
