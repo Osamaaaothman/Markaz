@@ -13,7 +13,8 @@ export function renderReportShell(params: {
   readonly documentTitle: string;
   readonly companyName: string;
   readonly title: string;
-  readonly subtitle: string;
+  // Omit or pass empty string to suppress the subtitle paragraph.
+  readonly subtitle?: string;
   readonly bodyHtml: string;
   // The company logo as a data: URI (never a remote URL: a PDF must not fetch anything). Optional.
   readonly logoDataUri?: string;
@@ -54,7 +55,7 @@ export function renderReportShell(params: {
 <body>
 <div class="company-head">${params.logoDataUri ? `<img class="company-logo" src="${escapeHtml(params.logoDataUri)}" alt="" />` : ""}<p class="company-name">${escapeHtml(params.companyName)}</p></div>
 <h1>${escapeHtml(params.title)}</h1>
-<p class="subtitle">${escapeHtml(params.subtitle)}</p>
+${params.subtitle ? `<p class="subtitle">${escapeHtml(params.subtitle)}</p>` : ""}
 ${params.bodyHtml}
 </body>
 </html>`;

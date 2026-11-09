@@ -118,6 +118,8 @@
     "customerVatNumber": "الرقم الضريبي",
     "customerCr": "السجل التجاري",
     "customerAddress": "العنوان",
+    "billTo": "فاتورة إلى",
+    "computerGenerated": "هذا مستند صادر من النظام ولا يحتاج إلى توقيع يدوي.",
     "description": "البيان",
     "quantity": "الكمية",
     "unitPrice": "سعر الوحدة",
