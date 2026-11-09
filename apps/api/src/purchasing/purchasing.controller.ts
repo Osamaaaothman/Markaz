@@ -221,6 +221,7 @@ export class PurchasingController {
         case "SUPPLIER_NOT_FOUND":
         case "WAREHOUSE_NOT_FOUND":
         case "ITEM_NOT_FOUND":
+        case "TAX_CODE_NOT_FOUND":
         case "REQUEST_NOT_FOUND":
           throw new NotFoundException(error.message);
         case "REQUEST_NOT_ACCEPTED":

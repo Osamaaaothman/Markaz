@@ -6,11 +6,13 @@ import {
   PaymentService,
   UnmappedAccountError,
   type OpenInvoiceView,
+  type PartyBalanceView,
   type PaymentDetail,
   type PaymentDirection,
   type PaymentListPage,
   type PaymentResult,
   type ReversePaymentResult,
+  type SettleResult,
 } from "@erp/core";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
@@ -21,7 +23,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { paymentToPdfHtml } from "./exports/payment-export.js";
 import { localizedCompanyName } from "../common/company-name.js";
-import { CreatePaymentDto, OpenInvoicesQueryDto, PaymentsQueryDto } from "./dto/payment-dtos.js";
+import { CreatePaymentDto, OpenInvoicesQueryDto, PartyBalanceQueryDto, PaymentsQueryDto, SettleDto } from "./dto/payment-dtos.js";
 
 async function mapPaymentErrors<T>(work: Promise<T>): Promise<T> {
   try {
@@ -38,6 +40,7 @@ async function mapPaymentErrors<T>(work: Promise<T>): Promise<T> {
         throw new NotFoundException(body);
       case "OVER_ALLOCATED":
       case "ALREADY_VOIDED":
+      case "INSUFFICIENT_BALANCE":
         throw new ConflictException(body);
       default:
         throw new BadRequestException(body);
@@ -66,6 +69,20 @@ export class PaymentsController {
   @RequirePermission("payment", "read")
   openInvoices(@CurrentUser() actor: CurrentUserPayload, @Query() query: OpenInvoicesQueryDto): Promise<OpenInvoiceView[]> {
     return this.payments.openInvoices(actor.companyId, query.partyId, query.direction);
+  }
+
+  // What a party has on account (old receipts/payments never tied to an invoice) against what it
+  // still owes — the two sides the settle screen reconciles.
+  @Get("payments/balance")
+  @RequirePermission("payment", "read")
+  balance(@CurrentUser() actor: CurrentUserPayload, @Query() query: PartyBalanceQueryDto): Promise<PartyBalanceView> {
+    return this.payments.partyBalance(actor.companyId, query.partyId, query.direction);
+  }
+
+  @Post("payments/settle")
+  @RequirePermission("payment", "create")
+  settle(@Body() dto: SettleDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<SettleResult> {
+    return mapPaymentErrors(this.payments.settle(dto, actor, correlationId));
   }
 
   @Get("payments/:id")

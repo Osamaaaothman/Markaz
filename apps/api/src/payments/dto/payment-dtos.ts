@@ -69,3 +69,25 @@ export class OpenInvoicesQueryDto {
   @IsIn(["RECEIPT", "PAYMENT"])
   direction!: PaymentDirection;
 }
+
+export class PartyBalanceQueryDto {
+  @IsString()
+  partyId!: string;
+
+  @IsIn(["RECEIPT", "PAYMENT"])
+  direction!: PaymentDirection;
+}
+
+export class SettleDto {
+  @IsString()
+  partyId!: string;
+
+  @IsIn(["RECEIPT", "PAYMENT"])
+  direction!: PaymentDirection;
+
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => PaymentAllocationDto)
+  allocations!: PaymentAllocationDto[];
+}

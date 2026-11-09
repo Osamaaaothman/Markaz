@@ -23,7 +23,8 @@ export class PaymentError extends Error {
       | "DUPLICATE_ALLOCATION"
       | "NO_OPEN_PERIOD"
       | "NOT_FOUND"
-      | "ALREADY_VOIDED",
+      | "ALREADY_VOIDED"
+      | "INSUFFICIENT_BALANCE",
     message: string,
   ) {
     super(message);
@@ -130,6 +131,36 @@ export interface OpenInvoiceView {
   readonly currency: string;
   readonly gross: string;
   readonly outstanding: string;
+}
+
+// One of the party's payments that still has money not set against any invoice.
+export interface UnallocatedPaymentView {
+  readonly id: string;
+  readonly number: string;
+  readonly paymentDate: string;
+  readonly method: PaymentMethod;
+  readonly unallocated: string;
+}
+
+export interface PartyBalanceView {
+  readonly totalUnallocated: string;
+  readonly unallocatedPayments: readonly UnallocatedPaymentView[];
+  readonly openInvoices: readonly OpenInvoiceView[];
+}
+
+export interface SettleAllocationInput {
+  readonly invoiceId: string;
+  readonly amount: string;
+}
+
+export interface SettleInput {
+  readonly partyId: string;
+  readonly direction: PaymentDirection;
+  readonly allocations: readonly SettleAllocationInput[];
+}
+
+export interface SettleResult {
+  readonly totalAllocated: string;
 }
 
 const dateOnly = (d: Date): string => d.toISOString().slice(0, 10);
@@ -426,5 +457,84 @@ export class PaymentService {
         gross: o.gross.toFixed(4),
         outstanding: o.outstanding.toFixed(4),
       }));
+  }
+
+  // What is left to reconcile for a party on one side: money already received/paid that was never
+  // tied to an invoice (an overpayment, or a deliberate on-account receipt), and invoices still
+  // owing. Settling draws on the pool below oldest-payment-first — it never re-opens a question of
+  // WHICH invoice an old receipt "belongs to", because at the ledger level it never belonged to one.
+  async partyBalance(companyId: string, partyId: string, direction: PaymentDirection): Promise<PartyBalanceView> {
+    const payments = await this.prisma.payment.findMany({
+      where: { companyId, partyId, direction, voidedAt: null },
+      include: { allocations: { select: { amount: true } } },
+      orderBy: [{ paymentDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    });
+    const unallocatedPayments = payments
+      .map((p) => ({ p, unallocated: p.amount.minus(p.allocations.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0))) }))
+      .filter((x) => x.unallocated.greaterThan(0))
+      .map((x) => ({ id: x.p.id, number: x.p.number, paymentDate: dateOnly(x.p.paymentDate), method: x.p.method as PaymentMethod, unallocated: x.unallocated.toFixed(4) }));
+    const totalUnallocated = unallocatedPayments.reduce((sum, p) => sum.plus(p.unallocated), new Prisma.Decimal(0));
+    return { totalUnallocated: totalUnallocated.toFixed(4), unallocatedPayments, openInvoices: await this.openInvoices(companyId, partyId, direction) };
+  }
+
+  // Ties existing on-account money to invoices that were open or did not exist yet when that money
+  // came in. No cash moves and nothing is posted — the receipt/payment was already posted in full;
+  // this only records which invoice(s) it is now considered to have settled, drawing on whichever of
+  // the party's unallocated payments are oldest first, splitting across more than one if needed.
+  async settle(input: SettleInput, actor: PaymentActor, correlationId: string): Promise<SettleResult> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM parties WHERE id = ${input.partyId} AND company_id = ${actor.companyId} AND is_active = true FOR UPDATE
+      `;
+      if (locked.length === 0) throw new PaymentError("PARTY_NOT_FOUND", "Party not found");
+
+      const ids = input.allocations.map((a) => a.invoiceId);
+      if (new Set(ids).size !== ids.length) throw new PaymentError("DUPLICATE_ALLOCATION", "An invoice appears twice in the allocations");
+      const side = sideOf(input.direction);
+      const open = new Map((await loadOutstanding(tx, actor.companyId, side, { ids, partyId: input.partyId })).map((o) => [o.id, o]));
+
+      const payments = await tx.payment.findMany({
+        where: { companyId: actor.companyId, partyId: input.partyId, direction: input.direction, voidedAt: null },
+        include: { allocations: { select: { amount: true } } },
+        orderBy: [{ paymentDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      });
+      const pool = payments
+        .map((p) => ({ id: p.id, remaining: p.amount.minus(p.allocations.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0))) }))
+        .filter((p) => p.remaining.greaterThan(0));
+
+      let totalAllocated = new Prisma.Decimal(0);
+      const newAllocations: { id: string; paymentId: string; amount: Prisma.Decimal; invoiceId: string }[] = [];
+      for (const request of input.allocations) {
+        const invoice = open.get(request.invoiceId);
+        if (!invoice) throw new PaymentError("INVOICE_NOT_FOUND", "An invoice to settle was not found for this party");
+        let left = new Prisma.Decimal(request.amount);
+        if (left.greaterThan(invoice.outstanding)) throw new PaymentError("OVER_ALLOCATED", "More than that invoice still owes");
+        totalAllocated = totalAllocated.plus(left);
+        for (const slot of pool) {
+          if (!left.greaterThan(0)) break;
+          if (!slot.remaining.greaterThan(0)) continue;
+          const take = left.lessThan(slot.remaining) ? left : slot.remaining;
+          newAllocations.push({ id: newId(), paymentId: slot.id, amount: take, invoiceId: request.invoiceId });
+          slot.remaining = slot.remaining.minus(take);
+          left = left.minus(take);
+        }
+        if (left.greaterThan(0)) throw new PaymentError("INSUFFICIENT_BALANCE", "Not enough unallocated balance for this party to cover the requested amount");
+      }
+
+      await tx.paymentAllocation.createMany({
+        data: newAllocations.map((a) => ({
+          id: a.id,
+          companyId: actor.companyId,
+          paymentId: a.paymentId,
+          amount: a.amount,
+          ...(side === "SALES" ? { salesInvoiceId: a.invoiceId } : { supplierInvoiceId: a.invoiceId }),
+        })),
+      });
+
+      return { totalAllocated: totalAllocated.toFixed(4) };
+    });
+
+    await this.audit.log({ actorId: actor.id, action: "payment.settled", entityType: "Party", entityId: input.partyId, after: { ...result }, correlationId });
+    return result;
   }
 }

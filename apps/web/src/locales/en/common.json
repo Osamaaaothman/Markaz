@@ -1042,7 +1042,21 @@
     "reverseTitle": "Reverse payment",
     "confirmReverse": "This will post a counter journal entry and restore any settled invoices to open. The action cannot be undone.",
     "reversalOf": "Reversal of",
-    "viewOriginal": "View original"
+    "viewOriginal": "View original",
+    "settleBalance": {
+      "title": "Settle balance",
+      "subtitle": {
+        "receipt": "Apply a customer's on-account balance to invoices that are now open.",
+        "payment": "Apply a supplier's on-account balance to invoices that are now open."
+      },
+      "available": "Available on account",
+      "noBalance": "Nothing is on account for this party.",
+      "left": "Still on account",
+      "success": "Settled. The invoices and the party's balance were updated.",
+      "errors": {
+        "INSUFFICIENT_BALANCE": "Not enough balance on account to cover that."
+      }
+    }
   },
   "aging": {
     "title": "Ageing",

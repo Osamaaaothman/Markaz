@@ -159,6 +159,33 @@ describeIfDb("Payments and allocation — real database", () => {
     ).rejects.toMatchObject({ code: "OVER_ALLOCATED" });
   });
 
+  it("settles an old on-account balance against a new invoice without posting anything new", async () => {
+    const before = await payments.partyBalance(companyId, customerId, "RECEIPT");
+    expect(before.totalUnallocated).toBe("100.0000");
+
+    const fresh = (await sales.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "New work", quantity: "1", unitPrice: "40", taxCodeId: vat0 }] }, actor, cid(), newId())).id;
+    const result = await payments.settle({ partyId: customerId, direction: "RECEIPT", allocations: [{ invoiceId: fresh, amount: "40" }] }, actor, cid());
+    expect(result.totalAllocated).toBe("40.0000");
+    expect(await outstandingOf(fresh, "SALES")).toBe("0.0000");
+
+    const after = await payments.partyBalance(companyId, customerId, "RECEIPT");
+    expect(after.totalUnallocated).toBe("60.0000");
+
+    // The invoice is now fully settled: asking for one more riyal is "more than it owes", not "not found".
+    await expect(
+      payments.settle({ partyId: customerId, direction: "RECEIPT", allocations: [{ invoiceId: fresh, amount: "1" }] }, actor, cid()),
+    ).rejects.toMatchObject({ code: "OVER_ALLOCATED" });
+  });
+
+  it("refuses to settle more than the party has on account", async () => {
+    const big = (await sales.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "Big job", quantity: "1", unitPrice: "1000", taxCodeId: vat0 }] }, actor, cid(), newId())).id;
+    await expect(
+      payments.settle({ partyId: customerId, direction: "RECEIPT", allocations: [{ invoiceId: big, amount: "1000" }] }, actor, cid()),
+    ).rejects.toMatchObject({ code: "INSUFFICIENT_BALANCE" });
+    // Nothing was allocated: the balance is exactly as the previous test left it.
+    expect((await payments.partyBalance(companyId, customerId, "RECEIPT")).totalUnallocated).toBe("60.0000");
+  });
+
   it("pays a supplier: payable down, bank out, supplier invoice part-settled", async () => {
     const ap = await balance(acc.ap!);
     const bank = await balance(acc.bank!);

@@ -52,6 +52,7 @@ import { SalesOrderDetailPage, SalesOrdersPage } from "../features/sales/SalesOr
 import { CustomerReceiptPage, SupplierPaymentPage } from "../features/payments/PaymentFormPage";
 import { PaymentDetailPage } from "../features/payments/PaymentDetailPage";
 import { ReceiptsPage, SupplierPaymentsPage } from "../features/payments/PaymentsPage";
+import { SettleReceiptsPage, SettleSupplierPage } from "../features/payments/SettlePage";
 import { AgingPage } from "../features/payments/AgingPage";
 import { PartyStatementPage } from "../features/payments/PartyStatementPage";
 import { UsersPage } from "../features/settings/UsersPage";
@@ -214,6 +215,10 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={["supplier_payment:create"]} />}>
             <Route path="/payments/supplier/new" element={<SupplierPaymentPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["payment:create"]} />}>
+            <Route path="/payments/receipts/settle" element={<SettleReceiptsPage />} />
+            <Route path="/payments/supplier/settle" element={<SettleSupplierPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/aging")} />}>
             <Route path="/accounting/aging" element={<AgingPage />} />

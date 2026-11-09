@@ -41,6 +41,13 @@ function PaymentsPage({ direction }: { direction: PaymentDirection }): React.JSX
           <p className="erp-page__subtitle">{t(subtitleKey)}</p>
         </div>
         <div className="erp-page__header-actions">
+          <PermissionButton
+            allowed={can("payment:create")}
+            label={t("payments.settleBalance.title")}
+            icon="pi pi-sync"
+            outlined
+            onClick={() => void navigate(isReceipts ? "/payments/receipts/settle" : "/payments/supplier/settle")}
+          />
           {isReceipts ? (
             <PermissionButton allowed={can("customer_receipt:create")} label={t("payments.newReceipt")} icon="pi pi-plus" onClick={() => void navigate("/payments/receipts/new")} />
           ) : (
