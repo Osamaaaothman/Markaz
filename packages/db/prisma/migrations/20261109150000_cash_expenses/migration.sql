@@ -16,3 +16,4 @@ CREATE TABLE IF NOT EXISTS "cash_expenses" (
   UNIQUE ("company_id", "number")
 );
 CREATE INDEX IF NOT EXISTS "cash_expenses_company_id_expense_date_idx" ON "cash_expenses" ("company_id", "expense_date");
+GRANT SELECT, INSERT ON "cash_expenses" TO erp_app;
