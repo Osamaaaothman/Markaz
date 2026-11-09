@@ -429,7 +429,8 @@
     "additionalNumber": "الرقم الإضافي",
     "district": "الحي",
     "city": "المدينة",
-    "postalCode": "الرمز البريدي"
+    "postalCode": "الرمز البريدي",
+    "ledgerAccount": "حساب دفتر الأستاذ"
   },
   "settings": {
     "usersRoles": {

@@ -36,6 +36,9 @@ export const ACCOUNT_MAPPING_KEYS = [
   "EMPLOYEE_ADVANCES_PARENT",
   "EMPLOYEE_SALARY_PAYABLE_PARENT",
   "EMPLOYEE_EOSB_PARENT",
+  // Per-party accounts: GROUP accounts under which a postable leaf is auto-created for each new customer/supplier.
+  "CUSTOMER_LEDGER_PARENT",
+  "SUPPLIER_LEDGER_PARENT",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
 
@@ -45,6 +48,8 @@ export const GROUP_MAPPING_KEYS: Readonly<Partial<Record<AccountMappingKey, "ASS
   EMPLOYEE_ADVANCES_PARENT: "ASSET",
   EMPLOYEE_SALARY_PAYABLE_PARENT: "LIABILITY",
   EMPLOYEE_EOSB_PARENT: "LIABILITY",
+  CUSTOMER_LEDGER_PARENT: "ASSET",
+  SUPPLIER_LEDGER_PARENT: "LIABILITY",
 };
 
 export interface AccountMappingEntry {

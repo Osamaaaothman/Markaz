@@ -120,11 +120,18 @@ export function usePartySearch(q: string) {
   });
 }
 
+export interface CreatePartyResult extends PartySummary {
+  readonly accountCode: string | null;
+}
+
 export function useCreateParty() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: CreatePartyPayload) => (await apiClient.post<PartySummary>("/v1/parties", payload)).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["parties"] }),
+    mutationFn: async (payload: CreatePartyPayload) => (await apiClient.post<CreatePartyResult>("/v1/parties", payload)).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["parties"] });
+      void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] });
+    },
   });
 }
 

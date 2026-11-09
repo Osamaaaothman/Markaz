@@ -9,7 +9,7 @@ import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import type { CreatedInfo } from "../../shared/ui/CreatedDialog";
-import { PARTY_KINDS, useCreateParty, useUpdateParty, type PartySummary } from "./use-parties";
+import { PARTY_KINDS, useCreateParty, useUpdateParty, type PartySummary, type CreatePartyResult } from "./use-parties";
 
 // Messages are translation-key suffixes under `validation.` (see LoginPage's schema).
 const partySchema = z.object({
@@ -144,7 +144,7 @@ export function PartyFormDialog({
           ...(values.postalCode.trim() ? { postalCode: values.postalCode.trim() } : {}),
         },
         {
-          onSuccess: (saved) => {
+          onSuccess: (saved: CreatePartyResult) => {
             onCreated?.({
               title: t("parties.add"),
               headline: saved.ref,
@@ -156,6 +156,7 @@ export function PartyFormDialog({
                 { label: t("created.email"), value: saved.email ?? "", ltr: true },
                 { label: t("parties.vatNumber"), value: saved.vatNumber ?? "", ltr: true },
                 { label: t("parties.commercialRegistration"), value: saved.commercialRegistration ?? "", ltr: true },
+                ...(saved.accountCode ? [{ label: t("parties.ledgerAccount"), value: saved.accountCode, ltr: true }] : []),
               ],
             });
             onHide();

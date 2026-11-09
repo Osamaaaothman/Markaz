@@ -2,6 +2,7 @@ import type { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
 import { allocateRef } from "../reference.js";
+import { provisionPartyAccount } from "./party-accounts.js";
 
 export interface PartySummary {
   readonly id: string;
@@ -22,6 +23,11 @@ export interface PartySummary {
   readonly postalCode: string | null;
   readonly countryCode: string | null;
   readonly isActive: boolean;
+}
+
+export interface CreatePartyResult extends PartySummary {
+  // Null when no parent group is mapped for this party's kind.
+  readonly accountCode: string | null;
 }
 
 // docs/07-API-RULES.md §6 list envelope, same shape as the journal entries list.
@@ -153,13 +159,14 @@ export class PartyService {
     return { data: page, pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
   }
 
-  async create(input: CreatePartyInput, actor: PartyActor, correlationId: string): Promise<PartySummary> {
+  async create(input: CreatePartyInput, actor: PartyActor, correlationId: string): Promise<CreatePartyResult> {
     const id = newId();
     // The reference is allocated in the same transaction as the insert, so a failed insert
-    // never burns a number.
-    const party = await this.prisma.$transaction(async (tx) => {
+    // never burns a number. The party ledger account is created in the same transaction so
+    // both succeed or fail together.
+    const { party, accountCode } = await this.prisma.$transaction(async (tx) => {
       const ref = await allocateRef(tx, actor.companyId, "party");
-      return tx.party.create({
+      const created = await tx.party.create({
         data: {
           id,
           ref,
@@ -184,10 +191,16 @@ export class PartyService {
         },
         select: PARTY_SELECT,
       });
+      let provisioned: { accountCode: string } | null = null;
+      if (input.kind === "CUSTOMER" || input.kind === "SUPPLIER") {
+        const result = await provisionPartyAccount(tx, actor.companyId, actor.id, id, created.name, created.nameAr, input.kind);
+        if (result) provisioned = { accountCode: result.accountCode };
+      }
+      return { party: created, accountCode: provisioned?.accountCode ?? null };
     });
 
     await this.audit.log({ actorId: actor.id, action: "party.created", entityType: "Party", entityId: id, after: party, correlationId });
-    return party;
+    return { ...party, accountCode };
   }
 
   // null when the party does not exist in the caller's company.

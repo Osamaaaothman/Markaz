@@ -429,7 +429,8 @@
     "additionalNumber": "Additional number",
     "district": "District",
     "city": "City",
-    "postalCode": "Postal code"
+    "postalCode": "Postal code",
+    "ledgerAccount": "Ledger account"
   },
   "settings": {
     "usersRoles": {
