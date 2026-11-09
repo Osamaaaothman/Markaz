@@ -11,6 +11,16 @@ export interface PartySummary {
   readonly kind: string;
   readonly phone: string | null;
   readonly email: string | null;
+  readonly vatNumber: string | null;
+  readonly commercialRegistration: string | null;
+  readonly streetName: string | null;
+  readonly additionalStreetName: string | null;
+  readonly buildingNumber: string | null;
+  readonly additionalNumber: string | null;
+  readonly district: string | null;
+  readonly city: string | null;
+  readonly postalCode: string | null;
+  readonly countryCode: string | null;
   readonly isActive: boolean;
 }
 
@@ -28,12 +38,25 @@ export interface PartyListQuery {
   readonly includeInactive?: "true" | "false" | undefined;
 }
 
+// Address + VAT/CR fields are optional everywhere: most parties (a walk-in customer, an
+// informal supplier) never need them, and the ones that do are filled in once they're known
+// rather than blocking party creation on paperwork.
 export interface CreatePartyInput {
   readonly name: string;
   readonly nameAr?: string | null | undefined;
   readonly kind: string;
   readonly phone?: string | null | undefined;
   readonly email?: string | null | undefined;
+  readonly vatNumber?: string | null | undefined;
+  readonly commercialRegistration?: string | null | undefined;
+  readonly streetName?: string | null | undefined;
+  readonly additionalStreetName?: string | null | undefined;
+  readonly buildingNumber?: string | null | undefined;
+  readonly additionalNumber?: string | null | undefined;
+  readonly district?: string | null | undefined;
+  readonly city?: string | null | undefined;
+  readonly postalCode?: string | null | undefined;
+  readonly countryCode?: string | null | undefined;
 }
 
 // A field left out (undefined) is kept; null or "" clears an optional detail.
@@ -43,6 +66,16 @@ export interface UpdatePartyInput {
   readonly kind?: string | undefined;
   readonly phone?: string | null | undefined;
   readonly email?: string | null | undefined;
+  readonly vatNumber?: string | null | undefined;
+  readonly commercialRegistration?: string | null | undefined;
+  readonly streetName?: string | null | undefined;
+  readonly additionalStreetName?: string | null | undefined;
+  readonly buildingNumber?: string | null | undefined;
+  readonly additionalNumber?: string | null | undefined;
+  readonly district?: string | null | undefined;
+  readonly city?: string | null | undefined;
+  readonly postalCode?: string | null | undefined;
+  readonly countryCode?: string | null | undefined;
   readonly isActive?: boolean | undefined;
 }
 
@@ -59,6 +92,16 @@ const PARTY_SELECT = {
   kind: true,
   phone: true,
   email: true,
+  vatNumber: true,
+  commercialRegistration: true,
+  streetName: true,
+  additionalStreetName: true,
+  buildingNumber: true,
+  additionalNumber: true,
+  district: true,
+  city: true,
+  postalCode: true,
+  countryCode: true,
   isActive: true,
 } as const;
 
@@ -126,6 +169,16 @@ export class PartyService {
           kind: input.kind,
           phone: blankToNull(input.phone),
           email: blankToNull(input.email),
+          vatNumber: blankToNull(input.vatNumber),
+          commercialRegistration: blankToNull(input.commercialRegistration),
+          streetName: blankToNull(input.streetName),
+          additionalStreetName: blankToNull(input.additionalStreetName),
+          buildingNumber: blankToNull(input.buildingNumber),
+          additionalNumber: blankToNull(input.additionalNumber),
+          district: blankToNull(input.district),
+          city: blankToNull(input.city),
+          postalCode: blankToNull(input.postalCode),
+          ...(input.countryCode !== undefined ? { countryCode: blankToNull(input.countryCode) } : {}),
           createdBy: actor.id,
           updatedBy: actor.id,
         },
@@ -150,6 +203,16 @@ export class PartyService {
         ...(input.kind !== undefined ? { kind: input.kind } : {}),
         ...(input.phone !== undefined ? { phone: blankToNull(input.phone) } : {}),
         ...(input.email !== undefined ? { email: blankToNull(input.email) } : {}),
+        ...(input.vatNumber !== undefined ? { vatNumber: blankToNull(input.vatNumber) } : {}),
+        ...(input.commercialRegistration !== undefined ? { commercialRegistration: blankToNull(input.commercialRegistration) } : {}),
+        ...(input.streetName !== undefined ? { streetName: blankToNull(input.streetName) } : {}),
+        ...(input.additionalStreetName !== undefined ? { additionalStreetName: blankToNull(input.additionalStreetName) } : {}),
+        ...(input.buildingNumber !== undefined ? { buildingNumber: blankToNull(input.buildingNumber) } : {}),
+        ...(input.additionalNumber !== undefined ? { additionalNumber: blankToNull(input.additionalNumber) } : {}),
+        ...(input.district !== undefined ? { district: blankToNull(input.district) } : {}),
+        ...(input.city !== undefined ? { city: blankToNull(input.city) } : {}),
+        ...(input.postalCode !== undefined ? { postalCode: blankToNull(input.postalCode) } : {}),
+        ...(input.countryCode !== undefined ? { countryCode: blankToNull(input.countryCode) } : {}),
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         updatedBy: actor.id,
         version: { increment: 1 },

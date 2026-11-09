@@ -27,11 +27,20 @@ export async function salesInvoiceToPdfHtml(params: {
         `<tr><td>${escapeHtml(l.description)}</td><td class="amount">${escapeHtml(Number(l.quantity).toString())}</td><td class="amount">${money(l.unitPrice)}</td><td class="amount">${money(l.netAmount)}</td><td class="amount">${escapeHtml(Number(l.taxRate).toString())}%</td><td class="amount">${money(l.taxAmount)}</td></tr>`,
     )
     .join("");
+  const addressLine = [invoice.customerStreetName, invoice.customerAdditionalStreetName, invoice.customerDistrict, invoice.customerCity, invoice.customerPostalCode]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join("، ");
+  const buildingPart = [invoice.customerBuildingNumber, invoice.customerAdditionalNumber].filter((part): part is string => Boolean(part?.trim())).join("-");
+  const fullAddress = [buildingPart, addressLine].filter(Boolean).join(" ").trim();
+
   const meta = [
     [t("salesInvoice.number"), invoice.number],
     [t("salesInvoice.date"), invoice.invoiceDate],
     ...(invoice.dueDate ? [[t("salesInvoice.dueDate"), invoice.dueDate]] : []),
     [t("salesInvoice.customer"), customer],
+    ...(invoice.customerVatNumber ? [[t("salesInvoice.customerVatNumber"), invoice.customerVatNumber]] : []),
+    ...(invoice.customerCommercialRegistration ? [[t("salesInvoice.customerCr"), invoice.customerCommercialRegistration]] : []),
+    ...(fullAddress ? [[t("salesInvoice.customerAddress"), fullAddress]] : []),
   ]
     .map(([k, v]) => `<tr><th>${escapeHtml(k ?? "")}</th><td>${escapeHtml(v ?? "")}</td></tr>`)
     .join("");

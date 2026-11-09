@@ -122,7 +122,10 @@
     "taxRate": "VAT %",
     "tax": "VAT",
     "total": "Total",
-    "inWords": "Amount in words"
+    "inWords": "Amount in words",
+    "customerVatNumber": "VAT Number",
+    "customerCr": "Commercial Registration",
+    "customerAddress": "Address"
   },
   "payslip": {
     "title": "Payslip",

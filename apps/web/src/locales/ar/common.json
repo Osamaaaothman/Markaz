@@ -419,7 +419,17 @@
     "noResults": "لا توجد جهات مطابقة.",
     "createError": "تعذّر إضافة هذه الجهة.",
     "updateError": "تعذّر حفظ هذه الجهة.",
-    "id": "المعرّف"
+    "id": "المعرّف",
+    "taxAndAddress": "البيانات الضريبية والعنوان (اختياري)",
+    "vatNumber": "الرقم الضريبي",
+    "commercialRegistration": "السجل التجاري",
+    "streetName": "الشارع",
+    "additionalStreetName": "شارع إضافي",
+    "buildingNumber": "رقم المبنى",
+    "additionalNumber": "الرقم الإضافي",
+    "district": "الحي",
+    "city": "المدينة",
+    "postalCode": "الرمز البريدي"
   },
   "settings": {
     "usersRoles": {

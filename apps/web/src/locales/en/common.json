@@ -419,7 +419,17 @@
     "noResults": "No parties match.",
     "createError": "Could not add this party.",
     "updateError": "Could not save this party.",
-    "id": "ID"
+    "id": "ID",
+    "taxAndAddress": "Tax details and address (optional)",
+    "vatNumber": "VAT number",
+    "commercialRegistration": "Commercial Registration",
+    "streetName": "Street",
+    "additionalStreetName": "Additional street",
+    "buildingNumber": "Building number",
+    "additionalNumber": "Additional number",
+    "district": "District",
+    "city": "City",
+    "postalCode": "Postal code"
   },
   "settings": {
     "usersRoles": {

@@ -83,6 +83,17 @@ export interface SalesInvoiceSummary {
 
 export interface SalesInvoiceDetail extends SalesInvoiceSummary {
   readonly notes: string | null;
+  // Printed on the PDF header, next to the customer's name (docs/08 — never required to
+  // post an invoice; a customer without these on file simply shows nothing for them).
+  readonly customerVatNumber: string | null;
+  readonly customerCommercialRegistration: string | null;
+  readonly customerStreetName: string | null;
+  readonly customerAdditionalStreetName: string | null;
+  readonly customerBuildingNumber: string | null;
+  readonly customerAdditionalNumber: string | null;
+  readonly customerDistrict: string | null;
+  readonly customerCity: string | null;
+  readonly customerPostalCode: string | null;
   readonly lines: readonly {
     readonly id: string;
     readonly description: string;
@@ -582,6 +593,15 @@ export class SalesInvoiceService {
     return {
       ...toSummary(row),
       notes: row.notes,
+      customerVatNumber: row.customer.vatNumber,
+      customerCommercialRegistration: row.customer.commercialRegistration,
+      customerStreetName: row.customer.streetName,
+      customerAdditionalStreetName: row.customer.additionalStreetName,
+      customerBuildingNumber: row.customer.buildingNumber,
+      customerAdditionalNumber: row.customer.additionalNumber,
+      customerDistrict: row.customer.district,
+      customerCity: row.customer.city,
+      customerPostalCode: row.customer.postalCode,
       lines: row.lines.map((l) => ({
         id: l.id,
         description: l.description,

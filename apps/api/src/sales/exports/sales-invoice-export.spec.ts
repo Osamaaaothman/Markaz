@@ -16,6 +16,15 @@ const invoice: SalesInvoiceDetail = {
   totalTax: "45.0000",
   totalGross: "345.0000",
   notes: null,
+  customerVatNumber: null,
+  customerCommercialRegistration: null,
+  customerStreetName: null,
+  customerAdditionalStreetName: null,
+  customerBuildingNumber: null,
+  customerAdditionalNumber: null,
+  customerDistrict: null,
+  customerCity: null,
+  customerPostalCode: null,
   lines: [{ id: "l1", description: "Cement", quantity: "3.0000", unitPrice: "100.0000", netAmount: "300.0000", taxRate: "15.0000", taxAmount: "45.0000" }],
 };
 

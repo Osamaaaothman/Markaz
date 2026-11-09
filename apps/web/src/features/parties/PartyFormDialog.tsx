@@ -18,11 +18,36 @@ const partySchema = z.object({
   kind: z.enum(PARTY_KINDS),
   phone: z.string(),
   email: z.union([z.literal(""), z.string().email("invalidEmail")]),
+  vatNumber: z.string(),
+  commercialRegistration: z.string(),
+  streetName: z.string(),
+  additionalStreetName: z.string(),
+  buildingNumber: z.string(),
+  additionalNumber: z.string(),
+  district: z.string(),
+  city: z.string(),
+  postalCode: z.string(),
   isActive: z.boolean(),
 });
 type PartyFormValues = z.infer<typeof partySchema>;
 
-const EMPTY: PartyFormValues = { name: "", nameAr: "", kind: "PERSON", phone: "", email: "", isActive: true };
+const EMPTY: PartyFormValues = {
+  name: "",
+  nameAr: "",
+  kind: "PERSON",
+  phone: "",
+  email: "",
+  vatNumber: "",
+  commercialRegistration: "",
+  streetName: "",
+  additionalStreetName: "",
+  buildingNumber: "",
+  additionalNumber: "",
+  district: "",
+  city: "",
+  postalCode: "",
+  isActive: true,
+};
 
 // One dialog for both adding (party = null) and editing a party.
 export function PartyFormDialog({
@@ -62,6 +87,15 @@ export function PartyFormDialog({
             kind: party.kind as PartyFormValues["kind"],
             phone: party.phone ?? "",
             email: party.email ?? "",
+            vatNumber: party.vatNumber ?? "",
+            commercialRegistration: party.commercialRegistration ?? "",
+            streetName: party.streetName ?? "",
+            additionalStreetName: party.additionalStreetName ?? "",
+            buildingNumber: party.buildingNumber ?? "",
+            additionalNumber: party.additionalNumber ?? "",
+            district: party.district ?? "",
+            city: party.city ?? "",
+            postalCode: party.postalCode ?? "",
             isActive: party.isActive,
           }
         : EMPTY,
@@ -78,6 +112,15 @@ export function PartyFormDialog({
           kind: values.kind,
           phone: values.phone.trim() || null,
           email: values.email.trim() || null,
+          vatNumber: values.vatNumber.trim() || null,
+          commercialRegistration: values.commercialRegistration.trim() || null,
+          streetName: values.streetName.trim() || null,
+          additionalStreetName: values.additionalStreetName.trim() || null,
+          buildingNumber: values.buildingNumber.trim() || null,
+          additionalNumber: values.additionalNumber.trim() || null,
+          district: values.district.trim() || null,
+          city: values.city.trim() || null,
+          postalCode: values.postalCode.trim() || null,
           isActive: values.isActive,
         },
         { onSuccess: onHide },
@@ -90,6 +133,15 @@ export function PartyFormDialog({
           ...(values.nameAr.trim() ? { nameAr: values.nameAr.trim() } : {}),
           ...(values.phone.trim() ? { phone: values.phone.trim() } : {}),
           ...(values.email.trim() ? { email: values.email.trim() } : {}),
+          ...(values.vatNumber.trim() ? { vatNumber: values.vatNumber.trim() } : {}),
+          ...(values.commercialRegistration.trim() ? { commercialRegistration: values.commercialRegistration.trim() } : {}),
+          ...(values.streetName.trim() ? { streetName: values.streetName.trim() } : {}),
+          ...(values.additionalStreetName.trim() ? { additionalStreetName: values.additionalStreetName.trim() } : {}),
+          ...(values.buildingNumber.trim() ? { buildingNumber: values.buildingNumber.trim() } : {}),
+          ...(values.additionalNumber.trim() ? { additionalNumber: values.additionalNumber.trim() } : {}),
+          ...(values.district.trim() ? { district: values.district.trim() } : {}),
+          ...(values.city.trim() ? { city: values.city.trim() } : {}),
+          ...(values.postalCode.trim() ? { postalCode: values.postalCode.trim() } : {}),
         },
         {
           onSuccess: (saved) => {
@@ -102,6 +154,8 @@ export function PartyFormDialog({
                 { label: t("created.type"), value: t(`parties.kinds.${saved.kind}`) },
                 { label: t("created.phone"), value: saved.phone ?? "", ltr: true },
                 { label: t("created.email"), value: saved.email ?? "", ltr: true },
+                { label: t("parties.vatNumber"), value: saved.vatNumber ?? "", ltr: true },
+                { label: t("parties.commercialRegistration"), value: saved.commercialRegistration ?? "", ltr: true },
               ],
             });
             onHide();
@@ -116,7 +170,7 @@ export function PartyFormDialog({
       header={party ? t("parties.editTitle") : t("parties.add")}
       visible={visible}
       onHide={onHide}
-      className="erp-dialog"
+      className="erp-dialog erp-dialog--wide"
       modal
     >
       <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
@@ -156,6 +210,52 @@ export function PartyFormDialog({
             <label htmlFor="partyEmail">{t("parties.email")}</label>
             <InputText id="partyEmail" type="email" dir="ltr" {...register("email")} className={errors.email ? "p-invalid" : ""} />
             {errors.email ? <small className="erp-field__error">{t("validation.invalidEmail")}</small> : null}
+          </div>
+        </div>
+
+        <h3 className="erp-form__section-title">{t("parties.taxAndAddress")}</h3>
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="partyVatNumber">{t("parties.vatNumber")}</label>
+            <InputText id="partyVatNumber" dir="ltr" {...register("vatNumber")} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="partyCr">{t("parties.commercialRegistration")}</label>
+            <InputText id="partyCr" dir="ltr" {...register("commercialRegistration")} />
+          </div>
+        </div>
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="partyStreet">{t("parties.streetName")}</label>
+            <InputText id="partyStreet" {...register("streetName")} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="partyStreet2">{t("parties.additionalStreetName")}</label>
+            <InputText id="partyStreet2" {...register("additionalStreetName")} />
+          </div>
+        </div>
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="partyBuildingNumber">{t("parties.buildingNumber")}</label>
+            <InputText id="partyBuildingNumber" dir="ltr" {...register("buildingNumber")} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="partyAdditionalNumber">{t("parties.additionalNumber")}</label>
+            <InputText id="partyAdditionalNumber" dir="ltr" {...register("additionalNumber")} />
+          </div>
+        </div>
+        <div className="erp-form__row">
+          <div className="erp-field">
+            <label htmlFor="partyDistrict">{t("parties.district")}</label>
+            <InputText id="partyDistrict" {...register("district")} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="partyCity">{t("parties.city")}</label>
+            <InputText id="partyCity" {...register("city")} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="partyPostalCode">{t("parties.postalCode")}</label>
+            <InputText id="partyPostalCode" dir="ltr" {...register("postalCode")} />
           </div>
         </div>
 

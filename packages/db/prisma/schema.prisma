@@ -382,35 +382,38 @@ model Account {
 // A person, company or employee an account can be kept for (custodian, supplier, customer...).
 // Master data, deactivated rather than deleted once referenced.
 model Party {
-  id                   String   @id
-  companyId            String   @map("company_id")
+  id                     String   @id
+  companyId              String   @map("company_id")
   // Human-readable label (PRT-000041), unique per company; the UUID `id` stays the key.
-  ref                  String
-  name                 String
-  nameAr               String?  @map("name_ar")
-  kind                 String // COMPANY | PERSON | EMPLOYEE | OTHER
-  phone                String?
-  email                String?
+  ref                    String
+  name                   String
+  nameAr                 String?  @map("name_ar")
+  kind                   String // COMPANY | PERSON | EMPLOYEE | OTHER
+  phone                  String?
+  email                  String?
   // M7 ZATCA buyer fields, needed on a standard (B2B) invoice so the customer can deduct input VAT
   // (docs/06-COMPLIANCE-PACK-RULES.md). Null for a party never invoiced as a B2B customer. Read at
   // XML-generation time, not snapshotted here: the signed/cleared XML (ZatcaInvoiceRecord) is the
   // immutable record of what was actually sent on a given invoice, same as this table's `name`
   // today is read live by SalesInvoice rather than copied onto it.
-  vatNumber            String?  @map("vat_number")
-  streetName           String?  @map("street_name")
-  additionalStreetName String?  @map("additional_street_name")
-  buildingNumber       String?  @map("building_number")
-  additionalNumber     String?  @map("additional_number")
-  district             String?
-  city                 String?
-  postalCode           String?  @map("postal_code")
-  countryCode          String?  @default("SA") @map("country_code")
-  isActive             Boolean  @default(true) @map("is_active")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
-  createdBy            String?  @map("created_by")
-  updatedBy            String?  @map("updated_by")
-  version              Int      @default(1)
+  vatNumber              String?  @map("vat_number")
+  // Commercial Registration (CR) number — not a ZATCA XML field, just shown on printed
+  // documents (quotation/order/invoice headers) alongside the VAT number and address.
+  commercialRegistration String?  @map("commercial_registration")
+  streetName             String?  @map("street_name")
+  additionalStreetName   String?  @map("additional_street_name")
+  buildingNumber         String?  @map("building_number")
+  additionalNumber       String?  @map("additional_number")
+  district               String?
+  city                   String?
+  postalCode             String?  @map("postal_code")
+  countryCode            String?  @default("SA") @map("country_code")
+  isActive               Boolean  @default(true) @map("is_active")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  createdBy              String?  @map("created_by")
+  updatedBy              String?  @map("updated_by")
+  version                Int      @default(1)
 
   company          Company           @relation(fields: [companyId], references: [id])
   accounts         Account[]

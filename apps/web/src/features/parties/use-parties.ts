@@ -13,6 +13,16 @@ export interface PartySummary {
   readonly kind: string;
   readonly phone: string | null;
   readonly email: string | null;
+  readonly vatNumber: string | null;
+  readonly commercialRegistration: string | null;
+  readonly streetName: string | null;
+  readonly additionalStreetName: string | null;
+  readonly buildingNumber: string | null;
+  readonly additionalNumber: string | null;
+  readonly district: string | null;
+  readonly city: string | null;
+  readonly postalCode: string | null;
+  readonly countryCode: string | null;
   readonly isActive: boolean;
 }
 
@@ -33,6 +43,16 @@ export interface CreatePartyPayload {
   readonly kind: PartyKind;
   readonly phone?: string;
   readonly email?: string;
+  readonly vatNumber?: string;
+  readonly commercialRegistration?: string;
+  readonly streetName?: string;
+  readonly additionalStreetName?: string;
+  readonly buildingNumber?: string;
+  readonly additionalNumber?: string;
+  readonly district?: string;
+  readonly city?: string;
+  readonly postalCode?: string;
+  readonly countryCode?: string;
 }
 
 // null clears an optional detail; a field left out is kept.
@@ -42,6 +62,16 @@ export interface UpdatePartyPayload {
   readonly kind?: PartyKind;
   readonly phone?: string | null;
   readonly email?: string | null;
+  readonly vatNumber?: string | null;
+  readonly commercialRegistration?: string | null;
+  readonly streetName?: string | null;
+  readonly additionalStreetName?: string | null;
+  readonly buildingNumber?: string | null;
+  readonly additionalNumber?: string | null;
+  readonly district?: string | null;
+  readonly city?: string | null;
+  readonly postalCode?: string | null;
+  readonly countryCode?: string | null;
   readonly isActive?: boolean;
 }
 
