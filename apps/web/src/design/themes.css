@@ -207,3 +207,18 @@ html[data-theme="primedark"] {
   --mk-radius-lg: 8px;
   --mk-radius-xl: 10px;
 }
+
+/* ---- classic: the original look. Forest colours on a light page with the dark ink sidebar ---- */
+html[data-theme="classic"] {
+  --mk-side-bg: var(--mk-ink-900);
+  --mk-side-border: rgb(255 255 255 / 0.08);
+  --mk-side-text: rgb(255 255 255 / 0.78);
+  --mk-side-text-strong: #ffffff;
+  --mk-side-muted: rgb(255 255 255 / 0.5);
+  --mk-side-hover: rgb(255 255 255 / 0.07);
+  --mk-side-tile: rgb(255 255 255 / 0.07);
+  --mk-side-active-bg: var(--mk-brand-500);
+  --mk-side-active-text: #ffffff;
+  --mk-side-card: rgb(255 255 255 / 0.05);
+  --mk-side-group: var(--mk-brand-300);
+}

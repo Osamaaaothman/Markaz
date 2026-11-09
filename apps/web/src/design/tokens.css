@@ -86,6 +86,7 @@ html[data-theme-mode="light"] {
   --mk-side-active-bg: var(--mk-primary);
   --mk-side-active-text: var(--mk-on-primary);
   --mk-side-card: var(--mk-surface-2);
+  --mk-side-group: var(--mk-primary);
 
   /* ---- charts ---- */
   --mk-chart-1: var(--mk-brand-600);

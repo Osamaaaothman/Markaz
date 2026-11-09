@@ -7,6 +7,7 @@ import { THEMES, useThemeStore, type ThemeId } from "../../shared/theme/theme-st
 // Preview colours mirror design/themes.css so a card can show its theme without applying it.
 const SWATCHES: Readonly<Record<ThemeId, { bg: string; surface: string; brand: string; accent: string }>> = {
   forest: { bg: "#f6f5f2", surface: "#ffffff", brand: "#1d583f", accent: "#b08a2e" },
+  classic: { bg: "#f6f5f2", surface: "#1b1a17", brand: "#1d583f", accent: "#b08a2e" },
   ocean: { bg: "#f2f6fb", surface: "#ffffff", brand: "#1c449f", accent: "#0e8fa8" },
   sand: { bg: "#faf5ee", surface: "#fffdf9", brand: "#9c411b", accent: "#9b8a22" },
   plum: { bg: "#f7f4fb", surface: "#ffffff", brand: "#5a2ba0", accent: "#d94a7b" },

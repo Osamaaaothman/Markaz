@@ -7,6 +7,7 @@ export type ThemeMode = "light" | "dark";
 // PrimeReact base stylesheet it sits on. The choice is local to this browser; nothing is sent to the server.
 export const THEMES = [
   { id: "forest", mode: "light" },
+  { id: "classic", mode: "light" },
   { id: "ocean", mode: "light" },
   { id: "sand", mode: "light" },
   { id: "plum", mode: "light" },

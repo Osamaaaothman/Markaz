@@ -286,7 +286,7 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   padding: 0.5rem 0.6rem;
   border: 0;
   background: none;
-  color: var(--mk-side-muted);
+  color: var(--mk-side-group);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 700;
@@ -298,7 +298,7 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 }
 
 .erp-sidebar__group:hover {
-  color: var(--mk-side-text-strong);
+  color: var(--mk-side-group);
   background: var(--mk-side-hover);
 }
 
