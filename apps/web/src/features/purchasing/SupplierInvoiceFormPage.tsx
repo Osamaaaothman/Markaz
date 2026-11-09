@@ -94,6 +94,14 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const used = new Set(lines.flatMap((l) => (l.purchaseOrderLineId ? [l.purchaseOrderLineId] : [])));
   const available = (invoiceable ?? []).filter((l) => !used.has(l.purchaseOrderLineId));
 
+  // Unique POs that still have at least one invoiceable line not yet added.
+  const availablePos = useMemo(() => {
+    const seen = new Set<string>();
+    return available
+      .filter((l) => { if (seen.has(l.purchaseOrderId)) return false; seen.add(l.purchaseOrderId); return true; })
+      .map((l) => ({ label: l.purchaseOrderNumber, value: l.purchaseOrderId }));
+  }, [available]);
+
   const addPoLine = (id: string): void => {
     const source = invoiceable?.find((l) => l.purchaseOrderLineId === id);
     if (!source) return;
@@ -110,6 +118,26 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
           unitPrice: trimZeros(source.orderPrice),
           taxCodeId: defaultTaxId,
         },
+      ]),
+    );
+  };
+
+  const importPoLines = (poId: string): void => {
+    const poLines = available.filter((l) => l.purchaseOrderId === poId);
+    if (poLines.length === 0) return;
+    edit(() =>
+      setLines((prev) => [
+        ...prev,
+        ...poLines.map((source) => ({
+          key: nextKey(),
+          kind: "PO_LINE" as const,
+          purchaseOrderLineId: source.purchaseOrderLineId,
+          accountId: "",
+          description: "",
+          quantity: trimZeros(source.invoiceableQuantity),
+          unitPrice: trimZeros(source.orderPrice),
+          taxCodeId: defaultTaxId,
+        })),
       ]),
     );
   };
@@ -204,13 +232,23 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
         <div className="erp-row-actions">
           <Dropdown
             value={null}
-            placeholder={supplierId ? t("purchasing.invoices.addOrderLine") : t("purchasing.invoices.pickSupplierFirst")}
+            placeholder={supplierId ? t("purchasing.invoices.searchPO") : t("purchasing.invoices.pickSupplierFirst")}
+            disabled={!supplierId || availablePos.length === 0}
+            onChange={(e) => importPoLines(e.value as string)}
+            options={availablePos}
+            filter
+            filterPlaceholder={t("purchasing.invoices.searchPO")}
+          />
+          <Dropdown
+            value={null}
+            placeholder={t("purchasing.invoices.addOrderLine")}
             disabled={!supplierId || available.length === 0}
             onChange={(e) => addPoLine(e.value as string)}
             options={available.map((l) => ({
               label: `${l.purchaseOrderNumber} · ${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} · ${trimZeros(l.invoiceableQuantity)} ${l.unit}`,
               value: l.purchaseOrderLineId,
             }))}
+            filter
           />
           <Button type="button" label={t("purchasing.invoices.addExpenseLine")} icon="pi pi-plus" text onClick={addExpenseLine} disabled={!supplierId} />
         </div>
