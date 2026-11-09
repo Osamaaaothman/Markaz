@@ -11,6 +11,10 @@ export async function salesInvoiceToPdfHtml(params: {
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
   readonly logoDataUri?: string | undefined;
+  readonly sellerVatNumber?: string | null;
+  readonly sellerCrNumber?: string | null;
+  readonly sellerAddress?: string | null;
+  readonly sellerPhone?: string | null;
 }): Promise<string> {
   const t = await getDocumentTranslator(params.language);
   const { invoice } = params;
@@ -34,6 +38,14 @@ export async function salesInvoiceToPdfHtml(params: {
   );
   const buildingPart = [invoice.customerBuildingNumber, invoice.customerAdditionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
   const fullAddress = [buildingPart, ...addressParts].filter(Boolean).join(sep).trim();
+
+  // Seller identity shown under the company name in the shared header shell.
+  const sellerDetailLines = [
+    ...(params.sellerVatNumber?.trim() ? [`${t("seller.vatNumber")}: ${params.sellerVatNumber}`] : []),
+    ...(params.sellerCrNumber?.trim() ? [`${t("seller.crNumber")}: ${params.sellerCrNumber}`] : []),
+    ...(params.sellerAddress?.trim() ? [params.sellerAddress] : []),
+    ...(params.sellerPhone?.trim() ? [`${t("seller.phone")}: ${params.sellerPhone}`] : []),
+  ];
 
   const metaRows = [
     [t("salesInvoice.number"), invoice.number],
@@ -78,6 +90,7 @@ export async function salesInvoiceToPdfHtml(params: {
     documentTitle: `${title} ${invoice.number}`,
     companyName: params.companyName,
     ...(params.logoDataUri ? { logoDataUri: params.logoDataUri } : {}),
+    sellerDetailLines,
     title,
     subtitle: "",
     extraCss,

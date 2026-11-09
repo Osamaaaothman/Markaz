@@ -129,6 +129,11 @@
     "total": "الإجمالي",
     "inWords": "المبلغ كتابةً"
   },
+  "seller": {
+    "vatNumber": "الرقم الضريبي",
+    "crNumber": "السجل التجاري",
+    "phone": "الهاتف"
+  },
   "payment": {
     "receiptTitle": "سند قبض",
     "paymentTitle": "سند دفع",

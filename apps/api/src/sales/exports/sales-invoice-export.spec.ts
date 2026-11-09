@@ -44,4 +44,26 @@ describe("sales invoice PDF html", () => {
     expect(html).not.toContain("<Ltd>");
     expect(html).toContain("Customer &lt;Ltd&gt;");
   });
+
+  it("renders seller VAT, CR, address and phone under the company name, omitting empty ones", async () => {
+    const html = await salesInvoiceToPdfHtml({
+      invoice,
+      language: "en",
+      companyName: "Co",
+      sellerVatNumber: "300000000000003",
+      sellerCrNumber: "1010101010",
+      sellerAddress: "1234 - King St, Olaya, Riyadh, 12345",
+      sellerPhone: "+966500000000",
+    });
+    expect(html).toContain("VAT No.: 300000000000003");
+    expect(html).toContain("CR No.: 1010101010");
+    expect(html).toContain("1234 - King St, Olaya, Riyadh, 12345");
+    expect(html).toContain("Phone: +966500000000");
+
+    const arHtml = await salesInvoiceToPdfHtml({ invoice, language: "ar", companyName: "Co", sellerVatNumber: "300000000000003", sellerPhone: null });
+    expect(arHtml).toContain("الرقم الضريبي: 300000000000003");
+    expect(arHtml).not.toContain("VAT No.");
+    expect(arHtml).not.toContain("CR No.");
+    expect(arHtml).not.toContain("Phone:");
+  });
 });

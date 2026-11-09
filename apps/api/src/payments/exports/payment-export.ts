@@ -11,6 +11,10 @@ export async function paymentToPdfHtml(params: {
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
   readonly logoDataUri?: string | undefined;
+  readonly sellerVatNumber?: string | null;
+  readonly sellerCrNumber?: string | null;
+  readonly sellerAddress?: string | null;
+  readonly sellerPhone?: string | null;
 }): Promise<string> {
   const t = await getDocumentTranslator(params.language);
   const { payment } = params;
@@ -24,6 +28,14 @@ export async function paymentToPdfHtml(params: {
     params.language === "ar" && payment.partyNameAr ? payment.partyNameAr : payment.partyName;
   const cashAccountName =
     params.language === "ar" && payment.cashAccountNameAr ? payment.cashAccountNameAr : payment.cashAccountName;
+
+  // Seller identity shown under the company name in the shared header shell.
+  const sellerDetailLines = [
+    ...(params.sellerVatNumber?.trim() ? [`${t("seller.vatNumber")}: ${params.sellerVatNumber}`] : []),
+    ...(params.sellerCrNumber?.trim() ? [`${t("seller.crNumber")}: ${params.sellerCrNumber}`] : []),
+    ...(params.sellerAddress?.trim() ? [params.sellerAddress] : []),
+    ...(params.sellerPhone?.trim() ? [`${t("seller.phone")}: ${params.sellerPhone}`] : []),
+  ];
 
   const metaRows = [
     [t("payment.number"), payment.number],
@@ -75,6 +87,7 @@ export async function paymentToPdfHtml(params: {
     documentTitle: `${title} ${payment.number}`,
     companyName: params.companyName,
     ...(params.logoDataUri ? { logoDataUri: params.logoDataUri } : {}),
+    sellerDetailLines,
     title,
     subtitle: "",
     extraCss,

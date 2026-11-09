@@ -87,10 +87,43 @@ export class PaymentsController {
     const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
     const payment = await this.payments.get(id, actor.companyId);
     if (!payment) throw new NotFoundException("Payment not found");
-    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true } });
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: actor.companyId },
+      select: {
+        name: true,
+        nameAr: true,
+        vatNumber: true,
+        crNumber: true,
+        streetName: true,
+        additionalStreetName: true,
+        buildingNumber: true,
+        additionalNumber: true,
+        district: true,
+        city: true,
+        postalCode: true,
+        phone: true,
+      },
+    });
     const logo = await this.attachments.getCompanyLogo(actor.companyId).catch(() => null);
     const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
-    const pdf = await renderHtmlToPdf(await paymentToPdfHtml({ payment, language, companyName: localizedCompanyName(company, language), logoDataUri }));
+    const addressSeparator = language === "ar" ? "، " : ", ";
+    const sellerBuildingPart = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+    const sellerAddressParts = [company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(
+      (p): p is string => Boolean(p?.trim()),
+    );
+    const sellerAddress = [sellerBuildingPart, ...sellerAddressParts].filter(Boolean).join(addressSeparator).trim() || null;
+    const pdf = await renderHtmlToPdf(
+      await paymentToPdfHtml({
+        payment,
+        language,
+        companyName: localizedCompanyName(company, language),
+        logoDataUri,
+        sellerVatNumber: company.vatNumber,
+        sellerCrNumber: company.crNumber,
+        sellerAddress,
+        sellerPhone: company.phone,
+      }),
+    );
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${payment.number}.pdf"`);
     res.send(pdf);

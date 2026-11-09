@@ -192,11 +192,44 @@ export class SalesController {
   ): Promise<void> {
     const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
     const invoice = await mapSalesErrors(this.invoices.get(actor.companyId, id));
-    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true } });
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: actor.companyId },
+      select: {
+        name: true,
+        nameAr: true,
+        vatNumber: true,
+        crNumber: true,
+        streetName: true,
+        additionalStreetName: true,
+        buildingNumber: true,
+        additionalNumber: true,
+        district: true,
+        city: true,
+        postalCode: true,
+        phone: true,
+      },
+    });
     // The company logo, embedded as a data URI so the PDF never fetches anything. No logo is not an error.
     const logo = await this.attachments.getCompanyLogo(actor.companyId).catch(() => null);
     const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
-    const pdf = await renderHtmlToPdf(await salesInvoiceToPdfHtml({ invoice, language, companyName: localizedCompanyName(company, language), logoDataUri }));
+    const addressSeparator = language === "ar" ? "، " : ", ";
+    const sellerBuildingPart = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+    const sellerAddressParts = [company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(
+      (p): p is string => Boolean(p?.trim()),
+    );
+    const sellerAddress = [sellerBuildingPart, ...sellerAddressParts].filter(Boolean).join(addressSeparator).trim() || null;
+    const pdf = await renderHtmlToPdf(
+      await salesInvoiceToPdfHtml({
+        invoice,
+        language,
+        companyName: localizedCompanyName(company, language),
+        logoDataUri,
+        sellerVatNumber: company.vatNumber,
+        sellerCrNumber: company.crNumber,
+        sellerAddress,
+        sellerPhone: company.phone,
+      }),
+    );
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${invoice.number}.pdf"`);
     res.send(pdf);
