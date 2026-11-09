@@ -33,6 +33,23 @@ model Company {
   wpsBankSarieId        String?  @map("wps_bank_sarie_id")
   wpsBankAccountNumber  String?  @map("wps_bank_account_number")
   wpsMolEstablishmentId String?  @map("wps_mol_establishment_id")
+  // M7 ZATCA seller (taxpayer) profile — docs/06-COMPLIANCE-PACK-RULES.md. `nameAr` above is the
+  // legal Arabic name ZATCA requires on every invoice regardless of UI language. Null until the
+  // first-run setup page or Settings fills them in; nothing here is seeded.
+  // Contact phone shown on documents. Not part of the ZATCA seller profile (not bound into the
+  // issued certificate), so it stays editable even after `locked` is true.
+  phone                 String?
+  vatNumber             String?  @map("vat_number") // 15 digits, starts and ends with '3'
+  crNumber              String?  @map("cr_number") // Commercial Registration number, or another ZATCA party-id scheme
+  crNumberScheme        String?  @default("CRN") @map("cr_number_scheme") // ZATCA PartyIdentificationScheme: CRN | MOM | MLS | SAG | OTH | NAT | GCC | IQA | PAS | CCN | CBI
+  streetName            String?  @map("street_name")
+  additionalStreetName  String?  @map("additional_street_name")
+  buildingNumber        String?  @map("building_number") // 4 digits
+  additionalNumber      String?  @map("additional_number") // plot/secondary number, 4 digits
+  district              String?
+  city                  String?
+  postalCode            String?  @map("postal_code") // 5 digits
+  countryCode           String?  @default("SA") @map("country_code") // ISO 3166-1 alpha-2
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
   createdBy             String?  @map("created_by")
@@ -73,6 +90,7 @@ model Company {
   salesOrders             SalesOrder[]
   salesInvoices           SalesInvoice[]
   payments                Payment[]
+  cashExpenses            CashExpense[]
   attachments             Attachment[]
   employees               Employee[]
   hrPayments              HrPayment[]
@@ -81,6 +99,9 @@ model Company {
   salaryAdvances          SalaryAdvance[]
   salaryAdvanceRepayments SalaryAdvanceRepayment[]
   endOfServiceSettlements EndOfServiceSettlement[]
+
+  // M7 compliance (ZATCA)
+  egsUnits EgsUnit[]
 
   @@map("companies")
 }
@@ -354,6 +375,8 @@ model Account {
   eosbSettlements               EndOfServiceSettlement[] @relation("EosbPayableAccount")
   hrPaymentsFrom                HrPayment[]              @relation("HrPaymentCash")
   hrPaymentItems                HrPaymentItem[]          @relation("HrPaymentItemAccount")
+  cashExpensesFrom              CashExpense[]            @relation("CashExpenseCash")
+  cashExpenseLines              CashExpense[]            @relation("CashExpenseExpenseAccount")
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -365,21 +388,38 @@ model Account {
 // A person, company or employee an account can be kept for (custodian, supplier, customer...).
 // Master data, deactivated rather than deleted once referenced.
 model Party {
-  id        String   @id
-  companyId String   @map("company_id")
+  id                     String   @id
+  companyId              String   @map("company_id")
   // Human-readable label (PRT-000041), unique per company; the UUID `id` stays the key.
-  ref       String
-  name      String
-  nameAr    String?  @map("name_ar")
-  kind      String // COMPANY | PERSON | EMPLOYEE | OTHER
-  phone     String?
-  email     String?
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  createdBy String?  @map("created_by")
-  updatedBy String?  @map("updated_by")
-  version   Int      @default(1)
+  ref                    String
+  name                   String
+  nameAr                 String?  @map("name_ar")
+  kind                   String // COMPANY | PERSON | EMPLOYEE | OTHER
+  phone                  String?
+  email                  String?
+  // M7 ZATCA buyer fields, needed on a standard (B2B) invoice so the customer can deduct input VAT
+  // (docs/06-COMPLIANCE-PACK-RULES.md). Null for a party never invoiced as a B2B customer. Read at
+  // XML-generation time, not snapshotted here: the signed/cleared XML (ZatcaInvoiceRecord) is the
+  // immutable record of what was actually sent on a given invoice, same as this table's `name`
+  // today is read live by SalesInvoice rather than copied onto it.
+  vatNumber              String?  @map("vat_number")
+  // Commercial Registration (CR) number — not a ZATCA XML field, just shown on printed
+  // documents (quotation/order/invoice headers) alongside the VAT number and address.
+  commercialRegistration String?  @map("commercial_registration")
+  streetName             String?  @map("street_name")
+  additionalStreetName   String?  @map("additional_street_name")
+  buildingNumber         String?  @map("building_number")
+  additionalNumber       String?  @map("additional_number")
+  district               String?
+  city                   String?
+  postalCode             String?  @map("postal_code")
+  countryCode            String?  @default("SA") @map("country_code")
+  isActive               Boolean  @default(true) @map("is_active")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  createdBy              String?  @map("created_by")
+  updatedBy              String?  @map("updated_by")
+  version                Int      @default(1)
 
   company          Company           @relation(fields: [companyId], references: [id])
   accounts         Account[]
@@ -459,6 +499,7 @@ model JournalEntry {
   supplierInvoices        SupplierInvoice[]
   salesInvoices           SalesInvoice[]
   payments                Payment[]
+  cashExpenses            CashExpense[]
   hrPayments              HrPayment[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
@@ -966,8 +1007,12 @@ model PurchaseOrder {
   orderDate         DateTime  @map("order_date") @db.Date
   expectedDate      DateTime? @map("expected_date") @db.Date
   currency          String
-  // Sum of quantity x unit price over the lines, before tax (tax is applied on the supplier invoice).
+  // Sum of quantity x unit price over the lines, before tax. The order still posts nothing to the
+  // ledger and approval is still evaluated on this net figure, unchanged by adding tax display below.
   totalAmount       Decimal   @map("total_amount") @db.Decimal(19, 4)
+  // Sum of each line's estimated tax (lines.taxAmount). An estimate for display only — the figure
+  // that actually posts to the ledger is computed fresh on the supplier invoice.
+  totalTax          Decimal   @default(0) @map("total_tax") @db.Decimal(19, 4)
   notes             String?
   approvalRequestId String?   @map("approval_request_id")
   // The warehouse the goods are to be received into. Required for every new order; null only on older orders.
@@ -997,18 +1042,25 @@ model PurchaseOrder {
 // receivedQuantity is the only mutable column here: it moves, under a row lock, in the same
 // transaction as the goods receipt that causes it. The database backstops 0 <= received <= ordered.
 model PurchaseOrderLine {
-  id               String  @id
-  purchaseOrderId  String  @map("purchase_order_id")
-  itemId           String  @map("item_id")
-  quantity         Decimal @db.Decimal(19, 4)
-  unitPrice        Decimal @map("unit_price") @db.Decimal(19, 4)
-  receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(19, 4)
+  id               String   @id
+  purchaseOrderId  String   @map("purchase_order_id")
+  itemId           String   @map("item_id")
+  quantity         Decimal  @db.Decimal(19, 4)
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(19, 4)
+  receivedQuantity Decimal  @default(0) @map("received_quantity") @db.Decimal(19, 4)
   // Quantity already matched to supplier invoices; never more than received (CHECK).
-  invoicedQuantity Decimal @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
-  lineNumber       Int     @map("line_number")
+  invoicedQuantity Decimal  @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
+  lineNumber       Int      @map("line_number")
+  // Estimate only: the order itself posts nothing to the ledger. The supplier invoice picks its own
+  // tax code when the line is matched (SupplierInvoiceLine.taxCodeId) and is never forced to agree
+  // with this one. Null on orders created before this column existed.
+  taxCodeId        String?  @map("tax_code_id")
+  taxRate          Decimal? @map("tax_rate") @db.Decimal(7, 4)
+  taxAmount        Decimal  @default(0) @map("tax_amount") @db.Decimal(19, 4)
 
   purchaseOrder     PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
   item              Item                  @relation(fields: [itemId], references: [id])
+  taxCode           TaxCode?              @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
   goodsReceiptLines GoodsReceiptLine[]
   goodsReturnLines  GoodsReturnLine[]
   invoiceLines      SupplierInvoiceLine[]
@@ -1038,10 +1090,11 @@ model TaxCode {
   version   Int      @default(1)
 
   company           Company               @relation(fields: [companyId], references: [id])
-  invoiceLines      SupplierInvoiceLine[]
-  quotationLines    QuotationLine[]
-  salesOrderLines   SalesOrderLine[]
-  salesInvoiceLines SalesInvoiceLine[]
+  invoiceLines        SupplierInvoiceLine[]
+  quotationLines      QuotationLine[]
+  salesOrderLines     SalesOrderLine[]
+  salesInvoiceLines   SalesInvoiceLine[]
+  purchaseOrderLines  PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@map("tax_codes")
@@ -1307,6 +1360,10 @@ model SalesInvoice {
   totalCost         Decimal   @default(0) @map("total_cost") @db.Decimal(19, 4)
   journalEntryId    String    @map("journal_entry_id")
   notes             String?
+  // The ZATCA issuing unit (EGS) this document belongs to. Null means the company has no ZATCA
+  // units yet (ordinary invoicing, unaffected) or exactly one, which is assigned automatically;
+  // with more than one active unit a caller must choose explicitly (docs/01-OPEN-DECISIONS.md).
+  egsUnitId         String?   @map("egs_unit_id")
   actorId           String    @map("actor_id")
   correlationId     String    @map("correlation_id")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -1317,8 +1374,10 @@ model SalesInvoice {
   originalInvoice    SalesInvoice?       @relation("CreditNotes", fields: [originalInvoiceId], references: [id], onDelete: Restrict)
   creditNotes        SalesInvoice[]      @relation("CreditNotes")
   journalEntry       JournalEntry        @relation(fields: [journalEntryId], references: [id])
+  egsUnit            EgsUnit?            @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
   lines              SalesInvoiceLine[]
   paymentAllocations PaymentAllocation[]
+  zatcaRecord        ZatcaInvoiceRecord?
 
   @@unique([companyId, number])
   @@index([companyId, customerId])
@@ -1377,10 +1436,16 @@ model Payment {
   method         String // CASH | BANK_TRANSFER | CHEQUE | CARD | OTHER
   reference      String?
   notes          String?
-  journalEntryId String   @map("journal_entry_id")
-  actorId        String   @map("actor_id")
-  correlationId  String   @map("correlation_id")
-  createdAt      DateTime @default(now()) @map("created_at")
+  journalEntryId       String    @map("journal_entry_id")
+  actorId              String    @map("actor_id")
+  correlationId        String    @map("correlation_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  // Reversal / void: a voided payment has voidedAt set and reversedByPaymentId pointing to the
+  // new reversing payment. The reversing payment has reversesPaymentId pointing back. The original
+  // journal entry and allocations are never edited — the reversal posts a new counter-entry.
+  voidedAt             DateTime? @map("voided_at")
+  reversesPaymentId    String?   @map("reverses_payment_id")
+  reversedByPaymentId  String?   @map("reversed_by_payment_id")
 
   company      Company             @relation(fields: [companyId], references: [id])
   party        Party               @relation(fields: [partyId], references: [id], onDelete: Restrict)
@@ -1411,6 +1476,37 @@ model PaymentAllocation {
   @@index([salesInvoiceId])
   @@index([supplierInvoiceId])
   @@map("payment_allocations")
+}
+
+// A small cash outlay straight to an expense — no supplier, no invoice, no allocation. Posts
+// Dr expense / Cr cash the moment it is recorded (docs/05-ACCOUNTING-INTEGRITY-RULES.md): there is
+// nothing to reconcile later the way a payment can be. Insert-only, like every posted document.
+model CashExpense {
+  id               String   @id
+  companyId        String   @map("company_id")
+  number           String
+  expenseDate      DateTime @map("expense_date") @db.Date
+  amount           Decimal  @db.Decimal(19, 4)
+  currency         String
+  // The petty-cash or bank account the money came out of.
+  cashAccountId    String   @map("cash_account_id")
+  // The expense account it was spent on.
+  expenseAccountId String   @map("expense_account_id")
+  description      String?
+  reference        String?
+  journalEntryId   String   @map("journal_entry_id")
+  actorId          String   @map("actor_id")
+  correlationId    String   @map("correlation_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  company        Company      @relation(fields: [companyId], references: [id])
+  cashAccount    Account      @relation("CashExpenseCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  expenseAccount Account      @relation("CashExpenseExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+
+  @@unique([companyId, number])
+  @@index([companyId, expenseDate])
+  @@map("cash_expenses")
 }
 
 // Scanned bills, receipts and supporting documents linked to a business record. Insert-only for the runtime
@@ -1782,4 +1878,147 @@ model HrPaymentItem {
 
   @@index([hrPaymentId])
   @@map("hr_payment_items")
+}
+
+// ─── M7 compliance: ZATCA (Saudi e-invoicing) ────────────────────────────────────
+// Schema only — docs/06-COMPLIANCE-PACK-RULES.md §1: the word "ZATCA" and all behaviour
+// using these tables live in packages/compliance/zatca-sa, never in core/ or modules/sales.
+// These tables exist in the shared schema because this is a single-schema monolith (every
+// business table already lives here regardless of which module owns it); only the logic
+// that reads and writes them is isolated to the compliance pack.
+
+// One e-invoice generation solution (EGS) unit: one device or till issuing invoices for one
+// branch. A single-branch company has exactly one of these.
+model EgsUnit {
+  id               String   @id
+  companyId        String   @map("company_id")
+  name             String
+  // ZATCA's required format: "1-<solution name>|2-<model>|3-<unit serial>".
+  serial           String
+  branchName       String?  @map("branch_name")
+  // The CSR's businessCategory field (free text, e.g. "Retail").
+  businessCategory String   @map("business_category")
+  // The CSR's invoice-type-name digits ZATCA calls "TSCZ": e.g. "1100" = standard + simplified.
+  invoiceTypes     String   @map("invoice_types")
+  // sandbox | simulation | production (docs/06 §0 — verify current base URLs before using).
+  environment      String
+  // Onboarding progress, advanced only by the compliance pack's onboarding flow (Phase 2):
+  // NEW -> CSR_GENERATED -> COMPLIANCE_CSID_ISSUED -> COMPLIANCE_CHECKS_PASSED ->
+  // PRODUCTION_CSID_ISSUED -> ACTIVE, or SUSPENDED at any point.
+  status           String   @default("NEW")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdBy        String?  @map("created_by")
+  updatedBy        String?  @map("updated_by")
+  version          Int      @default(1)
+
+  company        Company              @relation(fields: [companyId], references: [id])
+  credential     EgsCredential?
+  chainState     EgsChainState?
+  invoiceRecords ZatcaInvoiceRecord[]
+  salesInvoices  SalesInvoice[]
+
+  @@unique([companyId, serial])
+  @@index([companyId])
+  @@map("egs_units")
+}
+
+// One EGS unit's key material and CSID lifecycle. Updated in place as onboarding advances
+// (not an accounting record — docs/02 invariant 2 does not apply); the audit log is the
+// history of who changed it and when. Highest-sensitivity table in the system:
+// docs/09-SECURITY-RULES.md §5 — the *Ciphertext columns are envelope-encrypted blobs
+// (IV + ciphertext + auth tag), never plaintext, never selected into an API response.
+model EgsCredential {
+  id                         String    @id
+  companyId                  String    @map("company_id")
+  egsUnitId                  String    @unique @map("egs_unit_id")
+  // Not secret by itself (a public key artifact), kept for resubmission/debugging.
+  csr                        String?
+  privateKeyCiphertext       Bytes?    @map("private_key_ciphertext")
+  encryptionAlgorithm        String    @default("aes-256-gcm") @map("encryption_algorithm")
+  complianceRequestId        String?   @map("compliance_request_id")
+  complianceCsidCiphertext   Bytes?    @map("compliance_csid_ciphertext")
+  complianceSecretCiphertext Bytes?    @map("compliance_secret_ciphertext")
+  productionCsidCiphertext   Bytes?    @map("production_csid_ciphertext")
+  productionSecretCiphertext Bytes?    @map("production_secret_ciphertext")
+  // The certificate's own expiry is not secret; stored in the clear so renewal alerting
+  // (docs/06 §5, docs/14 M7 gate) can query it without decrypting anything.
+  certificateExpiresAt       DateTime? @map("certificate_expires_at")
+  status                     String    @default("NEW")
+  lastRenewalAt              DateTime? @map("last_renewal_at")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
+  version                    Int       @default(1)
+
+  egsUnit EgsUnit @relation(fields: [egsUnitId], references: [id])
+
+  @@index([companyId])
+  @@map("egs_credentials")
+}
+
+// The ICV/PIH chain for one EGS unit. The *only* two numbers that make the invoice hash
+// chain tamper-evident (docs/06 §3) — both must advance atomically with the invoice that
+// consumes them: lock this row (SELECT ... FOR UPDATE) inside the same transaction that
+// assigns an invoice its ICV and previous-invoice-hash, same discipline as
+// docs/02-ARCHITECTURE-RULES.md §3.3 numbering. `lastInvoiceHash` starts null; the first
+// invoice's previous-invoice-hash is base64(SHA-256("0")) by convention (verify against the
+// official docs before Phase 4 relies on it), computed by the chain-state service, not stored
+// as a fake "zeroth" row here.
+model EgsChainState {
+  id              String   @id
+  companyId       String   @map("company_id")
+  egsUnitId       String   @unique @map("egs_unit_id")
+  lastIcv         BigInt   @default(0) @map("last_icv")
+  lastInvoiceHash String?  @map("last_invoice_hash")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  egsUnit EgsUnit @relation(fields: [egsUnitId], references: [id])
+
+  @@index([companyId])
+  @@map("egs_chain_states")
+}
+
+// One sales invoice's ZATCA record: the UUID, the chain values it used, the generated
+// artifacts, and the full submission history. Append-only in spirit — a rejected invoice is
+// never resubmitted under the same record (docs/06 §7); a correction is a new SalesInvoice
+// (credit/debit note) with its own ZatcaInvoiceRecord. Retained >= 10 years (docs/06 §3);
+// no delete path.
+model ZatcaInvoiceRecord {
+  id                  String    @id
+  companyId           String    @map("company_id")
+  salesInvoiceId      String    @unique @map("sales_invoice_id")
+  egsUnitId           String    @map("egs_unit_id")
+  // ZATCA's own invoice UUID (distinct from this row's id and from SalesInvoice.id).
+  uuid                String    @unique
+  icv                 BigInt
+  previousInvoiceHash String    @map("previous_invoice_hash")
+  invoiceHash         String?   @map("invoice_hash")
+  signedXml           String?   @map("signed_xml")
+  // Standard (B2B) invoices only: the XML ZATCA returns after clearance, which is the
+  // version given to the buyer (docs/06 §3).
+  clearedXml          String?   @map("cleared_xml")
+  qrCode              String?   @map("qr_code")
+  // PENDING | SUBMITTING | REPORTED | CLEARED | ACCEPTED_WITH_WARNINGS | REJECTED |
+  // FAILED_RETRYABLE — mirrors ComplianceOutcome in packages/compliance/contract.
+  status              String    @default("PENDING")
+  // The full ZATCA request/response for audit (docs/06 §2) — never key material.
+  lastResponse        Json?     @map("last_response")
+  validationWarnings  Json?     @map("validation_warnings")
+  validationErrors    Json?     @map("validation_errors")
+  attempts            Int       @default(0)
+  submittedAt         DateTime? @map("submitted_at")
+  clearedAt           DateTime? @map("cleared_at")
+  reportedAt          DateTime? @map("reported_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  egsUnit      EgsUnit      @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
+  salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([egsUnitId, icv])
+  @@index([companyId])
+  @@index([egsUnitId])
+  @@index([companyId, status])
+  @@map("zatca_invoice_records")
 }

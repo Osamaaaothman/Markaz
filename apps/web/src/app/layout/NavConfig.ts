@@ -63,7 +63,9 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/sales/quotations", labelKey: "nav.quotations", icon: "pi pi-file-edit", permissions: ["quotation:read"], groupKey: "nav.groups.sales" },
   { to: "/sales/orders", labelKey: "nav.salesOrders", icon: "pi pi-shopping-bag", permissions: ["sales_order:read"], groupKey: "nav.groups.sales" },
   { to: "/sales/invoices", labelKey: "nav.salesInvoices", icon: "pi pi-file", permissions: ["sales_invoice:read"], groupKey: "nav.groups.sales" },
-  { to: "/payments", labelKey: "nav.payments", icon: "pi pi-wallet", permissions: ["payment:read"], groupKey: "nav.groups.payments" },
+  { to: "/payments/receipts", labelKey: "nav.receipts", icon: "pi pi-arrow-down-left", permissions: ["payment:read"], groupKey: "nav.groups.payments" },
+  { to: "/payments/supplier", labelKey: "nav.supplierPayments", icon: "pi pi-arrow-up-right", permissions: ["payment:read"], groupKey: "nav.groups.payments" },
+  { to: "/payments/cash-expenses", labelKey: "nav.cashExpenses", icon: "pi pi-wallet", permissions: ["cash_expense:read"], groupKey: "nav.groups.payments" },
   { to: "/documents", labelKey: "nav.documents", icon: "pi pi-paperclip", permissions: ["attachment:read"], groupKey: "nav.groups.documents" },
   { to: "/settings/company", labelKey: "nav.company", icon: "pi pi-building-columns", permissions: ["company:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users", permissions: ["user:read", "role:read"], groupKey: "nav.groups.settings" },
@@ -71,4 +73,22 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings/account-mapping", labelKey: "nav.accountMapping", icon: "pi pi-link", permissions: ["account_mapping:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/tax-codes", labelKey: "nav.taxCodes", icon: "pi pi-percentage", permissions: ["tax_code:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/zatca", labelKey: "nav.zatca", icon: "pi pi-shield", permissions: ["compliance:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/interface", labelKey: "nav.interface", icon: "pi pi-sliders-h", groupKey: "nav.groups.settings" },
 ];
+
+// Every group key, in NavConfig's own order — the default sidebar section order, and the full set a
+// user's saved groupOrder (layout-store.ts) is reordered against. A group added here later has no saved
+// position yet, so sortGroups appends it at the end rather than hiding it.
+export const SIDEBAR_GROUPS: readonly string[] = Array.from(new Set(NAV_ITEMS.map((item) => item.groupKey).filter((key): key is string => key !== undefined)));
+
+// Orders `groupKeys` by the user's saved preference, falling back to NavConfig's built-in order for any
+// key missing from `savedOrder` (new groups, or before the user has ever reordered anything).
+export function sortGroups(groupKeys: readonly string[], savedOrder: readonly string[]): string[] {
+  const rank = (key: string): number => {
+    const saved = savedOrder.indexOf(key);
+    if (saved !== -1) return saved;
+    return savedOrder.length + SIDEBAR_GROUPS.indexOf(key);
+  };
+  return [...groupKeys].sort((a, b) => rank(a) - rank(b));
+}

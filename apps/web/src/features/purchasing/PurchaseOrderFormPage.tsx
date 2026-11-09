@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -9,7 +9,7 @@ import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -18,6 +18,7 @@ import { PartyPicker } from "../accounting/PartyPicker";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { useAllItems } from "../inventory/use-items";
+import { useTaxCodes } from "./use-invoicing";
 import { useCreatePurchaseOrder, usePurchaseRequest } from "./use-purchasing";
 
 const decimal = z.string().regex(/^\d{1,15}(\.\d{1,4})?$/, "positiveAmount");
@@ -25,6 +26,7 @@ const lineSchema = z.object({
   itemId: z.string().min(1, "required"),
   quantity: decimal.refine((v) => /[1-9]/.test(v), "positiveAmount"),
   unitPrice: decimal,
+  taxCodeId: z.string().min(1, "required"),
 });
 const formSchema = z.object({
   supplierId: z.string().min(1, "required"),
@@ -35,7 +37,6 @@ const formSchema = z.object({
   lines: z.array(lineSchema).min(1, "atLeastOneLine"),
 });
 type FormValues = z.infer<typeof formSchema>;
-const EMPTY_LINE = { itemId: "", quantity: "", unitPrice: "" };
 
 // A new order, optionally started from a pending purchase request (?request=<id>): its items and
 // quantities are copied in and the buyer adds the supplier and the agreed prices.
@@ -48,9 +49,14 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: items } = useAllItems();
   const { data: warehouses } = useAllWarehouses();
-  const [created, setCreated] = useState<{ info: CreatedInfo; id: string } | null>(null);
+  const [created, setCreated] = useState<CreatedInfo | null>(null);
   const { data: request } = usePurchaseRequest(requestId);
   const create = useCreatePurchaseOrder();
+  const { data: taxCodes } = useTaxCodes(false);
+  const defaultTaxId = useMemo(() => (taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "", [taxCodes]);
+
+  // A fresh line always starts on the company's default VAT code, once tax codes have loaded.
+  const newLine = (): FormValues["lines"][number] => ({ itemId: "", quantity: "", unitPrice: "", taxCodeId: defaultTaxId });
 
   const {
     control,
@@ -58,16 +64,35 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
     handleSubmit,
     reset,
     watch,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { supplierId: "", warehouseId: "", orderDate: new Date(), expectedDate: null, notes: "", lines: [EMPTY_LINE] },
+    defaultValues: { supplierId: "", warehouseId: "", orderDate: new Date(), expectedDate: null, notes: "", lines: [newLine()] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
   const lines = watch("lines");
 
+  // Tax codes arrive after the form mounts; fill any line that still has no code so Save is not blocked.
   useEffect(() => {
-    if (!request || request.status !== "ACCEPTED") return;
+    if (!defaultTaxId) return;
+    getValues("lines").forEach((line, index) => {
+      if (!line.taxCodeId) setValue(`lines.${index}.taxCodeId`, defaultTaxId);
+    });
+  }, [defaultTaxId, getValues, setValue]);
+
+  // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
+  // right before validation runs, instead of blocking the save button or forcing a manual delete.
+  const isBlankLine = (l: FormValues["lines"][number]): boolean => l.itemId === "" && l.quantity.trim() === "" && l.unitPrice.trim() === "";
+  const submitWithCleanup = (e: React.BaseSyntheticEvent): void => {
+    const blankIndexes = watch("lines").reduce<number[]>((acc, l, i) => (isBlankLine(l) ? [...acc, i] : acc), []);
+    if (blankIndexes.length > 0) remove(blankIndexes);
+    void onSubmit(e);
+  };
+
+  useEffect(() => {
+    if (!request || request.status !== "ACCEPTED" || !defaultTaxId) return;
     reset({
       supplierId: "",
       // The request already says which warehouse the goods are for.
@@ -75,10 +100,10 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
       orderDate: new Date(),
       expectedDate: null,
       notes: request.notes ?? "",
-      lines: request.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity.replace(/\.?0+$/, ""), unitPrice: "" })),
+      lines: request.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity.replace(/\.?0+$/, ""), unitPrice: "", taxCodeId: defaultTaxId })),
     });
-    // Copy the request in once it has loaded.
-  }, [request?.id]);
+    // Copy the request in once it has loaded, and once a default VAT code is available.
+  }, [request?.id, defaultTaxId]);
 
   const total = lines.reduce((sum, line) => {
     try {
@@ -88,6 +113,20 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
     }
     return sum;
   }, Money.zero(currency));
+
+  // Client-side estimate only, matching the backend: net × rate / 100, rounded to 4 decimals.
+  const taxTotal = lines.reduce((sum, line) => {
+    try {
+      if (line.quantity && line.unitPrice && line.taxCodeId) {
+        const rate = taxCodes?.find((c) => c.id === line.taxCodeId)?.rate;
+        if (rate) return sum.add(Money.of(line.quantity, currency).multiply(line.unitPrice).multiply(rate).multiply("0.01").round(4));
+      }
+    } catch {
+      /* invalid amount — surfaced by field-level validation instead */
+    }
+    return sum;
+  }, Money.zero(currency));
+  const grossTotal = total.add(taxTotal);
 
   const onSubmit = handleSubmit((values) => {
     create.mutate(
@@ -104,19 +143,17 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
         onSuccess: (saved) => {
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
-            id: saved.id,
-            info: {
-              onOpen: () => void navigate(`/purchasing/orders/${saved.id}`),
-              title: t("purchasing.orders.newTitle"),
-              headline: saved.number,
-              rows: [
-                { label: t("created.status"), value: t(`purchasing.orderStatus.${saved.status}`) },
-                { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
-                { label: t("created.date"), value: toDateOnlyIsoString(values.orderDate), ltr: true },
-                { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
-                { label: t("created.lines"), value: String(values.lines.length) },
-              ],
-            },
+            onOpen: () => void navigate(`/purchasing/orders/${saved.id}`),
+            title: t("purchasing.orders.newTitle"),
+            headline: saved.number,
+            rows: [
+              { label: t("created.status"), value: t(`purchasing.orderStatus.${saved.status}`) },
+              { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
+              { label: t("created.date"), value: toDateOnlyIsoString(values.orderDate), ltr: true },
+              { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
+              { label: t("created.inWords"), value: tafqeetAmount(total.toDecimalString(4), currency) },
+              { label: t("created.lines"), value: String(values.lines.length) },
+            ],
           });
         },
       },
@@ -132,7 +169,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
         </div>
       </div>
 
-      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+      <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="poSupplier">{t("purchasing.supplier")}</label>
@@ -200,16 +237,46 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
                 )}
               />
               <InputText placeholder={t("purchasing.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} />
-              <InputText placeholder={t("purchasing.unitPrice")} dir="ltr" {...register(`lines.${index}.unitPrice`)} className={`erp-lines__amount${errors.lines?.[index]?.unitPrice ? " p-invalid" : ""}`} />
+              <InputText
+                placeholder={t("purchasing.unitPrice")}
+                dir="ltr"
+                {...register(`lines.${index}.unitPrice`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && index === fields.length - 1) {
+                    e.preventDefault();
+                    append(newLine());
+                  }
+                }}
+                className={`erp-lines__amount${errors.lines?.[index]?.unitPrice ? " p-invalid" : ""}`}
+              />
+              <Controller
+                control={control}
+                name={`lines.${index}.taxCodeId`}
+                render={({ field: f }) => (
+                  <Dropdown
+                    value={f.value || null}
+                    onChange={(e) => f.onChange((e.value as string | null) ?? "")}
+                    options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))}
+                    placeholder={t("purchasing.invoices.taxCode")}
+                    className={errors.lines?.[index]?.taxCodeId ? "p-invalid" : ""}
+                  />
+                )}
+              />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
           ))}
         </div>
-        <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
+        <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(newLine())} />
 
         <div className="erp-lines__totals">
           <span>
-            {t("purchasing.total")}: <strong>{formatMoney(total.toDecimalString(4), currency)}</strong>
+            {t("purchasing.invoices.net")}: <strong>{formatMoney(total.toDecimalString(4), currency)}</strong>
+          </span>
+          <span>
+            {t("purchasing.invoices.tax")}: <strong>{formatMoney(taxTotal.toDecimalString(4), currency)}</strong>
+          </span>
+          <span>
+            {t("purchasing.invoices.gross")}: <strong>{formatMoney(grossTotal.toDecimalString(4), currency)}</strong>
           </span>
         </div>
 
@@ -218,10 +285,10 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate("/purchasing/orders")} />
-          <Button type="submit" label={t("purchasing.orders.create")} loading={create.isPending} />
+          <Button type="submit" label={t("actions.save")} loading={create.isPending} />
         </div>
       </form>
-      <CreatedDialog info={created?.info ?? null} onHide={() => (created ? void navigate(`/purchasing/orders/${created.id}`) : undefined)} />
+      <CreatedDialog info={created} onHide={() => setCreated(null)} />
     </div>
   );
 }

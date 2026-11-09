@@ -146,9 +146,19 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<RequestFormValues>({ resolver: zodResolver(requestSchema), defaultValues: { warehouseId: "", notes: "", lines: [EMPTY_LINE] } });
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+
+  // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
+  // right before validation runs, instead of blocking the save button or forcing a manual delete.
+  const isBlankLine = (l: RequestFormValues["lines"][number]): boolean => l.itemId === "" && l.quantity.trim() === "";
+  const submitWithCleanup = (e: React.BaseSyntheticEvent): void => {
+    const blankIndexes = watch("lines").reduce<number[]>((acc, l, i) => (isBlankLine(l) ? [...acc, i] : acc), []);
+    if (blankIndexes.length > 0) remove(blankIndexes);
+    void onSubmit(e);
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -181,7 +191,7 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
 
   return (
     <Dialog header={t("purchasing.requests.new")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(46rem, 96vw)" }}>
-      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+      <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-field">
           <label htmlFor="prWarehouse">{t("created.warehouse")}</label>
           <Controller
@@ -223,7 +233,18 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
                   />
                 )}
               />
-              <InputText placeholder={t("purchasing.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} />
+              <InputText
+                placeholder={t("purchasing.quantity")}
+                dir="ltr"
+                {...register(`lines.${index}.quantity`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && index === fields.length - 1) {
+                    e.preventDefault();
+                    append(EMPTY_LINE);
+                  }
+                }}
+                className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`}
+              />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
           ))}
@@ -244,7 +265,7 @@ export function RequestDetailDialog({ id, onHide }: { id: string | null; onHide:
   const { t, i18n } = useTranslation();
   const { data, isPending } = usePurchaseRequest(id);
   return (
-    <Dialog header={data?.number ?? t("purchasing.requests.title")} visible={id !== null} onHide={onHide} className="erp-dialog" modal style={{ width: "min(40rem, 96vw)" }}>
+    <Dialog header={data?.number ?? t("purchasing.requests.title")} visible={id !== null} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(56rem, 96vw)" }}>
       {isPending || !data ? (
         <PageSkeleton />
       ) : (

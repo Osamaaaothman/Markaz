@@ -97,6 +97,10 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
   const currency = watch("currency");
   const lines = watch("lines");
 
+  // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
+  // right before validation runs, instead of blocking the save button or forcing a manual delete.
+  const isBlankLine = (l: FormValues["lines"][number]): boolean => l.accountId === "" && l.debit.trim() === "" && l.credit.trim() === "" && l.description.trim() === "";
+
   useEffect(() => {
     if (visible) {
       reset();
@@ -120,6 +124,12 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
     },
     { debit: Money.zero(currency || "SAR"), credit: Money.zero(currency || "SAR") },
   );
+
+  const submitWithCleanup = (e: React.BaseSyntheticEvent): void => {
+    const blankIndexes = watch("lines").reduce<number[]>((acc, l, i) => (isBlankLine(l) ? [...acc, i] : acc), []);
+    if (blankIndexes.length > 0) remove(blankIndexes);
+    void onSubmit(e);
+  };
 
   const onSubmit = handleSubmit((values) => {
     const input: PostJournalEntryInput = {
@@ -160,7 +170,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
       className="erp-dialog"
       modal
     >
-      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+      <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="fiscalPeriodId">{t("accounting.journalEntries.fiscalPeriod")}</label>
@@ -256,6 +266,12 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
               <InputText
                 placeholder={t("accounting.journalEntries.description")}
                 {...register(`lines.${index}.description`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && index === fields.length - 1) {
+                    e.preventDefault();
+                    append(EMPTY_LINE);
+                  }
+                }}
                 className="erp-lines__description"
               />
               <Button

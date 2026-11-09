@@ -43,7 +43,7 @@ export function StockIssuesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={issues} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid emptyAction={{ allowed: can("stock_issue:create"), label: t("inventory.stockIssue.title"), onClick: () => void navigate("/inventory/stock-issues/new") }} value={issues} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "11rem" }} body={(r: StockIssueSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/inventory/stock-issues/${r.id}`)}>{r.number}</button>} />
             <Column header={t("inventory.goodsReceipt.documentDate")} style={{ width: "9rem" }} body={(r: StockIssueSummary) => formatCalendarDate(r.documentDate, i18n.language)} />
             <Column header={t("inventory.stockLevels.warehouse")} body={(r: StockIssueSummary) => localizedName({ name: r.warehouseName, nameAr: r.warehouseNameAr }, i18n.language)} />

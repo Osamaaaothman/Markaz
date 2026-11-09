@@ -37,6 +37,9 @@ export interface PaymentDetail extends PaymentSummary {
   readonly journalEntryId: string;
   readonly allocations: readonly PaymentAllocationView[];
   readonly unallocated: string;
+  readonly voidedAt: string | null;
+  readonly reversesPaymentId: string | null;
+  readonly reversedByPaymentId: string | null;
 }
 
 interface Page<T> {
@@ -85,6 +88,48 @@ export function useOpenInvoices(partyId: string, direction: PaymentDirection) {
   });
 }
 
+export interface UnallocatedPayment {
+  readonly id: string;
+  readonly number: string;
+  readonly paymentDate: string;
+  readonly method: PaymentMethod;
+  readonly unallocated: string;
+}
+
+export interface PartyBalance {
+  readonly totalUnallocated: string;
+  readonly unallocatedPayments: readonly UnallocatedPayment[];
+  readonly openInvoices: readonly OpenInvoice[];
+}
+
+export function usePartyBalance(partyId: string, direction: PaymentDirection) {
+  return useQuery({
+    queryKey: ["payments", "balance", partyId, direction],
+    queryFn: async () => (await apiClient.get<PartyBalance>("/v1/payments/balance", { params: { partyId, direction } })).data,
+    enabled: partyId !== "",
+    staleTime: 0,
+  });
+}
+
+export interface SettlePayload {
+  readonly partyId: string;
+  readonly direction: PaymentDirection;
+  readonly allocations: readonly { readonly invoiceId: string; readonly amount: string }[];
+}
+
+export function useSettle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: SettlePayload) => (await apiClient.post<{ totalAllocated: string }>("/v1/payments/settle", payload)).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["payments"] });
+      void qc.invalidateQueries({ queryKey: ["salesInvoices"] });
+      void qc.invalidateQueries({ queryKey: ["supplierInvoices"] });
+      void qc.invalidateQueries({ queryKey: ["accountBalances"] });
+    },
+  });
+}
+
 export interface CreatePaymentPayload {
   readonly partyId: string;
   readonly paymentDate: string;
@@ -106,6 +151,20 @@ export function useCreatePayment(direction: PaymentDirection) {
           headers: { "Idempotency-Key": newId() },
         })
       ).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["payments"] });
+      void qc.invalidateQueries({ queryKey: ["salesInvoices"] });
+      void qc.invalidateQueries({ queryKey: ["supplierInvoices"] });
+      void qc.invalidateQueries({ queryKey: ["accountBalances"] });
+    },
+  });
+}
+
+export function useReversePayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await apiClient.post<{ id: string; number: string; journalEntryId: string }>(`/v1/payments/${id}/reverse`, {}, { headers: { "Idempotency-Key": newId() } })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["payments"] });
       void qc.invalidateQueries({ queryKey: ["salesInvoices"] });

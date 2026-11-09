@@ -82,7 +82,7 @@
 
 .mk-preview__total {
   color: #fff;
-  font-weight: 800;
+  font-weight: 700;
   opacity: 0;
   transition: opacity var(--mk-dur-slow) var(--mk-ease);
 }

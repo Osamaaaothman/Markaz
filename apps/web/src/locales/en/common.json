@@ -35,12 +35,16 @@
     "purchaseRequests": "Purchase requests",
     "purchaseOrders": "Purchase orders",
     "approvalLimits": "Approval limits",
+    "zatca": "ZATCA e-invoicing",
     "supplierInvoices": "Supplier invoices",
     "taxCodes": "Tax codes",
     "quotations": "Quotations",
     "salesOrders": "Sales orders",
     "salesInvoices": "Sales invoices",
     "payments": "Payments",
+    "receipts": "Customer Receipts",
+    "supplierPayments": "Supplier Payments",
+    "cashExpenses": "Cash Expenses",
     "aging": "Ageing",
     "partyStatement": "Customer / supplier statement",
     "stockMovements": "Stock movements",
@@ -53,6 +57,7 @@
     "allowanceTypes": "Allowance types",
     "hrPayments": "Pay salaries and dues",
     "auditLog": "Audit log",
+    "interface": "Interface",
     "setup": "First-run setup"
   },
   "actions": {
@@ -75,7 +80,8 @@
     "copied": "Copied",
     "print": "Print",
     "edit": "Edit",
-    "search": "Search"
+    "search": "Search",
+    "close": "Close"
   },
   "status": {
     "loading": "Loading…",
@@ -417,7 +423,18 @@
     "noResults": "No parties match.",
     "createError": "Could not add this party.",
     "updateError": "Could not save this party.",
-    "id": "ID"
+    "id": "ID",
+    "taxAndAddress": "Tax details and address (optional)",
+    "vatNumber": "VAT number",
+    "commercialRegistration": "Commercial Registration",
+    "streetName": "Street",
+    "additionalStreetName": "Additional street",
+    "buildingNumber": "Building number",
+    "additionalNumber": "Additional number",
+    "district": "District",
+    "city": "City",
+    "postalCode": "Postal code",
+    "ledgerAccount": "Ledger account"
   },
   "settings": {
     "usersRoles": {
@@ -745,7 +762,6 @@
       "fromRequest": "Started from request {{number}}.",
       "orderDate": "Order date",
       "expectedDate": "Expected date",
-      "create": "Create order",
       "createError": "Could not create this order.",
       "approve": "Approve",
       "reject": "Reject",
@@ -794,7 +810,8 @@
       "variance": "Price difference",
       "taxCode": "VAT code",
       "expenseAccount": "Expense account",
-      "addOrderLine": "Add a received order line",
+      "searchPO": "Import all lines from a P.O.",
+      "addOrderLine": "Add one line from a P.O.",
       "pickSupplierFirst": "Choose the supplier first",
       "addExpenseLine": "Add an expense line (no order)",
       "nothingToMatch": "Nothing received and not yet invoiced for this supplier. You can still add an expense line.",
@@ -896,7 +913,9 @@
       "INVALID_STATE": "This document is no longer open for that action.",
       "ACCOUNT_NOT_POSTABLE": "A revenue line uses a group account. Choose a postable account.",
       "CREDIT_EXCEEDS_INVOICE": "The credit notes would be worth more than the invoice.",
-      "DEBIT_EXCEEDS_INVOICE": "The debit notes would be worth more than the invoice."
+      "DEBIT_EXCEEDS_INVOICE": "The debit notes would be worth more than the invoice.",
+      "EGS_UNIT_REQUIRED": "This company has more than one active ZATCA issuing unit. Choose which one issues this document.",
+      "EGS_UNIT_NOT_FOUND": "The chosen ZATCA issuing unit was not found or is not active."
     },
     "quotations": {
       "title": "Quotations",
@@ -906,16 +925,35 @@
       "newSubtitle": "Choose the customer, then the items or services and prices offered.",
       "date": "Quotation date",
       "validUntil": "Valid until",
-      "submit": "Create quotation",
       "reject": "Mark rejected",
       "cancel": "Withdraw",
       "convert": "Convert to sales order",
       "openOrder": "Open the sales order",
+      "downloadPdf": "Download PDF",
       "status": {
         "OPEN": "Open",
         "CONVERTED": "Ordered",
         "REJECTED": "Rejected",
         "CANCELLED": "Withdrawn"
+      },
+      "email": {
+        "sendButton": "Email quotation",
+        "title": "Email this quotation",
+        "recipient": "Send to",
+        "language": "Language",
+        "languages": { "en": "English", "ar": "Arabic" },
+        "preview": "Preview",
+        "previewHint": "Preview the email before sending it — nothing is sent yet.",
+        "sendNow": "Send now",
+        "sendDisabledHint": "Preview it first.",
+        "openInGmail": "Open in Gmail",
+        "openInGmailHint": "The PDF downloads to your device — attach it in the Gmail window that opens.",
+        "gmailSubject": "Quotation {{number}}",
+        "gmailBody": "Dear {{customer}},\n\nPlease find our quotation {{number}}, total {{total}}.\nThe quotation PDF just downloaded to your device — please attach it to this email before sending.\n\nBest regards.",
+        "success": "Sent.",
+        "errors": {
+          "generic": "Could not send the email. Check the recipient and try again."
+        }
       }
     },
     "orders": {
@@ -925,7 +963,6 @@
       "newTitle": "New sales order",
       "newSubtitle": "Choose the customer, then what was ordered and the agreed prices.",
       "date": "Order date",
-      "submit": "Create order",
       "createInvoice": "Create invoice",
       "cancel": "Cancel order",
       "back": "Back",
@@ -945,6 +982,8 @@
       "fromOrder": "Invoicing what is left on order {{number}}.",
       "date": "Invoice date",
       "dueDate": "Due date",
+      "egsUnit": "ZATCA issuing unit",
+      "egsUnitPlaceholder": "Choose which unit issues this invoice",
       "submit": "Post invoice",
       "documentType": "Type",
       "allTypes": "Invoices, credit notes and debit notes",
@@ -968,8 +1007,13 @@
   "payments": {
     "title": "Payments",
     "subtitle": "Money received from customers and paid to suppliers, and the invoices each settles.",
-    "newReceipt": "Customer receipt",
-    "newPayment": "Supplier payment",
+    "receiptsTitle": "Customer Receipts",
+    "receiptsSubtitle": "Money received from customers and the invoices settled.",
+    "paymentsTitle": "Supplier Payments",
+    "paymentsSubtitle": "Money paid to suppliers and the invoices settled.",
+    "newReceipt": "New receipt",
+    "newPayment": "New payment",
+    "recordPayment": "Record payment",
     "direction": "Direction",
     "allDirections": "Received and paid",
     "directions": {
@@ -1017,7 +1061,48 @@
       "CASH_ACCOUNT_INVALID": "Choose a postable asset account for the bank or cash.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
       "INVOICE_NOT_FOUND": "An invoice to settle was not found for this party.",
-      "DUPLICATE_ALLOCATION": "An invoice appears twice."
+      "DUPLICATE_ALLOCATION": "An invoice appears twice.",
+      "ALREADY_VOIDED": "This payment has already been reversed."
+    },
+    "voided": "Voided",
+    "reverse": "Reverse",
+    "reverseTitle": "Reverse payment",
+    "confirmReverse": "This will post a counter journal entry and restore any settled invoices to open. The action cannot be undone.",
+    "reversalOf": "Reversal of",
+    "viewOriginal": "View original",
+    "settleBalance": {
+      "title": "Settle balance",
+      "subtitle": {
+        "receipt": "Apply a customer's on-account balance to invoices that are now open.",
+        "payment": "Apply a supplier's on-account balance to invoices that are now open."
+      },
+      "available": "Available on account",
+      "noBalance": "Nothing is on account for this party.",
+      "left": "Still on account",
+      "success": "Settled. The invoices and the party's balance were updated.",
+      "errors": {
+        "INSUFFICIENT_BALANCE": "Not enough balance on account to cover that."
+      }
+    }
+  },
+  "cashExpenses": {
+    "title": "Cash Expenses",
+    "subtitle": "Small cash outlays straight to an expense — no supplier, no invoice.",
+    "new": "New cash expense",
+    "newTitle": "New cash expense",
+    "newSubtitle": "Pick where the money came from and what it was spent on.",
+    "date": "Date",
+    "cashAccount": "Cash / bank account",
+    "expenseAccount": "Expense account",
+    "pickExpenseAccount": "Choose the expense account",
+    "description": "Description",
+    "errors": {
+      "CASH_ACCOUNT_NOT_FOUND": "The cash or bank account was not found.",
+      "CASH_ACCOUNT_INVALID": "Choose a postable asset account for the cash or bank.",
+      "EXPENSE_ACCOUNT_NOT_FOUND": "The expense account was not found.",
+      "EXPENSE_ACCOUNT_INVALID": "Choose a postable expense account.",
+      "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+      "generic": "Something went wrong. Please try again."
     }
   },
   "aging": {
@@ -1066,6 +1151,9 @@
     }
   },
   "shell": {
+    "profile": "Your profile",
+    "profileRole": "Role",
+    "profileCanDo": "What you can do",
     "search": "Search or jump to…",
     "searchPlaceholder": "Type a screen, a document to create, or a setting",
     "noResults": "Nothing matches that.",
@@ -1083,9 +1171,6 @@
     "expandSection": "Expand {{section}}",
     "openMenu": "Open menu",
     "breadcrumb": "You are here",
-    "density": "Row density",
-    "densityCompact": "Compact rows (click for comfortable)",
-    "densityComfortable": "Comfortable rows (click for compact)",
     "toggleTheme": "Switch light / dark",
     "designSystem": "Design system",
     "pendingCount": "{{count}} waiting for action"
@@ -1191,6 +1276,9 @@
     "dismiss": "Dismiss"
   },
   "table": {
+    "filterPlaceholder": "Filter…",
+    "copyId": "Copy ID",
+    "copied": "Copied",
     "search": "Search in this list…",
     "rowCount": "{{total}} rows",
     "columns": "Columns",
@@ -1255,6 +1343,27 @@
     "nameEn": "Company name (English)",
     "nameAr": "Company name (Arabic)"
   },
+  "interfaceSettings": {
+    "title": "Interface",
+    "subtitle": "Personal display preferences, kept on this device only.",
+    "sidebarOrder": "Sidebar section order",
+    "sidebarOrderHint": "Move sections up or down to match how you work. Only you see this order.",
+    "moveUp": "Move {{section}} up",
+    "moveDown": "Move {{section}} down",
+    "resetOrder": "Reset to default order",
+    "theme": "Colour theme",
+    "themeHint": "Pick the look you like. It applies instantly and is remembered on this device only.",
+    "modeLight": "Light",
+    "modeDark": "Dark",
+    "themes": {
+      "forest": "Forest",
+      "ocean": "Ocean",
+      "sand": "Sand",
+      "plum": "Plum",
+      "night": "Night",
+      "graphite": "Graphite"
+    }
+  },
   "created": {
     "title": "Saved successfully",
     "ok": "OK",
@@ -1294,7 +1403,9 @@
     "tax": "Tax",
     "gross": "Gross",
     "permissions": "Permissions",
-    "nameAr": "Arabic name"
+    "nameAr": "Arabic name",
+    "open": "Open",
+    "inWords": "Amount in words"
   },
   "hr": {
     "employees": {
@@ -1541,6 +1652,116 @@
     "correlation": "Request id",
     "before": "Before",
     "after": "After"
+  },
+  "compliance": {
+    "title": "ZATCA e-invoicing",
+    "subtitle": "The seller profile, EGS devices and their onboarding with ZATCA's e-invoicing platform.",
+    "environment": {
+      "sandbox": "Sandbox",
+      "simulation": "Simulation",
+      "production": "Production"
+    },
+    "sellerProfile": {
+      "title": "Seller profile",
+      "locked": "Locked by an issued certificate",
+      "lockedHint": "A certificate has already been issued for this profile. Most fields can no longer be changed here.",
+      "incomplete": "Before onboarding can start, fill in: {{fields}}",
+      "saveError": "Could not save the seller profile.",
+      "nameAr": "Legal name (Arabic)",
+      "vatNumber": "VAT number",
+      "crNumber": "CR number",
+      "crNumberScheme": "CR scheme",
+      "crNumberSchemePlaceholder": "Choose a scheme",
+      "address": "Address",
+      "streetName": "Street",
+      "buildingNumber": "Building number",
+      "district": "District",
+      "city": "City",
+      "postalCode": "Postal code",
+      "countryCode": "Country code",
+      "phone": "Phone"
+    },
+    "egsUnits": {
+      "title": "EGS devices",
+      "add": "Add device",
+      "empty": "No EGS devices yet.",
+      "needsProfile": "Complete the seller profile above before adding a device.",
+      "name": "Name",
+      "branch": "Branch",
+      "status": "Status",
+      "certificate": "Certificate",
+      "manage": "Manage",
+      "businessCategory": "Business category",
+      "businessCategoryPlaceholder": "e.g. Retail, Services",
+      "invoiceTypes": "Invoice types issued",
+      "invoiceTypesStandardAndSimplified": "Standard and simplified",
+      "invoiceTypesStandardOnly": "Standard only (B2B)",
+      "invoiceTypesSimplifiedOnly": "Simplified only (B2C)",
+      "createError": "Could not create the EGS device."
+    },
+    "egsStatus": {
+      "NEW": "Not onboarded",
+      "CSR_GENERATED": "CSR generated",
+      "COMPLIANCE_CSID_ISSUED": "Compliance certificate issued",
+      "COMPLIANCE_CHECKS_PASSED": "Compliance checks passed",
+      "PRODUCTION_CSID_ISSUED": "Production certificate issued",
+      "ACTIVE": "Active"
+    },
+    "expiry": {
+      "OK": "Valid ({{days}} days left)",
+      "EXPIRING_SOON": "Expires soon ({{days}} days left)",
+      "EXPIRED": "Expired"
+    },
+    "onboarding": {
+      "title": "Onboarding",
+      "titleFor": "Onboarding — {{name}}",
+      "otp": "OTP",
+      "otpPlaceholder": "The one-time code from the Fatoora portal",
+      "requestError": "The request failed before ZATCA could respond. Check the server configuration and try again.",
+      "step1": "1. Request compliance certificate",
+      "step2": "2. Run compliance checks",
+      "step3": "3. Request production certificate",
+      "renew": "Renew certificate",
+      "active": "This device is active and issuing invoices.",
+      "hint": {
+        "NEW": "Enter the OTP from the Fatoora developer portal to request a compliance certificate.",
+        "CSR_GENERATED": "Enter the OTP from the Fatoora developer portal to request a compliance certificate.",
+        "COMPLIANCE_CSID_ISSUED": "The compliance certificate is issued. Run the compliance checks next — every required sample document is tried, and all must pass.",
+        "COMPLIANCE_CHECKS_PASSED": "All compliance checks passed. Request the production certificate to activate this device.",
+        "default": "Follow the steps below to onboard this device with ZATCA."
+      },
+      "steps": {
+        "COMPLIANCE_CSID": "Compliance certificate",
+        "COMPLIANCE_CHECKS": "Compliance checks",
+        "PRODUCTION_CSID": "Production certificate",
+        "RENEWAL": "Renewal"
+      }
+    },
+    "complianceSamples": {
+      "STANDARD_INVOICE": "Standard invoice",
+      "STANDARD_CREDIT_NOTE": "Standard credit note",
+      "STANDARD_DEBIT_NOTE": "Standard debit note",
+      "SIMPLIFIED_INVOICE": "Simplified invoice",
+      "SIMPLIFIED_CREDIT_NOTE": "Simplified credit note",
+      "SIMPLIFIED_DEBIT_NOTE": "Simplified debit note"
+    },
+    "invoicePanel": {
+      "title": "ZATCA status",
+      "downloadSigned": "Download signed XML",
+      "downloadCleared": "Download cleared XML",
+      "resubmit": "Resubmit",
+      "resubmitError": "Could not request a resubmission."
+    },
+    "invoiceStatus": {
+      "PENDING": "Pending",
+      "SUBMITTING": "Submitting",
+      "REPORTED": "Reported",
+      "CLEARED": "Cleared",
+      "WARNING": "Cleared with warnings",
+      "REJECTED": "Rejected",
+      "FAILED": "Failed",
+      "FAILED_RETRYABLE": "Failed, will retry"
+    }
   },
   "setup": {
     "title": "First-run setup",

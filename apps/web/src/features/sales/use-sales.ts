@@ -42,6 +42,7 @@ export interface QuotationSummary {
   readonly customerId: string;
   readonly customerName: string;
   readonly customerNameAr: string | null;
+  readonly customerEmail: string | null;
   readonly quotationDate: string;
   readonly validUntil: string | null;
   readonly currency: string;
@@ -102,6 +103,24 @@ export function useQuotationAction(id: string, action: "reject" | "cancel" | "co
       void qc.invalidateQueries({ queryKey: ["quotations"] });
       void qc.invalidateQueries({ queryKey: ["salesOrders"] });
     },
+  });
+}
+
+export interface QuotationEmailPreview {
+  readonly html: string;
+  readonly subject: string;
+  readonly defaultRecipient: string | null;
+}
+
+export function usePreviewQuotationEmail(id: string) {
+  return useMutation({
+    mutationFn: async (language: "en" | "ar") => (await apiClient.post<QuotationEmailPreview>(`/v1/quotations/${id}/email/preview`, { language })).data,
+  });
+}
+
+export function useSendQuotationEmail(id: string) {
+  return useMutation({
+    mutationFn: async (payload: { to: string; language: "en" | "ar" }) => (await apiClient.post<{ sentAt: string }>(`/v1/quotations/${id}/email/send`, payload)).data,
   });
 }
 
@@ -236,6 +255,8 @@ export interface CreateSalesInvoicePayload {
   readonly dueDate?: string;
   readonly notes?: string;
   readonly lines: readonly SalesLinePayload[];
+  // Required only when the company has more than one active ZATCA issuing unit.
+  readonly egsUnitId?: string;
 }
 
 function invalidateAfterPosting(qc: ReturnType<typeof useQueryClient>): void {

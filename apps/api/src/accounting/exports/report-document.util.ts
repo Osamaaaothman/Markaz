@@ -13,10 +13,13 @@ export function renderReportShell(params: {
   readonly documentTitle: string;
   readonly companyName: string;
   readonly title: string;
-  readonly subtitle: string;
+  // Omit or pass empty string to suppress the subtitle paragraph.
+  readonly subtitle?: string;
   readonly bodyHtml: string;
   // The company logo as a data: URI (never a remote URL: a PDF must not fetch anything). Optional.
   readonly logoDataUri?: string;
+  // Seller identity lines printed under the company name (VAT, CR, address, phone). Raw, unescaped strings.
+  readonly sellerDetailLines?: readonly string[];
   // Extra CSS appended after the shell's own (a dense table for a report with many columns).
   readonly extraCss?: string;
 }): string {
@@ -36,8 +39,10 @@ export function renderReportShell(params: {
   }
   h1 { font-size: 16pt; margin-block-end: 2pt; }
   .company-name { font-weight: 600; font-size: 11pt; margin-block-end: 10pt; }
-  .company-head { display: flex; align-items: center; gap: 10pt; margin-block-end: 10pt; }
+  .company-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10pt; margin-block-end: 10pt; }
   .company-head .company-name { margin: 0; }
+  .seller-details { flex-basis: 100%; }
+  .seller-details span { font-size: 8pt; color: #555; display: block; line-height: 1.5; }
   .company-logo { max-height: 16mm; max-width: 42mm; object-fit: contain; }
   .subtitle { color: #555; margin-block-end: 14pt; }
   h2 { font-size: 12pt; margin-block: 14pt 6pt; }
@@ -47,13 +52,14 @@ export function renderReportShell(params: {
   td.amount, th.amount { text-align: end; font-variant-numeric: tabular-nums; }
   .total-row td { font-weight: 600; background: #fafafa; }
   .grand-total { margin-block-start: 10pt; font-weight: 700; font-size: 11pt; }
+  .amount-words { margin-block-start: 6pt; font-weight: 600; }
   ${params.extraCss ?? ""}
 </style>
 </head>
 <body>
-<div class="company-head">${params.logoDataUri ? `<img class="company-logo" src="${escapeHtml(params.logoDataUri)}" alt="" />` : ""}<p class="company-name">${escapeHtml(params.companyName)}</p></div>
+<div class="company-head">${params.logoDataUri ? `<img class="company-logo" src="${escapeHtml(params.logoDataUri)}" alt="" />` : ""}<p class="company-name">${escapeHtml(params.companyName)}</p>${(params.sellerDetailLines ?? []).length > 0 ? `<div class="seller-details">${(params.sellerDetailLines ?? []).map((l) => `<span>${escapeHtml(l)}</span>`).join("")}</div>` : ""}</div>
 <h1>${escapeHtml(params.title)}</h1>
-<p class="subtitle">${escapeHtml(params.subtitle)}</p>
+${params.subtitle ? `<p class="subtitle">${escapeHtml(params.subtitle)}</p>` : ""}
 ${params.bodyHtml}
 </body>
 </html>`;

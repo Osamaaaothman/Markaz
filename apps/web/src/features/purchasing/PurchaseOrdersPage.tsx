@@ -61,7 +61,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid
+          <DataGrid emptyAction={{ allowed: can("purchase_order:create"), label: t("purchasing.orders.new"), onClick: () => void navigate("/purchasing/orders/new") }}
             value={orders}
             className="erp-table"
             stripedRows

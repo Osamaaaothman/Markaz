@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsDateString, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
 import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 // A line on a quotation or sales order: an item, or a free-text service line.
@@ -107,6 +107,11 @@ export class CreateSalesInvoiceDto {
   @ValidateNested({ each: true })
   @Type(() => SalesInvoiceLineDto)
   lines!: SalesInvoiceLineDto[];
+
+  // Required only when the company has more than one active ZATCA issuing unit.
+  @IsOptional()
+  @IsString()
+  egsUnitId?: string;
 }
 
 export class CreditNoteLineDto {
@@ -143,6 +148,11 @@ export class CreateCreditNoteDto {
   @ValidateNested({ each: true })
   @Type(() => CreditNoteLineDto)
   lines!: CreditNoteLineDto[];
+
+  // Overrides the original invoice's issuing unit; usually omitted.
+  @IsOptional()
+  @IsString()
+  egsUnitId?: string;
 }
 
 export class DebitNoteLineDto {
@@ -179,6 +189,11 @@ export class CreateDebitNoteDto {
   @ValidateNested({ each: true })
   @Type(() => DebitNoteLineDto)
   lines!: DebitNoteLineDto[];
+
+  // Overrides the original invoice's issuing unit; usually omitted.
+  @IsOptional()
+  @IsString()
+  egsUnitId?: string;
 }
 
 export class QuotationsQueryDto {
@@ -229,4 +244,17 @@ export class SalesInvoicesQueryDto {
   @IsOptional()
   @IsIn(["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"])
   documentType?: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
+}
+
+export class QuotationEmailPreviewDto {
+  @IsIn(["en", "ar"])
+  language!: "en" | "ar";
+}
+
+export class SendQuotationEmailDto {
+  @IsEmail()
+  to!: string;
+
+  @IsIn(["en", "ar"])
+  language!: "en" | "ar";
 }

@@ -113,6 +113,9 @@ const PERMISSION_CATALOG = [
   { code: "sales_invoice:read", description: "View sales invoices and credit notes" },
   { code: "credit_note:create", description: "Post a credit note against an invoice" },
   { code: "payment:read", description: "View customer receipts and supplier payments" },
+  { code: "payment:create", description: "Reverse a payment, or settle on-account money against invoices" },
+  { code: "cash_expense:create", description: "Record a small cash outlay straight to an expense account" },
+  { code: "cash_expense:read", description: "View recorded cash expenses" },
   { code: "customer_receipt:create", description: "Record a payment received from a customer" },
   { code: "supplier_payment:create", description: "Record a payment made to a supplier" },
   { code: "aging_report:read", description: "View receivables and payables ageing" },
@@ -137,6 +140,9 @@ const PERMISSION_CATALOG = [
   { code: "end_of_service:create", description: "Settle an employee's end-of-service gratuity" },
   { code: "hr_payment:create", description: "Pay salaries, social insurance and end-of-service gratuities" },
   { code: "hr_payment:read", description: "View salary, social insurance and gratuity payments" },
+  // M7 — ZATCA e-invoicing compliance
+  { code: "compliance:read", description: "View the seller profile, EGS units and ZATCA status of invoices" },
+  { code: "compliance:manage", description: "Edit the seller profile, add an EGS unit, and run onboarding (CSR, OTP, certificates) — docs/06 §5: a separately audited privilege" },
 ] as const;
 
 // Roles offered on a fresh install besides Admin, so a company does not start by building them. Each maps a resource to the actions it
@@ -146,9 +152,9 @@ const PERMISSION_CATALOG = [
 const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly string[] | "*">>>> = {
   Accountant: {
     journal_entry: "*", trial_balance: "*", balance_sheet: "*", income_statement: "*", aging_report: "*", party_statement: "*", fiscal_period: "*",
-    account: ["read", "create", "update"], account_mapping: "*", tax_code: "*", party: "*", payment: "*", customer_receipt: "*", supplier_payment: "*",
+    account: ["read", "create", "update"], account_mapping: "*", tax_code: "*", party: "*", payment: "*", cash_expense: "*", customer_receipt: "*", supplier_payment: "*",
     supplier_invoice: ["read"], sales_invoice: ["read"], purchase_order: ["read"], goods_receipt: ["read"], stock: ["read"], item: ["read"],
-    debit_note: "*", credit_note: "*", hr_payment: "*", payroll_run: ["read"], company: ["read"], attachment: "*",
+    debit_note: "*", credit_note: "*", hr_payment: "*", payroll_run: ["read"], company: ["read"], attachment: "*", compliance: ["read"],
   },
   Purchasing: {
     purchase_request: ["create", "read", "reject", "review"], purchase_order: ["create", "read", "cancel"], goods_receipt: "*", goods_return: "*",

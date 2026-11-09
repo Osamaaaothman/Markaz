@@ -1,11 +1,18 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import type pino from "pino";
 
+export interface EmailAttachment {
+  readonly filename: string;
+  readonly content: Buffer;
+  readonly contentType: string;
+}
+
 export interface EmailMessage {
   readonly to: string;
   readonly subject: string;
   readonly html: string;
   readonly text: string;
+  readonly attachments?: readonly EmailAttachment[];
 }
 
 export interface EmailTransport {
@@ -14,7 +21,7 @@ export interface EmailTransport {
 
 // docs/09-SECURITY-RULES.md §7: never log a recipient's full address or message
 // content, only that a send was attempted/skipped.
-function redactAddress(to: string): string {
+export function redactAddress(to: string): string {
   const at = to.indexOf("@");
   return at === -1 ? "[redacted]" : `${to.slice(0, 1)}***${to.slice(at)}`;
 }
@@ -50,6 +57,9 @@ export class SmtpEmailTransport implements EmailTransport {
       subject: message.subject,
       html: message.html,
       text: message.text,
+      ...(message.attachments
+        ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) }
+        : {}),
     });
   }
 }

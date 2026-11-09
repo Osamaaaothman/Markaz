@@ -2,6 +2,7 @@ import type { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
 import { allocateRef } from "../reference.js";
+import { provisionPartyAccount } from "./party-accounts.js";
 
 export interface PartySummary {
   readonly id: string;
@@ -11,7 +12,22 @@ export interface PartySummary {
   readonly kind: string;
   readonly phone: string | null;
   readonly email: string | null;
+  readonly vatNumber: string | null;
+  readonly commercialRegistration: string | null;
+  readonly streetName: string | null;
+  readonly additionalStreetName: string | null;
+  readonly buildingNumber: string | null;
+  readonly additionalNumber: string | null;
+  readonly district: string | null;
+  readonly city: string | null;
+  readonly postalCode: string | null;
+  readonly countryCode: string | null;
   readonly isActive: boolean;
+}
+
+export interface CreatePartyResult extends PartySummary {
+  // Null when no parent group is mapped for this party's kind.
+  readonly accountCode: string | null;
 }
 
 // docs/07-API-RULES.md §6 list envelope, same shape as the journal entries list.
@@ -28,12 +44,25 @@ export interface PartyListQuery {
   readonly includeInactive?: "true" | "false" | undefined;
 }
 
+// Address + VAT/CR fields are optional everywhere: most parties (a walk-in customer, an
+// informal supplier) never need them, and the ones that do are filled in once they're known
+// rather than blocking party creation on paperwork.
 export interface CreatePartyInput {
   readonly name: string;
   readonly nameAr?: string | null | undefined;
   readonly kind: string;
   readonly phone?: string | null | undefined;
   readonly email?: string | null | undefined;
+  readonly vatNumber?: string | null | undefined;
+  readonly commercialRegistration?: string | null | undefined;
+  readonly streetName?: string | null | undefined;
+  readonly additionalStreetName?: string | null | undefined;
+  readonly buildingNumber?: string | null | undefined;
+  readonly additionalNumber?: string | null | undefined;
+  readonly district?: string | null | undefined;
+  readonly city?: string | null | undefined;
+  readonly postalCode?: string | null | undefined;
+  readonly countryCode?: string | null | undefined;
 }
 
 // A field left out (undefined) is kept; null or "" clears an optional detail.
@@ -43,6 +72,16 @@ export interface UpdatePartyInput {
   readonly kind?: string | undefined;
   readonly phone?: string | null | undefined;
   readonly email?: string | null | undefined;
+  readonly vatNumber?: string | null | undefined;
+  readonly commercialRegistration?: string | null | undefined;
+  readonly streetName?: string | null | undefined;
+  readonly additionalStreetName?: string | null | undefined;
+  readonly buildingNumber?: string | null | undefined;
+  readonly additionalNumber?: string | null | undefined;
+  readonly district?: string | null | undefined;
+  readonly city?: string | null | undefined;
+  readonly postalCode?: string | null | undefined;
+  readonly countryCode?: string | null | undefined;
   readonly isActive?: boolean | undefined;
 }
 
@@ -59,6 +98,16 @@ const PARTY_SELECT = {
   kind: true,
   phone: true,
   email: true,
+  vatNumber: true,
+  commercialRegistration: true,
+  streetName: true,
+  additionalStreetName: true,
+  buildingNumber: true,
+  additionalNumber: true,
+  district: true,
+  city: true,
+  postalCode: true,
+  countryCode: true,
   isActive: true,
 } as const;
 
@@ -110,13 +159,14 @@ export class PartyService {
     return { data: page, pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
   }
 
-  async create(input: CreatePartyInput, actor: PartyActor, correlationId: string): Promise<PartySummary> {
+  async create(input: CreatePartyInput, actor: PartyActor, correlationId: string): Promise<CreatePartyResult> {
     const id = newId();
     // The reference is allocated in the same transaction as the insert, so a failed insert
-    // never burns a number.
-    const party = await this.prisma.$transaction(async (tx) => {
+    // never burns a number. The party ledger account is created in the same transaction so
+    // both succeed or fail together.
+    const { party, accountCode } = await this.prisma.$transaction(async (tx) => {
       const ref = await allocateRef(tx, actor.companyId, "party");
-      return tx.party.create({
+      const created = await tx.party.create({
         data: {
           id,
           ref,
@@ -126,15 +176,31 @@ export class PartyService {
           kind: input.kind,
           phone: blankToNull(input.phone),
           email: blankToNull(input.email),
+          vatNumber: blankToNull(input.vatNumber),
+          commercialRegistration: blankToNull(input.commercialRegistration),
+          streetName: blankToNull(input.streetName),
+          additionalStreetName: blankToNull(input.additionalStreetName),
+          buildingNumber: blankToNull(input.buildingNumber),
+          additionalNumber: blankToNull(input.additionalNumber),
+          district: blankToNull(input.district),
+          city: blankToNull(input.city),
+          postalCode: blankToNull(input.postalCode),
+          ...(input.countryCode !== undefined ? { countryCode: blankToNull(input.countryCode) } : {}),
           createdBy: actor.id,
           updatedBy: actor.id,
         },
         select: PARTY_SELECT,
       });
+      let provisioned: { accountCode: string } | null = null;
+      if (input.kind === "CUSTOMER" || input.kind === "SUPPLIER") {
+        const result = await provisionPartyAccount(tx, actor.companyId, actor.id, id, created.name, created.nameAr, input.kind);
+        if (result) provisioned = { accountCode: result.accountCode };
+      }
+      return { party: created, accountCode: provisioned?.accountCode ?? null };
     });
 
     await this.audit.log({ actorId: actor.id, action: "party.created", entityType: "Party", entityId: id, after: party, correlationId });
-    return party;
+    return { ...party, accountCode };
   }
 
   // null when the party does not exist in the caller's company.
@@ -150,6 +216,16 @@ export class PartyService {
         ...(input.kind !== undefined ? { kind: input.kind } : {}),
         ...(input.phone !== undefined ? { phone: blankToNull(input.phone) } : {}),
         ...(input.email !== undefined ? { email: blankToNull(input.email) } : {}),
+        ...(input.vatNumber !== undefined ? { vatNumber: blankToNull(input.vatNumber) } : {}),
+        ...(input.commercialRegistration !== undefined ? { commercialRegistration: blankToNull(input.commercialRegistration) } : {}),
+        ...(input.streetName !== undefined ? { streetName: blankToNull(input.streetName) } : {}),
+        ...(input.additionalStreetName !== undefined ? { additionalStreetName: blankToNull(input.additionalStreetName) } : {}),
+        ...(input.buildingNumber !== undefined ? { buildingNumber: blankToNull(input.buildingNumber) } : {}),
+        ...(input.additionalNumber !== undefined ? { additionalNumber: blankToNull(input.additionalNumber) } : {}),
+        ...(input.district !== undefined ? { district: blankToNull(input.district) } : {}),
+        ...(input.city !== undefined ? { city: blankToNull(input.city) } : {}),
+        ...(input.postalCode !== undefined ? { postalCode: blankToNull(input.postalCode) } : {}),
+        ...(input.countryCode !== undefined ? { countryCode: blankToNull(input.countryCode) } : {}),
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         updatedBy: actor.id,
         version: { increment: 1 },

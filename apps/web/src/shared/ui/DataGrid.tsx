@@ -1,10 +1,13 @@
-import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
+import { Column } from "primereact/column";
 import { Checkbox } from "primereact/checkbox";
-import { DataTable, type DataTableRowClickEvent, type DataTableValueArray } from "primereact/datatable";
+import { FilterMatchMode } from "primereact/api";
+import { DataTable, type DataTableFilterMeta, type DataTableRowClickEvent, type DataTableValueArray } from "primereact/datatable";
 import { InputText } from "primereact/inputtext";
 import { OverlayPanel } from "primereact/overlaypanel";
+import { EmptyState, type EmptyStateAction } from "./EmptyState";
 
 export interface DataGridProps {
   readonly value: readonly object[] | undefined;
@@ -20,9 +23,50 @@ export interface DataGridProps {
   readonly toolbar?: React.ReactNode;
   readonly searchable?: boolean;
   readonly pageSize?: number;
+  // What an empty list shows beside its message: an icon and, where the person may create the record, the button that does it.
+  readonly emptyIcon?: string;
+  readonly emptyAction?: EmptyStateAction & { readonly allowed?: boolean };
 }
 
 const PAGE_SIZES = [10, 25, 50, 100];
+const COPIED_MS = 1500;
+
+// Copies a row's id (its UUID) so it can be pasted into a support ticket, a URL or a search box. The click is
+// kept from reaching the row, which would otherwise open the record.
+function CopyIdButton({ id }: { id: string }): React.JSX.Element {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const copy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), COPIED_MS);
+    } catch {
+      // Clipboard blocked (insecure origin or denied permission): nothing to copy to.
+    }
+  };
+  return (
+    <Button
+      type="button"
+      icon={copied ? "pi pi-check" : "pi pi-copy"}
+      rounded
+      text
+      severity={copied ? "success" : "secondary"}
+      aria-label={copied ? t("table.copied") : t("table.copyId")}
+      tooltip={copied ? t("table.copied") : t("table.copyId")}
+      tooltipOptions={{ position: "top" }}
+      onClick={(e) => {
+        e.stopPropagation();
+        void copy();
+      }}
+    />
+  );
+}
+
+function rowId(row: unknown): string | null {
+  const id = (row as { id?: unknown } | null)?.id;
+  return typeof id === "string" && id !== "" ? id : null;
+}
 const MIN_TOGGLEABLE = 3;
 
 // Collects the text a person could be searching for in one row: its own string and number fields and those of
@@ -68,7 +112,26 @@ function headerOf(child: React.ReactNode): string | null {
 // choice of which columns to show (remembered per table on this device), page numbers with a rows-per-page
 // choice, and no scroll box of its own — the whole page scrolls, and the header row sticks under the top bar.
 // Reports and totals tables do not use it (they must show every row).
-export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, className = "", children, emptyMessage, ...rest }: DataGridProps): React.JSX.Element {
+// A column opts into its own filter with PrimeReact's `filter` and a `field`; the filter menu is then a funnel in
+// that column's header. Filters apply to the rows already loaded, like the search box.
+interface FilteredColumn {
+  readonly field: string;
+  readonly matchMode: FilterMatchMode;
+}
+
+function filteredColumnsOf(columns: readonly React.ReactNode[]): FilteredColumn[] {
+  return columns.flatMap((child) => {
+    if (!isValidElement(child)) return [];
+    const props = child.props as { filter?: boolean; field?: string; filterMatchMode?: FilterMatchMode };
+    return props.filter && props.field ? [{ field: props.field, matchMode: props.filterMatchMode ?? FilterMatchMode.CONTAINS }] : [];
+  });
+}
+
+function emptyFilters(columns: readonly FilteredColumn[]): DataTableFilterMeta {
+  return Object.fromEntries(columns.map(({ field, matchMode }) => [field, { value: null, matchMode }]));
+}
+
+export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, className = "", children, emptyMessage, emptyIcon, emptyAction, ...rest }: DataGridProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const [first, setFirst] = useState(0);
@@ -91,17 +154,28 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
   });
 
   const columns = useMemo(() => Children.toArray(children), [children]);
+  const filteredColumns = useMemo(() => filteredColumnsOf(columns), [columns]);
   const headers = useMemo(() => columns.map(headerOf).filter((h): h is string => h !== null), [columns]);
   const toggleable = headers.length >= MIN_TOGGLEABLE;
   // The column titles identify the table: two screens never share the same set of titles.
   const storageKey = `mk-cols:${headers.join("|")}`;
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => readHidden(storageKey));
-  const shown = toggleable ? columns.filter((child) => !hidden.has(headerOf(child) ?? "\u0000")) : columns;
+  const visible = toggleable ? columns.filter((child) => !hidden.has(headerOf(child) ?? "\u0000")) : columns;
+  // A column filter stays a plain contains-box: no match-mode picker, no extra rules.
+  const shown = visible.map((child) =>
+    isValidElement(child) && (child.props as { filter?: boolean }).filter
+      ? cloneElement(child as React.ReactElement<Record<string, unknown>>, { showFilterMatchModes: false, showFilterOperator: false, showAddButton: false, filterPlaceholder: t("table.filterPlaceholder") })
+      : child,
+  );
+  const hasFilters = filteredColumns.length > 0;
 
   const indexed = useMemo(() => (value ?? []).map((row) => ({ row, text: haystack(row) })), [value]);
   const needle = query.trim().toLocaleLowerCase();
   const filtered = useMemo(() => (needle ? indexed.filter((entry) => entry.text.includes(needle)).map((entry) => entry.row) : (value ?? [])), [indexed, needle, value]);
-  const total = filtered.length;
+  const [filters, setFilters] = useState<DataTableFilterMeta>(() => emptyFilters(filteredColumns));
+  // Rows left after the column filters too, as reported by the table itself.
+  const [afterFilters, setAfterFilters] = useState<number | null>(null);
+  const total = afterFilters ?? filtered.length;
   const showPaginator = total > Math.min(...PAGE_SIZES);
 
   const toggleColumn = (header: string, visible: boolean): void => {
@@ -170,7 +244,7 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
               </OverlayPanel>
             </>
           ) : null}
-          <span className="mk-grid__count">{needle ? t("table.matches", { shown: total, total: value?.length ?? 0 }) : t("table.rowCount", { total })}</span>
+          <span className="mk-grid__count">{needle || total !== (value?.length ?? 0) ? t("table.matches", { shown: total, total: value?.length ?? 0 }) : t("table.rowCount", { total })}</span>
         </div>
       ) : null}
 
@@ -182,7 +256,20 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
         {...rest}
         value={filtered as unknown as DataTableValueArray}
         className={className.includes("erp-table") ? className : `erp-table ${className}`.trim()}
-        emptyMessage={needle ? t("table.noMatch") : emptyMessage}
+        filters={hasFilters ? filters : undefined}
+        filterDisplay={hasFilters ? "menu" : undefined}
+        onFilter={(e) => {
+          setFilters(e.filters);
+          setFirst(0);
+        }}
+        onValueChange={(rows) => setAfterFilters(hasFilters ? rows.length : null)}
+        emptyMessage={
+          needle ? (
+            <EmptyState icon="pi pi-search" title={t("table.noMatch")} />
+          ) : (
+            <EmptyState icon={emptyIcon} title={emptyMessage ?? t("status.empty")} action={emptyAction && emptyAction.allowed !== false ? emptyAction : undefined} />
+          )
+        }
         paginator={showPaginator}
         first={first}
         rows={rows}
@@ -195,6 +282,7 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
         currentPageReportTemplate={t("table.report")}
       >
         {shown}
+        {rowId(value?.[0]) !== null ? <Column key="mk-copy-id" style={{ width: "3.5rem" }} body={(row: object) => (rowId(row) ? <CopyIdButton id={rowId(row) as string} /> : null)} /> : null}
       </DataTable>
     </div>
   );

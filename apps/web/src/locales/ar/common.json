@@ -35,12 +35,16 @@
     "purchaseRequests": "طلبات الشراء",
     "purchaseOrders": "أوامر الشراء",
     "approvalLimits": "حدود الموافقة",
+    "zatca": "الفوترة الإلكترونية (زاتكا)",
     "supplierInvoices": "فواتير الموردين",
     "taxCodes": "رموز الضريبة",
     "quotations": "عروض الأسعار",
     "salesOrders": "أوامر البيع",
     "salesInvoices": "فواتير المبيعات",
     "payments": "المدفوعات",
+    "receipts": "سندات القبض",
+    "supplierPayments": "سندات الدفع",
+    "cashExpenses": "المصاريف النقدية",
     "aging": "أعمار الديون",
     "partyStatement": "كشف حساب عميل / مورد",
     "stockMovements": "حركات المخزون",
@@ -53,6 +57,7 @@
     "allowanceTypes": "أنواع البدلات",
     "hrPayments": "دفع الرواتب والمستحقات",
     "auditLog": "سجل التدقيق",
+    "interface": "الواجهة",
     "setup": "الإعداد الأولي"
   },
   "actions": {
@@ -75,7 +80,8 @@
     "copied": "تم النسخ",
     "print": "طباعة",
     "edit": "تعديل",
-    "search": "بحث"
+    "search": "بحث",
+    "close": "إغلاق"
   },
   "status": {
     "loading": "جارٍ التحميل…",
@@ -417,7 +423,18 @@
     "noResults": "لا توجد جهات مطابقة.",
     "createError": "تعذّر إضافة هذه الجهة.",
     "updateError": "تعذّر حفظ هذه الجهة.",
-    "id": "المعرّف"
+    "id": "المعرّف",
+    "taxAndAddress": "البيانات الضريبية والعنوان (اختياري)",
+    "vatNumber": "الرقم الضريبي",
+    "commercialRegistration": "السجل التجاري",
+    "streetName": "الشارع",
+    "additionalStreetName": "شارع إضافي",
+    "buildingNumber": "رقم المبنى",
+    "additionalNumber": "الرقم الإضافي",
+    "district": "الحي",
+    "city": "المدينة",
+    "postalCode": "الرمز البريدي",
+    "ledgerAccount": "حساب دفتر الأستاذ"
   },
   "settings": {
     "usersRoles": {
@@ -745,7 +762,6 @@
       "fromRequest": "بدأ من الطلب {{number}}.",
       "orderDate": "تاريخ الأمر",
       "expectedDate": "التاريخ المتوقع",
-      "create": "إنشاء الأمر",
       "createError": "تعذّر إنشاء هذا الأمر.",
       "approve": "اعتماد",
       "reject": "رفض",
@@ -794,7 +810,8 @@
       "variance": "فرق السعر",
       "taxCode": "رمز الضريبة",
       "expenseAccount": "حساب المصروف",
-      "addOrderLine": "إضافة سطر مستلم من أمر",
+      "searchPO": "استيراد كل سطور أمر شراء",
+      "addOrderLine": "إضافة سطر واحد من أمر",
       "pickSupplierFirst": "اختر المورد أولاً",
       "addExpenseLine": "إضافة سطر مصروف (بدون أمر)",
       "nothingToMatch": "لا يوجد استلام غير مفوتر لهذا المورد. يمكنك إضافة سطر مصروف.",
@@ -896,7 +913,9 @@
       "INVALID_STATE": "لم يعد هذا المستند مفتوحاً لهذا الإجراء.",
       "ACCOUNT_NOT_POSTABLE": "أحد سطور الإيراد يستخدم حساباً رئيسياً. اختر حساباً قابلاً للترحيل.",
       "CREDIT_EXCEEDS_INVOICE": "الإشعارات الدائنة ستتجاوز قيمة الفاتورة.",
-      "DEBIT_EXCEEDS_INVOICE": "الإشعارات المدينة ستتجاوز قيمة الفاتورة."
+      "DEBIT_EXCEEDS_INVOICE": "الإشعارات المدينة ستتجاوز قيمة الفاتورة.",
+      "EGS_UNIT_REQUIRED": "عند هذه الشركة أكثر من وحدة إصدار فواتير زاتكا نشطة. اختر الوحدة التي تُصدر هذا المستند.",
+      "EGS_UNIT_NOT_FOUND": "وحدة الإصدار المختارة غير موجودة أو غير نشطة."
     },
     "quotations": {
       "title": "عروض الأسعار",
@@ -906,16 +925,35 @@
       "newSubtitle": "اختر العميل ثم الأصناف أو الخدمات والأسعار المعروضة.",
       "date": "تاريخ العرض",
       "validUntil": "صالح حتى",
-      "submit": "إنشاء عرض السعر",
       "reject": "تسجيل كمرفوض",
       "cancel": "سحب العرض",
       "convert": "تحويل إلى أمر بيع",
       "openOrder": "فتح أمر البيع",
+      "downloadPdf": "تنزيل PDF",
       "status": {
         "OPEN": "مفتوح",
         "CONVERTED": "تم تحويله لأمر",
         "REJECTED": "مرفوض",
         "CANCELLED": "مسحوب"
+      },
+      "email": {
+        "sendButton": "إرسال بالإيميل",
+        "title": "إرسال عرض السعر بالإيميل",
+        "recipient": "الإرسال إلى",
+        "language": "اللغة",
+        "languages": { "en": "إنجليزي", "ar": "عربي" },
+        "preview": "معاينة",
+        "previewHint": "عاين الرسالة قبل إرسالها — لم يتم إرسال شيء بعد.",
+        "sendNow": "إرسال الآن",
+        "sendDisabledHint": "عاينها أولاً.",
+        "openInGmail": "فتح في Gmail",
+        "openInGmailHint": "سيتم تنزيل ملف PDF على جهازك — أرفقه في نافذة Gmail التي ستُفتح.",
+        "gmailSubject": "عرض سعر {{number}}",
+        "gmailBody": "عزيزنا {{customer}}،\n\nمرفق لكم عرض السعر رقم {{number}} بإجمالي {{total}}.\nتم تنزيل ملف PDF الخاص بالعرض على جهازك الآن — الرجاء إرفاقه بهذا الإيميل قبل الإرسال.\n\nمع خالص التحية.",
+        "success": "تم الإرسال.",
+        "errors": {
+          "generic": "تعذّر إرسال الإيميل. تحقق من المستلم وحاول مرة أخرى."
+        }
       }
     },
     "orders": {
@@ -925,7 +963,6 @@
       "newTitle": "أمر بيع جديد",
       "newSubtitle": "اختر العميل ثم ما تم طلبه والأسعار المتفق عليها.",
       "date": "تاريخ الأمر",
-      "submit": "إنشاء الأمر",
       "createInvoice": "إنشاء فاتورة",
       "cancel": "إلغاء الأمر",
       "back": "رجوع",
@@ -945,6 +982,8 @@
       "fromOrder": "فوترة المتبقي من الأمر {{number}}.",
       "date": "تاريخ الفاتورة",
       "dueDate": "تاريخ الاستحقاق",
+      "egsUnit": "وحدة إصدار فواتير زاتكا",
+      "egsUnitPlaceholder": "اختر الوحدة التي تُصدر هذه الفاتورة",
       "submit": "ترحيل الفاتورة",
       "documentType": "النوع",
       "allTypes": "الفواتير والإشعارات الدائنة والمدينة",
@@ -968,8 +1007,13 @@
   "payments": {
     "title": "المدفوعات",
     "subtitle": "الأموال المقبوضة من العملاء والمدفوعة للموردين، والفواتير التي يسدّدها كل منها.",
-    "newReceipt": "سند قبض من عميل",
-    "newPayment": "دفعة لمورد",
+    "receiptsTitle": "سندات القبض",
+    "receiptsSubtitle": "المبالغ المقبوضة من العملاء والفواتير المسدَّدة.",
+    "paymentsTitle": "سندات الدفع",
+    "paymentsSubtitle": "المبالغ المدفوعة للموردين والفواتير المسدَّدة.",
+    "newReceipt": "سند قبض جديد",
+    "newPayment": "سند دفع جديد",
+    "recordPayment": "تسجيل دفعة",
     "direction": "الاتجاه",
     "allDirections": "المقبوض والمدفوع",
     "directions": {
@@ -1017,7 +1061,48 @@
       "CASH_ACCOUNT_INVALID": "اختر حساب أصول قابلاً للترحيل للبنك أو الصندوق.",
       "NO_OPEN_PERIOD": "لا توجد فترة مالية مفتوحة تغطي هذا التاريخ.",
       "INVOICE_NOT_FOUND": "لم يتم العثور على فاتورة للسداد لهذا الطرف.",
-      "DUPLICATE_ALLOCATION": "فاتورة تظهر مرتين."
+      "DUPLICATE_ALLOCATION": "فاتورة تظهر مرتين.",
+      "ALREADY_VOIDED": "هذه الدفعة تم إلغاؤها مسبقاً."
+    },
+    "voided": "ملغاة",
+    "reverse": "إلغاء الدفعة",
+    "reverseTitle": "إلغاء الدفعة",
+    "confirmReverse": "سيتم ترحيل قيد عكسي واسترداد الفواتير المسوّاة إلى الوضع المفتوح. لا يمكن التراجع عن هذا الإجراء.",
+    "reversalOf": "إلغاء لـ",
+    "viewOriginal": "عرض الأصلي",
+    "settleBalance": {
+      "title": "تسوية الرصيد",
+      "subtitle": {
+        "receipt": "خصص رصيد العميل على الحساب لفواتير مفتوحة الآن.",
+        "payment": "خصص رصيد المورد على الحساب لفواتير مفتوحة الآن."
+      },
+      "available": "المتاح على الحساب",
+      "noBalance": "لا يوجد رصيد على الحساب لهذا الطرف.",
+      "left": "متبقٍ على الحساب",
+      "success": "تمت التسوية. تم تحديث الفواتير ورصيد الطرف.",
+      "errors": {
+        "INSUFFICIENT_BALANCE": "الرصيد على الحساب لا يكفي لتغطية هذا المبلغ."
+      }
+    }
+  },
+  "cashExpenses": {
+    "title": "المصاريف النقدية",
+    "subtitle": "مصاريف نقدية صغيرة مباشرة لحساب مصروف — بدون مورد وبدون فاتورة.",
+    "new": "مصروف نقدي جديد",
+    "newTitle": "مصروف نقدي جديد",
+    "newSubtitle": "اختر من أين خرج المبلغ وفيم صُرف.",
+    "date": "التاريخ",
+    "cashAccount": "حساب نقدي / بنكي",
+    "expenseAccount": "حساب المصروف",
+    "pickExpenseAccount": "اختر حساب المصروف",
+    "description": "الوصف",
+    "errors": {
+      "CASH_ACCOUNT_NOT_FOUND": "لم يتم العثور على الحساب النقدي أو البنكي.",
+      "CASH_ACCOUNT_INVALID": "اختر حساب أصول قابلاً للترحيل للنقدية أو البنك.",
+      "EXPENSE_ACCOUNT_NOT_FOUND": "لم يتم العثور على حساب المصروف.",
+      "EXPENSE_ACCOUNT_INVALID": "اختر حساب مصروف قابلاً للترحيل.",
+      "NO_OPEN_PERIOD": "لا توجد فترة مالية مفتوحة تغطي هذا التاريخ.",
+      "generic": "حدث خطأ ما. حاول مرة أخرى."
     }
   },
   "aging": {
@@ -1066,6 +1151,9 @@
     }
   },
   "shell": {
+    "profile": "ملفك الشخصي",
+    "profileRole": "الرتبة",
+    "profileCanDo": "ما يمكنك فعله",
     "search": "ابحث أو انتقل إلى…",
     "searchPlaceholder": "اكتب اسم شاشة أو مستنداً تريد إنشاءه أو إعداداً",
     "noResults": "لا شيء يطابق ذلك.",
@@ -1083,9 +1171,6 @@
     "expandSection": "توسيع {{section}}",
     "openMenu": "فتح القائمة",
     "breadcrumb": "أنت هنا",
-    "density": "كثافة الصفوف",
-    "densityCompact": "صفوف مضغوطة (اضغط للمريحة)",
-    "densityComfortable": "صفوف مريحة (اضغط للمضغوطة)",
     "toggleTheme": "التبديل بين الفاتح والداكن",
     "designSystem": "نظام التصميم",
     "pendingCount": "{{count}} بانتظار الإجراء"
@@ -1191,6 +1276,9 @@
     "dismiss": "إغلاق"
   },
   "table": {
+    "filterPlaceholder": "فلتر…",
+    "copyId": "نسخ المعرّف",
+    "copied": "تم النسخ",
     "search": "ابحث في هذه القائمة…",
     "rowCount": "{{total}} سجل",
     "columns": "الأعمدة",
@@ -1255,6 +1343,27 @@
     "nameEn": "اسم الشركة (بالإنجليزية)",
     "nameAr": "اسم الشركة (بالعربية)"
   },
+  "interfaceSettings": {
+    "title": "الواجهة",
+    "subtitle": "تفضيلات العرض الشخصية، محفوظة على هذا الجهاز فقط.",
+    "sidebarOrder": "ترتيب أقسام الشريط الجانبي",
+    "sidebarOrderHint": "حرّك الأقسام لأعلى أو لأسفل بما يناسب طريقة عملك. هذا الترتيب يظهر لك فقط.",
+    "moveUp": "تحريك {{section}} لأعلى",
+    "moveDown": "تحريك {{section}} لأسفل",
+    "resetOrder": "استعادة الترتيب الافتراضي",
+    "theme": "نمط الألوان",
+    "themeHint": "اختر الشكل الذي يناسبك. يُطبَّق فورًا ويُحفظ على هذا الجهاز فقط.",
+    "modeLight": "فاتح",
+    "modeDark": "داكن",
+    "themes": {
+      "forest": "الغابة",
+      "ocean": "المحيط",
+      "sand": "الرمال",
+      "plum": "البنفسج",
+      "night": "الليل",
+      "graphite": "الجرافيت"
+    }
+  },
   "created": {
     "title": "تم الحفظ بنجاح",
     "ok": "تم",
@@ -1294,7 +1403,9 @@
     "tax": "الضريبة",
     "gross": "الإجمالي شامل الضريبة",
     "permissions": "الصلاحيات",
-    "nameAr": "الاسم بالعربية"
+    "nameAr": "الاسم بالعربية",
+    "open": "فتح",
+    "inWords": "المبلغ كتابةً"
   },
   "hr": {
     "employees": {
@@ -1541,6 +1652,116 @@
     "correlation": "معرّف الطلب",
     "before": "قبل",
     "after": "بعد"
+  },
+  "compliance": {
+    "title": "الفوترة الإلكترونية (زاتكا)",
+    "subtitle": "بيانات البائع، أجهزة إصدار الفواتير (EGS)، وربطها مع منصة الفوترة الإلكترونية التابعة لهيئة الزكاة والضريبة والجمارك.",
+    "environment": {
+      "sandbox": "بيئة تجريبية (Sandbox)",
+      "simulation": "بيئة المحاكاة",
+      "production": "بيئة الإنتاج"
+    },
+    "sellerProfile": {
+      "title": "بيانات البائع",
+      "locked": "مقفلة بشهادة صادرة",
+      "lockedHint": "تم إصدار شهادة بناءً على هذه البيانات. أغلب الحقول ما عاد تقدر تتعدّل من هنا.",
+      "incomplete": "قبل بدء الربط، لازم تكمّل: {{fields}}",
+      "saveError": "تعذّر حفظ بيانات البائع.",
+      "nameAr": "الاسم القانوني (عربي)",
+      "vatNumber": "الرقم الضريبي",
+      "crNumber": "رقم السجل التجاري",
+      "crNumberScheme": "نوع السجل",
+      "crNumberSchemePlaceholder": "اختر النوع",
+      "address": "العنوان",
+      "streetName": "الشارع",
+      "buildingNumber": "رقم المبنى",
+      "district": "الحي",
+      "city": "المدينة",
+      "postalCode": "الرمز البريدي",
+      "countryCode": "رمز الدولة",
+      "phone": "الهاتف"
+    },
+    "egsUnits": {
+      "title": "أجهزة إصدار الفواتير (EGS)",
+      "add": "إضافة جهاز",
+      "empty": "لا يوجد أي جهاز بعد.",
+      "needsProfile": "أكمل بيانات البائع أعلاه قبل إضافة جهاز.",
+      "name": "الاسم",
+      "branch": "الفرع",
+      "status": "الحالة",
+      "certificate": "الشهادة",
+      "manage": "إدارة",
+      "businessCategory": "نشاط العمل",
+      "businessCategoryPlaceholder": "مثال: تجزئة، خدمات",
+      "invoiceTypes": "أنواع الفواتير المُصدرة",
+      "invoiceTypesStandardAndSimplified": "قياسي ومبسّط",
+      "invoiceTypesStandardOnly": "قياسي فقط (منشآت)",
+      "invoiceTypesSimplifiedOnly": "مبسّط فقط (أفراد)",
+      "createError": "تعذّر إنشاء الجهاز."
+    },
+    "egsStatus": {
+      "NEW": "لم يبدأ الربط",
+      "CSR_GENERATED": "تم توليد طلب الشهادة",
+      "COMPLIANCE_CSID_ISSUED": "صدرت شهادة الامتثال",
+      "COMPLIANCE_CHECKS_PASSED": "اجتاز فحوصات الامتثال",
+      "PRODUCTION_CSID_ISSUED": "صدرت شهادة الإنتاج",
+      "ACTIVE": "نشط"
+    },
+    "expiry": {
+      "OK": "سارية (باقي {{days}} يوم)",
+      "EXPIRING_SOON": "قاربت على الانتهاء (باقي {{days}} يوم)",
+      "EXPIRED": "منتهية"
+    },
+    "onboarding": {
+      "title": "ربط الجهاز",
+      "titleFor": "ربط الجهاز — {{name}}",
+      "otp": "رمز التفعيل (OTP)",
+      "otpPlaceholder": "الرمز لمرة واحدة من بوابة فاتورة",
+      "requestError": "فشل الطلب قبل أن تستجيب هيئة الزكاة والضريبة والجمارك. تحقق من إعدادات الخادم وحاول مرة أخرى.",
+      "step1": "١. طلب شهادة الامتثال",
+      "step2": "٢. تشغيل فحوصات الامتثال",
+      "step3": "٣. طلب شهادة الإنتاج",
+      "renew": "تجديد الشهادة",
+      "active": "هذا الجهاز نشط ويصدر فواتير.",
+      "hint": {
+        "NEW": "أدخل رمز التفعيل (OTP) من بوابة فاتورة للمطورين لطلب شهادة الامتثال.",
+        "CSR_GENERATED": "أدخل رمز التفعيل (OTP) من بوابة فاتورة للمطورين لطلب شهادة الامتثال.",
+        "COMPLIANCE_CSID_ISSUED": "صدرت شهادة الامتثال. الخطوة التالية تشغيل فحوصات الامتثال — تُجرَّب كل عينة مطلوبة ولازم تنجح كلها.",
+        "COMPLIANCE_CHECKS_PASSED": "اجتازت كل فحوصات الامتثال. اطلب شهادة الإنتاج لتفعيل هذا الجهاز.",
+        "default": "اتبع الخطوات بالأسفل لربط هذا الجهاز مع زاتكا."
+      },
+      "steps": {
+        "COMPLIANCE_CSID": "شهادة الامتثال",
+        "COMPLIANCE_CHECKS": "فحوصات الامتثال",
+        "PRODUCTION_CSID": "شهادة الإنتاج",
+        "RENEWAL": "التجديد"
+      }
+    },
+    "complianceSamples": {
+      "STANDARD_INVOICE": "فاتورة قياسية",
+      "STANDARD_CREDIT_NOTE": "إشعار دائن قياسي",
+      "STANDARD_DEBIT_NOTE": "إشعار مدين قياسي",
+      "SIMPLIFIED_INVOICE": "فاتورة مبسّطة",
+      "SIMPLIFIED_CREDIT_NOTE": "إشعار دائن مبسّط",
+      "SIMPLIFIED_DEBIT_NOTE": "إشعار مدين مبسّط"
+    },
+    "invoicePanel": {
+      "title": "حالة زاتكا",
+      "downloadSigned": "تنزيل XML الموقّع",
+      "downloadCleared": "تنزيل XML المعتمد",
+      "resubmit": "إعادة الإرسال",
+      "resubmitError": "تعذّر طلب إعادة الإرسال."
+    },
+    "invoiceStatus": {
+      "PENDING": "بالانتظار",
+      "SUBMITTING": "جارٍ الإرسال",
+      "REPORTED": "تمت المشاركة",
+      "CLEARED": "معتمدة",
+      "WARNING": "معتمدة مع تحذيرات",
+      "REJECTED": "مرفوضة",
+      "FAILED": "فشلت",
+      "FAILED_RETRYABLE": "فشلت، ستُعاد المحاولة"
+    }
   },
   "setup": {
     "title": "الإعداد الأولي",

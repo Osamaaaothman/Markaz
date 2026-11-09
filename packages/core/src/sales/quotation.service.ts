@@ -50,6 +50,7 @@ export interface QuotationSummary {
   readonly customerId: string;
   readonly customerName: string;
   readonly customerNameAr: string | null;
+  readonly customerEmail: string | null;
   readonly quotationDate: string;
   readonly validUntil: string | null;
   readonly currency: string;
@@ -85,6 +86,7 @@ function toSummary(row: QuotationRow): QuotationSummary {
     customerId: row.customerId,
     customerName: row.customer.name,
     customerNameAr: row.customer.nameAr,
+    customerEmail: row.customer.email,
     quotationDate: dateOnly(row.quotationDate),
     validUntil: row.validUntil ? dateOnly(row.validUntil) : null,
     currency: row.currency,

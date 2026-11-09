@@ -9,6 +9,7 @@ import { DataTable } from "primereact/datatable";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
+import { tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -93,6 +94,14 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const used = new Set(lines.flatMap((l) => (l.purchaseOrderLineId ? [l.purchaseOrderLineId] : [])));
   const available = (invoiceable ?? []).filter((l) => !used.has(l.purchaseOrderLineId));
 
+  // Unique POs that still have at least one invoiceable line not yet added.
+  const availablePos = useMemo(() => {
+    const seen = new Set<string>();
+    return available
+      .filter((l) => { if (seen.has(l.purchaseOrderId)) return false; seen.add(l.purchaseOrderId); return true; })
+      .map((l) => ({ label: l.purchaseOrderNumber, value: l.purchaseOrderId }));
+  }, [available]);
+
   const addPoLine = (id: string): void => {
     const source = invoiceable?.find((l) => l.purchaseOrderLineId === id);
     if (!source) return;
@@ -113,15 +122,41 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
     );
   };
 
+  const importPoLines = (poId: string): void => {
+    const poLines = available.filter((l) => l.purchaseOrderId === poId);
+    if (poLines.length === 0) return;
+    edit(() =>
+      setLines((prev) => [
+        ...prev,
+        ...poLines.map((source) => ({
+          key: nextKey(),
+          kind: "PO_LINE" as const,
+          purchaseOrderLineId: source.purchaseOrderLineId,
+          accountId: "",
+          description: "",
+          quantity: trimZeros(source.invoiceableQuantity),
+          unitPrice: trimZeros(source.orderPrice),
+          taxCodeId: defaultTaxId,
+        })),
+      ]),
+    );
+  };
+
   const addExpenseLine = (): void =>
     edit(() => setLines((prev) => [...prev, { key: nextKey(), kind: "EXPENSE", purchaseOrderLineId: "", accountId: "", description: "", quantity: "1", unitPrice: "", taxCodeId: defaultTaxId }]));
 
   const setLine = (key: string, patch: Partial<LineState>): void => edit(() => setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l))));
   const removeLine = (key: string): void => edit(() => setLines((prev) => prev.filter((l) => l.key !== key)));
 
+  // An EXPENSE line the auto-new-line-on-Enter feature added but the user never touched — dropped
+  // silently at save time rather than blocking it or forcing a manual delete (a PO_LINE is always
+  // pre-filled from its source, so it is never "blank" in this sense).
+  const isBlankLine = (l: LineState): boolean => l.kind === "EXPENSE" && l.accountId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
+  const meaningfulLines = lines.filter((l) => !isBlankLine(l));
+
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) && /[1-9]/.test(l.quantity) && DECIMAL.test(l.unitPrice) && l.taxCodeId !== "" && (l.kind === "PO_LINE" ? l.purchaseOrderLineId !== "" : l.accountId !== "");
-  const formValid = supplierId !== "" && number.trim() !== "" && lines.length > 0 && lines.every(lineValid);
+  const formValid = supplierId !== "" && number.trim() !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid);
 
   const payload: InvoicePayload = {
     supplierId,
@@ -130,7 +165,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
     ...(dueDate ? { dueDate: toDateOnlyIsoString(dueDate) } : {}),
     ...(notes.trim() ? { notes: notes.trim() } : {}),
     ...(accept ? { acceptPriceVariance: true } : {}),
-    lines: lines.map(
+    lines: meaningfulLines.map(
       (l): InvoiceLinePayload => ({
         kind: l.kind,
         ...(l.kind === "PO_LINE" ? { purchaseOrderLineId: l.purchaseOrderLineId } : { accountId: l.accountId }),
@@ -197,13 +232,23 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
         <div className="erp-row-actions">
           <Dropdown
             value={null}
-            placeholder={supplierId ? t("purchasing.invoices.addOrderLine") : t("purchasing.invoices.pickSupplierFirst")}
+            placeholder={supplierId ? t("purchasing.invoices.searchPO") : t("purchasing.invoices.pickSupplierFirst")}
+            disabled={!supplierId || availablePos.length === 0}
+            onChange={(e) => importPoLines(e.value as string)}
+            options={availablePos}
+            filter
+            filterPlaceholder={t("purchasing.invoices.searchPO")}
+          />
+          <Dropdown
+            value={null}
+            placeholder={t("purchasing.invoices.addOrderLine")}
             disabled={!supplierId || available.length === 0}
             onChange={(e) => addPoLine(e.value as string)}
             options={available.map((l) => ({
               label: `${l.purchaseOrderNumber} · ${l.itemCode} — ${localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} · ${trimZeros(l.invoiceableQuantity)} ${l.unit}`,
               value: l.purchaseOrderLineId,
             }))}
+            filter
           />
           <Button type="button" label={t("purchasing.invoices.addExpenseLine")} icon="pi pi-plus" text onClick={addExpenseLine} disabled={!supplierId} />
         </div>
@@ -230,7 +275,19 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                     />
                   )}
                   <InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} />
-                  <InputText dir="ltr" placeholder={t("purchasing.unitPrice")} value={l.unitPrice} onChange={(e) => setLine(l.key, { unitPrice: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`} />
+                  <InputText
+                    dir="ltr"
+                    placeholder={t("purchasing.unitPrice")}
+                    value={l.unitPrice}
+                    onChange={(e) => setLine(l.key, { unitPrice: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && supplierId && lines[lines.length - 1]?.key === l.key) {
+                        e.preventDefault();
+                        addExpenseLine();
+                      }
+                    }}
+                    className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`}
+                  />
                   <Dropdown
                     value={l.taxCodeId || null}
                     onChange={(e) => setLine(l.key, { taxCodeId: (e.value as string | null) ?? "" })}
@@ -322,6 +379,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                           { label: t("created.net"), value: formatMoney(result.totalNet, currency), ltr: true },
                           { label: t("created.tax"), value: formatMoney(result.totalTax, currency), ltr: true },
                           { label: t("created.gross"), value: formatMoney(saved.totalGross, currency), ltr: true },
+                          { label: t("created.inWords"), value: tafqeetAmount(saved.totalGross, currency) },
                           { label: t("created.lines"), value: String(lines.length) },
                         ],
                       }),

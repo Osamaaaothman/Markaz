@@ -1,0 +1,132 @@
+/* ============================================================================
+   Markaz design system — theme palettes
+   "forest" (light) and "night" (dark) are the defaults in tokens.css. Each block here swaps the
+   palette only — brand scale, accent, neutrals — and everything else (sidebar, buttons, tables,
+   PrimeReact bridge) follows through the semantic variables. Picked per browser in
+   Settings > Interface (shared/theme/theme-store.ts); same selector weight as tokens.css, loaded after it.
+   ============================================================================ */
+
+/* ---- ocean: light, cool blue on slate ---- */
+html[data-theme="ocean"] {
+  --mk-brand-50: #eef4ff;
+  --mk-brand-100: #dbe7ff;
+  --mk-brand-200: #b8cffd;
+  --mk-brand-300: #8bb0f9;
+  --mk-brand-400: #5a8bf0;
+  --mk-brand-500: #2f68e0;
+  --mk-brand-600: #2354c4;
+  --mk-brand-700: #1c449f;
+  --mk-brand-800: #173a82;
+  --primary-900: #0f2559;
+  --mk-brass-100: #dff4f7;
+  --mk-brass-300: #7fd0dc;
+  --mk-brass-400: #38b2c7;
+  --mk-brass-500: #0e8fa8;
+  --mk-brass-600: #0b7388;
+
+  --mk-bg: #f2f6fb;
+  --mk-bg-accent: #e9eff7;
+  --mk-surface: #ffffff;
+  --mk-surface-2: #f7f9fc;
+  --mk-surface-3: #edf2f8;
+  --mk-border: #dde5f0;
+  --mk-border-strong: #c6d2e3;
+  --mk-text: #0e1a2e;
+  --mk-text-muted: #55657d;
+  --mk-text-subtle: #8b99ae;
+  --mk-chart-3: #55657d;
+}
+
+/* ---- sand: light, warm cream with terracotta ---- */
+html[data-theme="sand"] {
+  --mk-brand-50: #fdf3ee;
+  --mk-brand-100: #fbe3d6;
+  --mk-brand-200: #f6c6ab;
+  --mk-brand-300: #ee9f76;
+  --mk-brand-400: #e47a47;
+  --mk-brand-500: #d65f2a;
+  --mk-brand-600: #bd4e1f;
+  --mk-brand-700: #9c411b;
+  --mk-brand-800: #7d3517;
+  --primary-900: #52230f;
+  --mk-brass-100: #f4efd6;
+  --mk-brass-300: #d6c77a;
+  --mk-brass-400: #c0ad45;
+  --mk-brass-500: #9b8a22;
+  --mk-brass-600: #7a6c18;
+
+  --mk-bg: #faf5ee;
+  --mk-bg-accent: #f3ebe0;
+  --mk-surface: #fffdf9;
+  --mk-surface-2: #fbf7f1;
+  --mk-surface-3: #f4ede2;
+  --mk-border: #eadfce;
+  --mk-border-strong: #d9c9b0;
+  --mk-text: #2a1f16;
+  --mk-text-muted: #77685a;
+  --mk-text-subtle: #a89a8a;
+  --mk-chart-3: #77685a;
+}
+
+/* ---- plum: light, soft lavender with violet ---- */
+html[data-theme="plum"] {
+  --mk-brand-50: #f6f1fe;
+  --mk-brand-100: #ebe0fc;
+  --mk-brand-200: #d6bff9;
+  --mk-brand-300: #bb93f4;
+  --mk-brand-400: #9d66ec;
+  --mk-brand-500: #8244de;
+  --mk-brand-600: #6d33c4;
+  --mk-brand-700: #5a2ba0;
+  --mk-brand-800: #47227f;
+  --primary-900: #2e1552;
+  --mk-brass-100: #fde8ef;
+  --mk-brass-300: #f4a3bd;
+  --mk-brass-400: #ea6f98;
+  --mk-brass-500: #d94a7b;
+  --mk-brass-600: #b83a65;
+
+  --mk-bg: #f7f4fb;
+  --mk-bg-accent: #eee9f6;
+  --mk-surface: #ffffff;
+  --mk-surface-2: #faf8fd;
+  --mk-surface-3: #f1edf8;
+  --mk-border: #e4ddf0;
+  --mk-border-strong: #d0c6e2;
+  --mk-text: #1c1429;
+  --mk-text-muted: #655a78;
+  --mk-text-subtle: #9a90ad;
+  --mk-chart-3: #655a78;
+}
+
+/* ---- graphite: dark, slate with indigo ---- */
+html[data-theme="graphite"] {
+  --mk-brand-50: #eef0ff;
+  --mk-brand-100: #dfe3ff;
+  --mk-brand-200: #c1c8fe;
+  --mk-brand-300: #9ea7fb;
+  --mk-brand-400: #7c85f5;
+  --mk-brand-500: #5f65e8;
+  --mk-brand-600: #4c4ed0;
+  --mk-brand-700: #3f40a9;
+  --mk-brand-800: #343587;
+  --primary-900: #1f2050;
+  --mk-brass-100: #d9f3f7;
+  --mk-brass-300: #8fdbe7;
+  --mk-brass-400: #5cc8d8;
+  --mk-brass-500: #38b2c7;
+  --mk-brass-600: #1f95aa;
+
+  --mk-bg: #0f1116;
+  --mk-bg-accent: #141720;
+  --mk-surface: #181b24;
+  --mk-surface-2: #1d212c;
+  --mk-surface-3: #252a37;
+  --mk-border: #2a2f3d;
+  --mk-border-strong: #3a4152;
+  --mk-text: #e8eaf1;
+  --mk-text-muted: #a0a7b8;
+  --mk-text-subtle: #737b8e;
+  --mk-on-primary: #0b0d2e;
+  --mk-chart-3: #8a93a8;
+}

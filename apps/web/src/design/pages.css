@@ -29,7 +29,7 @@
 .erp-page__title {
   margin: 0;
   font-size: var(--mk-text-2xl);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
@@ -173,7 +173,7 @@ html body .p-skeleton::after {
 .mk-auth__hero {
   margin: 1.5rem 0 0.75rem;
   font-size: clamp(1.7rem, 3.2vw, 2.6rem);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.02em;
   max-width: 18ch;
@@ -213,7 +213,7 @@ html body .p-skeleton::after {
   place-items: center;
   width: 2.1rem;
   height: 2.1rem;
-  border-radius: 10px;
+  border-radius: var(--mk-radius-sm);
   background: rgb(255 255 255 / 0.09);
   border: 1px solid rgb(255 255 255 / 0.12);
   color: var(--mk-brand-300);
@@ -258,7 +258,7 @@ html body .p-skeleton::after {
 .erp-auth-card__title {
   margin: 0;
   font-size: var(--mk-text-2xl);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .erp-auth-card__subtitle {
@@ -303,7 +303,7 @@ html body .erp-auth-card .p-password {
 .mk-hero__title {
   margin: 0;
   font-size: var(--mk-text-2xl);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .mk-hero__sub {
@@ -393,7 +393,7 @@ html[dir="rtl"] .erp-kpi::before {
   place-items: center;
   width: 2.3rem;
   height: 2.3rem;
-  border-radius: 11px;
+  border-radius: var(--mk-radius);
   color: var(--mk-primary);
   background: var(--mk-primary-soft);
   transition: transform var(--mk-dur) var(--mk-ease-spring);
@@ -415,7 +415,7 @@ html[dir="rtl"] .erp-kpi::before {
   grid-area: value;
   margin-block-start: 0.35rem;
   font-size: 1.6rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
   white-space: nowrap;
@@ -683,7 +683,7 @@ html[dir="rtl"] .erp-kpi::before {
   flex-shrink: 0;
   width: 2rem;
   height: 2rem;
-  border-radius: 9px;
+  border-radius: var(--mk-radius-sm);
   background: var(--mk-warning-soft);
   color: var(--mk-warning);
 }

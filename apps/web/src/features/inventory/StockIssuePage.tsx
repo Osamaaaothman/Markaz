@@ -43,6 +43,7 @@ export function StockIssuePage(): React.JSX.Element {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -50,6 +51,15 @@ export function StockIssuePage(): React.JSX.Element {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+
+  // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
+  // right before validation runs, instead of blocking the save button or forcing a manual delete.
+  const isBlankLine = (l: FormValues["lines"][number]): boolean => l.itemId === "" && l.quantity.trim() === "";
+  const submitWithCleanup = (e: React.BaseSyntheticEvent): void => {
+    const blankIndexes = watch("lines").reduce<number[]>((acc, l, i) => (isBlankLine(l) ? [...acc, i] : acc), []);
+    if (blankIndexes.length > 0) remove(blankIndexes);
+    void onSubmit(e);
+  };
 
   const onSubmit = handleSubmit((values) => {
     createIssue.mutate(
@@ -89,7 +99,7 @@ export function StockIssuePage(): React.JSX.Element {
         </div>
       </div>
 
-      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+      <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="siWarehouse">{t("inventory.warehouses.title")}</label>
@@ -138,7 +148,18 @@ export function StockIssuePage(): React.JSX.Element {
                   />
                 )}
               />
-              <InputText placeholder={t("inventory.goodsReceipt.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} />
+              <InputText
+                placeholder={t("inventory.goodsReceipt.quantity")}
+                dir="ltr"
+                {...register(`lines.${index}.quantity`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && index === fields.length - 1) {
+                    e.preventDefault();
+                    append(EMPTY_LINE);
+                  }
+                }}
+                className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`}
+              />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
           ))}

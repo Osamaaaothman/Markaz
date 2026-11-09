@@ -8,7 +8,7 @@ import { lockStockRow, saveStockRow } from "../inventory/stock-row.repo.js";
 import { InsufficientStockError, applyIssue } from "../inventory/weighted-average.util.js";
 import { allocateDocumentNumber } from "../reference.js";
 import type { SalesActor } from "./quotation.service.js";
-import { SalesError, blankToNull, dateOnly, lockCustomer, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
+import { SalesError, blankToNull, dateOnly, lockCustomer, resolveEgsUnitId, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
 
 export interface SalesInvoiceLineInput extends SalesLineInput {
   // Required with an item: the warehouse the goods leave.
@@ -24,6 +24,9 @@ export interface CreateSalesInvoiceInput {
   readonly dueDate?: Date | undefined;
   readonly notes?: string | undefined;
   readonly lines: readonly SalesInvoiceLineInput[];
+  // Required only when the company has more than one active ZATCA issuing unit (EgsUnit);
+  // omit it otherwise (docs/01-OPEN-DECISIONS.md).
+  readonly egsUnitId?: string | undefined;
 }
 
 export interface CreditNoteLineInput {
@@ -39,6 +42,7 @@ export interface CreateCreditNoteInput {
   readonly creditDate: Date;
   readonly notes?: string | undefined;
   readonly lines: readonly CreditNoteLineInput[];
+  readonly egsUnitId?: string | undefined;
 }
 
 // Free-typed lines against a revenue account, the AR mirror of the purchasing debit note (D8):
@@ -56,6 +60,7 @@ export interface CreateSalesDebitNoteInput {
   readonly debitDate: Date;
   readonly notes?: string | undefined;
   readonly lines: readonly SalesDebitNoteLineInput[];
+  readonly egsUnitId?: string | undefined;
 }
 
 export interface SalesInvoiceResult {
@@ -83,6 +88,17 @@ export interface SalesInvoiceSummary {
 
 export interface SalesInvoiceDetail extends SalesInvoiceSummary {
   readonly notes: string | null;
+  // Printed on the PDF header, next to the customer's name (docs/08 — never required to
+  // post an invoice; a customer without these on file simply shows nothing for them).
+  readonly customerVatNumber: string | null;
+  readonly customerCommercialRegistration: string | null;
+  readonly customerStreetName: string | null;
+  readonly customerAdditionalStreetName: string | null;
+  readonly customerBuildingNumber: string | null;
+  readonly customerAdditionalNumber: string | null;
+  readonly customerDistrict: string | null;
+  readonly customerCity: string | null;
+  readonly customerPostalCode: string | null;
   readonly lines: readonly {
     readonly id: string;
     readonly description: string;
@@ -156,6 +172,7 @@ export class SalesInvoiceService {
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
       await lockCustomer(tx, actor.companyId, input.customerId);
+      const egsUnitId = await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId);
       const lines = await resolveSalesLines(tx, actor.companyId, input.lines);
 
       // ── order lines: lock, check the remaining quantity ──
@@ -268,6 +285,7 @@ export class SalesInvoiceService {
           totalCost,
           journalEntryId: posting.journalEntryId,
           notes: blankToNull(input.notes),
+          egsUnitId,
           actorId: actor.id,
           correlationId,
           lines: {
@@ -347,6 +365,9 @@ export class SalesInvoiceService {
       if (!original) throw new SalesError("NOT_FOUND", "Invoice not found");
       if (original.documentType !== "INVOICE") throw new SalesError("NOT_AN_INVOICE", "A credit note can only be raised against an invoice");
       await lockCustomer(tx, actor.companyId, original.customerId);
+      // A credit note inherits the original invoice's issuing unit by default -- it is the same
+      // legal document lineage, not a fresh choice -- unless the caller explicitly overrides it.
+      const egsUnitId = input.egsUnitId ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId) : original.egsUnitId;
 
       const lines = await resolveSalesLines(
         tx,
@@ -418,6 +439,7 @@ export class SalesInvoiceService {
           totalGross: totals.gross,
           journalEntryId: posting.journalEntryId,
           notes: blankToNull(input.notes),
+          egsUnitId,
           actorId: actor.id,
           correlationId,
           lines: {
@@ -458,6 +480,8 @@ export class SalesInvoiceService {
       if (!original) throw new SalesError("NOT_FOUND", "Invoice not found");
       if (original.documentType !== "INVOICE") throw new SalesError("NOT_AN_INVOICE", "A debit note can only be raised against an invoice");
       await lockCustomer(tx, actor.companyId, original.customerId);
+      // Same inheritance rule as a credit note (above): defaults to the original invoice's unit.
+      const egsUnitId = input.egsUnitId ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId) : original.egsUnitId;
 
       const lines = await resolveSalesLines(
         tx,
@@ -530,6 +554,7 @@ export class SalesInvoiceService {
           totalGross: totals.gross,
           journalEntryId: posting.journalEntryId,
           notes: blankToNull(input.notes),
+          egsUnitId,
           actorId: actor.id,
           correlationId,
           lines: {
@@ -582,6 +607,15 @@ export class SalesInvoiceService {
     return {
       ...toSummary(row),
       notes: row.notes,
+      customerVatNumber: row.customer.vatNumber,
+      customerCommercialRegistration: row.customer.commercialRegistration,
+      customerStreetName: row.customer.streetName,
+      customerAdditionalStreetName: row.customer.additionalStreetName,
+      customerBuildingNumber: row.customer.buildingNumber,
+      customerAdditionalNumber: row.customer.additionalNumber,
+      customerDistrict: row.customer.district,
+      customerCity: row.customer.city,
+      customerPostalCode: row.customer.postalCode,
       lines: row.lines.map((l) => ({
         id: l.id,
         description: l.description,

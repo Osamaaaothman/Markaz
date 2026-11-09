@@ -80,7 +80,7 @@ export function AuditLogPage(): React.JSX.Element {
         </>
       )}
 
-      <Dialog header={open?.action ?? ""} visible={open !== null} onHide={() => setOpen(null)} className="erp-dialog" modal style={{ width: "min(46rem, 96vw)" }}>
+      <Dialog header={open?.action ?? ""} visible={open !== null} onHide={() => setOpen(null)} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(60rem, 96vw)" }}>
         {open ? (
           <div className="erp-form">
             <dl className="mk-facts">

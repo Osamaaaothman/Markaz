@@ -26,6 +26,7 @@ import { StockLevelsPage } from "../features/inventory/StockLevelsPage";
 import { StockMovementsPage } from "../features/inventory/StockMovementsPage";
 import { WarehousesPage } from "../features/inventory/WarehousesPage";
 import { ApprovalPolicyPage } from "../features/purchasing/ApprovalPolicyPage";
+import { CompliancePage } from "../features/compliance/CompliancePage";
 import { SupplierInvoiceFormPage } from "../features/purchasing/SupplierInvoiceFormPage";
 import { SupplierInvoicesPage } from "../features/purchasing/SupplierInvoicesPage";
 import { TaxCodesPage } from "../features/purchasing/TaxCodesPage";
@@ -50,7 +51,10 @@ import { SalesInvoiceDetailPage, SalesInvoicesPage } from "../features/sales/Sal
 import { SalesOrderDetailPage, SalesOrdersPage } from "../features/sales/SalesOrdersPage";
 import { CustomerReceiptPage, SupplierPaymentPage } from "../features/payments/PaymentFormPage";
 import { PaymentDetailPage } from "../features/payments/PaymentDetailPage";
-import { PaymentsPage } from "../features/payments/PaymentsPage";
+import { ReceiptsPage, SupplierPaymentsPage } from "../features/payments/PaymentsPage";
+import { SettleReceiptsPage, SettleSupplierPage } from "../features/payments/SettlePage";
+import { CashExpensesPage } from "../features/payments/CashExpensesPage";
+import { CashExpenseFormPage } from "../features/payments/CashExpenseFormPage";
 import { AgingPage } from "../features/payments/AgingPage";
 import { PartyStatementPage } from "../features/payments/PartyStatementPage";
 import { UsersPage } from "../features/settings/UsersPage";
@@ -60,6 +64,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { RequirePermission } from "./RequirePermission";
 import { DocumentsPage } from "../features/attachments/DocumentsPage";
 import { CompanyPage } from "../features/settings/CompanyPage";
+import { InterfaceSettingsPage } from "../features/settings/InterfaceSettingsPage";
 
 // The permissions a route needs come from NAV_ITEMS, so hiding a nav entry and guarding its
 // page can never disagree.
@@ -204,7 +209,8 @@ export function AppRoutes(): React.JSX.Element {
             <Route path="/sales/invoices/new" element={<SalesInvoiceFormPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/payments")} />}>
-            <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/payments/receipts" element={<ReceiptsPage />} />
+            <Route path="/payments/supplier" element={<SupplierPaymentsPage />} />
             <Route path="/payments/:id" element={<PaymentDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={["customer_receipt:create"]} />}>
@@ -212,6 +218,16 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={["supplier_payment:create"]} />}>
             <Route path="/payments/supplier/new" element={<SupplierPaymentPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["payment:create"]} />}>
+            <Route path="/payments/receipts/settle" element={<SettleReceiptsPage />} />
+            <Route path="/payments/supplier/settle" element={<SettleSupplierPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["cash_expense:read"]} />}>
+            <Route path="/payments/cash-expenses" element={<CashExpensesPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["cash_expense:create"]} />}>
+            <Route path="/payments/cash-expenses/new" element={<CashExpenseFormPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/aging")} />}>
             <Route path="/accounting/aging" element={<AgingPage />} />
@@ -222,12 +238,16 @@ export function AppRoutes(): React.JSX.Element {
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/approvals")} />}>
             <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
           </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/settings/zatca")} />}>
+            <Route path="/settings/zatca" element={<CompliancePage />} />
+          </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/account-mapping")} />}>
             <Route path="/settings/account-mapping" element={<AccountMappingPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/audit-log")} />}>
             <Route path="/settings/audit-log" element={<AuditLogPage />} />
           </Route>
+          <Route path="/settings/interface" element={<InterfaceSettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

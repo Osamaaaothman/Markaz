@@ -12,6 +12,7 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
+    "@erp/compliance-zatca-sa": "*",
     "@erp/core": "*",
     "@erp/db": "*",
     "@erp/shared": "*",
@@ -27,9 +28,9 @@
     "ioredis": "^6.0.0",
     "nestjs-pino": "^5.1.0",
     "nodemailer": "^10.0.7",
-    "playwright": "^1.63.0",
     "pino": "^10.0.0",
     "pino-http": "^11.0.0",
+    "playwright": "^1.63.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

@@ -36,7 +36,6 @@ export function CommandPalette(): React.JSX.Element | null {
   const open = useLayoutStore((s) => s.paletteOpen);
   const openPalette = useLayoutStore((s) => s.openPalette);
   const closePalette = useLayoutStore((s) => s.closePalette);
-  const toggleDensity = useLayoutStore((s) => s.toggleDensity);
   const toggleTheme = useThemeStore((s) => s.toggle);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -87,12 +86,11 @@ export function CommandPalette(): React.JSX.Element | null {
     }));
     const settings: Command[] = [
       { id: "toggle-theme", label: t("shell.toggleTheme"), icon: "pi pi-moon", section: "settings", run: toggleTheme },
-      { id: "toggle-density", label: t("shell.density"), icon: "pi pi-bars", section: "settings", run: toggleDensity },
       { id: "switch-language", label: t("language.switch"), icon: "pi pi-language", section: "settings", run: () => void i18n.changeLanguage(i18n.language === "ar" ? "en" : "ar") },
       { id: "design-system", label: t("shell.designSystem"), icon: "pi pi-palette", section: "settings", run: go("/design-system") },
     ];
     return [...create, ...pages, ...settings];
-  }, [t, i18n, navigate, can, canAny, toggleTheme, toggleDensity]);
+  }, [t, i18n, navigate, can, canAny, toggleTheme]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();

@@ -14,6 +14,7 @@ const LINK_ID = "prime-theme-link";
 // swap, not two bundled copies fighting for specificity.
 export function usePrimeTheme(): void {
   const mode = useThemeStore((state) => state.mode);
+  const theme = useThemeStore((state) => state.theme);
 
   useEffect(() => {
     let link = document.getElementById(LINK_ID) as HTMLLinkElement | null;
@@ -25,5 +26,6 @@ export function usePrimeTheme(): void {
     }
     link.href = mode === "dark" ? darkThemeUrl : lightThemeUrl;
     document.documentElement.dataset.themeMode = mode;
-  }, [mode]);
+    document.documentElement.dataset.theme = theme;
+  }, [mode, theme]);
 }

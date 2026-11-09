@@ -28,6 +28,9 @@ export interface CurrentUserProfile {
   readonly companyName: string;
   readonly companyNameAr: string | null;
   readonly companyDefaultCurrency: string;
+  // Human-readable label (USR-000012) and the roles held, for the profile card.
+  readonly ref: string;
+  readonly roles: readonly { readonly id: string; readonly name: string }[];
   // Permission codes ("<resource>:<action>") this user currently holds — the
   // frontend uses these ONLY to show/hide UI (docs/09-SECURITY-RULES.md §3:
   // authorization itself is always re-checked server-side by PermissionGuard,
@@ -143,12 +146,13 @@ export class UsersService {
       select: {
         id: true,
         email: true,
+        ref: true,
         companyId: true,
         company: { select: { name: true, nameAr: true, defaultCurrency: true } },
         roles: {
           select: {
             role: {
-              select: { permissions: { select: { permission: { select: { code: true } } } } },
+              select: { id: true, name: true, permissions: { select: { permission: { select: { code: true } } } } },
             },
           },
         },
@@ -169,6 +173,8 @@ export class UsersService {
       companyName: user.company.name,
       companyNameAr: user.company.nameAr,
       companyDefaultCurrency: user.company.defaultCurrency,
+      ref: user.ref,
+      roles: user.roles.map((userRole) => ({ id: userRole.role.id, name: userRole.role.name })),
       permissions: [...permissions].sort(),
     };
   }

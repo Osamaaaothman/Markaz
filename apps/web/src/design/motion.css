@@ -115,9 +115,48 @@
   }
 }
 
-/* ---- the page itself eases in when a route mounts ---- */
-.erp-page {
-  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+/* ---- a page eases in when its route mounts: its blocks rise one after another, lightly ----
+   "backwards" fill: no transform is left on the element afterwards, so sticky bars and popups keep working. */
+@keyframes mk-rise-soft {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.erp-page > *,
+.erp-form > * {
+  animation: mk-rise-soft 320ms var(--mk-ease) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.erp-page > :nth-child(2),
+.erp-form > :nth-child(2) {
+  --i: 1;
+}
+
+.erp-page > :nth-child(3),
+.erp-form > :nth-child(3) {
+  --i: 2;
+}
+
+.erp-page > :nth-child(4),
+.erp-form > :nth-child(4) {
+  --i: 3;
+}
+
+.erp-page > :nth-child(5),
+.erp-form > :nth-child(5) {
+  --i: 4;
+}
+
+.erp-page > :nth-child(n + 6),
+.erp-form > :nth-child(n + 6) {
+  --i: 5;
 }
 
 /* ---- staggered entrance: set --i on a child (0, 1, 2 ...) ---- */

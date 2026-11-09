@@ -5,6 +5,7 @@ import { companyCurrency } from "../accounting/company-currency.util.js";
 import { fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { ApprovalService } from "../approvals/approval.service.js";
 import { allocateDocumentNumber } from "../reference.js";
+import { expenseLineMath } from "./supplier-invoice.util.js";
 
 export const PURCHASE_ORDER_APPROVAL_SUBJECT = "purchase_order";
 
@@ -23,6 +24,7 @@ export class PurchaseOrderError extends Error {
       | "SUPPLIER_NOT_FOUND"
       | "WAREHOUSE_NOT_FOUND"
       | "ITEM_NOT_FOUND"
+      | "TAX_CODE_NOT_FOUND"
       | "ORDER_NOT_FOUND"
       | "REQUEST_NOT_FOUND"
       | "REQUEST_NOT_ACCEPTED"
@@ -39,6 +41,7 @@ export interface PurchaseOrderLineInput {
   readonly itemId: string;
   readonly quantity: string;
   readonly unitPrice: string;
+  readonly taxCodeId: string;
 }
 
 export interface CreatePurchaseOrderInput {
@@ -72,6 +75,7 @@ export interface PurchaseOrderSummary {
   readonly expectedDate: string | null;
   readonly currency: string;
   readonly totalAmount: string;
+  readonly totalTax: string;
   readonly lineCount: number;
   readonly createdAt: string;
 }
@@ -91,6 +95,9 @@ export interface PurchaseOrderDetail extends PurchaseOrderSummary {
     // Quantity already matched to supplier invoices; received minus this is what can still be returned.
     readonly invoicedQuantity: string;
     readonly lineTotal: string;
+    readonly taxCodeId: string | null;
+    readonly taxRate: string | null;
+    readonly taxAmount: string;
   }[];
 }
 
@@ -136,6 +143,7 @@ function toSummary(row: OrderRow): PurchaseOrderSummary {
     expectedDate: row.expectedDate ? dateOnly(row.expectedDate) : null,
     currency: row.currency,
     totalAmount: row.totalAmount.toFixed(4),
+    totalTax: row.totalTax.toFixed(4),
     lineCount: row._count.lines,
     createdAt: row.createdAt.toISOString(),
   };
@@ -172,13 +180,24 @@ export class PurchaseOrderService {
       const items = await tx.item.findMany({ where: { id: { in: itemIds }, companyId: actor.companyId, isActive: true }, select: { id: true } });
       if (items.length !== itemIds.length) throw new PurchaseOrderError("ITEM_NOT_FOUND", "An item on the order was not found");
 
+      const taxCodeIds = [...new Set(input.lines.map((l) => l.taxCodeId))];
+      const taxCodes = await tx.taxCode.findMany({ where: { id: { in: taxCodeIds }, companyId: actor.companyId }, select: { id: true, rate: true } });
+      if (taxCodes.length !== taxCodeIds.length) throw new PurchaseOrderError("TAX_CODE_NOT_FOUND", "A VAT code on the order was not found");
+      const taxCodeById = new Map(taxCodes.map((c) => [c.id, c]));
+
       const currency = await companyCurrency(tx, actor.companyId);
+      // Net and tax are an estimate for display only — the order posts nothing to the ledger, and the
+      // supplier invoice computes its own tax independently when the line is matched.
       const lineRecords = input.lines.map((l, index) => {
         const quantity = new Prisma.Decimal(l.quantity);
         const unitPrice = new Prisma.Decimal(l.unitPrice);
-        return { id: newId(), itemId: l.itemId, quantity, unitPrice, lineNumber: index + 1, total: quantity.times(unitPrice).toDecimalPlaces(4) };
+        const taxCode = taxCodeById.get(l.taxCodeId);
+        if (!taxCode) throw new PurchaseOrderError("TAX_CODE_NOT_FOUND", "A VAT code on the order was not found");
+        const math = expenseLineMath(quantity, unitPrice, taxCode.rate);
+        return { id: newId(), itemId: l.itemId, quantity, unitPrice, lineNumber: index + 1, total: math.net, taxCodeId: taxCode.id, taxRate: taxCode.rate, taxAmount: math.tax };
       });
       const total = lineRecords.reduce((sum, l) => sum.plus(l.total), new Prisma.Decimal(0));
+      const totalTax = lineRecords.reduce((sum, l) => sum.plus(l.taxAmount), new Prisma.Decimal(0));
 
       const approval = await this.approvals.evaluateAndRequest(tx, {
         companyId: actor.companyId,
@@ -206,6 +225,7 @@ export class PurchaseOrderService {
           expectedDate: input.expectedDate ?? null,
           currency,
           totalAmount: total,
+          totalTax,
           notes: blankToNull(input.notes),
           approvalRequestId: approval?.id ?? null,
           requestedBy: actor.id,
@@ -217,6 +237,9 @@ export class PurchaseOrderService {
               quantity: l.quantity,
               unitPrice: l.unitPrice,
               lineNumber: l.lineNumber,
+              taxCodeId: l.taxCodeId,
+              taxRate: l.taxRate,
+              taxAmount: l.taxAmount,
             })),
           },
         },
@@ -287,6 +310,9 @@ export class PurchaseOrderService {
         receivedQuantity: l.receivedQuantity.toFixed(4),
         invoicedQuantity: l.invoicedQuantity.toFixed(4),
         lineTotal: l.quantity.times(l.unitPrice).toDecimalPlaces(4).toFixed(4),
+        taxCodeId: l.taxCodeId,
+        taxRate: l.taxRate ? l.taxRate.toFixed(4) : null,
+        taxAmount: l.taxAmount.toFixed(4),
       })),
     };
   }

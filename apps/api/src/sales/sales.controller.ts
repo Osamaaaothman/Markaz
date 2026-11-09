@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
   QuotationService,
@@ -6,6 +6,7 @@ import {
   SalesInvoiceService,
   SalesOrderService,
   UnmappedAccountError,
+  type IAuditLogger,
   type QuotationDetail,
   type QuotationListPage,
   type QuotationSummary,
@@ -20,12 +21,17 @@ import {
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
+import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
+import { quotationToPdfHtml } from "./exports/quotation-export.js";
+import { quotationEmailContent } from "./exports/quotation-email-template.js";
 import { localizedCompanyName } from "../common/company-name.js";
+import { EMAIL_TRANSPORT } from "../notifications/mail.module.js";
+import { redactAddress, type EmailTransport } from "../notifications/email-transport.js";
 import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
@@ -33,10 +39,34 @@ import {
   CreateQuotationDto,
   CreateSalesInvoiceDto,
   CreateSalesOrderDto,
+  QuotationEmailPreviewDto,
   QuotationsQueryDto,
   SalesInvoicesQueryDto,
   SalesOrdersQueryDto,
+  SendQuotationEmailDto,
 } from "./dto/sales-dtos.js";
+
+const COMPANY_DOCUMENT_SELECT = {
+  name: true,
+  nameAr: true,
+  vatNumber: true,
+  crNumber: true,
+  streetName: true,
+  additionalStreetName: true,
+  buildingNumber: true,
+  additionalNumber: true,
+  district: true,
+  city: true,
+  postalCode: true,
+  phone: true,
+} as const;
+
+function sellerAddressOf(company: { streetName: string | null; additionalStreetName: string | null; buildingNumber: string | null; additionalNumber: string | null; district: string | null; city: string | null; postalCode: string | null }, language: SupportedDocumentLanguage): string | null {
+  const sep = language === "ar" ? "، " : ", ";
+  const buildingPart = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+  const addressParts = [company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter((p): p is string => Boolean(p?.trim()));
+  return [buildingPart, ...addressParts].filter(Boolean).join(sep).trim() || null;
+}
 
 // Maps a sales rule that failed to an HTTP status. The body carries the rule's own code (and the
 // line it is about) so the screen can say exactly what went wrong; the error filter passes it through.
@@ -55,6 +85,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
       case "WAREHOUSE_NOT_FOUND":
       case "ORDER_LINE_NOT_FOUND":
       case "ACCOUNT_NOT_FOUND":
+      case "EGS_UNIT_NOT_FOUND":
         throw new NotFoundException(body);
       case "INVALID_STATE":
       case "INSUFFICIENT_STOCK":
@@ -63,6 +94,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
       case "CREDIT_EXCEEDS_INVOICE":
       case "DEBIT_EXCEEDS_INVOICE":
       case "NOT_AN_INVOICE":
+      case "EGS_UNIT_REQUIRED":
         throw new ConflictException(body);
       default:
         throw new BadRequestException(body);
@@ -78,7 +110,24 @@ export class SalesController {
     private readonly invoices: SalesInvoiceService,
     private readonly prisma: PrismaService,
     private readonly attachments: AttachmentService,
+    @Inject(EMAIL_TRANSPORT) private readonly emailTransport: EmailTransport,
+    @Inject(AUDIT_LOGGER) private readonly audit: IAuditLogger,
   ) {}
+
+  // Shared by the quotation PDF, preview and send endpoints: the company's own identity as it
+  // appears on an outgoing document, and its logo as a data URI (never a remote URL).
+  private async loadSellerContext(companyId: string, language: SupportedDocumentLanguage) {
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: COMPANY_DOCUMENT_SELECT });
+    const logo = await this.attachments.getCompanyLogo(companyId).catch(() => null);
+    return {
+      companyName: localizedCompanyName(company, language),
+      logoDataUri: logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined,
+      sellerVatNumber: company.vatNumber,
+      sellerCrNumber: company.crNumber,
+      sellerAddress: sellerAddressOf(company, language),
+      sellerPhone: company.phone,
+    };
+  }
 
   // ── Quotations ──────────────────────────────────────────────────────────────
 
@@ -133,6 +182,67 @@ export class SalesController {
   @RequirePermission("quotation", "update")
   cancelQuotation(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<QuotationSummary> {
     return mapSalesErrors(this.quotations.cancel(id, actor, correlationId));
+  }
+
+  @Get("quotations/:id/pdf")
+  @RequirePermission("quotation", "read")
+  async quotationPdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
+    const seller = await this.loadSellerContext(actor.companyId, language);
+    const pdf = await renderHtmlToPdf(await quotationToPdfHtml({ quotation, language, ...seller }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${quotation.number}.pdf"`);
+    res.send(pdf);
+  }
+
+  // What "Send" will actually mail, rendered up front so the user can check it before anything
+  // leaves this server. No attempt is a send — it only reads the quotation and the company profile.
+  @Post("quotations/:id/email/preview")
+  @RequirePermission("quotation", "read")
+  async previewQuotationEmail(
+    @Param("id") id: string,
+    @Body() dto: QuotationEmailPreviewDto,
+    @CurrentUser() actor: CurrentUserPayload,
+  ): Promise<{ html: string; subject: string; defaultRecipient: string | null }> {
+    const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
+    const seller = await this.loadSellerContext(actor.companyId, dto.language);
+    const { html, subject } = await quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress });
+    return { html, subject, defaultRecipient: quotation.customerEmail };
+  }
+
+  // A deliberate, human-confirmed send after a preview — sent directly from this request rather
+  // than through the notification outbox/job queue (that pattern is for notices tied to a business
+  // event in the same DB transaction; this is a one-off action the user just watched and approved).
+  @Post("quotations/:id/email/send")
+  @RequirePermission("quotation", "create")
+  async sendQuotationEmail(
+    @Param("id") id: string,
+    @Body() dto: SendQuotationEmailDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<{ sentAt: string }> {
+    const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
+    const seller = await this.loadSellerContext(actor.companyId, dto.language);
+    const [{ html, subject, text }, pdf] = await Promise.all([
+      quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress }),
+      renderHtmlToPdf(await quotationToPdfHtml({ quotation, language: dto.language, ...seller })),
+    ]);
+    await this.emailTransport.send({
+      to: dto.to,
+      subject,
+      html,
+      text,
+      attachments: [{ filename: `${quotation.number}.pdf`, content: pdf, contentType: "application/pdf" }],
+    });
+    const sentAt = new Date().toISOString();
+    await this.audit.log({ actorId: actor.id, action: "quotation.emailed", entityType: "Quotation", entityId: id, after: { to: redactAddress(dto.to), language: dto.language }, correlationId });
+    return { sentAt };
   }
 
   // ── Sales orders ────────────────────────────────────────────────────────────
@@ -192,11 +302,44 @@ export class SalesController {
   ): Promise<void> {
     const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
     const invoice = await mapSalesErrors(this.invoices.get(actor.companyId, id));
-    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true } });
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: actor.companyId },
+      select: {
+        name: true,
+        nameAr: true,
+        vatNumber: true,
+        crNumber: true,
+        streetName: true,
+        additionalStreetName: true,
+        buildingNumber: true,
+        additionalNumber: true,
+        district: true,
+        city: true,
+        postalCode: true,
+        phone: true,
+      },
+    });
     // The company logo, embedded as a data URI so the PDF never fetches anything. No logo is not an error.
     const logo = await this.attachments.getCompanyLogo(actor.companyId).catch(() => null);
     const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
-    const pdf = await renderHtmlToPdf(await salesInvoiceToPdfHtml({ invoice, language, companyName: localizedCompanyName(company, language), logoDataUri }));
+    const addressSeparator = language === "ar" ? "، " : ", ";
+    const sellerBuildingPart = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+    const sellerAddressParts = [company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(
+      (p): p is string => Boolean(p?.trim()),
+    );
+    const sellerAddress = [sellerBuildingPart, ...sellerAddressParts].filter(Boolean).join(addressSeparator).trim() || null;
+    const pdf = await renderHtmlToPdf(
+      await salesInvoiceToPdfHtml({
+        invoice,
+        language,
+        companyName: localizedCompanyName(company, language),
+        logoDataUri,
+        sellerVatNumber: company.vatNumber,
+        sellerCrNumber: company.crNumber,
+        sellerAddress,
+        sellerPhone: company.phone,
+      }),
+    );
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${invoice.number}.pdf"`);
     res.send(pdf);
@@ -217,6 +360,7 @@ export class SalesController {
           invoiceDate: new Date(dto.invoiceDate),
           ...(dto.dueDate !== undefined ? { dueDate: new Date(dto.dueDate) } : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
           lines: dto.lines,
         },
         actor,
@@ -237,7 +381,13 @@ export class SalesController {
   ): Promise<SalesInvoiceResult> {
     return mapSalesErrors(
       this.invoices.createCreditNote(
-        { originalInvoiceId: id, creditDate: new Date(dto.creditDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
+        {
+          originalInvoiceId: id,
+          creditDate: new Date(dto.creditDate),
+          ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
+          lines: dto.lines,
+        },
         actor,
         correlationId,
         idempotencyKey,
@@ -256,7 +406,13 @@ export class SalesController {
   ): Promise<SalesInvoiceResult> {
     return mapSalesErrors(
       this.invoices.createDebitNote(
-        { originalInvoiceId: id, debitDate: new Date(dto.debitDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
+        {
+          originalInvoiceId: id,
+          debitDate: new Date(dto.debitDate),
+          ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
+          lines: dto.lines,
+        },
         actor,
         correlationId,
         idempotencyKey,

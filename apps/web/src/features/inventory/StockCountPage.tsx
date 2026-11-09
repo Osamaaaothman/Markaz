@@ -50,6 +50,7 @@ export function StockCountPage(): React.JSX.Element {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,6 +58,15 @@ export function StockCountPage(): React.JSX.Element {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+
+  // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
+  // right before validation runs, instead of blocking the save button or forcing a manual delete.
+  const isBlankLine = (l: FormValues["lines"][number]): boolean => l.itemId === "" && l.countedQuantity.trim() === "" && l.unitCostIfNoStock.trim() === "";
+  const submitWithCleanup = (e: React.BaseSyntheticEvent): void => {
+    const blankIndexes = watch("lines").reduce<number[]>((acc, l, i) => (isBlankLine(l) ? [...acc, i] : acc), []);
+    if (blankIndexes.length > 0) remove(blankIndexes);
+    void onSubmit(e);
+  };
 
   const onSubmit = handleSubmit((values) => {
     recordCount.mutate(
@@ -103,7 +113,7 @@ export function StockCountPage(): React.JSX.Element {
       </div>
 
       <h2 className="erp-form__section-title">{t("inventory.stockCount.recordNew")}</h2>
-      <form onSubmit={(e) => void onSubmit(e)} noValidate className="erp-form">
+      <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="scWarehouse">{t("inventory.warehouses.title")}</label>
@@ -164,7 +174,19 @@ export function StockCountPage(): React.JSX.Element {
                 control={control}
                 name={`lines.${index}.unitCostIfNoStock`}
                 render={({ field: f }) => (
-                  <InputText placeholder={t("inventory.stockCount.unitCostIfNoStock")} dir="ltr" value={f.value} onChange={f.onChange} className="erp-lines__amount" />
+                  <InputText
+                    placeholder={t("inventory.stockCount.unitCostIfNoStock")}
+                    dir="ltr"
+                    value={f.value}
+                    onChange={f.onChange}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && index === fields.length - 1) {
+                        e.preventDefault();
+                        append(EMPTY_LINE);
+                      }
+                    }}
+                    className="erp-lines__amount"
+                  />
                 )}
               />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />

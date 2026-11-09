@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
+import { selectFilter } from "../../shared/ui/column-filters";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
@@ -19,6 +20,7 @@ import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
 import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
+import { ZatcaInvoicePanel } from "../compliance/ZatcaInvoicePanel";
 
 const ALL = "ALL";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
@@ -74,9 +76,9 @@ export function SalesInvoicesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/invoices/${(e.data as SalesInvoiceSummary).id}`)}>
-            <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
-            <Column header={t("sales.invoices.documentType")} style={{ width: "10rem" }} body={(r: SalesInvoiceSummary) => <Tag value={t(`sales.invoices.types.${r.documentType}`)} severity={documentTypeSeverity(r.documentType)} />} />
+          <DataGrid emptyAction={{ allowed: can("sales_invoice:create"), label: t("sales.invoices.new"), onClick: () => void navigate("/sales/invoices/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/invoices/${(e.data as SalesInvoiceSummary).id}`)}>
+            <Column field="number" filter header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
+            <Column field="documentType" filter filterMatchMode="equals" filterElement={selectFilter((["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"] as const).map((v) => ({ label: t(`sales.invoices.types.${v}`), value: v })), t("table.filterPlaceholder"))} header={t("sales.invoices.documentType")} style={{ width: "10rem" }} body={(r: SalesInvoiceSummary) => <Tag value={t(`sales.invoices.types.${r.documentType}`)} severity={documentTypeSeverity(r.documentType)} />} />
             <Column header={t("sales.customer")} body={(r: SalesInvoiceSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("purchasing.invoices.invoiceDate")} style={{ width: "9rem" }} body={(r: SalesInvoiceSummary) => formatCalendarDate(r.invoiceDate, i18n.language)} />
             <Column header={t("purchasing.invoices.dueDate")} style={{ width: "9rem" }} body={(r: SalesInvoiceSummary) => (r.dueDate ? formatCalendarDate(r.dueDate, i18n.language) : "")} />
@@ -131,6 +133,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "print")} />
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("credit_note:create")} label={t("sales.invoices.creditNote")} icon="pi pi-minus-circle" outlined onClick={() => setCreditOpen(true)} /> : null}
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("debit_note:create")} label={t("sales.invoices.debitNote")} icon="pi pi-plus-circle" outlined onClick={() => setDebitOpen(true)} /> : null}
+          {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("customer_receipt:create")} label={t("payments.recordPayment")} icon="pi pi-wallet" outlined onClick={() => void navigate(`/payments/receipts/new?party=${invoice.customerId}`)} /> : null}
           {invoice.originalInvoiceId ? <Button label={t("sales.invoices.openOriginal")} text onClick={() => void navigate(`/sales/invoices/${invoice.originalInvoiceId}`)} /> : null}
         </div>
       </div>
@@ -163,6 +166,8 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           {t("purchasing.invoices.gross")}: <strong>{formatMoney(invoice.totalGross, invoice.currency)}</strong>
         </span>
       </div>
+      <ZatcaInvoicePanel salesInvoiceId={invoice.id} resubmitEnabled={false} />
+
       <div className="erp-form__actions">
         <Button type="button" label={t("sales.orders.back")} text onClick={() => void navigate("/sales/invoices")} />
       </div>

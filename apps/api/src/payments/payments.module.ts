@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import {
   AccountMappingService,
   AgingService,
+  CashExpenseService,
   PartyStatementService,
   PaymentService,
   PrismaAccountingEngine,
@@ -12,14 +13,17 @@ import {
 import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { PaymentsController } from "./payments.controller.js";
+import { CashExpensesController } from "./cash-expenses.controller.js";
 import { ReceivablesExportService, ReceivablesReportsController } from "./receivables-reports.controller.js";
+import { AttachmentsModule } from "../attachments/attachments.module.js";
 
 const PAYMENTS_NUMBERING = Symbol("INumberingService (payments)");
 const PAYMENTS_ENGINE = Symbol("IAccountingEngine (payments)");
 
 // Same shape as the other document modules: a module-local engine over PrismaService.
 @Module({
-  controllers: [PaymentsController, ReceivablesReportsController],
+  imports: [AttachmentsModule],
+  controllers: [PaymentsController, CashExpensesController, ReceivablesReportsController],
   providers: [
     { provide: PAYMENTS_NUMBERING, useFactory: () => new PrismaNumberingService() },
     {
@@ -31,6 +35,11 @@ const PAYMENTS_ENGINE = Symbol("IAccountingEngine (payments)");
       provide: PaymentService,
       useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger) =>
         new PaymentService(prisma, engine, new AccountMappingService(prisma, audit), audit),
+      inject: [PrismaService, PAYMENTS_ENGINE, AUDIT_LOGGER],
+    },
+    {
+      provide: CashExpenseService,
+      useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger) => new CashExpenseService(prisma, engine, audit),
       inject: [PrismaService, PAYMENTS_ENGINE, AUDIT_LOGGER],
     },
     {

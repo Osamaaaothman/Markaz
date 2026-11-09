@@ -6,13 +6,14 @@ import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyPicker } from "../accounting/PartyPicker";
+import { useComplianceOverview } from "../compliance/use-compliance";
 import { useAllItems } from "../inventory/use-items";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { useTaxCodes } from "../purchasing/use-invoicing";
@@ -37,6 +38,8 @@ const KNOWN_ERRORS = new Set([
   "ZERO_DOCUMENT",
   "INVALID_STATE",
   "ACCOUNT_NOT_POSTABLE",
+  "EGS_UNIT_REQUIRED",
+  "EGS_UNIT_NOT_FOUND",
 ]);
 
 interface LineState {
@@ -68,6 +71,12 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const { data: warehouses } = useAllWarehouses();
   const { data: taxCodes } = useTaxCodes(false);
   const { data: order } = useSalesOrder(orderId);
+  // Which ZATCA issuing unit (EGS) this invoice belongs to -- only relevant/shown once a company
+  // has more than one active unit (docs/01-OPEN-DECISIONS.md); otherwise the backend assigns it
+  // (or leaves it null) automatically, and this never needs to be asked.
+  const { data: complianceOverview } = useComplianceOverview();
+  const activeEgsUnits = useMemo(() => (complianceOverview?.egsUnits ?? []).filter((u) => u.isActive), [complianceOverview]);
+  const [egsUnitId, setEgsUnitId] = useState("");
 
   const createQuotation = useCreateQuotation();
   const createOrder = useCreateSalesOrder();
@@ -121,6 +130,12 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   };
 
+  // A line the auto-new-line-on-Enter feature added but the user never actually touched — no item,
+  // no description, no price typed in. Dropped silently at save time rather than blocking the save
+  // button or forcing a manual delete; a line the user DID start filling in still needs to be complete.
+  const isBlankLine = (l: LineState): boolean => l.salesOrderLineId === "" && l.itemId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
+  const meaningfulLines = lines.filter((l) => !isBlankLine(l));
+
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) &&
     /[1-9]/.test(l.quantity) &&
@@ -128,9 +143,10 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     l.taxCodeId !== "" &&
     (l.itemId !== "" || l.description.trim() !== "") &&
     (mode !== "invoice" || l.itemId === "" || l.warehouseId !== "");
-  const valid = customerId !== "" && lines.length > 0 && lines.every(lineValid);
+  const egsUnitChoiceNeeded = mode === "invoice" && activeEgsUnits.length > 1;
+  const valid = customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
 
-  const totals = lines.reduce(
+  const totals = meaningfulLines.reduce(
     (sum, l) => {
       if (!lineValid(l)) return sum;
       const net = Money.of(l.quantity, currency).multiply(l.unitPrice).round(4);
@@ -142,7 +158,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   );
 
   const submit = (): void => {
-    const payloadLines: SalesLinePayload[] = lines.map((l) => ({
+    const payloadLines: SalesLinePayload[] = meaningfulLines.map((l) => ({
       ...(l.itemId ? { itemId: l.itemId } : {}),
       ...(l.description.trim() ? { description: l.description.trim() } : {}),
       quantity: l.quantity,
@@ -159,9 +175,9 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
       const gross = totals.net.add(totals.tax);
       setCreated({
         // An order or invoice opens on its own page; a quotation has none, so it goes back to the list.
+        // Closing the "saved" dialog (its only action here) takes the person there.
         to: mode === "quotation" ? listPath : `${listPath}/${saved.id}`,
         info: {
-          ...(mode === "quotation" ? {} : { onOpen: () => void navigate(`${listPath}/${saved.id}`) }),
           title: t(`sales.${mode === "quotation" ? "quotations" : mode === "order" ? "orders" : "invoices"}.newTitle`),
           headline: saved.number,
           rows: [
@@ -170,7 +186,8 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             { label: t("created.net"), value: formatMoney(totals.net.toDecimalString(4), currency), ltr: true },
             { label: t("created.tax"), value: formatMoney(totals.tax.toDecimalString(4), currency), ltr: true },
             { label: t("created.gross"), value: formatMoney(gross.toDecimalString(4), currency), ltr: true },
-            { label: t("created.lines"), value: String(lines.length) },
+            { label: t("created.inWords"), value: tafqeetAmount(gross.toDecimalString(4), currency) },
+            { label: t("created.lines"), value: String(meaningfulLines.length) },
           ].filter((row) => row.label !== ""),
         },
       });
@@ -178,7 +195,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
     if (mode === "quotation") createQuotation.mutate({ ...common, quotationDate: dateIso, ...(secondIso ? { validUntil: secondIso } : {}) }, { onSuccess: done });
     else if (mode === "order") createOrder.mutate({ ...common, orderDate: dateIso }, { onSuccess: done });
-    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(secondIso ? { dueDate: secondIso } : {}) }, { onSuccess: done });
+    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(secondIso ? { dueDate: secondIso } : {}), ...(egsUnitId ? { egsUnitId } : {}) }, { onSuccess: done });
   };
 
   const err = (mutation.error as { response?: { status?: number; data?: { error?: { code?: string; details?: { lineNumber?: number }[] } } } } | null)?.response;
@@ -215,6 +232,19 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
               <Calendar inputId="sdSecond" value={secondDate} onChange={(e) => setSecondDate((e.value as Date | null) ?? null)} dateFormat="yy-mm-dd" showButtonBar />
             </div>
           ) : null}
+          {egsUnitChoiceNeeded ? (
+            <div className="erp-field">
+              <label htmlFor="sdEgsUnit">{t("sales.invoices.egsUnit")}</label>
+              <Dropdown
+                inputId="sdEgsUnit"
+                value={egsUnitId || null}
+                onChange={(e) => setEgsUnitId((e.value as string | null) ?? "")}
+                options={activeEgsUnits.map((u) => ({ label: u.branchName ? `${u.name} — ${u.branchName}` : u.name, value: u.id }))}
+                placeholder={t("sales.invoices.egsUnitPlaceholder")}
+                className={egsUnitId === "" ? "p-invalid" : ""}
+              />
+            </div>
+          ) : null}
         </div>
 
         <h3 className="erp-form__section-title">{t("sales.lines")}</h3>
@@ -235,7 +265,19 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                 <InputText placeholder={t("sales.description")} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={l.salesOrderLineId !== ""} />
               ) : null}
               <InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} />
-              <InputText dir="ltr" placeholder={t("purchasing.unitPrice")} value={l.unitPrice} onChange={(e) => setLine(l.key, { unitPrice: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`} />
+              <InputText
+                dir="ltr"
+                placeholder={t("purchasing.unitPrice")}
+                value={l.unitPrice}
+                onChange={(e) => setLine(l.key, { unitPrice: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !orderId && index === lines.length - 1) {
+                    e.preventDefault();
+                    setLines((prev) => [...prev, blankLine()]);
+                  }
+                }}
+                className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`}
+              />
               <Dropdown
                 value={l.taxCodeId || null}
                 onChange={(e) => setLine(l.key, { taxCodeId: (e.value as string | null) ?? "" })}
@@ -282,7 +324,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate(-1)} />
-          <Button type="button" label={t(`${prefix}.submit`)} icon="pi pi-check" disabled={!valid} loading={mutation.isPending} onClick={submit} />
+          <Button type="button" label={mode === "invoice" ? t("sales.invoices.submit") : t("actions.save")} icon="pi pi-check" disabled={!valid} loading={mutation.isPending} onClick={submit} />
         </div>
       </div>
       <CreatedDialog info={created?.info ?? null} onHide={() => created && void navigate(created.to)} />

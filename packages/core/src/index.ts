@@ -51,6 +51,7 @@ export * from "./sales/sales-invoice.service.js";
 // Payments
 export * from "./payments/outstanding.js";
 export * from "./payments/payment.service.js";
+export * from "./payments/cash-expense.service.js";
 export * from "./payments/aging.util.js";
 export * from "./payments/aging.service.js";
 export * from "./payments/party-statement.service.js";

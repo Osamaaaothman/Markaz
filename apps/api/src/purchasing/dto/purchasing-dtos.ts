@@ -78,6 +78,9 @@ export class PurchaseOrderLineDto {
 
   @IsDecimalString()
   unitPrice!: string;
+
+  @IsString()
+  taxCodeId!: string;
 }
 
 export class CreatePurchaseOrderDto {

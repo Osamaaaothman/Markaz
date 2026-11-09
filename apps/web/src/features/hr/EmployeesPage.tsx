@@ -215,7 +215,7 @@ export function EmployeesPage(): React.JSX.Element {
           {createEmployee.isError ? <p className="erp-auth-card__error">{t(`hr.accounts.errors.${employeeErrorCode(createEmployee.error) ?? ""}`, { defaultValue: t("hr.employees.createError") })}</p> : null}
           <div className="erp-form__actions">
             <Button type="button" label={t("actions.cancel")} text onClick={() => setDialogOpen(false)} />
-            <Button type="submit" label={t("hr.employees.add")} loading={createEmployee.isPending} />
+            <Button type="submit" label={t("actions.save")} loading={createEmployee.isPending} />
           </div>
         </form>
       </Dialog>

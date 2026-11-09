@@ -31,6 +31,56 @@ export class UpdatePartyDto {
   email?: string | null;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  vatNumber?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  commercialRegistration?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  streetName?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  additionalStreetName?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  buildingNumber?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  additionalNumber?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  district?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  postalCode?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  countryCode?: string | null;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }

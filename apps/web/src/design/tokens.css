@@ -75,14 +75,17 @@ html[data-theme-mode="light"] {
   --mk-info: #2b62a8;
   --mk-info-soft: #e8eff8;
 
-  /* ---- sidebar (dark in both themes) ---- */
-  --mk-side-bg-from: var(--mk-ink-900);
-  --mk-side-bg-to: var(--mk-ink-900);
-  --mk-side-text: rgb(255 255 255 / 0.74);
-  --mk-side-text-strong: #ffffff;
-  --mk-side-muted: rgb(255 255 255 / 0.42);
-  --mk-side-hover: rgb(255 255 255 / 0.07);
-  --mk-side-active: rgb(255 255 255 / 0.09);
+  /* ---- sidebar: a floating card that follows the active theme's surface and brand ---- */
+  --mk-side-bg: var(--mk-surface);
+  --mk-side-border: var(--mk-border);
+  --mk-side-text: var(--mk-text-muted);
+  --mk-side-text-strong: var(--mk-text);
+  --mk-side-muted: var(--mk-text-subtle);
+  --mk-side-hover: var(--mk-surface-3);
+  --mk-side-tile: var(--mk-bg-accent);
+  --mk-side-active-bg: var(--mk-primary);
+  --mk-side-active-text: var(--mk-on-primary);
+  --mk-side-card: var(--mk-surface-2);
 
   /* ---- charts ---- */
   --mk-chart-1: var(--mk-brand-600);
@@ -115,6 +118,10 @@ html[data-theme-mode="light"] {
   /* ---- type ---- */
   --mk-font: "IBM Plex Sans Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --mk-font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --mk-weight-regular: 400;
+  --mk-weight-medium: 500;
+  --mk-weight-semibold: 600;
+  --mk-weight-bold: 700;
   --mk-text-xs: 0.75rem;
   --mk-text-sm: 0.8125rem;
   --mk-text-base: 0.9375rem;
@@ -123,7 +130,7 @@ html[data-theme-mode="light"] {
   --mk-text-2xl: 1.625rem;
   --mk-text-3xl: 2rem;
 
-  /* ---- density (the top bar toggles data-density) ---- */
+  /* ---- row and control size ---- */
   --mk-control-h: 2.5rem;
   --mk-row-pad-y: 0.7rem;
   --mk-row-pad-x: 0.9rem;
@@ -136,8 +143,8 @@ html[data-theme-mode="light"] {
   --mk-dur-slow: 420ms;
 
   /* ---- layout ---- */
-  --mk-sidebar-w: 268px;
-  --mk-sidebar-w-collapsed: 76px;
+  --mk-sidebar-w: 288px;
+  --mk-sidebar-w-collapsed: 92px;
   --mk-topbar-h: 64px;
 
   /* ---- PrimeReact bridge: the runtime theme reads these ---- */
@@ -210,9 +217,6 @@ html[data-theme-mode="dark"] {
   --mk-info: #86aedd;
   --mk-info-soft: rgb(134 174 221 / 0.14);
 
-  --mk-side-bg-from: #0e0d0b;
-  --mk-side-bg-to: #0e0d0b;
-
   --mk-chart-1: var(--mk-brand-400);
   --mk-chart-2: var(--mk-brass-400);
   --mk-chart-3: #8d8678;
@@ -225,11 +229,4 @@ html[data-theme-mode="dark"] {
 
   --highlight-text-color: var(--mk-brand-200);
   color-scheme: dark;
-}
-
-/* ---- density ---- */
-html[data-density="compact"] {
-  --mk-control-h: 2.1rem;
-  --mk-row-pad-y: 0.4rem;
-  --mk-row-pad-x: 0.7rem;
 }
