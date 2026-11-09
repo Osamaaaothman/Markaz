@@ -58,6 +58,11 @@ export class UpdateSellerProfileDto {
   @IsString()
   @MaxLength(300)
   nameAr?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
 }
 
 export class CreateEgsUnitDto {

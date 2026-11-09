@@ -19,6 +19,7 @@ export interface SellerProfileView {
   readonly city: string | null;
   readonly postalCode: string | null;
   readonly countryCode: string | null;
+  readonly phone: string | null;
   readonly missing: readonly string[];
   readonly complete: boolean;
   readonly locked: boolean;
@@ -104,6 +105,7 @@ export interface SellerProfileInput {
   readonly postalCode?: string;
   readonly countryCode?: string;
   readonly nameAr?: string;
+  readonly phone?: string;
 }
 
 export function useUpdateSellerProfile() {

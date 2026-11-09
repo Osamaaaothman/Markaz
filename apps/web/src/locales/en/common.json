@@ -1593,7 +1593,8 @@
       "district": "District",
       "city": "City",
       "postalCode": "Postal code",
-      "countryCode": "Country code"
+      "countryCode": "Country code",
+      "phone": "Phone"
     },
     "egsUnits": {
       "title": "EGS devices",

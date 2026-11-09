@@ -50,7 +50,7 @@ export interface Actor {
   readonly companyId: string;
 }
 
-export const SELLER_PROFILE_FIELDS = ["vatNumber", "crNumber", "crNumberScheme", "streetName", "additionalStreetName", "buildingNumber", "additionalNumber", "district", "city", "postalCode", "countryCode", "nameAr"] as const;
+export const SELLER_PROFILE_FIELDS = ["vatNumber", "crNumber", "crNumberScheme", "streetName", "additionalStreetName", "buildingNumber", "additionalNumber", "district", "city", "postalCode", "countryCode", "nameAr", "phone"] as const;
 export type SellerProfileField = (typeof SELLER_PROFILE_FIELDS)[number];
 export type SellerProfileInput = Partial<Record<SellerProfileField, string | null>>;
 
@@ -58,6 +58,10 @@ export type SellerProfileInput = Partial<Record<SellerProfileField, string | nul
 // REVIEW: `additionalStreetName` and `additionalNumber` are optional here; whether the Schematron demands the
 // plot/additional number for a seller address was not confirmed (no access to the rules in this session).
 const REQUIRED_FOR_ONBOARDING: readonly SellerProfileField[] = ["vatNumber", "crNumber", "crNumberScheme", "streetName", "buildingNumber", "district", "city", "postalCode", "countryCode", "nameAr"];
+
+// Fields baked into an issued certificate once `locked` is true. `phone` is a contact detail only
+// — never part of the ZATCA seller identity — so it stays editable after issuance.
+const CERTIFICATE_BOUND_FIELDS: readonly SellerProfileField[] = SELLER_PROFILE_FIELDS.filter((f) => f !== "phone");
 
 export interface SellerProfileView {
   readonly name: string;
@@ -73,6 +77,7 @@ export interface SellerProfileView {
   readonly city: string | null;
   readonly postalCode: string | null;
   readonly countryCode: string | null;
+  readonly phone: string | null;
   readonly missing: readonly SellerProfileField[];
   readonly complete: boolean;
   // True once any EGS has a certificate issued: the VAT number, registration and address are then bound into it.
@@ -199,6 +204,7 @@ export class ComplianceAdminService {
       city: company.city,
       postalCode: company.postalCode,
       countryCode: company.countryCode,
+      phone: company.phone,
     };
     const missing = REQUIRED_FOR_ONBOARDING.filter((f) => !(view[f] ?? "").trim());
     return { ...view, missing, complete: missing.length === 0, locked: issued > 0 };
@@ -221,7 +227,7 @@ export class ComplianceAdminService {
     if (before.locked) {
       // The certificate carries the VAT number, the registration and the address; changing them afterwards would make
       // every new invoice disagree with its own certificate. Reissuing a certificate is a deliberate, separate act.
-      const changed = Object.keys(data).filter((f) => data[f] !== (before[f as SellerProfileField] ?? null));
+      const changed = Object.keys(data).filter((f) => CERTIFICATE_BOUND_FIELDS.includes(f as SellerProfileField) && data[f] !== (before[f as SellerProfileField] ?? null));
       if (changed.length > 0) throw new ComplianceError("SELLER_LOCKED", "The seller profile is bound into an issued certificate and can no longer be edited here", { fields: changed });
     }
     await this.prisma.company.update({ where: { id: actor.companyId }, data: { ...data, updatedBy: actor.id, version: { increment: 1 } } });

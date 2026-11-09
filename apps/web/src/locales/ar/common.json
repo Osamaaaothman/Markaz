@@ -1593,7 +1593,8 @@
       "district": "الحي",
       "city": "المدينة",
       "postalCode": "الرمز البريدي",
-      "countryCode": "رمز الدولة"
+      "countryCode": "رمز الدولة",
+      "phone": "الهاتف"
     },
     "egsUnits": {
       "title": "أجهزة إصدار الفواتير (EGS)",

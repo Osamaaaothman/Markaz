@@ -36,6 +36,9 @@ model Company {
   // M7 ZATCA seller (taxpayer) profile — docs/06-COMPLIANCE-PACK-RULES.md. `nameAr` above is the
   // legal Arabic name ZATCA requires on every invoice regardless of UI language. Null until the
   // first-run setup page or Settings fills them in; nothing here is seeded.
+  // Contact phone shown on documents. Not part of the ZATCA seller profile (not bound into the
+  // issued certificate), so it stays editable even after `locked` is true.
+  phone                 String?
   vatNumber             String?  @map("vat_number") // 15 digits, starts and ends with '3'
   crNumber              String?  @map("cr_number") // Commercial Registration number, or another ZATCA party-id scheme
   crNumberScheme        String?  @default("CRN") @map("cr_number_scheme") // ZATCA PartyIdentificationScheme: CRN | MOM | MLS | SAG | OTH | NAT | GCC | IQA | PAS | CCN | CBI

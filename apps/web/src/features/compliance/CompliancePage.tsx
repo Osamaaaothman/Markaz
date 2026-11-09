@@ -109,6 +109,8 @@ function SellerProfileCard({ profile }: { readonly profile: NonNullable<ReturnTy
           <dd dir="ltr">{profile.crNumber ?? "—"} {profile.crNumberScheme ?? ""}</dd>
           <dt>{t("compliance.sellerProfile.address")}</dt>
           <dd>{[profile.streetName, profile.buildingNumber, profile.district, profile.city, profile.postalCode].filter(Boolean).join(", ") || "—"}</dd>
+          <dt>{t("compliance.sellerProfile.phone")}</dt>
+          <dd dir="ltr">{profile.phone ?? "—"}</dd>
         </dl>
       </section>
     );
@@ -172,6 +174,10 @@ function SellerProfileCard({ profile }: { readonly profile: NonNullable<ReturnTy
           <div className="erp-field">
             <label htmlFor="cp-country">{t("compliance.sellerProfile.countryCode")}</label>
             <InputText id="cp-country" dir="ltr" value={field("countryCode") || "SA"} onChange={(e) => setField("countryCode", e.target.value.toUpperCase())} disabled={profile.locked} maxLength={2} />
+          </div>
+          <div className="erp-field">
+            <label htmlFor="cp-phone">{t("compliance.sellerProfile.phone")}</label>
+            <InputText id="cp-phone" dir="ltr" value={field("phone")} onChange={(e) => setField("phone", e.target.value)} />
           </div>
         </div>
         {update.isError ? <p className="erp-auth-card__error">{t("compliance.sellerProfile.saveError")}</p> : null}
