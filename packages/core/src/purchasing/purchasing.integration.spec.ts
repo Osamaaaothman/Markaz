@@ -49,6 +49,7 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
   let itemA: string;
   let itemB: string;
   let supplierId: string;
+  let taxCodeId: string;
 
   async function balanceOf(accountId: string): Promise<number> {
     const row = (await trialBalance.compute(companyId)).lines.find((l) => l.accountId === accountId);
@@ -94,6 +95,11 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
     supplierId = (
       await prisma.party.create({ data: { id: newId(), ref: `TEST-PRT-${companyId.slice(0, 6)}`, companyId, name: "Supplier Co", kind: "COMPANY" } })
     ).id;
+    taxCodeId = (
+      await prisma.taxCode.create({
+        data: { id: newId(), companyId, code: "VAT15", name: "VAT 15%", rate: "15.0000", treatment: "STANDARD" },
+      })
+    ).id;
   });
 
   afterAll(async () => {
@@ -110,12 +116,12 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
 
     // An order is made only from a request accepted at review.
     await expect(
-      orders.create({ supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "100", unitPrice: "12.5" }] }, actor, cid()),
+      orders.create({ supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "100", unitPrice: "12.5", taxCodeId }] }, actor, cid()),
     ).rejects.toMatchObject({ code: "REQUEST_NOT_ACCEPTED" });
     expect((await requests.accept(request.id, actor, cid())).status).toBe("ACCEPTED");
 
     const order = await orders.create(
-      { supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "100", unitPrice: "12.5" }] },
+      { supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "100", unitPrice: "12.5", taxCodeId }] },
       actor,
       cid(),
     );
@@ -124,7 +130,7 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
 
     expect((await requests.get(companyId, request.id)).status).toBe("PROCESSED");
     await expect(
-      orders.create({ supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1" }] }, actor, cid()),
+      orders.create({ supplierId, warehouseId, orderDate: today, purchaseRequestId: request.id, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1", taxCodeId }] }, actor, cid()),
     ).rejects.toMatchObject({ code: "REQUEST_NOT_ACCEPTED" });
 
     await requests.reject(second.id, "Not needed", actor, cid());
@@ -174,19 +180,19 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
     await expect(requests.create({ warehouseId: newId(), lines: [{ itemId: itemA, quantity: "1" }] }, actor, cid())).rejects.toMatchObject({ code: "WAREHOUSE_NOT_FOUND" });
     await expect(requests.create({ warehouseId: foreignWarehouse, lines: [{ itemId: itemA, quantity: "1" }] }, actor, cid())).rejects.toMatchObject({ code: "WAREHOUSE_NOT_FOUND" });
     await expect(
-      orders.create({ supplierId, warehouseId: foreignWarehouse, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1" }] }, actor, cid()),
+      orders.create({ supplierId, warehouseId: foreignWarehouse, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1", taxCodeId }] }, actor, cid()),
     ).rejects.toMatchObject({ code: "WAREHOUSE_NOT_FOUND" });
 
     const request = await requests.create({ warehouseId, lines: [{ itemId: itemA, quantity: "1" }] }, actor, cid());
     expect(request.warehouseId).toBe(warehouseId);
     expect(request.warehouseName).toBe("Main");
-    const order = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1" }] }, actor, cid());
+    const order = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1", taxCodeId }] }, actor, cid());
     expect((await orders.get(companyId, order.id)).warehouseName).toBe("Main");
   });
 
   it("receives in parts at the order price, never beyond the quantity ordered, and ties out to the ledger", async () => {
     const order = await orders.create(
-      { supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemB, quantity: "10", unitPrice: "40" }, { itemId: itemA, quantity: "4", unitPrice: "25" }] },
+      { supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemB, quantity: "10", unitPrice: "40", taxCodeId }, { itemId: itemA, quantity: "4", unitPrice: "25", taxCodeId }] },
       actor,
       cid(),
     );
@@ -243,10 +249,10 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
   it("holds an order above the approval threshold until it is approved, and blocks receiving meanwhile", async () => {
     await policies.set("purchase_order", "1000", actor, cid());
 
-    const small = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1000" }] }, actor, cid());
+    const small = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1000", taxCodeId }] }, actor, cid());
     expect(small.status).toBe("APPROVED"); // exactly at the threshold is not above it
 
-    const big = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1000.0001" }] }, actor, cid());
+    const big = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "1000.0001", taxCodeId }] }, actor, cid());
     expect(big.status).toBe("PENDING_APPROVAL");
 
     const line = (await orders.get(companyId, big.id)).lines[0]!;
@@ -271,7 +277,7 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
 
   it("cancels an order nothing was received against, and rejects one that is pending approval", async () => {
     await policies.set("purchase_order", "10", actor, cid());
-    const pending = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "50" }] }, actor, cid());
+    const pending = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "50", taxCodeId }] }, actor, cid());
     expect(pending.status).toBe("PENDING_APPROVAL");
     expect((await orders.cancel(pending.id, actor, cid())).status).toBe("CANCELLED");
     await expect(orders.decide(pending.id, "APPROVED", actor, cid())).rejects.toBeInstanceOf(PurchaseOrderError);
@@ -279,7 +285,7 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
   });
 
   it("does not let one company see or receive against another company's order", async () => {
-    const order = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "5" }] }, actor, cid());
+    const order = await orders.create({ supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "5", taxCodeId }] }, actor, cid());
     const stranger = { id: "stranger", companyId: newId() };
     await expect(orders.get(stranger.companyId, order.id)).rejects.toMatchObject({ code: "ORDER_NOT_FOUND" });
     await expect(

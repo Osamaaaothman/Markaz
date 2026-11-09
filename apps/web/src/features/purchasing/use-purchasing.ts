@@ -144,6 +144,7 @@ export interface PurchaseOrderSummary {
   readonly expectedDate: string | null;
   readonly currency: string;
   readonly totalAmount: string;
+  readonly totalTax: string;
   readonly lineCount: number;
   readonly createdAt: string;
 }
@@ -161,6 +162,11 @@ export interface PurchaseOrderLine {
   // Received minus this is what can still be returned without a debit note.
   readonly invoicedQuantity: string;
   readonly lineTotal: string;
+  // An estimate only — the order posts nothing to the ledger; null on orders made before this
+  // column existed.
+  readonly taxCodeId: string | null;
+  readonly taxRate: string | null;
+  readonly taxAmount: string;
 }
 
 export interface PurchaseOrderDetail extends PurchaseOrderSummary {
@@ -201,7 +207,7 @@ export interface CreatePurchaseOrderPayload {
   readonly expectedDate?: string;
   readonly notes?: string;
   readonly purchaseRequestId?: string;
-  readonly lines: readonly { readonly itemId: string; readonly quantity: string; readonly unitPrice: string }[];
+  readonly lines: readonly { readonly itemId: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string }[];
 }
 
 interface PurchaseOrderCreated {

@@ -1003,8 +1003,12 @@ model PurchaseOrder {
   orderDate         DateTime  @map("order_date") @db.Date
   expectedDate      DateTime? @map("expected_date") @db.Date
   currency          String
-  // Sum of quantity x unit price over the lines, before tax (tax is applied on the supplier invoice).
+  // Sum of quantity x unit price over the lines, before tax. The order still posts nothing to the
+  // ledger and approval is still evaluated on this net figure, unchanged by adding tax display below.
   totalAmount       Decimal   @map("total_amount") @db.Decimal(19, 4)
+  // Sum of each line's estimated tax (lines.taxAmount). An estimate for display only — the figure
+  // that actually posts to the ledger is computed fresh on the supplier invoice.
+  totalTax          Decimal   @default(0) @map("total_tax") @db.Decimal(19, 4)
   notes             String?
   approvalRequestId String?   @map("approval_request_id")
   // The warehouse the goods are to be received into. Required for every new order; null only on older orders.
@@ -1034,18 +1038,25 @@ model PurchaseOrder {
 // receivedQuantity is the only mutable column here: it moves, under a row lock, in the same
 // transaction as the goods receipt that causes it. The database backstops 0 <= received <= ordered.
 model PurchaseOrderLine {
-  id               String  @id
-  purchaseOrderId  String  @map("purchase_order_id")
-  itemId           String  @map("item_id")
-  quantity         Decimal @db.Decimal(19, 4)
-  unitPrice        Decimal @map("unit_price") @db.Decimal(19, 4)
-  receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(19, 4)
+  id               String   @id
+  purchaseOrderId  String   @map("purchase_order_id")
+  itemId           String   @map("item_id")
+  quantity         Decimal  @db.Decimal(19, 4)
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(19, 4)
+  receivedQuantity Decimal  @default(0) @map("received_quantity") @db.Decimal(19, 4)
   // Quantity already matched to supplier invoices; never more than received (CHECK).
-  invoicedQuantity Decimal @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
-  lineNumber       Int     @map("line_number")
+  invoicedQuantity Decimal  @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
+  lineNumber       Int      @map("line_number")
+  // Estimate only: the order itself posts nothing to the ledger. The supplier invoice picks its own
+  // tax code when the line is matched (SupplierInvoiceLine.taxCodeId) and is never forced to agree
+  // with this one. Null on orders created before this column existed.
+  taxCodeId        String?  @map("tax_code_id")
+  taxRate          Decimal? @map("tax_rate") @db.Decimal(7, 4)
+  taxAmount        Decimal  @default(0) @map("tax_amount") @db.Decimal(19, 4)
 
   purchaseOrder     PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
   item              Item                  @relation(fields: [itemId], references: [id])
+  taxCode           TaxCode?              @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
   goodsReceiptLines GoodsReceiptLine[]
   goodsReturnLines  GoodsReturnLine[]
   invoiceLines      SupplierInvoiceLine[]
@@ -1075,10 +1086,11 @@ model TaxCode {
   version   Int      @default(1)
 
   company           Company               @relation(fields: [companyId], references: [id])
-  invoiceLines      SupplierInvoiceLine[]
-  quotationLines    QuotationLine[]
-  salesOrderLines   SalesOrderLine[]
-  salesInvoiceLines SalesInvoiceLine[]
+  invoiceLines        SupplierInvoiceLine[]
+  quotationLines      QuotationLine[]
+  salesOrderLines     SalesOrderLine[]
+  salesInvoiceLines   SalesInvoiceLine[]
+  purchaseOrderLines  PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@map("tax_codes")
