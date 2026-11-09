@@ -8,6 +8,7 @@ import { DataTable } from "primereact/datatable";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
+import { Money } from "@erp/shared";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -63,6 +64,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
   const canReceive = order.status === "APPROVED" || order.status === "PARTIALLY_RECEIVED";
   const hasReceivedGoods = order.status === "PARTIALLY_RECEIVED" || order.status === "RECEIVED";
   const actionError = approve.isError || reject.isError || cancel.isError;
+  const totalGross = Money.of(order.totalAmount, order.currency).add(Money.of(order.totalTax, order.currency));
 
   return (
     <div className="erp-page">
@@ -108,8 +110,16 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
           <span>{order.expectedDate ? formatCalendarDate(order.expectedDate, i18n.language) : "—"}</span>
         </div>
         <div className="erp-field">
-          <label>{t("purchasing.total")}</label>
+          <label>{t("purchasing.invoices.net")}</label>
           <strong>{formatMoney(order.totalAmount, order.currency)}</strong>
+        </div>
+        <div className="erp-field">
+          <label>{t("purchasing.invoices.tax")}</label>
+          <strong>{formatMoney(order.totalTax, order.currency)}</strong>
+        </div>
+        <div className="erp-field">
+          <label>{t("purchasing.invoices.gross")}</label>
+          <strong>{formatMoney(totalGross.toDecimalString(), order.currency)}</strong>
         </div>
       </div>
       {order.notes ? <p>{order.notes}</p> : null}
@@ -122,6 +132,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
         <Column header={t("purchasing.received")} align="right" body={(l: PurchaseOrderLine) => l.receivedQuantity} />
         <Column header={t("purchasing.unitPrice")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.unitPrice, order.currency)} />
         <Column header={t("purchasing.total")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.lineTotal, order.currency)} />
+        <Column header={t("purchasing.invoices.tax")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.taxAmount, order.currency)} />
       </DataTable>
 
       <div className="erp-form__actions">
