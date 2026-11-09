@@ -198,37 +198,36 @@ describe("buildBareInvoiceXml — multiple tax categories on one invoice", () =>
 // elsewhere in this app -- docs/01-OPEN-DECISIONS.md D3/E3 -- can genuinely produce) sits exactly
 // on a rounding boundary at the 2dp display precision the XML format uses.
 describe("buildBareInvoiceXml — awkward (boundary) rounding amounts", () => {
-  // REVIEW / FOUND, not fixed: this reproduces a real self-consistency bug, not just a display
-  // quirk. Each InvoiceLine's own cbc:TaxAmount is rounded to 2dp independently (amountEl calls
-  // Money.round(2) on whatever string the caller gave it, per line). The document's cac:TaxTotal /
-  // cac:TaxSubtotal, by contrast, are built by buildTaxTotals summing the group's FULL-PRECISION
-  // Money total (every line's un-rounded taxAmount added together) and rounding that sum ONCE.
-  // These two roundings of the same underlying numbers can legitimately disagree by 0.01 -- and
-  // when they do, checkInvoiceConsistency's BR_CO_14/BR_CO_17_TAX checks (which recompute "sum of
-  // the lines' own rendered TaxAmount" and compare it to the document TaxTotal) correctly flag it
-  // as a hard ERROR, because the document genuinely is internally inconsistent at that point: a
-  // human adding up what each line says would get a different number than the subtotal states.
-  // This is a real, currently open gap (not guessed at a fix for, per CLAUDE.md §4 -- the correct
-  // ZATCA-compliant per-line rounding rule is unconfirmed, docs/01 section Y's own REVIEW note),
-  // tracked in docs/01-OPEN-DECISIONS.md section Z.
-  it("three lines whose per-line tax amount (0.125) sits on a rounding boundary: the line display and the subtotal display can legitimately disagree by 0.01, and local validation correctly catches it", () => {
+  // RESOLVED (2026-11-09), was open in docs/01-OPEN-DECISIONS.md section Z: each InvoiceLine's own
+  // cbc:TaxAmount is rounded to 2dp independently, while cac:TaxTotal/cac:TaxSubtotal sum the
+  // group's full-precision Money total and round that sum ONCE -- these two roundings of the same
+  // underlying numbers can legitimately disagree by 0.01. The section Z question was whether this
+  // makes the DOCUMENT wrong. Checked directly against the real official Schematron, now present
+  // locally at docs/vendor/zatca/sdk/Data/Rules/Schematrons/CEN-EN16931-UBL.xsl: it is not. BR-CO-17
+  // (the rule that governs "does the category subtotal's tax agree with taxable x rate") carries
+  // its own explicit tolerance, `count(//cac:InvoiceLine) * 0.01`, precisely to absorb this kind of
+  // boundary disagreement -- and it is "warning" severity, not "error", in the official rule set.
+  // checkInvoiceConsistency previously re-derived "the subtotal must equal the SUM OF THE LINES'
+  // OWN rounded TaxAmount" and treated a mismatch as a hard error -- a stricter, non-official check
+  // this file invented, not what ZATCA's real Schematron enforces.
+  it("three lines whose per-line tax amount (0.125) sits on a rounding boundary: the official Schematron's own tolerance absorbs it, and local validation now matches that", () => {
     const boundaryLine = { ...baseInvoice.lines[0]!, lineExtensionAmount: "0.833333", taxAmount: "0.125", taxPercent: "15.00" };
     const xml = buildBareInvoiceXml({ ...baseInvoice, lines: [boundaryLine, { ...boundaryLine, id: "2" }, { ...boundaryLine, id: "3" }] });
 
     // Every line independently rounds its own 0.125 tax to 0.13 (half-up) -- three of them read 0.13 each.
     const lineTaxCount = xml.split('<cbc:TaxAmount currencyID="SAR">0.13</cbc:TaxAmount>').length - 1;
     expect(lineTaxCount).toBe(3);
-    // But the subtotal/total sum the full-precision 0.125 three times (0.375) and round ONCE: 0.38, not 0.39.
+    // The subtotal/total sum the full-precision 0.125 three times (0.375) and round ONCE: 0.38, not 0.39.
     expect(xml).toContain('<cac:TaxTotal><cbc:TaxAmount currencyID="SAR">0.38</cbc:TaxAmount></cac:TaxTotal>');
     expect(xml).not.toContain('<cac:TaxTotal><cbc:TaxAmount currencyID="SAR">0.39</cbc:TaxAmount></cac:TaxTotal>');
 
-    // Proven end to end: this is exactly the kind of self-inconsistency checkInvoiceConsistency
-    // exists to catch before a document is ever signed or sent (docs/01 section Y).
+    // 0.38 is in fact EXACTLY taxable(2.50) x 15% rounded, so this passes even with zero tolerance
+    // to spare -- the boundary case here turned out not to violate the official rule at all.
     const report = checkInvoiceConsistency(xml);
-    expect(report.valid).toBe(false);
-    const codes = report.issues.filter((i) => i.severity === "error").map((i) => i.code);
-    expect(codes).toContain("BR_CO_14");
-    expect(codes).toContain("BR_CO_17_TAX");
+    expect(report.valid).toBe(true);
+    const codes = report.issues.map((i) => i.code);
+    expect(codes).not.toContain("BR_CO_14");
+    expect(codes).not.toContain("BR_CO_17_TAX");
   });
 
   it("the same awkward amount on a SINGLE line (no cross-line summing involved) stays self-consistent", () => {

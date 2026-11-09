@@ -620,6 +620,33 @@ and in two places not even from this task's own starting assumptions.
   of its own embedded `ds:X509Certificate` — a sample-data inconsistency (likely assembled from two different example
   runs), not a bug in this code. `zatcaHashOf(cert.raw)` is the spec-correct computation; confirm against a real sandbox
   response once reachable, since this is the one field with no ground truth to verify against.
+- **RESOLVED/EXTENDED (2026-11-10):** once a test-harness bug (below) let `validation.spec.ts`'s cross-check against
+  every real sample in `docs/vendor/zatca/sdk/Data/Samples` actually run for the first time on a machine that has the
+  SDK, every single signed sample — all six Tier-1 document types, no exceptions — failed `verifySignedInvoice` with
+  `SIGNATURE_INVALID` and `SIGNED_PROPERTIES_DIGEST_MISMATCH`. Investigated, not guessed at: the canonical
+  `ds:SignedInfo` and `xades:SignedProperties` our `xml-crypto`-based canonicalizer produces were independently
+  hand-reconstructed byte-for-byte from the raw sample XML (manually normalizing self-closing tags and adding the
+  inherited namespace declarations) and matched the library's output exactly — so the canonicalization itself is
+  correct, not the bug. The SHA-256 of that correctly-canonicalized `SignedProperties` still does not equal what the
+  sample's own `ds:Reference`/`DigestValue` claims. Conclusion: this is the same class of self-inconsistency as the
+  `CertDigest` finding directly above, now confirmed on two more fields, uniformly across every sample in the
+  directory — strong evidence these particular published files had their certificate/signature pairing altered for
+  anonymized public release, not a live independently-verifiable signed set. `verifySignedInvoice` and the signing
+  pipeline it mirrors (`xades-signature.ts`) are not shown to be wrong by this; `ALLOWED_SAMPLE_DEVIATIONS` in
+  `validation.spec.ts` now documents both codes alongside `CERT_DIGEST_MISMATCH`. **Not fully closed:** this is strong
+  circumstantial evidence, not a certainty — the one thing that would fully close it is a real sandbox submission
+  (or an independent XAdES-SA validator run) confirming our OWN signed output is accepted, which is Phase 6/7's
+  existing gap (`sdk-validator.spec.ts`, blocked on this machine by the installed SDK's own broken relative-path
+  resolution — a separate, still-open issue, not investigated further here).
+- **Unrelated test-harness bug found and fixed while investigating the above:** `generateTestCertificate`
+  (`src/testing/fixtures.ts`) shelled out to `openssl req -new -x509` without controlling `OPENSSL_CONF`; this
+  machine has a system-wide `OPENSSL_CONF` (set by an unrelated PostgreSQL/psqlODBC install) pointing at a path the
+  Git-for-Windows `openssl` on `PATH` can't read, so every test needing a throwaway test certificate failed to even
+  start — `xades-signature.spec.ts`, `validation.spec.ts`, `onboarding.service.spec.ts`,
+  `invoice-submission.service.spec.ts` included. Fixed by clearing `OPENSSL_CONF` for that one subprocess call only
+  (not a system/global change). The real onboarding code (`csr.ts`) was never affected — it already passes
+  `-config <path>` explicitly on every real CSR call, which overrides `OPENSSL_CONF` regardless of the machine's
+  setting. This is what let the sample cross-check above run at all on this machine for the first time.
 - **`extractCertificateSignatureDer`** is a minimal, targeted DER/TLV reader for an X.509 certificate's fixed top-level
   shape (`SEQUENCE { tbsCertificate, signatureAlgorithm, signatureValue }`) — not a general ASN.1 library, deliberately,
   since this only ever parses our own certificate (trusted input, not adversarial). Verified to extract the exact bytes
@@ -885,6 +912,53 @@ for an invoice that did nothing wrong.
     accepts, before it is fixed.**
   - Blocking: not Phase 7 (already delivered), but it blocks any real invoice submission (the worker above) from being
     trustworthy — this should be resolved before that worker is built, not discovered later against a customer's books.
+
+**RESOLVED (2026-11-09) — the Schematron Osama has locally (`docs/vendor/zatca/sdk/Data/Rules/Schematrons/
+CEN-EN16931-UBL.xsl`) was checked directly, which this task's own note above said was the way to resolve it.**
+Two real findings, one validator fix and one builder fix:
+
+- **The validator (`invoice-consistency.ts`) was stricter than ZATCA's own rule, in two ways.** First, BR-CO-17 (the
+  rule governing a TaxSubtotal's tax amount) carries the real Schematron's own explicit tolerance —
+  `count(//cac:InvoiceLine) * 0.01` — exactly to absorb this class of boundary disagreement; our code instead compared
+  the subtotal against "the sum of the lines' own independently-rounded TaxAmount" (not what BR-CO-17 checks at all)
+  with zero tolerance. For the three-line/0.125 case: taxable = 2.50, rate = 15%, and 2.50 × 0.15 rounds to exactly
+  0.38 — the same value `buildTaxTotals` already produces — so this specific case needed no tolerance to pass once
+  compared correctly. Second, **BR-CO-10, -13, -16, and the whole BR-CO-17/BR-S-08-family of checks are "warning"
+  severity in the official Schematron, not "error"** (confirmed per rule by its `flag="..."` attribute); only BR-CO-14
+  and BR-CO-15 are real errors. This file had escalated every one of them to a hard error, which is what actually made
+  this bug block an invoice permanently — a genuine disagreement here was never ZATCA's own definition of
+  "unrecoverable." BR_CO_14 and BR_CO_15 themselves were also comparing against the wrong ground truth (sum of the
+  raw lines instead of sum of the document's own TaxSubtotal amounts); fixed to match the real rule text, which also
+  removed any tolerance question for those two since they never involve a second rounding of the lines.
+- **A second, real bug this check turned up in the BUILDER itself**, not just in how strictly the validator read it:
+  `buildLegalMonetaryTotal` rounded `TaxExclusiveAmount` and `TaxInclusiveAmount` from two different full-precision
+  sums independently, which can disagree by 0.01 the same way — and BR-CO-15 (TaxInclusive = TaxExclusive + tax) IS a
+  real "error" with no tolerance. Fixed by rounding `lineExtension` and `totalTax` to 2dp first and only then adding
+  them, so `TaxInclusiveAmount` is always exactly the rendered `TaxExclusiveAmount` plus the rendered tax, by
+  construction — this was a latent defect that would have produced a real BR-CO-15 rejection on live ZATCA for an
+  invoice with these same boundary amounts, independent of anything the validator checks locally.
+- **Verified against the real official sample documents**, not just the hand-built test: `checkInvoiceConsistency`
+  now reports zero issues for all six Tier-1 document type samples (`Standard_Invoice.xml`, `Standard_Credit_Note.xml`,
+  `Standard_Debit_Note.xml`, `Simplified_Invoice.xml`, `Simplified_Credit_Note.xml`, `Simplified_Debit_Note.xml`) —
+  previously this suite could not even run on this machine (see the unrelated test-harness fix below), so this was
+  never actually exercised before now.
+- **Unrelated, found as a side effect of getting that suite to run at all**: `generateTestCertificate`
+  (`src/testing/fixtures.ts`) called `openssl req -new -x509` without controlling `OPENSSL_CONF`; on this machine a
+  system-wide `OPENSSL_CONF` (set by a PostgreSQL/psqlODBC install, unrelated to this project) pointed at a path the
+  Git-for-Windows `openssl` on `PATH` can't read, so every test depending on a throwaway test certificate failed to
+  even start. Fixed by clearing `OPENSSL_CONF` for that one subprocess call only (not a system/global change). The
+  real onboarding code (`csr.ts`) was never affected — it already passes `-config <path>` explicitly on every real
+  CSR call, which overrides `OPENSSL_CONF` regardless of what the machine has set.
+- **New gaps this surfaced, not fixed here (out of today's scope, flagged for later):**
+  - `verifySignedInvoice` reports `SIGNATURE_INVALID`/`SIGNED_PROPERTIES_DIGEST_MISMATCH` against the real official
+    signed samples once the suite could actually run — this is the crypto/signature verifier, untouched by this fix,
+    and was simply never exercised on a real machine before (the suite never got past the certificate step). Needs its
+    own investigation before Phase 5's submission worker is trusted.
+  - 11 of the SDK's own sample documents outside Tier 1's built scope (foreign-currency advance payments,
+    self-billing, export, summary, nominal-supply, document-level charges, out-of-scope tax) still fail
+    `checkInvoiceConsistency` with unrelated codes (`AMOUNT_MISSING_OR_MALFORMED`, `CURRENCY_MISMATCH`,
+    `SUBTOTAL_MISSING_FOR_LINES`) — consistent with section T's own "not built" list for these scenarios, not a
+    regression from this fix.
 
 ## R. Sales debit notes (2026-11-04)
 

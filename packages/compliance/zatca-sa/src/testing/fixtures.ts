@@ -56,8 +56,13 @@ export function generateTestCertificate(): TestCertificate {
   try {
     const keyPath = join(dir, "key.pem");
     const certPath = join(dir, "cert.pem");
-    execFileSync("openssl", ["ecparam", "-name", "secp256k1", "-genkey", "-noout", "-out", keyPath], { stdio: "pipe" });
-    execFileSync("openssl", ["req", "-new", "-x509", "-key", keyPath, "-subj", "/C=SA/O=Markaz Test/CN=markaz-test-egs", "-days", "1825", "-sha256", "-out", certPath], { stdio: "pipe" });
+    // Some machines have a system-wide OPENSSL_CONF pointing at a path that doesn't exist for
+    // THIS openssl build (observed here: a PostgreSQL/psqlODBC install sets one globally, which
+    // the Git-for-Windows openssl on PATH can't read) -- clearing it for this subprocess only
+    // lets openssl fall back to its own compiled-in default config, not a system setting.
+    const env = { ...process.env, OPENSSL_CONF: "" };
+    execFileSync("openssl", ["ecparam", "-name", "secp256k1", "-genkey", "-noout", "-out", keyPath], { stdio: "pipe", env });
+    execFileSync("openssl", ["req", "-new", "-x509", "-key", keyPath, "-subj", "/C=SA/O=Markaz Test/CN=markaz-test-egs", "-days", "1825", "-sha256", "-out", certPath], { stdio: "pipe", env });
     const certificatePem = readFileSync(certPath, "utf8");
     const certificateBase64 = certificatePem
       .split("\n")

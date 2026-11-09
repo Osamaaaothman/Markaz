@@ -16,6 +16,17 @@
 // REVIEW: the per-line "tax ~ net x rate" and "net ~ quantity x price" checks are reported as
 // WARNINGS with a 0.01 tolerance, because the exact rounding rule ZATCA applies per line was not
 // confirmed against the Schematron (not available in this session).
+//
+// BR-CO-14/BR-CO-17 (2026-11-09, resolving docs/01-OPEN-DECISIONS.md section Z's open rounding
+// question): confirmed directly against the official Schematron, now present locally at
+// docs/vendor/zatca/sdk/Data/Rules/Schematrons/CEN-EN16931-UBL.xsl. BR-CO-17's own rule text
+// checks a TaxSubtotal's TaxAmount against taxableAmount x rate / 100 (rounded), inside an
+// explicit tolerance of `count(//cac:InvoiceLine) * 0.01` -- NOT against "the sum of each line's
+// own independently-rounded TaxAmount", which is what this file checked before and is stricter
+// than ZATCA's own rule. BR-CO-14 (document TaxTotal = sum of its own TaxSubtotal amounts) has no
+// such tolerance in the Schematron, but it also never involves a second rounding of the lines --
+// both numbers come from the same document -- so it is still checked for exact equality, just no
+// longer against a separate "sum of the lines" recomputation.
 import { IssueCollector, type ValidationReport } from "./validation-report.js";
 import { children, descendants, firstDescendant, formatHundredths, parseXml, textOf, toHundredths } from "./xml-reader.js";
 
@@ -37,6 +48,16 @@ function amountOf(scope: Element, name: string, c: IssueCollector, where: string
   const parsed = toHundredths(raw);
   if (parsed === undefined) c.error("AMOUNT_MISSING_OR_MALFORMED", `${where}: ${name} is ${raw === undefined ? "missing" : `"${raw}", not a decimal with at most 2 places`}`);
   return parsed;
+}
+
+// Rounds numerator/denominator to the nearest integer, half away from zero -- the same convention
+// XPath/XSLT's round() uses, which is what the official Schematron's BR-CO-17 computation relies on.
+function roundHalfUpDiv(numerator: bigint, denominator: bigint): bigint {
+  const negative = numerator < 0n !== denominator < 0n;
+  const absNum = numerator < 0n ? -numerator : numerator;
+  const absDen = denominator < 0n ? -denominator : denominator;
+  const result = (absNum + absDen / 2n) / absDen;
+  return negative ? -result : result;
 }
 
 // Decimal string -> integer scaled by 10^scale; undefined if malformed or more precise than scale.
@@ -176,7 +197,6 @@ function checkTotals(root: Element, c: IssueCollector): void {
     return;
   }
   const sumNet = lines.reduce((s, l) => s + l.net, 0n);
-  const sumTax = lines.reduce((s, l) => s + l.tax, 0n);
 
   const lineExt = amountOf(monetary, "LineExtensionAmount", c, "LegalMonetaryTotal");
   const taxExclusive = amountOf(monetary, "TaxExclusiveAmount", c, "LegalMonetaryTotal");
@@ -185,27 +205,29 @@ function checkTotals(root: Element, c: IssueCollector): void {
   const prepaid = amountOf(monetary, "PrepaidAmount", c, "LegalMonetaryTotal") ?? 0n;
   const payable = amountOf(monetary, "PayableAmount", c, "LegalMonetaryTotal");
 
-  if (lineExt !== undefined && lineExt !== sumNet) c.error("BR_CO_10", `LineExtensionAmount ${formatHundredths(lineExt)} is not the sum of the line amounts ${formatHundredths(sumNet)}`);
-  if (taxExclusive !== undefined && lineExt !== undefined && taxExclusive !== lineExt - allowance) c.error("BR_CO_13", `TaxExclusiveAmount ${formatHundredths(taxExclusive)} is not LineExtensionAmount minus allowances`);
+  // BR-CO-10 and BR-CO-13 are "warning" severity in the official Schematron (confirmed directly
+  // from docs/vendor/zatca/sdk/Data/Rules/Schematrons/CEN-EN16931-UBL.xsl, both flag="warning"),
+  // not hard errors -- this file previously escalated them past what ZATCA's own rule set does.
+  if (lineExt !== undefined && lineExt !== sumNet) c.warn("BR_CO_10", `LineExtensionAmount ${formatHundredths(lineExt)} is not the sum of the line amounts ${formatHundredths(sumNet)}`);
+  if (taxExclusive !== undefined && lineExt !== undefined && taxExclusive !== lineExt - allowance) c.warn("BR_CO_13", `TaxExclusiveAmount ${formatHundredths(taxExclusive)} is not LineExtensionAmount minus allowances`);
 
   const docTaxTotals = children(root, "cac", "TaxTotal");
   if (docTaxTotals.length === 0) c.error("TAX_TOTAL_MISSING", "The document has no cac:TaxTotal");
   const taxTotalAmounts = docTaxTotals.map((t) => amountOf(t, "TaxAmount", c, "Document TaxTotal"));
-  for (const amount of taxTotalAmounts) {
-    if (amount !== undefined && amount !== sumTax) c.error("BR_CO_14", `A document TaxTotal of ${formatHundredths(amount)} is not the sum of the line taxes ${formatHundredths(sumTax)}`);
-  }
-  if (taxInclusive !== undefined && taxExclusive !== undefined && taxInclusive !== taxExclusive + sumTax) c.error("BR_CO_15", `TaxInclusiveAmount ${formatHundredths(taxInclusive)} is not TaxExclusiveAmount plus the tax ${formatHundredths(sumTax)}`);
-  if (payable !== undefined && taxInclusive !== undefined && payable !== taxInclusive - prepaid) c.error("BR_CO_16", `PayableAmount ${formatHundredths(payable)} is not TaxInclusiveAmount minus prepayments`);
 
   // The breakdown per tax category must reproduce the lines.
   const subtotals = docTaxTotals.flatMap((t) => children(t, "cac", "TaxSubtotal"));
   if (subtotals.length === 0) c.error("TAX_SUBTOTAL_MISSING", "The document has no cac:TaxSubtotal breakdown");
-  const fromLines = new Map<string, { net: bigint; tax: bigint }>();
+  const fromLines = new Map<string, { net: bigint }>();
   for (const l of lines) {
-    const g = fromLines.get(l.key) ?? { net: 0n, tax: 0n };
-    fromLines.set(l.key, { net: g.net + l.net, tax: g.tax + l.tax });
+    const g = fromLines.get(l.key) ?? { net: 0n };
+    fromLines.set(l.key, { net: g.net + l.net });
   }
+  // The official Schematron's own tolerance (`count(//cac:InvoiceLine) * 0.01`) for BR-CO-17 --
+  // scaled by the WHOLE document's line count, the same way the Schematron does it, not per category.
+  const lineCountTolerance = BigInt(lines.length);
   const seen = new Set<string>();
+  let subtotalTaxSum = 0n;
   for (const sub of subtotals) {
     const cat = children(sub, "cac", "TaxCategory")[0];
     const catId = cat ? childText(cat, "cbc", "ID") : undefined;
@@ -219,10 +241,22 @@ function checkTotals(root: Element, c: IssueCollector): void {
     const expected = fromLines.get(key);
     const taxable = amountOf(sub, "TaxableAmount", c, `TaxSubtotal ${catId}`);
     const tax = amountOf(sub, "TaxAmount", c, `TaxSubtotal ${catId}`);
+    if (tax !== undefined) subtotalTaxSum += tax;
     if (!expected) c.error("BR_CO_17_UNKNOWN_CATEGORY", `A TaxSubtotal for category ${catId} at ${formatHundredths(percent)}% has no matching line`);
     else {
-      if (taxable !== undefined && taxable !== expected.net) c.error("BR_CO_17_TAXABLE", `TaxSubtotal ${catId}: taxable ${formatHundredths(taxable)} is not the lines' ${formatHundredths(expected.net)}`);
-      if (tax !== undefined && tax !== expected.tax) c.error("BR_CO_17_TAX", `TaxSubtotal ${catId}: tax ${formatHundredths(tax)} is not the lines' ${formatHundredths(expected.tax)}`);
+      // BR-S-08/BR-Z-08/BR-E-08/BR-O-08 (the per-category variants of this check): "warning" in
+      // the official Schematron, exact match against the sum of the category's own lines.
+      if (taxable !== undefined && taxable !== expected.net) c.warn("BR_CO_17_TAXABLE", `TaxSubtotal ${catId}: taxable ${formatHundredths(taxable)} is not the lines' ${formatHundredths(expected.net)}`);
+      // BR-CO-17: tax ~= taxable x rate / 100 (rounded half-up), within the Schematron's own
+      // 0.01-per-line tolerance -- see the file header note for why this replaced a stricter,
+      // non-official check against the sum of the lines' own rounded TaxAmount. Also "warning"
+      // severity in the official Schematron, not an error.
+      if (taxable !== undefined && tax !== undefined) {
+        const shouldBe = roundHalfUpDiv(taxable * percent, 10_000n);
+        if (tax < shouldBe - lineCountTolerance || tax > shouldBe + lineCountTolerance) {
+          c.warn("BR_CO_17_TAX", `TaxSubtotal ${catId}: tax ${formatHundredths(tax)} is not taxable x rate (${formatHundredths(shouldBe)}) within the official 0.01-per-line tolerance`);
+        }
+      }
     }
     if (catId === "S" && percent <= 0n) c.error("STANDARD_RATE_ZERO", "A standard-rated (S) category must have a percent above 0");
     if (catId !== "S" && percent !== 0n) c.error("NON_STANDARD_RATE_NOT_ZERO", `Category ${catId} must have a percent of 0`);
@@ -231,6 +265,17 @@ function checkTotals(root: Element, c: IssueCollector): void {
   for (const key of fromLines.keys()) {
     if (!seen.has(key)) c.error("SUBTOTAL_MISSING_FOR_LINES", `Lines use tax group ${key.replace("|", " at ")} (hundredths of a percent) but no TaxSubtotal covers it`);
   }
+
+  // BR-CO-14: the document TaxTotal is exactly the sum of its own TaxSubtotal amounts -- unlike
+  // BR-CO-17 this never involves a second, independent rounding of the lines (both numbers come
+  // from the same document), so it is still checked for exact equality, no tolerance.
+  for (const amount of taxTotalAmounts) {
+    if (amount !== undefined && amount !== subtotalTaxSum) c.error("BR_CO_14", `A document TaxTotal of ${formatHundredths(amount)} is not the sum of the TaxSubtotal amounts ${formatHundredths(subtotalTaxSum)}`);
+  }
+  if (taxInclusive !== undefined && taxExclusive !== undefined && taxInclusive !== taxExclusive + subtotalTaxSum)
+    c.error("BR_CO_15", `TaxInclusiveAmount ${formatHundredths(taxInclusive)} is not TaxExclusiveAmount plus the tax ${formatHundredths(subtotalTaxSum)}`);
+  // BR-CO-16 is "warning" severity in the official Schematron too.
+  if (payable !== undefined && taxInclusive !== undefined && payable !== taxInclusive - prepaid) c.warn("BR_CO_16", `PayableAmount ${formatHundredths(payable)} is not TaxInclusiveAmount minus prepayments`);
 }
 
 function checkCurrencyAttributes(doc: Document, root: Element, c: IssueCollector): void {

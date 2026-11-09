@@ -138,12 +138,23 @@ function buildTaxTotals(groups: readonly TaxGroup[], currency: string): string {
   return minimal + full;
 }
 
+// BR-CO-15 (EN 16931 / ZATCA Schematron, "error" severity, no tolerance -- confirmed in
+// docs/vendor/zatca/sdk/Data/Rules/Schematrons/CEN-EN16931-UBL.xsl): TaxInclusiveAmount must equal
+// TaxExclusiveAmount + the document's VAT amount EXACTLY as rendered. Rounding `lineExtension` and
+// `totalTax` to 2dp independently and only THEN adding them (rather than adding the full-precision
+// Money values and rounding the sum once) is deliberate: it guarantees TaxInclusiveAmount is always
+// exactly TaxExclusiveAmount-as-rendered plus TaxAmount-as-rendered, by construction, with no
+// boundary case where two independent roundings of the same underlying numbers can disagree by
+// 0.01 (the same class of bug as the per-line/subtotal tax rounding documented in
+// docs/01-OPEN-DECISIONS.md section Z).
 function buildLegalMonetaryTotal(lineExtension: Money, totalTax: Money, currency: string): string {
-  const taxInclusive = lineExtension.add(totalTax);
+  const roundedLineExtension = lineExtension.round(2);
+  const roundedTax = totalTax.round(2);
+  const taxInclusive = roundedLineExtension.add(roundedTax);
   return (
     `<cac:LegalMonetaryTotal>` +
-    amountEl("LineExtensionAmount", lineExtension.toDecimalString(2), currency) +
-    amountEl("TaxExclusiveAmount", lineExtension.toDecimalString(2), currency) +
+    amountEl("LineExtensionAmount", roundedLineExtension.toDecimalString(2), currency) +
+    amountEl("TaxExclusiveAmount", roundedLineExtension.toDecimalString(2), currency) +
     amountEl("TaxInclusiveAmount", taxInclusive.toDecimalString(2), currency) +
     amountEl("AllowanceTotalAmount", "0", currency) +
     amountEl("PrepaidAmount", "0", currency) +
