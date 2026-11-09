@@ -90,6 +90,7 @@ model Company {
   salesOrders             SalesOrder[]
   salesInvoices           SalesInvoice[]
   payments                Payment[]
+  cashExpenses            CashExpense[]
   attachments             Attachment[]
   employees               Employee[]
   hrPayments              HrPayment[]
@@ -374,6 +375,8 @@ model Account {
   eosbSettlements               EndOfServiceSettlement[] @relation("EosbPayableAccount")
   hrPaymentsFrom                HrPayment[]              @relation("HrPaymentCash")
   hrPaymentItems                HrPaymentItem[]          @relation("HrPaymentItemAccount")
+  cashExpensesFrom              CashExpense[]            @relation("CashExpenseCash")
+  cashExpenseLines              CashExpense[]            @relation("CashExpenseExpenseAccount")
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -496,6 +499,7 @@ model JournalEntry {
   supplierInvoices        SupplierInvoice[]
   salesInvoices           SalesInvoice[]
   payments                Payment[]
+  cashExpenses            CashExpense[]
   hrPayments              HrPayment[]
   payrollRuns             PayrollRun[]
   salaryAdvances          SalaryAdvance[]
@@ -1467,6 +1471,37 @@ model PaymentAllocation {
   @@index([salesInvoiceId])
   @@index([supplierInvoiceId])
   @@map("payment_allocations")
+}
+
+// A small cash outlay straight to an expense — no supplier, no invoice, no allocation. Posts
+// Dr expense / Cr cash the moment it is recorded (docs/05-ACCOUNTING-INTEGRITY-RULES.md): there is
+// nothing to reconcile later the way a payment can be. Insert-only, like every posted document.
+model CashExpense {
+  id               String   @id
+  companyId        String   @map("company_id")
+  number           String
+  expenseDate      DateTime @map("expense_date") @db.Date
+  amount           Decimal  @db.Decimal(19, 4)
+  currency         String
+  // The petty-cash or bank account the money came out of.
+  cashAccountId    String   @map("cash_account_id")
+  // The expense account it was spent on.
+  expenseAccountId String   @map("expense_account_id")
+  description      String?
+  reference        String?
+  journalEntryId   String   @map("journal_entry_id")
+  actorId          String   @map("actor_id")
+  correlationId    String   @map("correlation_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  company        Company      @relation(fields: [companyId], references: [id])
+  cashAccount    Account      @relation("CashExpenseCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  expenseAccount Account      @relation("CashExpenseExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+
+  @@unique([companyId, number])
+  @@index([companyId, expenseDate])
+  @@map("cash_expenses")
 }
 
 // Scanned bills, receipts and supporting documents linked to a business record. Insert-only for the runtime

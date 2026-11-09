@@ -44,6 +44,7 @@
     "payments": "Payments",
     "receipts": "Customer Receipts",
     "supplierPayments": "Supplier Payments",
+    "cashExpenses": "Cash Expenses",
     "aging": "Ageing",
     "partyStatement": "Customer / supplier statement",
     "stockMovements": "Stock movements",
@@ -1056,6 +1057,26 @@
       "errors": {
         "INSUFFICIENT_BALANCE": "Not enough balance on account to cover that."
       }
+    }
+  },
+  "cashExpenses": {
+    "title": "Cash Expenses",
+    "subtitle": "Small cash outlays straight to an expense — no supplier, no invoice.",
+    "new": "New cash expense",
+    "newTitle": "New cash expense",
+    "newSubtitle": "Pick where the money came from and what it was spent on.",
+    "date": "Date",
+    "cashAccount": "Cash / bank account",
+    "expenseAccount": "Expense account",
+    "pickExpenseAccount": "Choose the expense account",
+    "description": "Description",
+    "errors": {
+      "CASH_ACCOUNT_NOT_FOUND": "The cash or bank account was not found.",
+      "CASH_ACCOUNT_INVALID": "Choose a postable asset account for the cash or bank.",
+      "EXPENSE_ACCOUNT_NOT_FOUND": "The expense account was not found.",
+      "EXPENSE_ACCOUNT_INVALID": "Choose a postable expense account.",
+      "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+      "generic": "Something went wrong. Please try again."
     }
   },
   "aging": {

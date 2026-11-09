@@ -65,6 +65,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/sales/invoices", labelKey: "nav.salesInvoices", icon: "pi pi-file", permissions: ["sales_invoice:read"], groupKey: "nav.groups.sales" },
   { to: "/payments/receipts", labelKey: "nav.receipts", icon: "pi pi-arrow-down-left", permissions: ["payment:read"], groupKey: "nav.groups.payments" },
   { to: "/payments/supplier", labelKey: "nav.supplierPayments", icon: "pi pi-arrow-up-right", permissions: ["payment:read"], groupKey: "nav.groups.payments" },
+  { to: "/payments/cash-expenses", labelKey: "nav.cashExpenses", icon: "pi pi-wallet", permissions: ["cash_expense:read"], groupKey: "nav.groups.payments" },
   { to: "/documents", labelKey: "nav.documents", icon: "pi pi-paperclip", permissions: ["attachment:read"], groupKey: "nav.groups.documents" },
   { to: "/settings/company", labelKey: "nav.company", icon: "pi pi-building-columns", permissions: ["company:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/users", labelKey: "nav.usersRoles", icon: "pi pi-users", permissions: ["user:read", "role:read"], groupKey: "nav.groups.settings" },

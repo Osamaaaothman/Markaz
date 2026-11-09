@@ -114,6 +114,8 @@ const PERMISSION_CATALOG = [
   { code: "credit_note:create", description: "Post a credit note against an invoice" },
   { code: "payment:read", description: "View customer receipts and supplier payments" },
   { code: "payment:create", description: "Reverse a payment, or settle on-account money against invoices" },
+  { code: "cash_expense:create", description: "Record a small cash outlay straight to an expense account" },
+  { code: "cash_expense:read", description: "View recorded cash expenses" },
   { code: "customer_receipt:create", description: "Record a payment received from a customer" },
   { code: "supplier_payment:create", description: "Record a payment made to a supplier" },
   { code: "aging_report:read", description: "View receivables and payables ageing" },
@@ -150,7 +152,7 @@ const PERMISSION_CATALOG = [
 const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly string[] | "*">>>> = {
   Accountant: {
     journal_entry: "*", trial_balance: "*", balance_sheet: "*", income_statement: "*", aging_report: "*", party_statement: "*", fiscal_period: "*",
-    account: ["read", "create", "update"], account_mapping: "*", tax_code: "*", party: "*", payment: "*", customer_receipt: "*", supplier_payment: "*",
+    account: ["read", "create", "update"], account_mapping: "*", tax_code: "*", party: "*", payment: "*", cash_expense: "*", customer_receipt: "*", supplier_payment: "*",
     supplier_invoice: ["read"], sales_invoice: ["read"], purchase_order: ["read"], goods_receipt: ["read"], stock: ["read"], item: ["read"],
     debit_note: "*", credit_note: "*", hr_payment: "*", payroll_run: ["read"], company: ["read"], attachment: "*", compliance: ["read"],
   },

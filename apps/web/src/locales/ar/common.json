@@ -44,6 +44,7 @@
     "payments": "المدفوعات",
     "receipts": "سندات القبض",
     "supplierPayments": "سندات الدفع",
+    "cashExpenses": "المصاريف النقدية",
     "aging": "أعمار الديون",
     "partyStatement": "كشف حساب عميل / مورد",
     "stockMovements": "حركات المخزون",
@@ -1056,6 +1057,26 @@
       "errors": {
         "INSUFFICIENT_BALANCE": "الرصيد على الحساب لا يكفي لتغطية هذا المبلغ."
       }
+    }
+  },
+  "cashExpenses": {
+    "title": "المصاريف النقدية",
+    "subtitle": "مصاريف نقدية صغيرة مباشرة لحساب مصروف — بدون مورد وبدون فاتورة.",
+    "new": "مصروف نقدي جديد",
+    "newTitle": "مصروف نقدي جديد",
+    "newSubtitle": "اختر من أين خرج المبلغ وفيم صُرف.",
+    "date": "التاريخ",
+    "cashAccount": "حساب نقدي / بنكي",
+    "expenseAccount": "حساب المصروف",
+    "pickExpenseAccount": "اختر حساب المصروف",
+    "description": "الوصف",
+    "errors": {
+      "CASH_ACCOUNT_NOT_FOUND": "لم يتم العثور على الحساب النقدي أو البنكي.",
+      "CASH_ACCOUNT_INVALID": "اختر حساب أصول قابلاً للترحيل للنقدية أو البنك.",
+      "EXPENSE_ACCOUNT_NOT_FOUND": "لم يتم العثور على حساب المصروف.",
+      "EXPENSE_ACCOUNT_INVALID": "اختر حساب مصروف قابلاً للترحيل.",
+      "NO_OPEN_PERIOD": "لا توجد فترة مالية مفتوحة تغطي هذا التاريخ.",
+      "generic": "حدث خطأ ما. حاول مرة أخرى."
     }
   },
   "aging": {

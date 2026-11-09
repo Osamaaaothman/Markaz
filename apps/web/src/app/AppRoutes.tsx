@@ -53,6 +53,8 @@ import { CustomerReceiptPage, SupplierPaymentPage } from "../features/payments/P
 import { PaymentDetailPage } from "../features/payments/PaymentDetailPage";
 import { ReceiptsPage, SupplierPaymentsPage } from "../features/payments/PaymentsPage";
 import { SettleReceiptsPage, SettleSupplierPage } from "../features/payments/SettlePage";
+import { CashExpensesPage } from "../features/payments/CashExpensesPage";
+import { CashExpenseFormPage } from "../features/payments/CashExpenseFormPage";
 import { AgingPage } from "../features/payments/AgingPage";
 import { PartyStatementPage } from "../features/payments/PartyStatementPage";
 import { UsersPage } from "../features/settings/UsersPage";
@@ -219,6 +221,12 @@ export function AppRoutes(): React.JSX.Element {
           <Route element={<RequirePermission anyOf={["payment:create"]} />}>
             <Route path="/payments/receipts/settle" element={<SettleReceiptsPage />} />
             <Route path="/payments/supplier/settle" element={<SettleSupplierPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["cash_expense:read"]} />}>
+            <Route path="/payments/cash-expenses" element={<CashExpensesPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["cash_expense:create"]} />}>
+            <Route path="/payments/cash-expenses/new" element={<CashExpenseFormPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/aging")} />}>
             <Route path="/accounting/aging" element={<AgingPage />} />
