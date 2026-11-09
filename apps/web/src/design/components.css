@@ -559,7 +559,7 @@ html body .mk-grid--scroll .p-datatable-wrapper {
 html body .erp-table .p-datatable-thead > tr > th,
 html body .erp-table .p-treetable-thead > tr > th {
   position: sticky;
-  top: var(--mk-topbar-h);
+  top: calc(var(--mk-topbar-h) + 1.5rem);
   z-index: 2;
   padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
   background: var(--mk-surface-2);

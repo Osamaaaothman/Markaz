@@ -12,6 +12,8 @@ export const THEMES = [
   { id: "plum", mode: "light" },
   { id: "night", mode: "dark" },
   { id: "graphite", mode: "dark" },
+  { id: "prime", mode: "light" },
+  { id: "primedark", mode: "dark" },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];

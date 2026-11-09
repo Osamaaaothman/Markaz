@@ -50,7 +50,7 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
   return (
     <nav className={`erp-sidebar erp-sidebar--${variant}${collapsed ? " erp-sidebar--collapsed" : ""}`} aria-label={t("app.name")}>
       <div className="erp-sidebar__brand">
-        <Logo variant="full" size={collapsed ? 40 : 42} name={t("app.name")} tagline={t("app.tagline")} className="erp-sidebar__logo" />
+        <Logo variant="full" size={collapsed ? 44 : 48} name={t("app.name")} tagline={t("app.tagline")} className="erp-sidebar__logo" />
       </div>
 
       {variant === "desktop" ? (
@@ -79,7 +79,7 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
           const groupStarts = groupKey !== undefined && groupKey !== visibleItems[index - 1]?.groupKey;
           const groupFolded = groupKey !== undefined && Boolean(collapsedGroups[groupKey]);
           return (
-            <li key={item.to} className={`erp-sidebar__item${groupKey !== undefined ? " erp-sidebar__item--grouped" : ""}`}>
+            <li key={item.to} className="erp-sidebar__item">
               {groupStarts ? (
                 <button
                   type="button"

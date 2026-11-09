@@ -1361,7 +1361,9 @@
       "sand": "Sand",
       "plum": "Plum",
       "night": "Night",
-      "graphite": "Graphite"
+      "graphite": "Graphite",
+      "prime": "PrimeReact",
+      "primedark": "PrimeReact Dark"
     }
   },
   "created": {

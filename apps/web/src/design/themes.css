@@ -130,3 +130,80 @@ html[data-theme="graphite"] {
   --mk-on-primary: #0b0d2e;
   --mk-chart-3: #8a93a8;
 }
+
+/* ---- prime: PrimeReact's own lara-indigo colours and 6px corners ---- */
+html[data-theme="prime"] {
+  --mk-brand-50: #eef2ff;
+  --mk-brand-100: #e0e7ff;
+  --mk-brand-200: #c7d2fe;
+  --mk-brand-300: #a5b4fc;
+  --mk-brand-400: #818cf8;
+  --mk-brand-500: #6366f1;
+  --mk-brand-600: #4f46e5;
+  --mk-brand-700: #4338ca;
+  --mk-brand-800: #3730a3;
+  --primary-900: #312e81;
+  --mk-brass-100: #ccfbf1;
+  --mk-brass-300: #5eead4;
+  --mk-brass-400: #2dd4bf;
+  --mk-brass-500: #14b8a6;
+  --mk-brass-600: #0d9488;
+
+  --mk-primary: var(--mk-brand-500);
+  --mk-primary-hover: var(--mk-brand-600);
+  --mk-bg: #f8f9fa;
+  --mk-bg-accent: #f1f3f5;
+  --mk-surface: #ffffff;
+  --mk-surface-2: #f8f9fa;
+  --mk-surface-3: #e9ecef;
+  --mk-border: #dee2e6;
+  --mk-border-strong: #ced4da;
+  --mk-text: #495057;
+  --mk-text-muted: #6c757d;
+  --mk-text-subtle: #adb5bd;
+  --mk-chart-3: #6c757d;
+
+  --mk-radius-xs: 4px;
+  --mk-radius-sm: 6px;
+  --mk-radius: 6px;
+  --mk-radius-lg: 8px;
+  --mk-radius-xl: 10px;
+}
+
+/* ---- prime dark: lara-dark-indigo ---- */
+html[data-theme="primedark"] {
+  --mk-brand-50: #eef2ff;
+  --mk-brand-100: #e0e7ff;
+  --mk-brand-200: #c7d2fe;
+  --mk-brand-300: #a5b4fc;
+  --mk-brand-400: #818cf8;
+  --mk-brand-500: #6366f1;
+  --mk-brand-600: #4f46e5;
+  --mk-brand-700: #4338ca;
+  --mk-brand-800: #3730a3;
+  --primary-900: #312e81;
+  --mk-brass-100: #ccfbf1;
+  --mk-brass-300: #5eead4;
+  --mk-brass-400: #2dd4bf;
+  --mk-brass-500: #14b8a6;
+  --mk-brass-600: #0d9488;
+
+  --mk-bg: #111827;
+  --mk-bg-accent: #0f1623;
+  --mk-surface: #1f2937;
+  --mk-surface-2: #232f3f;
+  --mk-surface-3: #2c3849;
+  --mk-border: #3f4b5b;
+  --mk-border-strong: #4e5c6f;
+  --mk-text: #e5e7eb;
+  --mk-text-muted: #9ca3af;
+  --mk-text-subtle: #6b7280;
+  --mk-on-primary: #1f2937;
+  --mk-chart-3: #9ca3af;
+
+  --mk-radius-xs: 4px;
+  --mk-radius-sm: 6px;
+  --mk-radius: 6px;
+  --mk-radius-lg: 8px;
+  --mk-radius-xl: 10px;
+}

@@ -1361,7 +1361,9 @@
       "sand": "الرمال",
       "plum": "البنفسج",
       "night": "الليل",
-      "graphite": "الجرافيت"
+      "graphite": "الجرافيت",
+      "prime": "PrimeReact",
+      "primedark": "PrimeReact داكن"
     }
   },
   "created": {

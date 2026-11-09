@@ -12,6 +12,8 @@ const SWATCHES: Readonly<Record<ThemeId, { bg: string; surface: string; brand: s
   plum: { bg: "#f7f4fb", surface: "#ffffff", brand: "#5a2ba0", accent: "#d94a7b" },
   night: { bg: "#131210", surface: "#1b1a17", brand: "#54987a", accent: "#c9aa5c" },
   graphite: { bg: "#0f1116", surface: "#181b24", brand: "#7c85f5", accent: "#5cc8d8" },
+  prime: { bg: "#f8f9fa", surface: "#ffffff", brand: "#6366f1", accent: "#14b8a6" },
+  primedark: { bg: "#111827", surface: "#1f2937", brand: "#818cf8", accent: "#2dd4bf" },
 };
 
 // Personal interface preferences: the order of the sidebar's sections, and other display settings.
