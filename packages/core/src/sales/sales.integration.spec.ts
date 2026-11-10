@@ -8,6 +8,7 @@ import { AccountMappingService } from "../inventory/account-mapping.service.js";
 import { GoodsReceiptService } from "../inventory/goods-receipt.service.js";
 import { ItemService } from "../inventory/item.service.js";
 import { StockLevelService } from "../inventory/stock-level.service.js";
+import { StockMovementService } from "../inventory/stock-movement.service.js";
 import { WarehouseService } from "../inventory/warehouse.service.js";
 import { TaxCodeService } from "../purchasing/tax-code.service.js";
 import { QuotationService } from "./quotation.service.js";
@@ -82,7 +83,7 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
 
     warehouseId = (await warehouses.create({ code: "WH1", name: "Main" }, actor, cid())).id;
     itemId = (await items.create({ code: "CEM", name: "Cement", unit: "BAG" }, actor, cid())).id;
-    customerId = (await prisma.party.create({ data: { id: newId(), ref: `TEST-C1-${companyId.slice(0, 6)}`, companyId, name: "Customer Co", kind: "COMPANY" } })).id;
+    customerId = (await prisma.party.create({ data: { id: newId(), ref: `TEST-C1-${companyId.slice(0, 6)}`, companyId, name: "Customer Co", nameAr: "شركة العميل", kind: "COMPANY" } })).id;
 
     await receipts.create({ warehouseId, documentDate: today, lines: [{ itemId, quantity: "10", unitCost: "50" }] }, actor, cid(), newId());
   });
@@ -139,6 +140,9 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
     invoiceId = result.id;
     expect(result.number).toMatch(/^INV-.*-000001$/);
     expect(result.totalGross).toBe("345.0000");
+    const card = await new StockMovementService(prisma).list(companyId, { itemId });
+    expect(card.data.find((m) => m.sourceDocumentType === "sales_invoice")).toMatchObject({ partyName: "Customer Co", partyNameAr: "شركة العميل" });
+    expect(card.data.find((m) => m.sourceDocumentType === "goods_receipt")).toMatchObject({ partyName: null, partyNameAr: null });
 
     expect(await balance(acc.ar!)).toBeCloseTo(ar + 345, 4);
     expect(await balance(acc.revenue!)).toBeCloseTo(revenue - 300, 4);

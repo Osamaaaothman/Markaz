@@ -16,6 +16,8 @@ const entry: StockMovementEntry = {
   unitCost: "5.0000",
   value: "20.0000",
   sourceDocumentType: "sales_invoice",
+  partyName: "Customer, Co",
+  partyNameAr: "شركة العميل",
   journalEntryId: "j1",
   entryNumber: "000007",
 };
@@ -28,5 +30,12 @@ describe("stock movements CSV", () => {
     expect(csv).toContain('"Cement, 50kg"');
     expect(csv).toContain("-4.0000");
     expect(csv).toContain("2026-03-20");
+    expect(csv).toContain("Customer / Supplier");
+    expect(csv).toContain('"Customer, Co"');
+    expect(csv).toContain("شركة العميل");
+  });
+
+  it("leaves the party columns empty for an internal movement", () => {
+    expect(stockMovementsToCsv([{ ...entry, partyName: null, partyNameAr: null }])).toContain("000007,,\r\n");
   });
 });

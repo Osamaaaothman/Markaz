@@ -18,6 +18,8 @@ export interface StockMovementEntry {
   readonly unitCost: string;
   readonly value: string;
   readonly sourceDocumentType: string;
+  readonly partyName: string | null;
+  readonly partyNameAr: string | null;
   // The ledger entry the movement was posted with; for the stock documents its number is the document number.
   readonly journalEntryId: string;
   readonly entryNumber: string;
@@ -42,7 +44,9 @@ export const STOCK_MOVEMENT_EXPORT_LIMIT = 20_000;
 
 type Row = Prisma.StockMovementGetPayload<{ include: { item: true; warehouse: true; journalEntry: { select: { number: true } } } }>;
 
-function toEntry(row: Row): StockMovementEntry {
+type MovementParty = { name: string; nameAr: string | null };
+
+function toEntry(row: Row, party?: MovementParty): StockMovementEntry {
   return {
     id: row.id,
     date: row.createdAt.toISOString(),
@@ -58,6 +62,8 @@ function toEntry(row: Row): StockMovementEntry {
     unitCost: row.unitCost.toFixed(4),
     value: row.value.toFixed(4),
     sourceDocumentType: row.sourceDocumentType,
+    partyName: party?.name ?? null,
+    partyNameAr: party?.nameAr ?? null,
     journalEntryId: row.journalEntryId,
     entryNumber: row.journalEntry.number,
   };
@@ -67,6 +73,40 @@ function toEntry(row: Row): StockMovementEntry {
 // only ever written by the posting services, in the same transaction as their ledger entry.
 export class StockMovementService {
   constructor(private readonly prisma: PrismaClient) {}
+
+  // Resolve the source documents in batches, including for exports, rather than one query per movement.
+  private async entries(companyId: string, rows: Row[]): Promise<StockMovementEntry[]> {
+    const sourceIds = (types: readonly string[]): string[] =>
+      [...new Set(rows.filter((row) => types.includes(row.sourceDocumentType)).map((row) => row.sourceDocumentId))];
+    const receiptIds = sourceIds(["goods_receipt"]);
+    const returnIds = sourceIds(["goods_return"]);
+    const invoiceIds = sourceIds(["sales_invoice", "sales_credit_note", "sales_debit_note"]);
+    const partySelect = { name: true, nameAr: true } as const;
+    const [receipts, returns, invoices] = await Promise.all([
+      receiptIds.length ? this.prisma.goodsReceipt.findMany({
+        where: { companyId, id: { in: receiptIds }, party: { companyId } },
+        select: { id: true, party: { select: partySelect } },
+      }) : [],
+      returnIds.length ? this.prisma.goodsReturn.findMany({
+        where: { companyId, id: { in: returnIds }, party: { companyId } },
+        select: { id: true, party: { select: partySelect } },
+      }) : [],
+      invoiceIds.length ? this.prisma.salesInvoice.findMany({
+        where: { companyId, id: { in: invoiceIds }, customer: { companyId } },
+        select: { id: true, documentType: true, customer: { select: partySelect } },
+      }) : [],
+    ]);
+    const parties = new Map<string, MovementParty>();
+    for (const receipt of receipts) {
+      if (receipt.party) parties.set(`goods_receipt:${receipt.id}`, receipt.party);
+    }
+    for (const returned of returns) parties.set(`goods_return:${returned.id}`, returned.party);
+    for (const invoice of invoices) {
+      const type = { INVOICE: "sales_invoice", CREDIT_NOTE: "sales_credit_note", DEBIT_NOTE: "sales_debit_note" }[invoice.documentType];
+      if (type) parties.set(`${type}:${invoice.id}`, invoice.customer);
+    }
+    return rows.map((row) => toEntry(row, parties.get(`${row.sourceDocumentType}:${row.sourceDocumentId}`)));
+  }
 
   private where(companyId: string, query: StockMovementQuery): Prisma.StockMovementWhereInput {
     return {
@@ -91,7 +131,7 @@ export class StockMovementService {
     });
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
-    return { data: page.map(toEntry), pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
+    return { data: await this.entries(companyId, page), pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
   }
 
   // Everything the filter matches (up to a cap), oldest first, for a file export.
@@ -102,6 +142,6 @@ export class StockMovementService {
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: STOCK_MOVEMENT_EXPORT_LIMIT,
     });
-    return rows.map(toEntry);
+    return this.entries(companyId, rows);
   }
 }
