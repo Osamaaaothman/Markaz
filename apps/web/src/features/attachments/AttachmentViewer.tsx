@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
+import { Image } from "primereact/image";
 import { Dialog } from "primereact/dialog";
 import { downloadAttachment, fetchAttachmentBlob } from "./use-attachments";
 
@@ -68,7 +69,7 @@ export function AttachmentViewer({ file, onHide }: { readonly file: ViewedFile |
         ) : isPdf ? (
           <iframe src={url} title={file?.originalName ?? ""} className="mk-viewer__frame" />
         ) : (
-          <img src={url} alt={file?.originalName ?? ""} className="mk-viewer__image" />
+          <Image src={url} alt={file?.originalName ?? ""} preview imageClassName="mk-viewer__image" className="mk-zoom" />
         )}
       </div>
     </Dialog>

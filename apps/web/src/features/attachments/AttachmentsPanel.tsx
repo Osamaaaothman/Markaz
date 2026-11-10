@@ -1,3 +1,4 @@
+import { UploadProgress } from "./UploadProgress";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AxiosError } from "axios";
@@ -136,14 +137,7 @@ export function AttachmentsPanel({ ownerType, ownerId }: { readonly ownerType: A
       ) : null}
 
       {uploads.map((u) => (
-        <div key={u.name} className="mk-attach__uploading" role="status">
-          <i className="pi pi-spin pi-spinner" aria-hidden="true" />
-          <span dir="ltr">{u.name}</span>
-          <div className="mk-export__bar mk-attach__bar">
-            <span style={{ inlineSize: `${u.percent}%` }} />
-          </div>
-          <small>{u.percent}%</small>
-        </div>
+        <UploadProgress key={u.name} name={u.name} percent={u.percent} />
       ))}
 
       {problem ? (

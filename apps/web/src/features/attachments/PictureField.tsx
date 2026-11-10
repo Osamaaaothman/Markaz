@@ -1,3 +1,4 @@
+import { UploadProgress } from "./UploadProgress";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AxiosError } from "axios";
@@ -73,14 +74,18 @@ export function PictureField({
   return (
     <div className="mk-picture">
       <div className="mk-picture__preview">
-        <ApiImage path={pictureId ? imagePath : null} version={pictureId} alt={label} fallback={<i className="pi pi-image" aria-hidden="true" />} />
+        <ApiImage path={pictureId ? imagePath : null} version={pictureId} alt={label} zoomable fallback={<i className="pi pi-image" aria-hidden="true" />} />
+        {percent !== null ? (
+          <span className="mk-picture__busy" role="status" aria-live="polite">
+            <i className="pi pi-spin pi-spinner" aria-hidden="true" />
+            <strong>{percent >= 99 ? t("attachments.saving") : `${percent}%`}</strong>
+          </span>
+        ) : null}
       </div>
       <div className="mk-picture__body">
         <strong>{label}</strong>
         {percent !== null ? (
-          <div className="mk-export__bar mk-attach__bar">
-            <span style={{ inlineSize: `${percent}%` }} />
-          </div>
+          <UploadProgress name={t("attachments.uploadingPicture")} percent={percent} />
         ) : (
           <small>{pictureId ? t("attachments.pictureSet") : t("attachments.pictureNone")}</small>
         )}

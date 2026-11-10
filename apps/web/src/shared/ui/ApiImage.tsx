@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Image } from "primereact/image";
 import { apiClient } from "../api/client";
 
 // A picture that lives behind the API (an item picture, the company logo). The browser cannot fetch it with a plain
@@ -34,6 +35,7 @@ export function ApiImage({
   alt = "",
   className,
   fallback,
+  zoomable = false,
 }: {
   readonly path: string | null;
   readonly version: string | null;
@@ -41,8 +43,11 @@ export function ApiImage({
   readonly className?: string;
   // Shown when there is no picture or it could not be loaded.
   readonly fallback?: React.ReactNode;
+  // Shows PrimeReact's zoom button over the picture and opens it full size, with zoom and rotate.
+  readonly zoomable?: boolean;
 }): React.JSX.Element {
   const { url } = useApiImageUrl(path, version);
   if (!url) return <>{fallback ?? null}</>;
+  if (zoomable) return <Image src={url} alt={alt} preview imageClassName={className} className="mk-zoom" />;
   return <img src={url} alt={alt} className={className} loading="lazy" />;
 }

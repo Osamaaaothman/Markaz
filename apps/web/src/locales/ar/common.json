@@ -1288,6 +1288,8 @@
     "report": "⁦{first}–{last}⁩ من {totalRecords}"
   },
   "attachments": {
+    "saving": "جارٍ الحفظ…",
+    "uploadingPicture": "جارٍ رفع الصورة…",
     "title": "المستندات",
     "pageTitle": "المستندات",
     "pageSubtitle": "كل الفواتير الممسوحة والإيصالات والملفات المساندة المرفقة بالسجلات.",

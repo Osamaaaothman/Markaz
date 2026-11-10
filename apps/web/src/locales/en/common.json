@@ -1288,6 +1288,8 @@
     "report": "⁦{first}–{last}⁩ of {totalRecords}"
   },
   "attachments": {
+    "saving": "Saving…",
+    "uploadingPicture": "Uploading picture…",
     "title": "Documents",
     "pageTitle": "Documents",
     "pageSubtitle": "Every scanned bill, receipt and supporting file attached to a record.",

@@ -2063,3 +2063,101 @@ html body {
   font-weight: 400;
   line-height: 1;
 }
+
+/* ---------- upload progress, picture zoom, segmented filter ---------- */
+
+.mk-attach__uploading {
+  background: var(--mk-primary-soft);
+  border-color: var(--mk-primary-ring);
+  inline-size: 100%;
+}
+
+.mk-attach__uploading .pi-spinner {
+  color: var(--mk-primary);
+  font-size: 1.1rem;
+}
+
+.mk-attach__uploading-name {
+  min-inline-size: 0;
+  flex: 0 1 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-attach__percent {
+  flex: 0 0 3.2rem;
+  color: var(--mk-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.mk-picture__preview {
+  position: relative;
+}
+
+.mk-picture__busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  background: color-mix(in srgb, var(--mk-surface) 82%, transparent);
+  color: var(--mk-primary);
+  font-size: 0.8rem;
+}
+
+.mk-picture__busy .pi-spinner {
+  font-size: 1.3rem;
+}
+
+/* PrimeReact's Image wraps the picture in a span; make it fill its frame and keep the zoom button centred */
+.mk-zoom {
+  display: grid;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.mk-zoom img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.mk-viewer__stage .mk-zoom {
+  inline-size: auto;
+  block-size: auto;
+  max-block-size: 100%;
+}
+
+.mk-viewer__stage .mk-zoom img {
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: 100%;
+  max-block-size: 70vh;
+}
+
+/* a segmented choice sized like the other toolbar controls, not a tall dropdown */
+html body .p-selectbutton.mk-segmented .p-button {
+  padding: 0.4rem 0.95rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* the progress row wraps on narrow screens so the bar never shrinks to nothing */
+.mk-attach__uploading {
+  flex-wrap: wrap;
+}
+
+.mk-attach__uploading .mk-attach__bar {
+  flex: 1 1 8rem;
+  min-inline-size: 8rem;
+}
+
+.mk-attach__percent {
+  flex: 0 0 auto;
+  min-inline-size: 3.2rem;
+  white-space: nowrap;
+}

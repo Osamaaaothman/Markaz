@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
-import { Dropdown } from "primereact/dropdown";
+import { SelectButton } from "primereact/selectbutton";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
@@ -69,11 +69,15 @@ export function PartiesPage(): React.JSX.Element {
           />
         </div>
         <div className="coa-levels">
-          <Dropdown
+          <SelectButton
+            className="mk-segmented"
             value={kind ?? ALL_KINDS}
-            // PrimeReact hands back the whole option object when an option's value is null,
-            // so "all kinds" is a sentinel string, not null.
-            onChange={(e) => setKind(e.value === ALL_KINDS ? null : (e.value as PartyKind))}
+            // Clicking the selected segment again reports null; keep the current choice instead.
+            // "All kinds" is a sentinel string, not null.
+            onChange={(e) => {
+              if (e.value === null || e.value === undefined) return;
+              setKind(e.value === ALL_KINDS ? null : (e.value as PartyKind));
+            }}
             options={[
               { label: t("parties.allKinds"), value: ALL_KINDS },
               ...PARTY_KINDS.map((k) => ({ label: t(`parties.kinds.${k}`), value: k })),
