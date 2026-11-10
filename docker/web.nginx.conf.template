@@ -19,8 +19,18 @@ server {
     # both under docker-compose (API_UPSTREAM=api:3000, the container DNS name)
     # and on a host without compose networking, e.g. Railway, where each
     # service gets its own private hostname (API_UPSTREAM=api.railway.internal:3000).
+    #
+    # Resolved through a variable (not a bare proxy_pass host) with an explicit
+    # `resolver`: nginx otherwise resolves proxy_pass hostnames once at config
+    # load and refuses to start if the name doesn't resolve yet — fatal here
+    # since nothing guarantees the api service is already up (or keeps the same
+    # address across restarts) before web starts. The Docker embedded DNS at
+    # 127.0.0.11 is what resolves both the compose service name and Railway's
+    # private-network hostname.
+    resolver 127.0.0.11 valid=10s;
     location /api/ {
-        proxy_pass http://${API_UPSTREAM}/;
+        set $api_upstream "${API_UPSTREAM}";
+        proxy_pass http://$api_upstream/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
