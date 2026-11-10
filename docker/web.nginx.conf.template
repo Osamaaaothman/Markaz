@@ -20,17 +20,19 @@ server {
     # and on a host without compose networking, e.g. Railway, where each
     # service gets its own private hostname (API_UPSTREAM=api.railway.internal:3000).
     #
-    # Resolved through a variable (not a bare proxy_pass host) with an explicit
-    # `resolver`: nginx otherwise resolves proxy_pass hostnames once at config
-    # load and refuses to start if the name doesn't resolve yet — fatal here
-    # since nothing guarantees the api service is already up (or keeps the same
-    # address across restarts) before web starts. The Docker embedded DNS at
-    # 127.0.0.11 is what resolves both the compose service name and Railway's
-    # private-network hostname.
-    resolver 127.0.0.11 valid=10s;
+    # A plain (non-variable) proxy_pass: nginx resolves this once at config
+    # load, which is fine as long as api is already reachable by the time web
+    # starts (true in practice here — api is a stable, already-running service
+    # by the time web (re)deploys). A variable + `resolver 127.0.0.11` form was
+    # tried instead (to re-resolve lazily per request, avoiding the config-load
+    # requirement), but nginx's resolver queries against the Docker embedded
+    # DNS hung indefinitely on this host rather than erroring — confirmed via
+    # direct wget from inside the container: proxying to api.railway.internal
+    # through nginx hung, while curl/wget straight to the same address from the
+    # same container succeeded instantly. Reverted to the simpler form rather
+    # than chase that further.
     location /api/ {
-        set $api_upstream "${API_UPSTREAM}";
-        proxy_pass http://$api_upstream/;
+        proxy_pass http://${API_UPSTREAM}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
