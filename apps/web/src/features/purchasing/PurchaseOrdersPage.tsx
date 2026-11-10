@@ -5,6 +5,7 @@ import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
+import { Dialog } from "primereact/dialog";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -12,7 +13,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { OrderStatusTag } from "./StatusTags";
-import { usePurchaseOrders, type PurchaseOrderStatus, type PurchaseOrderSummary } from "./use-purchasing";
+import { usePurchaseOrders, usePurchaseRequests, type PurchaseRequestSummary, type PurchaseOrderStatus, type PurchaseOrderSummary } from "./use-purchasing";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL = "ALL";
@@ -23,6 +24,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [status, setStatus] = useState<PurchaseOrderStatus | null>(null);
+  const [requestsOpen, setRequestsOpen] = useState(false);
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseOrders(status);
   const orders = data?.pages.flatMap((page) => page.data) ?? [];
 
@@ -33,7 +35,10 @@ export function PurchaseOrdersPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("purchasing.orders.title")}</h1>
           <p className="erp-page__subtitle">{t("purchasing.orders.subtitle")}</p>
         </div>
-        <PermissionButton allowed={can("purchase_order:create")} label={t("purchasing.orders.new")} icon="pi pi-plus" onClick={() => void navigate("/purchasing/orders/new")} />
+        <div className="erp-page__header-actions">
+          <PermissionButton allowed={can("purchase_order:create") && can("purchase_request:read")} label={t("purchasing.orders.acceptedRequests")} icon="pi pi-list-check" outlined onClick={() => setRequestsOpen(true)} />
+          <PermissionButton allowed={can("purchase_order:create")} label={t("purchasing.orders.new")} icon="pi pi-plus" onClick={() => void navigate("/purchasing/orders/new")} />
+        </div>
       </div>
 
       <div className="coa-toolbar">
@@ -87,6 +92,41 @@ export function PurchaseOrdersPage(): React.JSX.Element {
           ) : null}
         </>
       )}
+      {requestsOpen ? <AcceptedRequestsDialog onHide={() => setRequestsOpen(false)} /> : null}
     </div>
+  );
+}
+
+function AcceptedRequestsDialog({ onHide }: { readonly onHide: () => void }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseRequests("ACCEPTED");
+  const requests = data?.pages.flatMap((page) => page.data).filter((request) => request.status === "ACCEPTED" && !request.purchaseOrderId) ?? [];
+  const choose = (request: PurchaseRequestSummary): void => {
+    onHide();
+    void navigate(`/purchasing/orders/new?request=${encodeURIComponent(request.id)}`);
+  };
+  return (
+    <Dialog header={t("purchasing.orders.acceptedRequests")} visible onHide={onHide} className="erp-dialog" modal>
+      <p>{t("purchasing.orders.acceptedRequestsHint")}</p>
+      {isPending ? <PageSkeleton /> : isError ? (
+        <div role="alert">
+          <p className="erp-page__error">{t("status.error")}</p>
+          <Button label={t("actions.retry")} onClick={() => void refetch()} />
+        </div>
+      ) : (
+        <>
+          <DataGrid value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.orders.noAcceptedRequests")} selectionMode="single" onRowClick={(event) => choose(event.data as PurchaseRequestSummary)}>
+            <Column header={t("purchasing.number")} field="number" />
+            <Column header={t("purchasing.date")} body={(row: PurchaseRequestSummary) => formatCalendarDate(row.createdAt, i18n.language)} />
+            <Column header={t("created.warehouse")} body={(row: PurchaseRequestSummary) => row.warehouseName ? localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language) : "—"} />
+            <Column header={t("purchasing.lineCount")} field="lineCount" />
+            <Column header={t("purchasing.notes")} field="notes" />
+            <Column header="" body={(row: PurchaseRequestSummary) => <Button label={t("purchasing.orders.useRequest")} icon="pi pi-plus" onClick={(event) => { event.stopPropagation(); choose(row); }} />} />
+          </DataGrid>
+          {hasNextPage ? <Button label={t("actions.loadMore")} text loading={isFetchingNextPage} onClick={() => void fetchNextPage()} /> : null}
+        </>
+      )}
+    </Dialog>
   );
 }

@@ -66,6 +66,7 @@ export function useChartOfAccounts(includeInactive = false) {
 export function useCreateAccount() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: (payload: CreateAccountPayload) =>
       apiClient.post<ChartOfAccountEntry>("/v1/accounts", payload),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] }),
@@ -119,6 +120,7 @@ export function useAccountUsage(accountId: string | null) {
 export function useDeleteAccount(accountId: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successKey: "feedback.deleted" },
     mutationFn: async () => {
       await apiClient.delete(`/v1/accounts/${accountId}`);
     },
@@ -159,6 +161,7 @@ export function useMakeAccountGroup(accountId: string) {
 export function useMoveAccount(accountId: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (parentId: string | null) => (await apiClient.patch<ChartOfAccountEntry>(`/v1/accounts/${accountId}/parent`, { parentId })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["chartOfAccounts"] });

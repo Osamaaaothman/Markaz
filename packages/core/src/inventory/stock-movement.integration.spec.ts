@@ -43,7 +43,8 @@ describeIfDb("Stock movements (stock card) — real database", () => {
     await mappings.set("PROJECT_ISSUE_EXPENSE", await make("5010", "EXPENSE", "DEBIT"), actor, cid());
     warehouseId = (await new WarehouseService(prisma, audit).create({ code: "W1", name: "Main" }, actor, cid())).id;
     itemId = (await new ItemService(prisma, audit).create({ code: "I1", name: "Item", unit: "EA" }, actor, cid())).id;
-    await new GoodsReceiptService(prisma, engine, mappings, audit).create({ warehouseId, documentDate: today, lines: [{ itemId, quantity: "10", unitCost: "5" }] }, actor, cid(), newId());
+    const supplier = await prisma.party.create({ data: { id: newId(), ref: "MOV-SUPPLIER", companyId, name: "Supplier Co", nameAr: "شركة المورد", kind: "COMPANY" } });
+    await new GoodsReceiptService(prisma, engine, mappings, audit).create({ warehouseId, partyId: supplier.id, documentDate: today, lines: [{ itemId, quantity: "10", unitCost: "5" }] }, actor, cid(), newId());
     await new StockIssueService(prisma, engine, mappings, audit).create({ warehouseId, costCenterRef: "Project A", documentDate: today, lines: [{ itemId, quantity: "4" }] }, actor, cid(), newId());
   });
 
@@ -59,6 +60,8 @@ describeIfDb("Stock movements (stock card) — real database", () => {
     ]);
     expect(page.data[0]?.entryNumber).toBeTruthy();
     expect(page.pageInfo.hasMore).toBe(false);
+    expect(page.data[0]).toMatchObject({ partyName: null, partyNameAr: null });
+    expect(page.data[1]).toMatchObject({ partyName: "Supplier Co", partyNameAr: "شركة المورد" });
   });
 
   it("filters by type, item, and date, and pages with a cursor", async () => {
@@ -72,10 +75,12 @@ describeIfDb("Stock movements (stock card) — real database", () => {
     expect(first.pageInfo.hasMore).toBe(true);
     const second = await movements.list(companyId, { limit: "1", cursor: first.pageInfo.nextCursor! });
     expect(second.data[0]?.movementType).toBe("RECEIPT");
+    expect(second.data[0]?.partyName).toBe("Supplier Co");
   });
 
   it("exports oldest first, and never shows another company's movements", async () => {
     expect((await movements.listForExport(companyId, {})).map((m) => m.movementType)).toEqual(["RECEIPT", "ISSUE"]);
     expect((await movements.list(newId(), {})).data).toEqual([]);
+    expect((await movements.listForExport(companyId, {}))[0]).toMatchObject({ partyName: "Supplier Co", partyNameAr: "شركة المورد" });
   });
 });

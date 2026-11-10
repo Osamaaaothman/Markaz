@@ -62,6 +62,7 @@ export interface UploadArgs {
 export function useUploadAttachment() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { successKey: "feedback.uploaded" },
     mutationFn: async ({ file, ownerType, ownerId, onProgress }: UploadArgs) => {
       const form = new FormData();
       // Text fields first: the server reads them before the file stream ends.
@@ -80,9 +81,10 @@ export function useUploadAttachment() {
   });
 }
 
-export function useRemoveAttachment() {
+export function useRemoveAttachment(silent = false) {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: silent ? { feedback: "silent" } : { successKey: "feedback.deleted" },
     mutationFn: async (id: string) => (await apiClient.delete<{ removed: true }>(`/v1/attachments/${id}`)).data,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["attachments"] }),
   });

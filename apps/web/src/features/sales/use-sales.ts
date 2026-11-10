@@ -90,6 +90,7 @@ export interface CreateQuotationPayload {
 export function useCreateQuotation() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateQuotationPayload) => (await apiClient.post<QuotationSummary>("/v1/quotations", payload)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["quotations"] }),
   });
@@ -114,12 +115,14 @@ export interface QuotationEmailPreview {
 
 export function usePreviewQuotationEmail(id: string) {
   return useMutation({
+    meta: { feedback: "silent" },
     mutationFn: async (language: "en" | "ar") => (await apiClient.post<QuotationEmailPreview>(`/v1/quotations/${id}/email/preview`, { language })).data,
   });
 }
 
 export function useSendQuotationEmail(id: string) {
   return useMutation({
+    meta: { successKey: "feedback.sent" },
     mutationFn: async (payload: { to: string; language: "en" | "ar" }) => (await apiClient.post<{ sentAt: string }>(`/v1/quotations/${id}/email/send`, payload)).data,
   });
 }
@@ -179,6 +182,7 @@ export interface CreateSalesOrderPayload {
 export function useCreateSalesOrder() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateSalesOrderPayload) => (await apiClient.post<{ id: string; number: string }>("/v1/sales-orders", payload)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["salesOrders"] }),
   });
@@ -269,6 +273,7 @@ function invalidateAfterPosting(qc: ReturnType<typeof useQueryClient>): void {
 export function useCreateSalesInvoice() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateSalesInvoicePayload) =>
       (
         await apiClient.post<{ id: string; number: string; totalGross: string }>("/v1/sales-invoices", payload, {

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@erp/db";
+import { StockMovementService } from "../inventory/stock-movement.service.js";
 import { newId } from "@erp/shared";
 import { PrismaAuditLogger } from "../audit/audit-logger.js";
 import { PrismaAccountingEngine } from "../accounting/accounting-engine.service.js";
@@ -121,6 +122,9 @@ describeIfDb("Purchase returns (M5) — real database", () => {
     const movement = await prisma.stockMovement.findFirstOrThrow({ where: { companyId, itemId, movementType: "RETURN" } });
     expect(movement.quantity.toFixed(4)).toBe("-2.0000");
     expect(movement.value.toFixed(4)).toBe("100.0000");
+    const card = await new StockMovementService(prisma).list(companyId, { itemId });
+    expect(card.data.find((m) => m.movementType === "RETURN")).toMatchObject({ partyName: "Supplier Co", partyNameAr: null });
+    expect((await new StockMovementService(prisma).listForExport(companyId, { itemId })).find((m) => m.movementType === "RETURN")?.partyName).toBe("Supplier Co");
 
     // Stock sub-ledger equals the Inventory control account (docs/05 §7).
     const stockValue = (await stockLevels.list(companyId, {})).reduce((sum, r) => sum + Number(r.value), 0);

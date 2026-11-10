@@ -25,6 +25,7 @@ interface PostingResult {
 export function usePostJournalEntry() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (input: PostJournalEntryInput) => {
       // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine
       // submission — generated once here, not per network retry, so a real

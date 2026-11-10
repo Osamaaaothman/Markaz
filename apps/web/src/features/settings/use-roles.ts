@@ -42,6 +42,7 @@ export function usePermissionCatalog() {
 export function useCreateRole() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: (payload: CreateRolePayload) => apiClient.post("/v1/roles", payload),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["roles"] }),
   });

@@ -54,7 +54,7 @@ export async function provisionPartyAccount(
       code,
       name: partyName,
       nameAr: partyNameAr,
-      type: spec.type as "ASSET" | "LIABILITY",
+      type: spec.type,
       normalBalance: normalBalanceFor(spec.type),
       isPostable: true,
       parentId: parent.id,

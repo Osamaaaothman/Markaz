@@ -134,6 +134,7 @@ export function useCreateEgsUnit() {
 function useOnboardingStep(segment: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async ({ egsUnitId, otp }: { readonly egsUnitId: string; readonly otp?: string }) =>
       (await apiClient.post<OnboardingStepResult>(`/v1/compliance/egs-units/${egsUnitId}/onboarding/${segment}`, otp !== undefined ? { otp } : {}, { headers: { "Idempotency-Key": newId() } })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["compliance"] }),
@@ -167,6 +168,7 @@ export function useInvoiceStatuses(salesInvoiceIds: readonly string[]) {
 export function useResubmitInvoice() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successKey: "feedback.submitted" },
     mutationFn: async (salesInvoiceId: string) => (await apiClient.post<InvoiceRecordView>(`/v1/compliance/invoices/${salesInvoiceId}/resubmit`, {}, { headers: { "Idempotency-Key": newId() } })).data,
     onSuccess: (_data, salesInvoiceId) => void qc.invalidateQueries({ queryKey: ["compliance", "invoice", salesInvoiceId] }),
   });

@@ -34,6 +34,7 @@ export function useUsers() {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: (payload: CreateUserPayload) => apiClient.post("/v1/users", payload),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
   });

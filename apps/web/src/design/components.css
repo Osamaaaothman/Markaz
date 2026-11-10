@@ -463,6 +463,15 @@ html body .p-dialog-mask.p-component-overlay {
   backdrop-filter: blur(4px);
 }
 
+html body .p-dialog,
+html body .mk-palette {
+  /* Shared sizing also covers confirmation and created dialogs with legacy inline widths. */
+  width: 80vw !important;
+  inline-size: 80vw !important;
+  max-width: 96vw !important;
+  max-inline-size: 96vw !important;
+}
+
 html body .p-dialog {
   border-radius: var(--mk-radius-lg);
   border: 1px solid var(--mk-border-strong);
@@ -471,6 +480,21 @@ html body .p-dialog {
   box-shadow: var(--mk-shadow-xl);
   font-family: inherit;
   animation: mk-scale-in var(--mk-dur) var(--mk-ease) both;
+}
+
+html body .p-dialog.p-dialog-maximized {
+  width: 100vw !important;
+  inline-size: 100vw !important;
+  max-width: 100vw !important;
+  max-inline-size: 100vw !important;
+}
+
+@media (max-width: 640px) {
+  html body .p-dialog,
+  html body .mk-palette {
+    width: 96vw !important;
+    inline-size: 96vw !important;
+  }
 }
 
 html body .p-dialog .p-dialog-header {
