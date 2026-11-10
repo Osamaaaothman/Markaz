@@ -12,6 +12,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
 import { useSupplierInvoice, type SupplierInvoiceLineDetail } from "./use-invoicing";
+import { exportReport } from "../accounting/export-report";
 
 // One supplier invoice (or debit note) as posted: what it was for, the tax on each line, what has been paid against it.
 export function SupplierInvoiceDetailPage(): React.JSX.Element {
@@ -49,6 +50,8 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
           <Tag value={t(`purchasing.invoices.types.${invoice.documentType}`)} severity={isInvoice ? "info" : "warning"} />
           {invoice.outstanding !== null && Number(invoice.outstanding) > 0 ? <PermissionButton allowed={can("supplier_payment:create")} label={t("payments.recordPayment")} icon="pi pi-wallet" outlined onClick={() => void navigate(`/payments/supplier/new?party=${invoice.supplierId}`)} /> : null}
           <JournalEntryLinkButton entryId={invoice.journalEntryId} />
+          <Button label={t("actions.exportPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/supplier-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "pdf")} />
+          <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/supplier-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "print")} />
         </div>
       </div>
 

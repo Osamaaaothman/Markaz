@@ -1,5 +1,7 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Patch, Post, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import {
+  AttachmentService,
   SupplierInvoiceError,
   SupplierInvoiceService,
   TaxCodeError,
@@ -17,6 +19,11 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
+import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
+import { supplierInvoiceToPdfHtml } from "./exports/supplier-invoice-export.js";
+import { localizedCompanyName } from "../common/company-name.js";
 import {
   CreateDebitNoteDto,
   CreateTaxCodeDto,
@@ -44,6 +51,8 @@ export class InvoicingController {
   constructor(
     private readonly invoices: SupplierInvoiceService,
     private readonly taxCodes: TaxCodeService,
+    private readonly prisma: PrismaService,
+    private readonly attachments: AttachmentService,
   ) {}
 
   // ── Supplier invoices ───────────────────────────────────────────────────────
@@ -171,6 +180,33 @@ export class InvoicingController {
     @CorrelationId() correlationId: string,
   ): Promise<TaxCodeSummary> {
     return this.mapTaxErrors(this.taxCodes.update(id, dto, actor, correlationId));
+  }
+
+  @Get("supplier-invoices/:id/pdf")
+  @RequirePermission("supplier_invoice", "read")
+  async supplierInvoicePdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const invoice = await this.invoices.get(id, actor.companyId);
+    if (!invoice) throw new NotFoundException("Supplier invoice not found");
+    const [company, logo, raw] = await Promise.all([
+      this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true, vatNumber: true, crNumber: true, buildingNumber: true, additionalNumber: true, streetName: true, additionalStreetName: true, district: true, city: true, postalCode: true, phone: true } }),
+      this.attachments.getCompanyLogo(actor.companyId).catch(() => null),
+      this.prisma.supplierInvoice.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null),
+    ]);
+    const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
+    const sep = language === "ar" ? "، " : ", ";
+    const building = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+    const sellerAddress = [building, company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(Boolean).join(sep).trim() || null;
+    const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
+    const pdf = await renderHtmlToPdf(await supplierInvoiceToPdfHtml({ invoice, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${invoice.number}.pdf"`);
+    res.send(pdf);
   }
 
   private async mapTaxErrors<T>(work: Promise<T>): Promise<T> {

@@ -1,9 +1,11 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Put, Query } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Put, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import {
   APPROVABLE_SUBJECT_TYPES,
   AlreadyDecidedError,
   ApprovalPolicyError,
   ApprovalPolicyService,
+  AttachmentService,
   GoodsReceiptError,
   GoodsReturnError,
   GoodsReturnService,
@@ -36,6 +38,12 @@ import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { AuthenticatedOnly } from "../identity/authenticated-only.decorator.js";
 import { PERMISSION_SERVICE } from "../identity/identity.tokens.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
+import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
+import { purchaseOrderToPdfHtml } from "./exports/purchase-order-export.js";
+import { goodsReturnToPdfHtml } from "./exports/goods-return-export.js";
+import { localizedCompanyName } from "../common/company-name.js";
 import {
   CreateGoodsReturnDto,
   CreatePurchaseOrderDto,
@@ -59,6 +67,8 @@ export class PurchasingController {
     private readonly policies: ApprovalPolicyService,
     private readonly queue: PurchasingQueueService,
     @Inject(PERMISSION_SERVICE) private readonly permissions: IPermissionService,
+    private readonly prisma: PrismaService,
+    private readonly attachments: AttachmentService,
   ) {}
 
   // What waits on the signed-in user in purchasing, for the badges in the menu. Each number is returned only if the user
@@ -372,5 +382,65 @@ export class PurchasingController {
       if (error instanceof ApprovalPolicyError) throw new BadRequestException(error.message);
       throw error;
     }
+  }
+
+  // ── PDF exports ─────────────────────────────────────────────────────────────
+
+  @Get("purchase-orders/:id/pdf")
+  @RequirePermission("purchase_order", "read")
+  async purchaseOrderPdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    let order: PurchaseOrderDetail;
+    try {
+      order = await this.orders.get(actor.companyId, id);
+    } catch {
+      throw new NotFoundException("Purchase order not found");
+    }
+    const rawPo = await this.prisma.purchaseOrder.findUnique({ where: { id }, select: { requestedBy: true } }).catch(() => null);
+    const [company, logo, issuer] = await Promise.all([
+      this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true, vatNumber: true, crNumber: true, buildingNumber: true, additionalNumber: true, streetName: true, additionalStreetName: true, district: true, city: true, postalCode: true, phone: true } }),
+      this.attachments.getCompanyLogo(actor.companyId).catch(() => null),
+      rawPo?.requestedBy ? this.prisma.user.findUnique({ where: { id: rawPo.requestedBy }, select: { email: true } }).catch(() => null) : Promise.resolve(null),
+    ]);
+    const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
+    const sep = language === "ar" ? "، " : ", ";
+    const building = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+    const sellerAddress = [building, company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(Boolean).join(sep).trim() || null;
+    const pdf = await renderHtmlToPdf(await purchaseOrderToPdfHtml({ order, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: order.createdAt }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${order.number}.pdf"`);
+    res.send(pdf);
+  }
+
+  @Get("goods-returns/:id/pdf")
+  @RequirePermission("goods_return", "read")
+  async goodsReturnPdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const gr = await this.goodsReturns.get(id, actor.companyId);
+    if (!gr) throw new NotFoundException("Goods return not found");
+    const [company, logo, raw] = await Promise.all([
+      this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true, vatNumber: true, crNumber: true, buildingNumber: true, additionalNumber: true, streetName: true, additionalStreetName: true, district: true, city: true, postalCode: true, phone: true } }),
+      this.attachments.getCompanyLogo(actor.companyId).catch(() => null),
+      this.prisma.goodsReturn.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null),
+    ]);
+    const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
+    const sep = language === "ar" ? "، " : ", ";
+    const building = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+    const sellerAddress = [building, company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(Boolean).join(sep).trim() || null;
+    const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
+    const pdf = await renderHtmlToPdf(await goodsReturnToPdfHtml({ gr, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${gr.number}.pdf"`);
+    res.send(pdf);
   }
 }

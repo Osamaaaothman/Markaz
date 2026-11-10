@@ -18,8 +18,10 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { INVENTORY_ENGINE, INVENTORY_NUMBERING } from "./inventory.tokens.js";
 import { InventoryController } from "./inventory.controller.js";
 import { InventoryExportService } from "./inventory-export.service.js";
+import { AttachmentsModule } from "../attachments/attachments.module.js";
 
 @Module({
+  imports: [AttachmentsModule],
   controllers: [InventoryController],
   providers: [
     { provide: INVENTORY_NUMBERING, useFactory: () => new PrismaNumberingService() },

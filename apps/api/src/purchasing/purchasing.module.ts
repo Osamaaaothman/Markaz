@@ -21,10 +21,12 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { PURCHASING_ENGINE, PURCHASING_NUMBERING } from "./purchasing.tokens.js";
 import { InvoicingController } from "./invoicing.controller.js";
 import { PurchasingController } from "./purchasing.controller.js";
+import { AttachmentsModule } from "../attachments/attachments.module.js";
 
 // Same shape as InventoryModule: stateless core services over PrismaService, with a module-local
 // accounting engine so the receiving path does not depend on another module's providers.
 @Module({
+  imports: [AttachmentsModule],
   controllers: [PurchasingController, InvoicingController],
   providers: [
     { provide: PURCHASING_NUMBERING, useFactory: () => new PrismaNumberingService() },

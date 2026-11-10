@@ -11,6 +11,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
+import { exportReport } from "../accounting/export-report";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { usePostStockCount, useStockCount, type StockCountLineDetail } from "./use-stock-counts";
 
@@ -48,6 +49,8 @@ export function StockCountDetailPage(): React.JSX.Element {
         <div className="erp-page__header-actions">
           <Tag value={count.isPosted ? t("inventory.stockCount.posted") : t("inventory.stockCount.draft")} severity={count.isPosted ? "success" : "warning"} />
           {count.journalEntryId ? <JournalEntryLinkButton entryId={count.journalEntryId} /> : null}
+          <Button label={t("actions.exportPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/stock-counts/${count.id}/pdf`, { lang: i18n.language }, count.number, "pdf")} />
+          <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/stock-counts/${count.id}/pdf`, { lang: i18n.language }, count.number, "print")} />
           {count.isPosted ? null : (
             <PermissionButton allowed={can("stock_count:post")} label={t("inventory.stockCount.post")} icon="pi pi-check" loading={post.isPending} onClick={() => post.mutate(count.id, { onSuccess: () => void refetch() })} />
           )}

@@ -9,6 +9,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
 import { useGoodsReturn, type GoodsReturnLine } from "./use-goods-returns";
+import { exportReport } from "../accounting/export-report";
 
 // One return of goods to a supplier: which order it came from, what left stock and at what cost.
 export function GoodsReturnDetailPage(): React.JSX.Element {
@@ -39,6 +40,8 @@ export function GoodsReturnDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-page__header-actions">
           <JournalEntryLinkButton entryId={ret.journalEntryId} />
+          <Button label={t("actions.exportPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/goods-returns/${ret.id}/pdf`, { lang: i18n.language }, ret.number, "pdf")} />
+          <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/goods-returns/${ret.id}/pdf`, { lang: i18n.language }, ret.number, "print")} />
         </div>
       </div>
 

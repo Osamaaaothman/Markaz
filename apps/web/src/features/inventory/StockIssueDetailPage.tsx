@@ -8,6 +8,7 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
+import { exportReport } from "../accounting/export-report";
 import { useStockIssue, type StockIssueLineDetail } from "./use-stock-issues";
 
 // One stock issue as posted: which warehouse it left, which cost centre it was charged to, at what cost, and the entry it made.
@@ -39,6 +40,8 @@ export function StockIssueDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-page__header-actions">
           <JournalEntryLinkButton entryId={issue.journalEntryId} />
+          <Button label={t("actions.exportPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/stock-issues/${issue.id}/pdf`, { lang: i18n.language }, issue.number, "pdf")} />
+          <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/stock-issues/${issue.id}/pdf`, { lang: i18n.language }, issue.number, "print")} />
         </div>
       </div>
 

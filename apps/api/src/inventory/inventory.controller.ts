@@ -3,6 +3,7 @@ import type { Response } from "express";
 import {
   AccountMappingError,
   AccountMappingService,
+  AttachmentService,
   GoodsReceiptError,
   GoodsReceiptService,
   ItemError,
@@ -56,6 +57,13 @@ import { stockMovementsToCsv } from "./exports/stock-movements-export.js";
 import { UpdateItemDto } from "./dto/update-item.dto.js";
 import { UpdateWarehouseDto } from "./dto/update-warehouse.dto.js";
 import { WarehousesQueryDto } from "./dto/warehouses-query.dto.js";
+import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
+import { goodsReceiptToPdfHtml } from "./exports/goods-receipt-export.js";
+import { stockIssueToPdfHtml } from "./exports/stock-issue-export.js";
+import { stockCountToPdfHtml } from "./exports/stock-count-export.js";
+import { localizedCompanyName } from "../common/company-name.js";
 
 @Controller("v1")
 export class InventoryController {
@@ -69,6 +77,8 @@ export class InventoryController {
     private readonly stockCounts: StockCountService,
     private readonly exports: InventoryExportService,
     private readonly movements: StockMovementService,
+    private readonly prisma: PrismaService,
+    private readonly attachments: AttachmentService,
   ) {}
 
   // ── Warehouses ──────────────────────────────────────────────────────────────
@@ -408,6 +418,80 @@ export class InventoryController {
           throw new BadRequestException(error.message);
       }
     }
+  }
+
+  // ── PDF exports ─────────────────────────────────────────────────────────────
+
+  private async pdfCompanyContext(companyId: string, language: SupportedDocumentLanguage) {
+    const [company, logo] = await Promise.all([
+      this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true, nameAr: true, vatNumber: true, crNumber: true, buildingNumber: true, additionalNumber: true, streetName: true, additionalStreetName: true, district: true, city: true, postalCode: true, phone: true } }),
+      this.attachments.getCompanyLogo(companyId).catch(() => null),
+    ]);
+    const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
+    const sep = language === "ar" ? "، " : ", ";
+    const building = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
+    const sellerAddress = [building, company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(Boolean).join(sep).trim() || null;
+    return { company, logoDataUri, sellerAddress };
+  }
+
+  @Get("goods-receipts/:id/pdf")
+  @RequirePermission("goods_receipt", "read")
+  async goodsReceiptPdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const receipt = await this.goodsReceipts.get(id, actor.companyId);
+    if (!receipt) throw new NotFoundException("Goods receipt not found");
+    const { company, logoDataUri, sellerAddress } = await this.pdfCompanyContext(actor.companyId, language);
+    const raw = await this.prisma.goodsReceipt.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null);
+    const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
+    const pdf = await renderHtmlToPdf(await goodsReceiptToPdfHtml({ receipt, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${receipt.number}.pdf"`);
+    res.send(pdf);
+  }
+
+  @Get("stock-issues/:id/pdf")
+  @RequirePermission("stock_issue", "read")
+  async stockIssuePdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const issue = await this.stockIssues.get(id, actor.companyId);
+    if (!issue) throw new NotFoundException("Stock issue not found");
+    const { company, logoDataUri, sellerAddress } = await this.pdfCompanyContext(actor.companyId, language);
+    const raw = await this.prisma.stockIssue.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null);
+    const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
+    const pdf = await renderHtmlToPdf(await stockIssueToPdfHtml({ issue, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${issue.number}.pdf"`);
+    res.send(pdf);
+  }
+
+  @Get("stock-counts/:id/pdf")
+  @RequirePermission("stock_count", "read")
+  async stockCountPdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const count = await this.stockCounts.get(id, actor.companyId);
+    if (!count) throw new NotFoundException("Stock count not found");
+    const { company, logoDataUri, sellerAddress } = await this.pdfCompanyContext(actor.companyId, language);
+    const raw = await this.prisma.stockCount.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null);
+    const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
+    const pdf = await renderHtmlToPdf(await stockCountToPdfHtml({ count, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${count.number}.pdf"`);
+    res.send(pdf);
   }
 }
 
