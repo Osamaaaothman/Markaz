@@ -162,6 +162,12 @@ export function GoodsReceiptPage(): React.JSX.Element {
         </div>
 
         <h3 className="erp-form__section-title">{t("inventory.goodsReceipt.lines")}</h3>
+        <div className="erp-lines__header" aria-hidden="true">
+          <span className="erp-lines__account">{t("inventory.goodsReceipt.item")}</span>
+          <span className="erp-lines__amount">{t("inventory.goodsReceipt.quantity")}</span>
+          <span className="erp-lines__amount">{t("inventory.goodsReceipt.unitCost")}</span>
+          <span className="erp-lines__header__action" />
+        </div>
         <div className="erp-lines">
           {fields.map((field, index) => (
             <div key={field.id} className="erp-lines__row">

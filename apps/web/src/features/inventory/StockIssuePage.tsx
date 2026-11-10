@@ -14,6 +14,7 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { useAllItems } from "./use-items";
 import { useAllWarehouses } from "./use-warehouses";
 import { useCreateStockIssue } from "./use-stock-issues";
+import { useStockLevels } from "./use-stock-levels";
 
 const lineSchema = z.object({
   itemId: z.string().min(1, "required"),
@@ -51,6 +52,8 @@ export function StockIssuePage(): React.JSX.Element {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+  const selectedWarehouseId = watch("warehouseId") || null;
+  const { data: stockLevels } = useStockLevels({ warehouseId: selectedWarehouseId, belowReorderOnly: false });
 
   // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
   // right before validation runs, instead of blocking the save button or forcing a manual delete.
@@ -131,8 +134,18 @@ export function StockIssuePage(): React.JSX.Element {
         </div>
 
         <h3 className="erp-form__section-title">{t("inventory.goodsReceipt.lines")}</h3>
+        <div className="erp-lines__header" aria-hidden="true">
+          <span className="erp-lines__account">{t("inventory.stockIssue.item")}</span>
+          <span className="erp-lines__amount">{t("inventory.goodsReceipt.quantity")}</span>
+          <span className="erp-lines__header__action" />
+        </div>
         <div className="erp-lines">
-          {fields.map((field, index) => (
+          {fields.map((field, index) => {
+            const lineItemId = watch(`lines.${index}.itemId`);
+            const onHand = lineItemId && selectedWarehouseId
+              ? (stockLevels ?? []).find((s) => s.itemId === lineItemId && s.warehouseId === selectedWarehouseId)?.quantity ?? null
+              : null;
+            return (
             <div key={field.id} className="erp-lines__row">
               <Controller
                 control={control}
@@ -148,21 +161,30 @@ export function StockIssuePage(): React.JSX.Element {
                   />
                 )}
               />
-              <InputText
-                placeholder={t("inventory.goodsReceipt.quantity")}
-                dir="ltr"
-                {...register(`lines.${index}.quantity`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && index === fields.length - 1) {
-                    e.preventDefault();
-                    append(EMPTY_LINE);
-                  }
-                }}
-                className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`}
-              />
+              <div style={{ flex: "1 1 6rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                <InputText
+                  placeholder={t("inventory.goodsReceipt.quantity")}
+                  dir="ltr"
+                  {...register(`lines.${index}.quantity`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && index === fields.length - 1) {
+                      e.preventDefault();
+                      append(EMPTY_LINE);
+                    }
+                  }}
+                  className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`}
+                  style={{ width: "100%" }}
+                />
+                {onHand !== null ? (
+                  <span style={{ fontSize: "0.75rem", color: Number(onHand) > 0 ? "var(--mk-success)" : "var(--mk-danger)", fontVariantNumeric: "tabular-nums" }}>
+                    {t("inventory.stockLevels.onHand")}: {onHand}
+                  </span>
+                ) : null}
+              </div>
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
-          ))}
+            );
+          })}
         </div>
         <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => append(EMPTY_LINE)} />
 

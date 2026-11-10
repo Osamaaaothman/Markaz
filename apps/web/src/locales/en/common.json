@@ -593,7 +593,8 @@
       "averageUnitCost": "Average cost",
       "value": "Value",
       "reorderPoint": "Reorder point",
-      "belowReorder": "Below reorder point"
+      "belowReorder": "Below reorder point",
+      "onHand": "On hand"
     },
     "goodsReceipt": {
       "title": "Goods receipt",
@@ -609,7 +610,8 @@
       "postError": "Could not post this receipt.",
       "postedSuccess": "Receipt {{number}} posted.",
       "listTitle": "Goods receipts",
-      "listSubtitle": "Stock received, newest first. Each receipt is posted once and never edited."
+      "listSubtitle": "Stock received, newest first. Each receipt is posted once and never edited.",
+      "item": "Item"
     },
     "stockIssue": {
       "title": "Stock issue",
@@ -620,7 +622,8 @@
       "postError": "Could not post this issue.",
       "postedSuccess": "Issue {{number}} posted.",
       "listTitle": "Stock issues",
-      "listSubtitle": "Stock issued to projects, newest first. Each issue is posted once and never edited."
+      "listSubtitle": "Stock issued to projects, newest first. Each issue is posted once and never edited.",
+      "item": "Item"
     },
     "stockCount": {
       "title": "Stock count",
@@ -642,7 +645,9 @@
       "status": "Status",
       "posted": "Posted",
       "draft": "Draft",
-      "post": "Post"
+      "post": "Post",
+      "item": "Item",
+      "expectedQuantity": "Expected"
     },
     "accountMapping": {
       "title": "Inventory account mapping",
@@ -866,7 +871,8 @@
         "ZERO_INVOICE": "An invoice with nothing to pay cannot be posted.",
         "EMPTY_INVOICE": "Add at least one line.",
         "DEBIT_EXCEEDS_INVOICE": "The debit notes against this invoice would be worth more than the invoice itself."
-      }
+      },
+      "item": "Item / account"
     },
     "tax": {
       "title": "Tax codes",
@@ -963,7 +969,10 @@
         "title": "Email this quotation",
         "recipient": "Send to",
         "language": "Language",
-        "languages": { "en": "English", "ar": "Arabic" },
+        "languages": {
+          "en": "English",
+          "ar": "Arabic"
+        },
         "preview": "Preview",
         "previewHint": "Preview the email before sending it — nothing is sent yet.",
         "sendNow": "Send now",
@@ -1024,7 +1033,8 @@
       "postDebitNote": "Post debit note",
       "openOriginal": "Open the invoice",
       "downloadPdf": "Download PDF"
-    }
+    },
+    "item": "Item / service"
   },
   "payments": {
     "title": "Payments",

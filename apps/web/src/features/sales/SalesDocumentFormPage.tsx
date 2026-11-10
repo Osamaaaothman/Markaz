@@ -15,6 +15,7 @@ import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyPicker } from "../accounting/PartyPicker";
 import { useComplianceOverview } from "../compliance/use-compliance";
 import { useAllItems } from "../inventory/use-items";
+import { useStockLevels } from "../inventory/use-stock-levels";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { useTaxCodes } from "../purchasing/use-invoicing";
 import {
@@ -69,6 +70,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: items } = useAllItems();
   const { data: warehouses } = useAllWarehouses();
+  const { data: stockLevels } = useStockLevels({ warehouseId: null, belowReorderOnly: false });
   const { data: taxCodes } = useTaxCodes(false);
   const { data: order } = useSalesOrder(orderId);
   // Which ZATCA issuing unit (EGS) this invoice belongs to -- only relevant/shown once a company
@@ -248,8 +250,20 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
         </div>
 
         <h3 className="erp-form__section-title">{t("sales.lines")}</h3>
+        <div className="erp-lines__header" aria-hidden="true">
+          <span className="erp-lines__account">{t("sales.item")}</span>
+          <span className="erp-lines__amount">{t("purchasing.quantity")}</span>
+          <span className="erp-lines__amount">{t("purchasing.unitPrice")}</span>
+          <span style={{ flex: "0 0 7rem" }}>{t("purchasing.invoices.taxCode")}</span>
+          {mode === "invoice" ? <span style={{ flex: "0 0 10rem" }}>{t("inventory.stockLevels.warehouse")}</span> : null}
+          <span className="erp-lines__header__action" />
+        </div>
         <div className="erp-lines">
-          {lines.map((l, index) => (
+          {lines.map((l, index) => {
+            const onHand = mode === "invoice" && l.itemId && l.warehouseId
+              ? (stockLevels ?? []).find((s) => s.itemId === l.itemId && s.warehouseId === l.warehouseId)?.quantity ?? null
+              : null;
+            return (
             <div key={l.key} className={`erp-lines__row${errLine === index + 1 ? " erp-lines__row--error" : ""}`}>
               <Dropdown
                 value={l.itemId || null}
@@ -285,16 +299,24 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                 placeholder={t("purchasing.invoices.taxCode")}
               />
               {mode === "invoice" && l.itemId !== "" ? (
-                <Dropdown
-                  value={l.warehouseId || null}
-                  onChange={(e) => setLine(l.key, { warehouseId: (e.value as string | null) ?? "" })}
-                  options={(warehouses ?? []).map((w) => ({ label: localizedName(w, i18n.language), value: w.id }))}
-                  placeholder={t("inventory.warehouses.title")}
-                />
+                <div style={{ flex: "0 0 10rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                  <Dropdown
+                    value={l.warehouseId || null}
+                    onChange={(e) => setLine(l.key, { warehouseId: (e.value as string | null) ?? "" })}
+                    options={(warehouses ?? []).map((w) => ({ label: localizedName(w, i18n.language), value: w.id }))}
+                    placeholder={t("inventory.warehouses.title")}
+                  />
+                  {onHand !== null ? (
+                    <span style={{ fontSize: "0.75rem", color: Number(onHand) > 0 ? "var(--mk-success)" : "var(--mk-danger)", fontVariantNumeric: "tabular-nums" }}>
+                      {t("inventory.stockLevels.onHand")}: {onHand}
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))} disabled={lines.length <= 1} />
             </div>
-          ))}
+            );
+          })}
         </div>
         {!orderId ? <Button type="button" data-erp-add-line label={t("actions.addLine")} icon="pi pi-plus" text onClick={() => setLines((prev) => [...prev, blankLine()])} /> : null}
 

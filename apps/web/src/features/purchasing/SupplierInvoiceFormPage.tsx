@@ -255,6 +255,14 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
         {supplierId && invoiceable && invoiceable.length === 0 ? <p className="erp-field__hint">{t("purchasing.invoices.nothingToMatch")}</p> : null}
 
         {lines.length > 0 ? (
+          <>
+            <div className="erp-lines__header" aria-hidden="true">
+              <span className="erp-lines__account">{t("purchasing.invoices.item")}</span>
+              <span className="erp-lines__amount">{t("purchasing.quantity")}</span>
+              <span className="erp-lines__amount">{t("purchasing.unitPrice")}</span>
+              <span style={{ flex: "0 0 7rem" }}>{t("purchasing.invoices.taxCode")}</span>
+              <span className="erp-lines__header__action" />
+            </div>
           <div className="erp-lines">
             {lines.map((l) => {
               const source = invoiceable?.find((x) => x.purchaseOrderLineId === l.purchaseOrderLineId);
@@ -299,6 +307,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
               );
             })}
           </div>
+          </>
         ) : null}
 
         <div className="erp-field">

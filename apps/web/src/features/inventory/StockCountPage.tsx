@@ -140,6 +140,13 @@ export function StockCountPage(): React.JSX.Element {
 
         <h3 className="erp-form__section-title">{t("inventory.stockCount.lines")}</h3>
         <p className="erp-field__hint">{t("inventory.stockCount.unitCostHint")}</p>
+        <div className="erp-lines__header" aria-hidden="true">
+          <span className="erp-lines__account">{t("inventory.stockCount.item")}</span>
+          <span className="erp-lines__amount">{t("inventory.stockCount.expectedQuantity")}</span>
+          <span className="erp-lines__amount">{t("inventory.stockCount.countedQuantity")}</span>
+          <span className="erp-lines__amount">{t("inventory.stockCount.unitCostIfNoStock")}</span>
+          <span className="erp-lines__header__action" />
+        </div>
         <div className="erp-lines">
           {fields.map((field, index) => (
             <div key={field.id} className="erp-lines__row">

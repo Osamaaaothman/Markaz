@@ -564,6 +564,11 @@ html body .mk-grid--scroll .p-datatable-wrapper {
   overflow-x: auto !important;
 }
 
+/* When the table scrolls horizontally the sticky header would stay put while columns drift — disable it. */
+html body .mk-grid--scroll .p-datatable-thead > tr > th {
+  position: static;
+}
+
 @media (max-width: 899px) {
   .erp-table {
     overflow: visible;
@@ -583,7 +588,8 @@ html body .mk-grid--scroll .p-datatable-wrapper {
 html body .erp-table .p-datatable-thead > tr > th,
 html body .erp-table .p-treetable-thead > tr > th {
   position: sticky;
-  top: calc(var(--mk-topbar-h) + 1.5rem);
+  /* topbar is sticky at top:0.75rem with height var(--mk-topbar-h); stick headers just below it */
+  top: calc(0.75rem + var(--mk-topbar-h));
   z-index: 2;
   padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
   background: var(--mk-surface-2);
@@ -840,6 +846,36 @@ html body .erp-table .p-datatable-emptymessage > td {
 .erp-lines__row--error {
   border-color: var(--mk-danger);
   background: var(--mk-danger-soft);
+}
+
+/* Column label row that sits above the data rows, sharing the same flex widths. */
+.erp-lines__header {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0.7rem;
+  color: var(--mk-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+html[dir="rtl"] .erp-lines__header {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.8rem;
+}
+
+/* On very narrow screens the row items wrap so the fixed header would be misleading */
+@media (max-width: 600px) {
+  .erp-lines__header {
+    display: none;
+  }
+}
+
+/* The last flex item in the header (placeholder for the delete button) */
+.erp-lines__header__action {
+  flex: 0 0 2.5rem;
 }
 
 .erp-lines__account {
