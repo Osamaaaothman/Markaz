@@ -16,6 +16,8 @@ export function renderReportShell(params: {
   // Omit or pass empty string to suppress the subtitle paragraph.
   readonly subtitle?: string;
   readonly bodyHtml: string;
+  // HTML rendered at the very bottom of the page (issued-by + computer-generated notice).
+  readonly footerHtml?: string;
   // The company logo as a data: URI (never a remote URL: a PDF must not fetch anything). Optional.
   readonly logoDataUri?: string;
   // Seller identity lines printed under the company name (VAT, CR, address, phone). Raw, unescaped strings.
@@ -31,12 +33,22 @@ export function renderReportShell(params: {
 <title>${escapeHtml(params.documentTitle)}</title>
 <style>
   @page { size: A4; margin: 18mm 14mm; }
+  html { height: 100%; }
   body {
     font-family: "Segoe UI", "Noto Sans Arabic", sans-serif;
     color: #1a1a1a;
     margin: 0;
     font-size: 10pt;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
   }
+  .report-main { flex: 1; }
+  .report-footer-block { padding-block-start: 8pt; border-block-start: 1px solid #ddd; }
+  .issued-by-block { padding: 6pt 10pt; border: 1px solid #e8e8e8; border-radius: 4pt; font-size: 8pt; color: #555; display: flex; gap: 24pt; margin-block-end: 10pt; }
+  .issued-by-block span { display: block; }
+  .issued-by-block strong { font-size: 7.5pt; color: #aaa; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-block-end: 2pt; }
+  .computer-generated { font-size: 7.5pt; color: #aaa; text-align: center; margin: 0; }
   h1 { font-size: 16pt; margin-block-end: 2pt; }
   .company-name { font-weight: 600; font-size: 11pt; margin-block-end: 10pt; }
   .company-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10pt; margin-block-end: 10pt; }
@@ -57,10 +69,13 @@ export function renderReportShell(params: {
 </style>
 </head>
 <body>
+<div class="report-main">
 <div class="company-head">${params.logoDataUri ? `<img class="company-logo" src="${escapeHtml(params.logoDataUri)}" alt="" />` : ""}<p class="company-name">${escapeHtml(params.companyName)}</p>${(params.sellerDetailLines ?? []).length > 0 ? `<div class="seller-details">${(params.sellerDetailLines ?? []).map((l) => `<span>${escapeHtml(l)}</span>`).join("")}</div>` : ""}</div>
 <h1>${escapeHtml(params.title)}</h1>
 ${params.subtitle ? `<p class="subtitle">${escapeHtml(params.subtitle)}</p>` : ""}
 ${params.bodyHtml}
+</div>
+${params.footerHtml ? `<div class="report-footer-block">${params.footerHtml}</div>` : ""}
 </body>
 </html>`;
 }

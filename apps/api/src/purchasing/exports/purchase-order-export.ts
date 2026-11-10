@@ -58,7 +58,7 @@ export async function purchaseOrderToPdfHtml(params: {
   const totalNet = Money.of(order.totalAmount, cur).subtract(Money.of(order.totalTax, cur));
 
   const extraCss = `
-  .po-meta { display: flex; justify-content: flex-end; margin-block-end: 14pt; }
+  .po-meta { display: flex; justify-content: right; margin-block-end: 14pt; }
   table.po-meta-table { width: auto; border: none; }
   table.po-meta-table th, table.po-meta-table td { border: none; padding: 2pt 6pt; background: none; font-size: 9pt; white-space: nowrap; }
   table.po-meta-table th { color: #666; font-weight: 400; }
@@ -66,15 +66,11 @@ export async function purchaseOrderToPdfHtml(params: {
   table.po-lines th { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-size: 9pt; }
   table.po-lines td { font-size: 9pt; }
   table.po-lines tbody tr:nth-child(even) td { background: #f9f9fb; }
-  .totals-wrap { display: flex; justify-content: flex-end; margin-block-start: 8pt; }
+  .totals-wrap { display: flex; justify-content: right; margin-block-start: 8pt; }
   table.po-totals { width: 42%; border: none; }
   table.po-totals th, table.po-totals td { border: none; border-block-end: 1px solid #e8e8e8; padding: 4pt 8pt; font-size: 9.5pt; background: none; }
   table.po-totals .grand-total th, table.po-totals .grand-total td { border-block-end: none; background: #1a1a1a; color: #fff; font-size: 11pt; font-weight: 700; padding: 6pt 8pt; }
   .po-notes { font-size: 8.5pt; color: #555; margin-block-start: 8pt; }
-  .po-footer { margin-block-start: 24pt; padding-block-start: 6pt; border-block-start: 1px solid #ddd; font-size: 7.5pt; color: #aaa; text-align: center; }
-  .po-issued-by { margin-block-start: 16pt; padding: 6pt 10pt; border: 1px solid #e8e8e8; border-radius: 4pt; font-size: 8pt; color: #555; display: flex; gap: 24pt; }
-  .po-issued-by span { display: block; }
-  .po-issued-by strong { font-size: 7.5pt; color: #aaa; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-block-end: 2pt; }
   `;
 
   return renderReportShell({
@@ -90,7 +86,7 @@ export async function purchaseOrderToPdfHtml(params: {
 <div class="po-meta"><table class="po-meta-table">${metaRows}</table></div>
 <table class="po-lines">
 <thead><tr>
-  <th>${escapeHtml(t("purchaseOrder.item"))}</th>
+  <th>${escapeHtml(t("purchaseOrder.code"))}</th>
   <th>${escapeHtml(t("purchaseOrder.item"))}</th>
   <th>${escapeHtml(t("purchaseOrder.unit"))}</th>
   <th class="amount">${escapeHtml(t("purchaseOrder.qty"))}</th>
@@ -107,8 +103,7 @@ export async function purchaseOrderToPdfHtml(params: {
     <tr class="grand-total"><th>${escapeHtml(t("purchaseOrder.grandTotal"))}</th><td class="amount">${money(order.totalAmount)}</td></tr>
   </table>
 </div>
-${order.notes ? `<p class="po-notes">${escapeHtml(order.notes)}</p>` : ""}
-${params.issuedBy || params.issuedAt ? `<div class="po-issued-by">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}
-<div class="po-footer">${escapeHtml(t("purchaseOrder.computerGenerated"))}</div>`,
+${order.notes ? `<p class="po-notes">${escapeHtml(order.notes)}</p>` : ""}`,
+    footerHtml: `${params.issuedBy || params.issuedAt ? `<div class="issued-by-block">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}<p class="computer-generated">${escapeHtml(t("purchaseOrder.computerGenerated"))}</p>`,
   });
 }

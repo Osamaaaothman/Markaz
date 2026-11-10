@@ -69,15 +69,12 @@ export async function supplierInvoiceToPdfHtml(params: {
   table.sinv-lines th { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-size: 9pt; }
   table.sinv-lines td { font-size: 9pt; }
   table.sinv-lines tbody tr:nth-child(even) td { background: #f9f9fb; }
-  .totals-wrap { display: flex; justify-content: flex-end; margin-block-start: 8pt; }
+  .totals-wrap { display: flex; justify-content: right; margin-block-start: 8pt; }
   table.sinv-totals { width: 42%; border: none; }
   table.sinv-totals th, table.sinv-totals td { border: none; border-block-end: 1px solid #e8e8e8; padding: 4pt 8pt; font-size: 9.5pt; background: none; }
   table.sinv-totals .grand-total th, table.sinv-totals .grand-total td { border-block-end: none; background: #1a1a1a; color: #fff; font-size: 11pt; font-weight: 700; padding: 6pt 8pt; }
   .amount-words { margin-block-start: 10pt; padding: 6pt 10pt; background: #f4f5fb; border-inline-start: 3pt solid #1a1a1a; font-size: 9.5pt; font-weight: 600; }
   .sinv-notes { font-size: 8.5pt; color: #555; margin-block-start: 8pt; }
-  .sinv-issued-by { margin-block-start: 16pt; padding: 6pt 10pt; border: 1px solid #e8e8e8; border-radius: 4pt; font-size: 8pt; color: #555; display: flex; gap: 24pt; }
-  .sinv-issued-by strong { font-size: 7.5pt; color: #aaa; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-block-end: 2pt; }
-  .sinv-footer { margin-block-start: 24pt; padding-block-start: 6pt; border-block-start: 1px solid #ddd; font-size: 7.5pt; color: #aaa; text-align: center; }
   `;
 
   return renderReportShell({
@@ -116,8 +113,7 @@ export async function supplierInvoiceToPdfHtml(params: {
   </table>
 </div>
 <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
-${invoice.notes ? `<p class="sinv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
-${params.issuedBy || params.issuedAt ? `<div class="sinv-issued-by">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}
-<div class="sinv-footer">${escapeHtml(t("supplierInvoice.computerGenerated"))}</div>`,
+${invoice.notes ? `<p class="sinv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
+    footerHtml: `${params.issuedBy || params.issuedAt ? `<div class="issued-by-block">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}<p class="computer-generated">${escapeHtml(t("supplierInvoice.computerGenerated"))}</p>`,
   });
 }
