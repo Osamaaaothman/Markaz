@@ -13,8 +13,14 @@ server {
     # The frontend calls same-origin /api/v1/... so there is no CORS
     # configuration to maintain on the API at all; this is the only thing that
     # ever needs to know the api container's address.
+    #
+    # API_UPSTREAM is substituted at container start (nginx's built-in
+    # envsubst-on-templates entrypoint step) so the same image works unchanged
+    # both under docker-compose (API_UPSTREAM=api:3000, the container DNS name)
+    # and on a host without compose networking, e.g. Railway, where each
+    # service gets its own private hostname (API_UPSTREAM=api.railway.internal:3000).
     location /api/ {
-        proxy_pass http://api:3000/;
+        proxy_pass http://${API_UPSTREAM}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
