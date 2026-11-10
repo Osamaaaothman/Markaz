@@ -29,7 +29,7 @@ describe("purchase request DTOs", () => {
 });
 
 describe("purchase order DTOs", () => {
-  const line = { itemId: "i1", quantity: "10", unitPrice: "12.5" };
+  const line = { itemId: "i1", quantity: "10", unitPrice: "12.5", taxCodeId: "vat15" };
 
   it("accepts an order and allows a zero price (a free sample) but not a negative one", async () => {
     expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", warehouseId: "w1", orderDate: "2026-01-01", lines: [line] })).toEqual([]);
@@ -38,6 +38,7 @@ describe("purchase order DTOs", () => {
   });
 
   it("requires a supplier, a date and at least one line", async () => {
+    expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", warehouseId: "w1", orderDate: "2026-01-01", lines: [{ itemId: "i1", quantity: "10", unitPrice: "12.5" }] })).toEqual(["lines"]);
     expect(await fieldsWithErrors(CreatePurchaseOrderDto, { warehouseId: "w1", orderDate: "2026-01-01", lines: [line] })).toEqual(["supplierId"]);
     expect(await fieldsWithErrors(CreatePurchaseOrderDto, { supplierId: "s1", orderDate: "2026-01-01", lines: [line] })).toEqual(["warehouseId"]);
     expect(await fieldsWithErrors(CreatePurchaseRequestDto, { lines: [{ itemId: "i1", quantity: "5" }] })).toEqual(["warehouseId"]);

@@ -10,7 +10,7 @@ import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { formatCalendarDate } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { PartyPicker } from "../accounting/PartyPicker";
-import { usePartyBalance, useSettle, type OpenInvoice, type PaymentDirection } from "./use-payments";
+import { usePartyBalance, useSettle, type OpenInvoice, type PaymentDirection, type UnallocatedPayment } from "./use-payments";
 
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 
@@ -111,10 +111,10 @@ function SettleForm({ direction }: { direction: PaymentDirection }): React.JSX.E
 
             {balance.unallocatedPayments.length > 0 ? (
               <DataTable value={[...balance.unallocatedPayments]} className="erp-table" size="small" showGridlines>
-                <Column header={t("purchasing.number")} body={(p) => <span className="coa-code">{p.number}</span>} />
-                <Column header={t("payments.date")} body={(p) => formatCalendarDate(p.paymentDate, i18n.language)} />
-                <Column header={t("payments.method")} body={(p) => t(`payments.methods.${p.method}`)} />
-                <Column header={t("payments.onAccount")} align="right" body={(p) => formatMoney(p.unallocated, currency)} />
+                <Column header={t("purchasing.number")} body={(p: UnallocatedPayment) => <span className="coa-code">{p.number}</span>} />
+                <Column header={t("payments.date")} body={(p: UnallocatedPayment) => formatCalendarDate(p.paymentDate, i18n.language)} />
+                <Column header={t("payments.method")} body={(p: UnallocatedPayment) => t(`payments.methods.${p.method}`)} />
+                <Column header={t("payments.onAccount")} align="right" body={(p: UnallocatedPayment) => formatMoney(p.unallocated, currency)} />
               </DataTable>
             ) : (
               <p className="erp-card__empty">{t("payments.settleBalance.noBalance")}</p>
