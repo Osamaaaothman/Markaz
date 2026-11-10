@@ -34,6 +34,8 @@ interface MovementEntry {
   readonly unitCost: string;
   readonly value: string;
   readonly sourceDocumentType: string;
+  readonly partyName: string | null;
+  readonly partyNameAr: string | null;
   readonly entryNumber: string;
 }
 
@@ -157,6 +159,7 @@ export function StockMovementsPage(): React.JSX.Element {
               body={(r: MovementEntry) => <Tag value={t(`inventory.movements.types.${r.movementType}`)} severity={Number(r.quantity) >= 0 ? "success" : "warning"} />}
             />
             <Column header={t("inventory.movements.source")} body={(r: MovementEntry) => t(`inventory.movements.sources.${r.sourceDocumentType}`, r.sourceDocumentType)} />
+            <Column header={t("inventory.movements.party")} body={(r: MovementEntry) => r.partyName ? localizedName({ name: r.partyName, nameAr: r.partyNameAr }, i18n.language) : "—"} />
             <Column header={t("inventory.movements.entry")} style={{ width: "9rem" }} body={(r: MovementEntry) => <span className="coa-code">{r.entryNumber}</span>} />
             <Column header={t("purchasing.quantity")} align="right" body={(r: MovementEntry) => <strong>{r.quantity}</strong>} />
             <Column header={t("inventory.movements.unitCost")} align="right" body={(r: MovementEntry) => formatMoney(r.unitCost, currency)} />

@@ -92,16 +92,6 @@ export function PurchaseRequestsPage(): React.JSX.Element {
               body={(row: PurchaseRequestSummary) => (
                 <div className="erp-row-actions">
                   <Button label={t("purchasing.view")} size="small" text onClick={() => setViewId(row.id)} />
-                  {/* Review (accept or reject) is done on its own page; a buyer makes an order here from an accepted request. */}
-                  {row.status === "ACCEPTED" ? (
-                    <PermissionButton
-                      allowed={can("purchase_order:create")}
-                      label={t("purchasing.requests.createOrder")}
-                      size="small"
-                      text
-                      onClick={() => void navigate(`/purchasing/orders/new?request=${row.id}`)}
-                    />
-                  ) : null}
                   {row.purchaseOrderId ? (
                     <Button label={t("purchasing.requests.openOrder")} size="small" text onClick={() => void navigate(`/purchasing/orders/${row.purchaseOrderId}`)} />
                   ) : null}

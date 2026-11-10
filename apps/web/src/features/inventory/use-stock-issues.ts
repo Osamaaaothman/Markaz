@@ -23,6 +23,7 @@ interface StockIssueResult {
 export function useCreateStockIssue() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (input: CreateStockIssueInput) => {
       const idempotencyKey = newId();
       return (

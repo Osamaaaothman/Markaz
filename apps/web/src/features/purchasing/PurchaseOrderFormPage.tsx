@@ -20,6 +20,8 @@ import { useAllWarehouses } from "../inventory/use-warehouses";
 import { useAllItems } from "../inventory/use-items";
 import { useTaxCodes } from "./use-invoicing";
 import { useCreatePurchaseOrder, usePurchaseRequest } from "./use-purchasing";
+import { PageSkeleton } from "../../shared/ui/PageSkeleton";
+import { requestLinesForOrder } from "./request-lines";
 
 const decimal = z.string().regex(/^\d{1,15}(\.\d{1,4})?$/, "positiveAmount");
 const lineSchema = z.object({
@@ -38,7 +40,7 @@ const formSchema = z.object({
 });
 type FormValues = z.infer<typeof formSchema>;
 
-// A new order, optionally started from a pending purchase request (?request=<id>): its items and
+// A new order, optionally started from an accepted purchase request (?request=<id>): its items and
 // quantities are copied in and the buyer adds the supplier and the agreed prices.
 export function PurchaseOrderFormPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -50,7 +52,8 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const { data: items } = useAllItems();
   const { data: warehouses } = useAllWarehouses();
   const [created, setCreated] = useState<CreatedInfo | null>(null);
-  const { data: request } = usePurchaseRequest(requestId);
+  const { data: request, isPending: requestPending, isError: requestError, refetch: refetchRequest } = usePurchaseRequest(requestId);
+  const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
   const create = useCreatePurchaseOrder();
   const { data: taxCodes } = useTaxCodes(false);
   const defaultTaxId = useMemo(() => (taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "", [taxCodes]);
@@ -92,7 +95,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   };
 
   useEffect(() => {
-    if (!request || request.status !== "ACCEPTED" || !defaultTaxId) return;
+    if (!request || request.status !== "ACCEPTED" || !defaultTaxId || copiedRequestId === request.id) return;
     reset({
       supplierId: "",
       // The request already says which warehouse the goods are for.
@@ -100,10 +103,10 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
       orderDate: new Date(),
       expectedDate: null,
       notes: request.notes ?? "",
-      lines: request.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity.replace(/\.?0+$/, ""), unitPrice: "", taxCodeId: defaultTaxId })),
+      lines: requestLinesForOrder(request.lines, defaultTaxId),
     });
-    // Copy the request in once it has loaded, and once a default VAT code is available.
-  }, [request?.id, defaultTaxId]);
+    setCopiedRequestId(request.id);
+  }, [request, defaultTaxId, copiedRequestId, reset]);
 
   const total = lines.reduce((sum, line) => {
     try {
@@ -129,6 +132,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const grossTotal = total.add(taxTotal);
 
   const onSubmit = handleSubmit((values) => {
+    if (created || create.isPending || (requestId && (request?.status !== "ACCEPTED" || copiedRequestId !== requestId))) return;
     create.mutate(
       {
         supplierId: values.supplierId,
@@ -159,6 +163,17 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
       },
     );
   });
+
+  if (requestId && !created) {
+    if (requestPending) return <PageSkeleton />;
+    if (requestError || !request || request.status !== "ACCEPTED") return (
+      <div className="erp-page" role="alert">
+        <p className="erp-page__error">{t(requestError ? "status.error" : "purchasing.orders.requestUnavailable")}</p>
+        <Button label={t("actions.retry")} onClick={() => void refetchRequest()} />
+        <Button label={t("actions.cancel")} text onClick={() => void navigate("/purchasing/orders")} />
+      </div>
+    );
+  }
 
   return (
     <div className="erp-page">
@@ -285,10 +300,10 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate("/purchasing/orders")} />
-          <Button type="submit" label={t("actions.save")} loading={create.isPending} />
+          <Button type="submit" label={t("actions.save")} loading={create.isPending} disabled={created !== null || (requestId !== null && copiedRequestId !== requestId)} />
         </div>
       </form>
-      <CreatedDialog info={created} onHide={() => setCreated(null)} />
+      <CreatedDialog info={created} onHide={() => void navigate("/purchasing/orders")} />
     </div>
   );
 }

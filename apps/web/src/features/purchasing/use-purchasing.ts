@@ -76,6 +76,7 @@ export interface CreatePurchaseRequestPayload {
 export function useCreatePurchaseRequest() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreatePurchaseRequestPayload) =>
       (await apiClient.post<PurchaseRequestSummary>("/v1/purchase-requests", payload)).data,
     onSuccess: () => {
@@ -88,6 +89,7 @@ export function useCreatePurchaseRequest() {
 export function useAcceptPurchaseRequest() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successKey: "feedback.accepted" },
     mutationFn: async (id: string) => (await apiClient.post<PurchaseRequestSummary>(`/v1/purchase-requests/${id}/accept`, {})).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["purchaseRequests"] });
@@ -99,6 +101,7 @@ export function useAcceptPurchaseRequest() {
 export function useRejectPurchaseRequest() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successKey: "feedback.rejected" },
     mutationFn: async (input: { readonly id: string; readonly reason: string }) =>
       (await apiClient.post<PurchaseRequestSummary>(`/v1/purchase-requests/${input.id}/reject`, { reason: input.reason })).data,
     onSuccess: () => {
@@ -219,6 +222,7 @@ interface PurchaseOrderCreated {
 export function useCreatePurchaseOrder() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreatePurchaseOrderPayload) =>
       (await apiClient.post<PurchaseOrderCreated>("/v1/purchase-orders", payload)).data,
     onSuccess: () => {
@@ -251,6 +255,7 @@ export interface ReceivePayload {
 export function useReceiveOrder(id: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: ReceivePayload) =>
       (
         await apiClient.post<{ id: string; number: string; orderStatus: string }>(`/v1/purchase-orders/${id}/receive`, payload, {

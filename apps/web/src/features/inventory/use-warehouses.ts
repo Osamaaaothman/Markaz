@@ -73,6 +73,7 @@ export function useAllWarehouses() {
 export function useCreateWarehouse() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateWarehousePayload) =>
       (await apiClient.post<WarehouseSummary>("/v1/warehouses", payload)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["warehouses"] }),

@@ -5,6 +5,16 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Purchasing workflow and operation feedback (2026-11-10)
+- Start orders from approved requests in Purchase Orders. Request and review pages no longer create orders;
+  the picker copies all items and quantities, leaving supplier and prices to the buyer. Stale or already
+  processed requests cannot silently become unrelated orders, and background refreshes preserve entered prices.
+- Dialogs use 80% of the desktop viewport and 96% on small screens; maximized viewers remain full screen.
+- A shared toast host reports mutation outcomes across the application, survives navigation, and distinguishes
+  partial bulk results. Existing creation/result dialogs and previews suppress duplicate success toasts.
+- Stock movement lists and CSV exports include the source document's customer/supplier names in English and
+  Arabic. Lookups are batched and company-scoped; internal movements without a party remain blank. No migration.
+
 ### Added
 - M0 repository foundation: npm workspaces + Turborepo monorepo layout, TypeScript strict
   config, ESLint + dependency-cruiser module-boundary rules, Prettier, commitlint,

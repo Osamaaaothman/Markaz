@@ -134,6 +134,7 @@ export function useEmployee(id: string) {
 export function useCreateEmployee() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateEmployeePayload) => (await apiClient.post<EmployeeSummary>("/v1/employees", payload)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["employees"] }),
   });
@@ -288,6 +289,7 @@ export function useSalaryAdvances(employeeId?: string) {
 export function useGrantSalaryAdvance() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: GrantSalaryAdvancePayload) => {
       const idempotencyKey = crypto.randomUUID();
       return (await apiClient.post<{ id: string; number: string }>("/v1/salary-advances", payload, { headers: { "Idempotency-Key": idempotencyKey } })).data;
@@ -309,6 +311,7 @@ export interface RepaySalaryAdvancePayload {
 export function useRepaySalaryAdvance() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async ({ advanceId, ...payload }: RepaySalaryAdvancePayload) =>
       (
         await apiClient.post<{ id: string; number: string; remaining: string }>(`/v1/salary-advances/${advanceId}/repayments`, payload, {
@@ -347,6 +350,7 @@ export interface EndOfServiceResult {
 export function useSettleEndOfService() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: SettleEndOfServicePayload) => {
       const idempotencyKey = crypto.randomUUID();
       return (await apiClient.post<EndOfServiceResult>("/v1/end-of-service-settlements", payload, { headers: { "Idempotency-Key": idempotencyKey } })).data;

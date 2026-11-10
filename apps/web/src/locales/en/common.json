@@ -1,4 +1,20 @@
 {
+  "feedback": {
+    "success": "Completed",
+    "warn": "Partially completed",
+    "error": "Could not complete",
+    "saved": "The operation completed successfully.",
+    "failed": "The operation did not complete. Review the details and try again.",
+    "partial": "Some steps completed, but other items were not processed. Review the results.",
+    "accepted": "Purchase request accepted.",
+    "rejected": "Purchase request rejected.",
+    "cancelled": "Document cancelled.",
+    "deleted": "Deleted successfully.",
+    "uploaded": "File uploaded successfully.",
+    "posted": "Posted successfully.",
+    "sent": "Email sent.",
+    "submitted": "Submitted for processing. Follow its status on this screen."
+  },
   "app": {
     "name": "Markaz",
     "tagline": "Accounting, done right"
@@ -683,6 +699,7 @@
       }
     },
     "movements": {
+      "party": "Customer / Supplier",
       "title": "Stock movements",
       "subtitle": "Every movement of every item: what came in, what went out, at what cost.",
       "item": "Item",
@@ -754,6 +771,11 @@
       "warehouseRequired": "Choose the warehouse the goods are for."
     },
     "orders": {
+      "acceptedRequests": "Approved purchase requests",
+      "acceptedRequestsHint": "Choose an approved request to copy all its items and quantities into a purchase order, then complete the supplier, prices and other details.",
+      "noAcceptedRequests": "No approved purchase requests are waiting for an order.",
+      "useRequest": "Create order from request",
+      "requestUnavailable": "This request is no longer available for an order. It may have been rejected or already processed.",
       "title": "Purchase orders",
       "subtitle": "Orders placed with suppliers, and what has arrived against them.",
       "new": "New order",

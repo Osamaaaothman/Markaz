@@ -81,6 +81,7 @@ interface Common {
 function usePay<P extends Common>(path: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: P) =>
       (await apiClient.post<{ id: string; number: string; amount: string }>(`/v1/hr-payments/${path}`, payload, { headers: { "Idempotency-Key": newId() } })).data,
     onSuccess: () => {

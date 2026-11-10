@@ -25,6 +25,7 @@ interface GoodsReceiptResult {
 export function useCreateGoodsReceipt() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (input: CreateGoodsReceiptInput) => {
       // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine submission.
       const idempotencyKey = newId();

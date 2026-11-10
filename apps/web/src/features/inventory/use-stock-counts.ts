@@ -72,6 +72,7 @@ export function useStockCounts(unpostedOnly: boolean) {
 export function useRecordStockCount() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (input: RecordStockCountInput) =>
       (await apiClient.post<{ id: string; number: string }>("/v1/stock-counts", input)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["stockCounts"] }),
@@ -81,6 +82,7 @@ export function useRecordStockCount() {
 export function usePostStockCount() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successKey: "feedback.posted" },
     mutationFn: async (countId: string) => {
       const idempotencyKey = newId();
       return (

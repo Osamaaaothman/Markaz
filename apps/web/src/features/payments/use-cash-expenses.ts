@@ -49,6 +49,7 @@ export interface CreateCashExpensePayload {
 export function useCreateCashExpense() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateCashExpensePayload) =>
       (
         await apiClient.post<{ id: string; number: string; journalEntryId: string }>("/v1/cash-expenses", payload, {

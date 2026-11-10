@@ -16,6 +16,7 @@ interface TokenPair {
 export function useLogin() {
   const setTokens = useAuthStore((state) => state.setTokens);
   return useMutation({
+    meta: { feedback: "silent" },
     mutationFn: async (input: LoginInput) => (await apiClient.post<TokenPair>("/v1/auth/login", input)).data,
     // Also cleared here, not only on logout: signing in again on /login without logging
     // out first would otherwise keep the previous user's cached profile and permissions.

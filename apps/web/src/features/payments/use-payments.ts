@@ -144,6 +144,7 @@ export interface CreatePaymentPayload {
 export function useCreatePayment(direction: PaymentDirection) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreatePaymentPayload) =>
       (
         await apiClient.post<{ id: string; number: string; unallocated: string }>(direction === "RECEIPT" ? "/v1/customer-receipts" : "/v1/supplier-payments", payload, {

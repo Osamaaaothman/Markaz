@@ -37,6 +37,7 @@ export function PictureField({
   const queryClient = useQueryClient();
   const upload = useUploadAttachment();
   const remove = useRemoveAttachment();
+  const cleanupPrevious = useRemoveAttachment(true);
   const input = useRef<HTMLInputElement>(null);
   const [pictureId, setPictureId] = useState<string | null>(currentPictureId);
   const [problem, setProblem] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export function PictureField({
       const previous = pictureId;
       changed(created.id);
       // The new picture is already the current one; tidy up the old one. A failure here is harmless.
-      if (previous && can("attachment:delete")) await remove.mutateAsync(previous).catch(() => undefined);
+      if (previous && can("attachment:delete")) await cleanupPrevious.mutateAsync(previous).catch(() => undefined);
     } catch (error) {
       const code = error instanceof AxiosError ? (error.response?.data as { error?: { code?: string } } | undefined)?.error?.code : undefined;
       setProblem(code === "UNSUPPORTED_FILE_TYPE" ? t("attachments.errors.imageType") : code === "FORBIDDEN_OWNER" ? t("attachments.errors.forbidden") : t("attachments.errors.generic"));

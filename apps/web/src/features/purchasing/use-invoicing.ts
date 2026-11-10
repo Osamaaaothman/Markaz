@@ -31,6 +31,7 @@ export function useTaxCodes(includeInactive: boolean) {
 export function useCreateTaxCode() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: { code: string; name: string; nameAr?: string; rate: string; treatment: TaxTreatment }) =>
       (await apiClient.post<TaxCodeSummary>("/v1/tax-codes", payload)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["taxCodes"] }),
@@ -225,6 +226,7 @@ export interface InvoicePreview {
 
 export function usePreviewInvoice() {
   return useMutation({
+    meta: { feedback: "silent" },
     mutationFn: async (payload: InvoicePayload) => (await apiClient.post<InvoicePreview>("/v1/supplier-invoices/preview", payload)).data,
   });
 }
@@ -232,6 +234,7 @@ export function usePreviewInvoice() {
 export function usePostInvoice() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: InvoicePayload) =>
       (
         await apiClient.post<{ id: string; number: string; totalGross: string }>("/v1/supplier-invoices", payload, {

@@ -75,6 +75,7 @@ export interface ReturnGoodsPayload {
 export function useReturnGoods() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: ReturnGoodsPayload) =>
       (
         await apiClient.post<{ id: string; number: string; orderStatus: string }>("/v1/goods-returns", payload, {

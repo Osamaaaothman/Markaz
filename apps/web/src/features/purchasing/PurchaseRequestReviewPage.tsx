@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { SelectButton } from "primereact/selectbutton";
@@ -21,7 +20,6 @@ type View = "PENDING" | "ACCEPTED";
 export function PurchaseRequestReviewPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
-  const navigate = useNavigate();
   const [view, setView] = useState<View>("PENDING");
   const [viewId, setViewId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -93,15 +91,7 @@ export function PurchaseRequestReviewPage(): React.JSX.Element {
                       loading={accept.isPending && accept.variables === row.id}
                       onClick={() => accept.mutate(row.id)}
                     />
-                  ) : (
-                    <PermissionButton
-                      allowed={can("purchase_order:create")}
-                      label={t("purchasing.requests.createOrder")}
-                      size="small"
-                      text
-                      onClick={() => void navigate(`/purchasing/orders/new?request=${row.id}`)}
-                    />
-                  )}
+                  ) : null}
                   <PermissionButton
                     allowed={can("purchase_request:reject")}
                     label={t("purchasing.requests.reject")}
