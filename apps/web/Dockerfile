@@ -22,3 +22,13 @@ COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
   CMD wget -qO- http://127.0.0.1:80/ >/dev/null || exit 1
+
+# proxy_pass's hostname (API_UPSTREAM) is resolved once, when nginx reads its config —
+# not per request. On Railway, api.railway.internal's IP changes whenever that service
+# restarts/redeploys, so a long-lived nginx worker can be left pointing at a dead
+# address until something forces a fresh DNS lookup. `nginx -s reload` re-reads the
+# config (cheap, zero-downtime) and re-resolves it, so reloading every minute in the
+# background keeps the upstream address current without touching request handling.
+# Keeps the base image's default ENTRYPOINT (docker-entrypoint.sh), which still runs
+# envsubst-on-templates before this CMD is exec'd.
+CMD ["/bin/sh", "-c", "( while true; do sleep 60; nginx -s reload 2>/dev/null; done ) & exec nginx -g 'daemon off;'"]
