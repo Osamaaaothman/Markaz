@@ -1,3 +1,4 @@
+import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { SupplierInvoiceDetail } from "@erp/core";
 import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -114,6 +115,6 @@ export async function supplierInvoiceToPdfHtml(params: {
 </div>
 <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
 ${invoice.notes ? `<p class="sinv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
-    footerHtml: `${params.issuedBy || params.issuedAt ? `<div class="issued-by-block">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}<p class="computer-generated">${escapeHtml(t("supplierInvoice.computerGenerated"))}</p>`,
+    footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("supplierInvoice.computerGenerated") }),
   });
 }

@@ -33,21 +33,17 @@ export function renderReportShell(params: {
 <title>${escapeHtml(params.documentTitle)}</title>
 <style>
   @page { size: A4; margin: 18mm 14mm; }
-  html { height: 100%; }
   body {
     font-family: "Segoe UI", "Noto Sans Arabic", sans-serif;
     color: #1a1a1a;
     margin: 0;
     font-size: 10pt;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
   }
-  .report-main { flex: 1; }
+  .report-main { display: block; }
   .report-footer-block { padding-block-start: 8pt; border-block-start: 1px solid #ddd; }
   .issued-by-block { padding: 6pt 10pt; border: 1px solid #e8e8e8; border-radius: 4pt; font-size: 8pt; color: #555; display: flex; gap: 24pt; margin-block-end: 10pt; }
   .issued-by-block span { display: block; }
-  .issued-by-block strong { font-size: 7.5pt; color: #aaa; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-block-end: 2pt; }
+  .issued-by-block strong { font-size: 7.5pt; color: #777; font-weight: 400; display: block; margin-block-end: 2pt; }
   .computer-generated { font-size: 7.5pt; color: #aaa; text-align: center; margin: 0; }
   h1 { font-size: 16pt; margin-block-end: 2pt; }
   .company-name { font-weight: 600; font-size: 11pt; margin-block-end: 10pt; }

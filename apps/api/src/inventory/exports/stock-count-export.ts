@@ -1,3 +1,4 @@
+import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { StockCountDetail } from "@erp/core";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
 import { escapeHtml } from "../../common/html-escape.js";
@@ -90,8 +91,7 @@ export async function stockCountToPdfHtml(params: {
   <th class="amount">${escapeHtml(t("stockCount.unitCost"))}</th>
 </tr></thead>
 <tbody>${lineRows}</tbody>
-</table>
-${params.issuedBy || params.issuedAt ? `<div class="cnt-issued-by">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}
-<div class="cnt-footer">${escapeHtml(t("stockCount.computerGenerated"))}</div>`,
+</table>`,
+    footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("stockCount.computerGenerated") }),
   });
 }

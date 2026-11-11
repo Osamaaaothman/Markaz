@@ -1,3 +1,4 @@
+import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { QuotationDetail } from "@erp/core";
 import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -10,6 +11,8 @@ export async function quotationToPdfHtml(params: {
   readonly quotation: QuotationDetail;
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
+  readonly issuedBy?: string | null;
+  readonly issuedAt?: string | null;
   readonly logoDataUri?: string | undefined;
   readonly sellerVatNumber?: string | null;
   readonly sellerCrNumber?: string | null;
@@ -96,7 +99,7 @@ export async function quotationToPdfHtml(params: {
   </table>
 </div>
 <p class="amount-words">${escapeHtml(t("quotation.inWords"))}: ${escapeHtml(tafqeetAmount(quotation.totalGross, cur))}</p>
-${quotation.notes ? `<p class="inv-notes">${escapeHtml(quotation.notes)}</p>` : ""}
-<div class="inv-footer">${escapeHtml(t("quotation.computerGenerated"))}</div>`,
+${quotation.notes ? `<p class="inv-notes">${escapeHtml(quotation.notes)}</p>` : ""}`,
+    footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("quotation.computerGenerated") }),
   });
 }
