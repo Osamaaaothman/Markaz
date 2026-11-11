@@ -5,6 +5,23 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Stability, drafts and document tracking (2026-11-11)
+- Add private server drafts with autosave, version conflicts and stable submission
+  keys across purchasing, sales, inventory, journals and payments. Add a
+  permission-filtered document trail and persistent bilingual line labels.
+- Show warehouse availability and block excessive aggregate stock consumption;
+  move issuer metadata into printable page footers.
+- Add Resend HTTPS email support with explicit configuration/failure feedback,
+  company profile/calendar-year controls, setup fixes, exact WPS totals,
+  cross-tab refresh coordination and company-timezone dashboard dates.
+- Fix local official-SDK sample validation discrepancies. Actual ZATCA submission
+  integration remains deferred by the owner.
+- Add migrations `20261111090000_document_drafts`,
+  `20261111091000_commercial_submission_keys` and
+  `20261111092000_request_count_submission_keys`; all are additive.
+- See [rollout and ownership notes](docs/STABILITY-DRAFTS-RELEASE.md) and
+  [production email configuration](docs/QUOTATION-EMAIL.md).
+
 ### Purchasing workflow and operation feedback (2026-11-10)
 - Start orders from approved requests in Purchase Orders. Request and review pages no longer create orders;
   the picker copies all items and quantities, leaving supplier and prices to the buyer. Stale or already
