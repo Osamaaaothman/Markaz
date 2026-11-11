@@ -5,6 +5,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
 import { useDebouncedValue } from "../../shared/lib/use-debounced-value";
 import { usePartySearch } from "../parties/use-parties";
+import { partyPickerOptions } from "../parties/party-picker-options";
 
 interface PartyLike {
   readonly id: string;
@@ -14,12 +15,13 @@ interface PartyLike {
 }
 
 // Picks the party an account is kept for. Searches the server as the user types (the party list
-// can be long), always keeps the currently selected party in the list, and renders nothing for
+// can be long), keeps the currently selected eligible party in the list, and renders nothing for
 // a user who may not read parties — the field simply is not offered.
 export function PartyPicker({
   inputId,
   value,
   current,
+  excludeEmployees = false,
   onChange,
 }: {
   inputId: string;
@@ -27,20 +29,20 @@ export function PartyPicker({
   // The party already linked (from the account), so it stays selectable even when it is not in
   // the current search results.
   current?: PartyLike | null;
+  // Customer/supplier fields exclude employees; account links keep all kinds.
+  excludeEmployees?: boolean;
   onChange: (party: PartyLike | null) => void;
 }): React.JSX.Element | null {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const [typed, setTyped] = useState("");
   const query = useDebouncedValue(typed);
-  const { data: results } = usePartySearch(query);
+  const { data: results } = usePartySearch(query, excludeEmployees);
 
-  const parties = useMemo(() => {
-    const byId = new Map<string, PartyLike>();
-    if (current) byId.set(current.id, current);
-    for (const party of results ?? []) byId.set(party.id, party);
-    return [...byId.values()];
-  }, [results, current]);
+  const parties = useMemo(
+    () => partyPickerOptions<PartyLike>(results, current, excludeEmployees),
+    [results, current, excludeEmployees],
+  );
 
   if (!can("party:read")) return null;
 

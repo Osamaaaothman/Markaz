@@ -104,15 +104,18 @@ export function useParties(filter: PartyFilter) {
   });
 }
 
-// The party picker on account forms: the first page of matches for what the user typed.
-export function usePartySearch(q: string) {
+// Filter before pagination so employee rows cannot crowd out customer/supplier matches.
+export function usePartySearch(q: string, excludeEmployees = false) {
   const { can } = usePermissions();
   return useQuery({
-    queryKey: ["parties", "search", q.trim()],
+    queryKey: ["parties", "search", q.trim(), excludeEmployees],
     queryFn: async () =>
       (
         await apiClient.get<PartyListPage>("/v1/parties", {
-          params: listParams({ q, kind: null, includeInactive: false }),
+          params: {
+            ...listParams({ q, kind: null, includeInactive: false }),
+            ...(excludeEmployees ? { excludeEmployees: "true" } : {}),
+          },
         })
       ).data.data,
     staleTime: 30_000,

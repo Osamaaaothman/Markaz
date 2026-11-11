@@ -67,7 +67,7 @@ export function PartyStatementPage(): React.JSX.Element {
         </div>
         <div className="erp-field erp-field--grow">
           <label htmlFor="psParty">{t("partyStatement.party")}</label>
-          <PartyPicker inputId="psParty" value={partyId || null} onChange={(party) => setPartyId(party?.id ?? "")} />
+          <PartyPicker excludeEmployees inputId="psParty" value={partyId || null} onChange={(party) => setPartyId(party?.id ?? "")} />
         </div>
         <div className="erp-field">
           <label htmlFor="psFrom">{t("accounting.incomeStatement.from")}</label>

@@ -240,7 +240,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="sdCustomer">{t("sales.customer")}</label>
-            <PartyPicker inputId="sdCustomer" value={customerId || null} onChange={(party) => !orderId && setCustomerId(party?.id ?? "")} />
+            <PartyPicker excludeEmployees inputId="sdCustomer" value={customerId || null} onChange={(party) => !orderId && setCustomerId(party?.id ?? "")} />
           </div>
           <div className="erp-field">
             <label htmlFor="sdDate">{t(`${prefix}.date`)}</label>

@@ -90,6 +90,7 @@ function SettleForm({ direction }: { direction: PaymentDirection }): React.JSX.E
         <div className="erp-field">
           <label htmlFor="setParty">{t(`payments.${kind}.party`)}</label>
           <PartyPicker
+            excludeEmployees
             inputId="setParty"
             value={partyId || null}
             onChange={(party) =>

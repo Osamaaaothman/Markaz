@@ -42,6 +42,7 @@ export interface PartyListQuery {
   readonly q?: string | undefined;
   readonly kind?: string | undefined;
   readonly includeInactive?: "true" | "false" | undefined;
+  readonly excludeEmployees?: "true" | "false" | undefined;
 }
 
 // Address + VAT/CR fields are optional everywhere: most parties (a walk-in customer, an
@@ -135,6 +136,7 @@ export class PartyService {
         companyId,
         ...(query.includeInactive === "true" ? {} : { isActive: true }),
         ...(query.kind ? { kind: query.kind } : {}),
+        ...(query.excludeEmployees === "true" ? { NOT: { kind: "EMPLOYEE" } } : {}),
         ...(q
           ? {
               OR: [
