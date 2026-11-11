@@ -1,3 +1,4 @@
+import { DocumentTrail } from "../documents/DocumentTrail";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
@@ -72,6 +73,7 @@ export function StockIssueDetailPage(): React.JSX.Element {
       <div className="erp-form__actions">
         <Button type="button" label={t("documents.backToList")} text onClick={() => void navigate("/inventory/stock-issues")} />
       </div>
+    <DocumentTrail kind="stock_issue" id={id} />
     </div>
   );
 }

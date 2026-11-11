@@ -1,8 +1,11 @@
+import { DraftBar } from "../documents/DraftBar";
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { LineField } from "../../shared/ui/LineField";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
@@ -37,7 +40,9 @@ export function PurchaseRequestsPage(): React.JSX.Element {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [status, setStatus] = useState<PurchaseRequestStatus | null>(null);
-  const [newOpen, setNewOpen] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const [newOpen, setNewOpen] = useState(params.has("draft"));
+  const closeNew = (): void => { setNewOpen(false); setParams((previous) => { const next = new URLSearchParams(previous); next.delete("draft"); return next; }, { replace: true }); };
   const [viewId, setViewId] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
@@ -107,7 +112,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
         </>
       )}
 
-      <NewRequestDialog visible={newOpen} onHide={() => setNewOpen(false)} onCreated={(info, id) => setCreated({ ...info, onOpen: () => setViewId(id) })} />
+      {newOpen ? <NewRequestDialog visible={newOpen} onHide={closeNew} onCreated={(info, id) => setCreated({ ...info, onOpen: () => setViewId(id) })} /> : null}
       <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <RequestDetailDialog id={viewId} onHide={() => setViewId(null)} />
     </div>
@@ -130,7 +135,6 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
   const { t, i18n } = useTranslation();
   const { data: items } = useAllItems();
   const { data: warehouses } = useAllWarehouses();
-  const create = useCreatePurchaseRequest();
   const {
     control,
     register,
@@ -139,6 +143,9 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
     watch,
     formState: { errors },
   } = useForm<RequestFormValues>({ resolver: zodResolver(requestSchema), defaultValues: { warehouseId: "", notes: "", lines: [EMPTY_LINE] } });
+  const values = watch();
+  const draft = useDocumentDraft("purchase_request", values, reset, Boolean(values.warehouseId || values.notes || values.lines.some((line) => line.itemId || line.quantity)));
+  const create = useCreatePurchaseRequest(draft.id);
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
 
   // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
@@ -157,11 +164,13 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
     // Reset only when the dialog opens.
   }, [visible]);
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!await draft.save()) return;
     create.mutate(
       { warehouseId: values.warehouseId, ...(values.notes.trim() ? { notes: values.notes.trim() } : {}), lines: values.lines },
       {
         onSuccess: (saved) => {
+          void draft.complete();
           const warehouse = warehouses?.find((w) => w.id === saved.warehouseId);
           onCreated({
             title: t("purchasing.requests.new"),
@@ -181,6 +190,7 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
 
   return (
     <Dialog header={t("purchasing.requests.new")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(46rem, 96vw)" }}>
+      <DraftBar draft={draft} />
       <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-field">
           <label htmlFor="prWarehouse">{t("created.warehouse")}</label>
@@ -213,17 +223,17 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
                 control={control}
                 name={`lines.${index}.itemId`}
                 render={({ field: f }) => (
-                  <Dropdown
+                  <LineField label={t("inventory.items.title")}><Dropdown
                     value={f.value}
                     onChange={(e) => f.onChange(e.value)}
                     options={(items ?? []).map((i) => ({ label: `${i.code} — ${localizedName(i, i18n.language)}`, value: i.id }))}
                     filter
                     placeholder={t("inventory.items.title")}
                     className={errors.lines?.[index]?.itemId ? "p-invalid erp-lines__account" : "erp-lines__account"}
-                  />
+                  /></LineField>
                 )}
               />
-              <InputText
+              <LineField label={t("purchasing.quantity")}><InputText
                 placeholder={t("purchasing.quantity")}
                 dir="ltr"
                 {...register(`lines.${index}.quantity`)}
@@ -234,7 +244,7 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
                   }
                 }}
                 className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`}
-              />
+              /></LineField>
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
           ))}
@@ -244,7 +254,7 @@ function NewRequestDialog({ visible, onHide, onCreated }: { visible: boolean; on
         {create.isError ? <p className="erp-auth-card__error">{t("purchasing.requests.createError")}</p> : null}
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
-          <Button type="submit" label={t("actions.save")} loading={create.isPending} />
+          <Button type="submit" label={t("actions.save")} loading={create.isPending} disabled={!draft.ready} />
         </div>
       </form>
     </Dialog>

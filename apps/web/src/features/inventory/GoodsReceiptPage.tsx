@@ -1,3 +1,6 @@
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { DraftBar } from "../documents/DraftBar";
+import { LineField } from "../../shared/ui/LineField";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
@@ -43,7 +46,6 @@ export function GoodsReceiptPage(): React.JSX.Element {
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: warehouses } = useAllWarehouses();
   const { data: items } = useAllItems();
-  const createReceipt = useCreateGoodsReceipt();
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const {
@@ -52,13 +54,16 @@ export function GoodsReceiptPage(): React.JSX.Element {
     handleSubmit,
     reset,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { warehouseId: "", partyId: null, documentDate: new Date(), reference: "", lines: [EMPTY_LINE] },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+  const draftValues = watch();
+  const draft = useDocumentDraft("goods_receipt", draftValues, (saved) => reset(saved), isDirty || draftValues.lines.some((l) => l.itemId !== ""));
+  const createReceipt = useCreateGoodsReceipt(draft.id);
   const lines = watch("lines");
 
   // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
@@ -82,7 +87,8 @@ export function GoodsReceiptPage(): React.JSX.Element {
     void onSubmit(e);
   };
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!draft.ready || !await draft.save()) return;
     createReceipt.mutate(
       {
         warehouseId: values.warehouseId,
@@ -93,6 +99,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
       },
       {
         onSuccess: (saved) => {
+          void draft.complete();
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
             onOpen: () => void navigate(`/inventory/goods-receipts/${saved.id}`),
@@ -121,6 +128,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
         </div>
       </div>
 
+      <DraftBar draft={draft} />
       <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -162,12 +170,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
         </div>
 
         <h3 className="erp-form__section-title">{t("inventory.goodsReceipt.lines")}</h3>
-        <div className="erp-lines__header" aria-hidden="true">
-          <span className="erp-lines__account">{t("inventory.goodsReceipt.item")}</span>
-          <span className="erp-lines__amount">{t("inventory.goodsReceipt.quantity")}</span>
-          <span className="erp-lines__amount">{t("inventory.goodsReceipt.unitCost")}</span>
-          <span className="erp-lines__header__action" />
-        </div>
+
         <div className="erp-lines">
           {fields.map((field, index) => (
             <div key={field.id} className="erp-lines__row">
@@ -175,18 +178,18 @@ export function GoodsReceiptPage(): React.JSX.Element {
                 control={control}
                 name={`lines.${index}.itemId`}
                 render={({ field: f }) => (
-                  <Dropdown
+                  <LineField label={t("inventory.items.title")}><Dropdown
                     value={f.value}
                     onChange={(e) => f.onChange(e.value)}
                     options={(items ?? []).map((i) => ({ label: `${i.code} — ${localizedName(i, i18n.language)}`, value: i.id }))}
                     filter
                     placeholder={t("inventory.items.title")}
                     className={errors.lines?.[index]?.itemId ? "p-invalid erp-lines__account" : "erp-lines__account"}
-                  />
+                  /></LineField>
                 )}
               />
-              <InputText placeholder={t("inventory.goodsReceipt.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} />
-              <InputText
+              <LineField label={t("inventory.goodsReceipt.quantity")}><InputText placeholder={t("inventory.goodsReceipt.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} /></LineField>
+              <LineField label={t("inventory.goodsReceipt.unitCost")}><InputText
                 placeholder={t("inventory.goodsReceipt.unitCost")}
                 dir="ltr"
                 {...register(`lines.${index}.unitCost`)}
@@ -197,7 +200,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
                   }
                 }}
                 className={`erp-lines__amount${errors.lines?.[index]?.unitCost ? " p-invalid" : ""}`}
-              />
+              /></LineField>
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
           ))}
@@ -215,10 +218,10 @@ export function GoodsReceiptPage(): React.JSX.Element {
         {createReceipt.isSuccess ? <p className="erp-field__hint">{t("inventory.goodsReceipt.postedSuccess", { number: createReceipt.data?.number })}</p> : null}
 
         <div className="erp-form__actions">
-          <Button type="submit" label={t("inventory.goodsReceipt.submit")} loading={createReceipt.isPending} />
+          <Button type="submit" label={t("inventory.goodsReceipt.submit")} loading={createReceipt.isPending} disabled={!draft.ready || draft.status === "completed"} />
         </div>
       </form>
-      <CreatedDialog info={created} onHide={() => setCreated(null)} />
+      <CreatedDialog info={created} onHide={() => void navigate("/inventory/goods-receipts")} />
     </div>
   );
 }

@@ -22,13 +22,13 @@ interface GoodsReceiptResult {
   readonly number: string;
 }
 
-export function useCreateGoodsReceipt() {
+export function useCreateGoodsReceipt(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
     mutationFn: async (input: CreateGoodsReceiptInput) => {
       // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine submission.
-      const idempotencyKey = newId();
+      const idempotencyKey = submissionKey ?? newId();
       return (
         await apiClient.post<GoodsReceiptResult>("/v1/goods-receipts", input, {
           headers: { "Idempotency-Key": idempotencyKey },

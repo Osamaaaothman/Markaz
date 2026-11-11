@@ -1,3 +1,4 @@
+import { DocumentTrail } from "../documents/DocumentTrail";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
@@ -154,6 +155,7 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
       <div className="erp-form__actions">
         <Button type="button" label={t("documents.backToList")} text onClick={() => void navigate("/purchasing/invoices")} />
       </div>
+    <DocumentTrail kind="supplier_invoice" id={id} />
     </div>
   );
 }

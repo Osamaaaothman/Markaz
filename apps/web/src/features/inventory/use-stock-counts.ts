@@ -69,12 +69,12 @@ export function useStockCounts(unpostedOnly: boolean) {
   });
 }
 
-export function useRecordStockCount() {
+export function useRecordStockCount(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
     mutationFn: async (input: RecordStockCountInput) =>
-      (await apiClient.post<{ id: string; number: string }>("/v1/stock-counts", input)).data,
+      (await apiClient.post<{ id: string; number: string }>("/v1/stock-counts", input, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["stockCounts"] }),
   });
 }

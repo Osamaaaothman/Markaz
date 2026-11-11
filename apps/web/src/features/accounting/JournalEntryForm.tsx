@@ -1,3 +1,6 @@
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { DraftBar } from "../documents/DraftBar";
+import { LineField } from "../../shared/ui/LineField";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { KNOWN_CURRENCY_CODES, Money } from "@erp/shared";
 import { useEffect } from "react";
@@ -73,7 +76,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
   const { t, i18n } = useTranslation();
   const { data: accounts } = useAccounts();
   const { data: fiscalPeriods } = useFiscalPeriods();
-  const postEntry = usePostJournalEntry();
+
 
   const {
     control,
@@ -81,7 +84,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
     handleSubmit,
     reset,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -94,6 +97,9 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+  const values = watch();
+  const draft = useDocumentDraft("journal_entry", values, (saved) => reset(saved), visible && (isDirty || values.lines.some((l) => l.accountId || l.debit || l.credit || l.description)));
+  const postEntry = usePostJournalEntry(draft.id);
   const currency = watch("currency");
   const lines = watch("lines");
 
@@ -131,7 +137,8 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
     void onSubmit(e);
   };
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!draft.ready || !await draft.save()) return;
     const input: PostJournalEntryInput = {
       fiscalPeriodId: values.fiscalPeriodId,
       entryDate: toDateOnlyIsoString(values.entryDate),
@@ -146,6 +153,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
     };
     postEntry.mutate(input, {
       onSuccess: (saved) => {
+        void draft.complete();
         onCreated?.({
           title: t("accounting.journalEntries.new"),
           headline: saved.number,
@@ -170,6 +178,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
       className="erp-dialog"
       modal
     >
+      <DraftBar draft={draft} />
       <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -240,7 +249,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
                 control={control}
                 name={`lines.${index}.accountId`}
                 render={({ field: f }) => (
-                  <Dropdown
+                  <LineField label={t("accounting.journalEntries.account")}><Dropdown
                     value={f.value}
                     onChange={(e) => f.onChange(e.value)}
                     options={(accounts ?? []).map((a) => ({
@@ -250,20 +259,20 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
                     filter
                     placeholder={t("accounting.journalEntries.account")}
                     className={errors.lines?.[index]?.accountId ? "p-invalid erp-lines__account" : "erp-lines__account"}
-                  />
+                  /></LineField>
                 )}
               />
-              <InputText
+              <LineField label={t("accounting.journalEntries.debit")}><InputText
                 placeholder={t("accounting.journalEntries.debit")}
                 {...register(`lines.${index}.debit`)}
                 className={`erp-lines__amount${errors.lines?.[index]?.debit ? " p-invalid" : ""}`}
-              />
-              <InputText
+              /></LineField>
+              <LineField label={t("accounting.journalEntries.credit")}><InputText
                 placeholder={t("accounting.journalEntries.credit")}
                 {...register(`lines.${index}.credit`)}
                 className="erp-lines__amount"
-              />
-              <InputText
+              /></LineField>
+              <LineField label={t("accounting.journalEntries.description")}><InputText
                 placeholder={t("accounting.journalEntries.description")}
                 {...register(`lines.${index}.description`)}
                 onKeyDown={(e) => {
@@ -273,7 +282,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
                   }
                 }}
                 className="erp-lines__description"
-              />
+              /></LineField>
               <Button
                 type="button"
                 icon="pi pi-trash"
@@ -312,7 +321,7 @@ export function JournalEntryForm({ visible, onHide, onCreated }: JournalEntryFor
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} outlined onClick={onHide} />
-          <Button type="submit" label={t("accounting.journalEntries.submit")} loading={postEntry.isPending} />
+          <Button type="submit" label={t("accounting.journalEntries.submit")} loading={postEntry.isPending} disabled={!draft.ready || draft.status === "completed"} />
         </div>
       </form>
     </Dialog>

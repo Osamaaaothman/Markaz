@@ -231,7 +231,7 @@ export function usePreviewInvoice() {
   });
 }
 
-export function usePostInvoice() {
+export function usePostInvoice(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
@@ -239,7 +239,7 @@ export function usePostInvoice() {
       (
         await apiClient.post<{ id: string; number: string; totalGross: string }>("/v1/supplier-invoices", payload, {
           // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine submission.
-          headers: { "Idempotency-Key": newId() },
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
         })
       ).data,
     onSuccess: () => {

@@ -820,6 +820,16 @@ html body .erp-table .p-datatable-emptymessage > td {
   gap: 0.55rem;
 }
 
+.erp-document-trail { margin-block: 1rem; padding: .5rem; border: 1px solid var(--mk-border); border-radius: var(--mk-radius); }
+.erp-document-trail__list { display: grid; gap: .75rem; padding-inline-start: 1.75rem; }
+.erp-document-trail__list li { padding: .75rem; border-inline-start: 3px solid var(--mk-border); }
+.erp-document-trail__list span, .erp-document-trail__list small { display: block; margin-block-start: .3rem; }
+.erp-document-trail__current { background: var(--mk-surface-2); }
+.erp-draft-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: .75rem; margin-block: .75rem; border: 1px solid var(--mk-border); border-radius: var(--mk-radius); }
+.erp-line-field { display: flex; flex: 1 1 8rem; min-width: 0; flex-direction: column; gap: .35rem; }
+.erp-line-field__label { font-size: .8rem; font-weight: 600; color: var(--mk-text-muted); }
+.erp-line-field > .p-inputtext, .erp-line-field > .p-dropdown, .erp-line-field > .p-calendar { width: 100%; min-width: 0; flex: none; }
+.erp-lines__row > .erp-line-field:has(.erp-lines__account) { flex: 2 1 16rem; }
 .erp-lines__row {
   display: flex;
   flex-wrap: wrap;

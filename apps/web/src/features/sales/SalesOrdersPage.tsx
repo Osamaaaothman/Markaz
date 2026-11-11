@@ -1,3 +1,4 @@
+import { DocumentTrail } from "../documents/DocumentTrail";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -203,6 +204,7 @@ export function SalesOrderDetailPage(): React.JSX.Element {
       <div className="erp-form__actions">
         <Button type="button" label={t("sales.orders.back")} text onClick={() => void navigate("/sales/orders")} />
       </div>
+    <DocumentTrail kind="sales_order" id={id} />
     </div>
   );
 }

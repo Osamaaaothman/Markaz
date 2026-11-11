@@ -8,6 +8,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PictureField } from "../attachments/PictureField";
 import { useOwnerAttachments } from "../attachments/use-attachments";
 import { useSetWpsSettings, useWpsSettings } from "../hr/use-hr";
+import { CompanyDetails } from "./CompanyDetails";
 
 // Company settings: the name as the company is registered, and the logo. The logo is printed at the top of
 // invoices and shown in the side bar. Only people with company:update may change it.
@@ -30,23 +31,7 @@ export function CompanyPage(): React.JSX.Element {
         </div>
       </div>
 
-      <section className="erp-card">
-        <h2 className="erp-card__title">{t("company.details")}</h2>
-        <dl className="mk-facts">
-          <div>
-            <dt>{t("company.nameEn")}</dt>
-            <dd dir="ltr">{user.companyName}</dd>
-          </div>
-          <div>
-            <dt>{t("company.nameAr")}</dt>
-            <dd dir="rtl">{user.companyNameAr ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>{t("company.currency")}</dt>
-            <dd dir="ltr">{user.companyDefaultCurrency}</dd>
-          </div>
-        </dl>
-      </section>
+      <CompanyDetails canEdit={can("company:update")} />
 
       <section className="erp-card">
         <h2 className="erp-card__title">{t("company.logo")}</h2>

@@ -1,3 +1,5 @@
+import { DraftBar } from "../documents/DraftBar";
+import { useDocumentDraft } from "../documents/use-document-draft";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -38,7 +40,6 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: accounts } = useChartOfAccounts();
-  const create = useCreatePayment(direction);
   const [created, setCreated] = useState<{ info: CreatedInfo } | null>(null);
 
   const [partyId, setPartyId] = useState(searchParams.get("party") ?? "");
@@ -48,6 +49,9 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
   const [method, setMethod] = useState<PaymentMethod>("BANK_TRANSFER");
   const [reference, setReference] = useState("");
   const [allocations, setAllocations] = useState<Record<string, string>>({});
+
+  const draft = useDocumentDraft(direction === "RECEIPT" ? "customer_receipt" : "supplier_payment", { partyId, date, amount, cashAccountId, method, reference, allocations }, (saved) => { setPartyId(saved.partyId); setDate(saved.date); setAmount(saved.amount); setCashAccountId(saved.cashAccountId); setMethod(saved.method); setReference(saved.reference); setAllocations(saved.allocations); }, Boolean(partyId || amount || reference || cashAccountId));
+  const create = useCreatePayment(direction, draft.id);
 
   const { data: open } = useOpenInvoices(partyId, direction);
   const bankAccounts = useMemo(() => (accounts ?? []).filter((a) => a.isPostable && a.type === "ASSET"), [accounts]);
@@ -84,7 +88,8 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
     edit(() => setAllocations(next));
   };
 
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
+    if (!await draft.save()) return;
     create.mutate(
       {
         partyId,
@@ -99,6 +104,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
       },
       {
         onSuccess: (saved) => {
+          void draft.complete();
           const account = accounts?.find((a) => a.id === cashAccountId);
           setCreated({
             info: {
@@ -136,6 +142,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
         </div>
       </div>
 
+      <DraftBar draft={draft} />
       <div className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -222,7 +229,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
         {errKey ? <p className="erp-auth-card__error">{t(errKey)}</p> : null}
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate("/payments")} />
-          <Button type="button" label={t(`payments.${kind}.submit`)} icon="pi pi-check" disabled={!valid} loading={create.isPending} onClick={submit} />
+          <Button type="button" label={t(`payments.${kind}.submit`)} icon="pi pi-check" disabled={!valid || !draft.ready || draft.status === "completed"} loading={create.isPending} onClick={() => { void submit(); }} />
         </div>
       </div>
       <CreatedDialog info={created?.info ?? null} onHide={() => void navigate("/payments")} />

@@ -1,3 +1,6 @@
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { DraftBar } from "../documents/DraftBar";
+import { LineField } from "../../shared/ui/LineField";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -9,7 +12,7 @@ import { DataTable } from "primereact/datatable";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { tafqeetAmount } from "@erp/shared";
+import { newId, tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -52,8 +55,7 @@ interface LineState {
   readonly taxCodeId: string;
 }
 
-let lineCounter = 0;
-const nextKey = (): string => `line-${++lineCounter}`;
+const nextKey = (): string => newId();
 const trimZeros = (value: string): string => (value.includes(".") ? value.replace(/\.?0+$/, "") : value);
 
 // Matching an invoice: pick the supplier, add the order lines the invoice covers (quantity and price
@@ -68,7 +70,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const { data: taxCodes } = useTaxCodes(false);
   const { data: accounts } = useChartOfAccounts();
   const preview = usePreviewInvoice();
-  const post = usePostInvoice();
+
 
   const [supplierId, setSupplierId] = useState("");
   const [number, setNumber] = useState("");
@@ -78,6 +80,8 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const [lines, setLines] = useState<readonly LineState[]>([]);
   const [accept, setAccept] = useState(false);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
+  const draft = useDocumentDraft("supplier_invoice", { supplierId, number, invoiceDate, dueDate, notes, lines }, (saved) => { setSupplierId(saved.supplierId); setNumber(saved.number); setInvoiceDate(saved.invoiceDate); setDueDate(saved.dueDate); setNotes(saved.notes); setLines(saved.lines); }, supplierId !== "" || number !== "" || lines.length > 0);
+  const post = usePostInvoice(draft.id);
 
   const { data: invoiceable } = useInvoiceableLines(supplierId);
   const defaultTaxId = useMemo(() => (taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "", [taxCodes]);
@@ -199,6 +203,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
 
       {taxCodes && taxCodes.length === 0 ? <p className="erp-auth-card__error">{t("purchasing.invoices.noTaxCodes")}</p> : null}
 
+      <DraftBar draft={draft} />
       <div className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -256,13 +261,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
 
         {lines.length > 0 ? (
           <>
-            <div className="erp-lines__header" aria-hidden="true">
-              <span className="erp-lines__account">{t("purchasing.invoices.item")}</span>
-              <span className="erp-lines__amount">{t("purchasing.quantity")}</span>
-              <span className="erp-lines__amount">{t("purchasing.unitPrice")}</span>
-              <span style={{ flex: "0 0 7rem" }}>{t("purchasing.invoices.taxCode")}</span>
-              <span className="erp-lines__header__action" />
-            </div>
+
           <div className="erp-lines">
             {lines.map((l) => {
               const source = invoiceable?.find((x) => x.purchaseOrderLineId === l.purchaseOrderLineId);
@@ -273,17 +272,17 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                       {source ? `${source.purchaseOrderNumber} · ${source.itemCode} — ${localizedName({ name: source.itemName, nameAr: source.itemNameAr }, i18n.language)}` : l.purchaseOrderLineId}
                     </span>
                   ) : (
-                    <Dropdown
+                    <LineField label={t("purchasing.invoices.expenseAccount")}><Dropdown
                       value={l.accountId || null}
                       onChange={(e) => setLine(l.key, { accountId: (e.value as string | null) ?? "" })}
                       options={postable.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id }))}
                       filter
                       placeholder={t("purchasing.invoices.expenseAccount")}
                       className="erp-lines__account"
-                    />
+                    /></LineField>
                   )}
-                  <InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} />
-                  <InputText
+                  <LineField label={t("purchasing.quantity")}><InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} /></LineField>
+                  <LineField label={t("purchasing.unitPrice")}><InputText
                     dir="ltr"
                     placeholder={t("purchasing.unitPrice")}
                     value={l.unitPrice}
@@ -295,13 +294,13 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                       }
                     }}
                     className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`}
-                  />
-                  <Dropdown
+                  /></LineField>
+                  <LineField label={t("purchasing.invoices.taxCode")}><Dropdown
                     value={l.taxCodeId || null}
                     onChange={(e) => setLine(l.key, { taxCodeId: (e.value as string | null) ?? "" })}
                     options={(taxCodes ?? []).map((c) => ({ label: `${c.code}`, value: c.id }))}
                     placeholder={t("purchasing.invoices.taxCode")}
-                  />
+                  /></LineField>
                   <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => removeLine(l.key)} />
                 </div>
               );
@@ -372,12 +371,12 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                 type="button"
                 label={t("purchasing.invoices.post")}
                 icon="pi pi-check"
-                disabled={!canPost}
+                disabled={!canPost || !draft.ready || created !== null}
                 loading={post.isPending}
-                onClick={() =>
+                onClick={() => { void (async () => {
+                  if (!await draft.save()) return;
                   post.mutate(payload, {
-                    onSuccess: (saved) =>
-                      setCreated({
+                    onSuccess: (saved) => { void draft.complete(); setCreated({
                         onOpen: () => void navigate(`/purchasing/invoices/${saved.id}`),
                         title: t("purchasing.invoices.title"),
                         headline: saved.number,
@@ -391,9 +390,9 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                           { label: t("created.inWords"), value: tafqeetAmount(saved.totalGross, currency) },
                           { label: t("created.lines"), value: String(lines.length) },
                         ],
-                      }),
-                  })
-                }
+                      }); },
+                  });
+                })(); }}
               />
             </div>
           </>

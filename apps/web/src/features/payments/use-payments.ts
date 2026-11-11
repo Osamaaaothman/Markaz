@@ -141,15 +141,15 @@ export interface CreatePaymentPayload {
   readonly allocations: readonly { readonly invoiceId: string; readonly amount: string }[];
 }
 
-export function useCreatePayment(direction: PaymentDirection) {
+export function useCreatePayment(direction: PaymentDirection, submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
     mutationFn: async (payload: CreatePaymentPayload) =>
       (
         await apiClient.post<{ id: string; number: string; unallocated: string }>(direction === "RECEIPT" ? "/v1/customer-receipts" : "/v1/supplier-payments", payload, {
-          // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine submission.
-          headers: { "Idempotency-Key": newId() },
+          // A restored draft retains its submission key across retries.
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
         })
       ).data,
     onSuccess: () => {

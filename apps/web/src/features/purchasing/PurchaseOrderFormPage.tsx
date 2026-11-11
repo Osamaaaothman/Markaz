@@ -1,3 +1,6 @@
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { DraftBar } from "../documents/DraftBar";
+import { LineField } from "../../shared/ui/LineField";
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
@@ -46,7 +49,8 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const requestId = params.get("request");
+  const [restoredRequestId, setRestoredRequestId] = useState<string | null>(null);
+  const requestId = restoredRequestId ?? params.get("request");
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: items } = useAllItems();
@@ -54,7 +58,6 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   const [created, setCreated] = useState<CreatedInfo | null>(null);
   const { data: request, isPending: requestPending, isError: requestError, refetch: refetchRequest } = usePurchaseRequest(requestId);
   const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
-  const create = useCreatePurchaseOrder();
   const { data: taxCodes } = useTaxCodes(false);
   const defaultTaxId = useMemo(() => (taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "", [taxCodes]);
 
@@ -69,12 +72,15 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
     watch,
     getValues,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { supplierId: "", warehouseId: "", orderDate: new Date(), expectedDate: null, notes: "", lines: [newLine()] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+  const draftValues = { ...watch(), requestId };
+  const draft = useDocumentDraft("purchase_order", draftValues, (saved) => { reset(saved); setRestoredRequestId(saved.requestId); setCopiedRequestId(saved.requestId); }, isDirty || draftValues.lines.some((l) => l.itemId !== ""));
+  const create = useCreatePurchaseOrder(draft.id);
   const lines = watch("lines");
 
   // Tax codes arrive after the form mounts; fill any line that still has no code so Save is not blocked.
@@ -95,7 +101,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   };
 
   useEffect(() => {
-    if (!request || request.status !== "ACCEPTED" || !defaultTaxId || copiedRequestId === request.id) return;
+    if (params.get("draft") || !request || request.status !== "ACCEPTED" || !defaultTaxId || copiedRequestId === request.id) return;
     reset({
       supplierId: "",
       // The request already says which warehouse the goods are for.
@@ -131,7 +137,8 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
   }, Money.zero(currency));
   const grossTotal = total.add(taxTotal);
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!draft.ready || !await draft.save()) return;
     if (created || create.isPending || (requestId && (request?.status !== "ACCEPTED" || copiedRequestId !== requestId))) return;
     create.mutate(
       {
@@ -145,6 +152,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
       },
       {
         onSuccess: (saved) => {
+          void draft.complete();
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
             onOpen: () => void navigate(`/purchasing/orders/${saved.id}`),
@@ -184,6 +192,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
         </div>
       </div>
 
+      <DraftBar draft={draft} />
       <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -241,18 +250,18 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
                 control={control}
                 name={`lines.${index}.itemId`}
                 render={({ field: f }) => (
-                  <Dropdown
+                  <LineField label={t("inventory.items.title")}><Dropdown
                     value={f.value}
                     onChange={(e) => f.onChange(e.value)}
                     options={(items ?? []).map((i) => ({ label: `${i.code} — ${localizedName(i, i18n.language)}`, value: i.id }))}
                     filter
                     placeholder={t("inventory.items.title")}
                     className={errors.lines?.[index]?.itemId ? "p-invalid erp-lines__account" : "erp-lines__account"}
-                  />
+                  /></LineField>
                 )}
               />
-              <InputText placeholder={t("purchasing.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} />
-              <InputText
+              <LineField label={t("purchasing.quantity")}><InputText placeholder={t("purchasing.quantity")} dir="ltr" {...register(`lines.${index}.quantity`)} className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`} /></LineField>
+              <LineField label={t("purchasing.unitPrice")}><InputText
                 placeholder={t("purchasing.unitPrice")}
                 dir="ltr"
                 {...register(`lines.${index}.unitPrice`)}
@@ -263,18 +272,18 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
                   }
                 }}
                 className={`erp-lines__amount${errors.lines?.[index]?.unitPrice ? " p-invalid" : ""}`}
-              />
+              /></LineField>
               <Controller
                 control={control}
                 name={`lines.${index}.taxCodeId`}
                 render={({ field: f }) => (
-                  <Dropdown
+                  <LineField label={t("purchasing.invoices.taxCode")}><Dropdown
                     value={f.value || null}
                     onChange={(e) => f.onChange((e.value as string | null) ?? "")}
                     options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))}
                     placeholder={t("purchasing.invoices.taxCode")}
                     className={errors.lines?.[index]?.taxCodeId ? "p-invalid" : ""}
-                  />
+                  /></LineField>
                 )}
               />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
@@ -300,7 +309,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate("/purchasing/orders")} />
-          <Button type="submit" label={t("actions.save")} loading={create.isPending} disabled={created !== null || (requestId !== null && copiedRequestId !== requestId)} />
+          <Button type="submit" label={t("actions.save")} loading={create.isPending} disabled={!draft.ready || created !== null || (requestId !== null && copiedRequestId !== requestId)} />
         </div>
       </form>
       <CreatedDialog info={created} onHide={() => void navigate("/purchasing/orders")} />

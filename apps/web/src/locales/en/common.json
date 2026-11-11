@@ -594,7 +594,10 @@
       "value": "Value",
       "reorderPoint": "Reorder point",
       "belowReorder": "Below reorder point",
-      "onHand": "On hand"
+      "onHand": "On hand",
+      "unavailable": "Stock cannot be verified; wait or reload the page.",
+      "availableQuantity": "Available in warehouse: {{quantity}}",
+      "exceeded": "Total requested quantity for this item exceeds available stock"
     },
     "goodsReceipt": {
       "title": "Goods receipt",
@@ -676,9 +679,13 @@
         "EOSB_PAYABLE": "End-of-service payable",
         "EMPLOYEE_ADVANCES_PARENT": "Employee advances folder",
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "Employee salaries payable folder",
-        "EMPLOYEE_EOSB_PARENT": "Employee dues folder"
+        "EMPLOYEE_EOSB_PARENT": "Employee dues folder",
+        "CUSTOMER_LEDGER_PARENT": "Customer accounts folder",
+        "SUPPLIER_LEDGER_PARENT": "Supplier accounts folder"
       },
       "keyHints": {
+        "CUSTOMER_LEDGER_PARENT": "An asset folder, not a postable account. Individual customer accounts are created under it.",
+        "SUPPLIER_LEDGER_PARENT": "A liability folder, not a postable account. Individual supplier accounts are created under it.",
         "INVENTORY": "Debited on every receipt and count surplus; credited on every issue and count shortage.",
         "GRNI": "Credited on receipt — stock received but not yet invoiced by the supplier.",
         "PROJECT_ISSUE_EXPENSE": "Debited when stock is issued to a project.",
@@ -981,9 +988,10 @@
         "openInGmailHint": "The PDF downloads to your device — attach it in the Gmail window that opens.",
         "gmailSubject": "Quotation {{number}}",
         "gmailBody": "Dear {{customer}},\n\nPlease find our quotation {{number}}, total {{total}}.\nThe quotation PDF just downloaded to your device — please attach it to this email before sending.\n\nBest regards.",
-        "success": "Sent.",
+        "success": "The email provider accepted the message for delivery. Inbox delivery is not yet confirmed.",
         "errors": {
-          "generic": "Could not send the email. Check the recipient and try again."
+          "generic": "Could not send the email. Check the recipient and try again.",
+          "notConfigured": "Email delivery is not configured. Add Resend or SMTP settings on the server, then try again."
         }
       }
     },
@@ -1034,7 +1042,7 @@
       "openOriginal": "Open the invoice",
       "downloadPdf": "Download PDF"
     },
-    "item": "Item / service"
+    "item": "Item (or service)"
   },
   "payments": {
     "title": "Payments",
@@ -1375,7 +1383,14 @@
     "logo": "Company logo",
     "logoHint": "Shown in the side bar and at the top of invoices. A PNG with a transparent background, about 400 px wide, looks best.",
     "nameEn": "Company name (English)",
-    "nameAr": "Company name (Arabic)"
+    "nameAr": "Company name (Arabic)",
+    "identityLocked": "The company name is bound to an issued ZATCA certificate; changing it requires certificate reissuance.",
+    "changeFailed": "The name could not be saved. Settings may have changed; reload and retry.",
+    "fiscalYears": "Fiscal years",
+    "calendarYearHint": "Currently supports January–December calendar years with 12 monthly periods. Adding a year neither closes the previous year nor carries forward balances.",
+    "year": "Calendar year",
+    "addYear": "Add year and 12 periods",
+    "yearFailed": "Could not create the year. Check that it does not overlap an existing year."
   },
   "interfaceSettings": {
     "title": "Interface",
@@ -1576,7 +1591,8 @@
         "ALLOWANCE_TYPE_INACTIVE": "One of the allowance types is stopped.",
         "DUPLICATE_ALLOWANCE": "An allowance type appears twice.",
         "generic": "Could not save the allowances."
-      }
+      },
+      "type": "Allowance type"
     },
     "allowanceTypes": {
       "title": "Allowance types",
@@ -1857,5 +1873,102 @@
     "noSuggestions": "No proposals: everything that can be proposed is already linked, or your chart is not the standard one. Link the rest by hand.",
     "applied": "{{applied}} applied, {{skipped}} skipped (no longer applicable).",
     "applyError": "Could not apply the proposals."
+  },
+  "drafts": {
+    "title": "My drafts",
+    "subtitle": "Your private working copies, saved on the server. They do not affect accounts or stock until posted.",
+    "idle": "Autosave ready",
+    "pending": "Changes waiting to be saved",
+    "loading": "Loading draft…",
+    "saving": "Saving draft…",
+    "saved": "Draft saved",
+    "error": "Latest changes were not saved. Retry before leaving.",
+    "conflict": "This draft changed or is no longer available. Reload to restore the saved version; older changes will not overwrite it.",
+    "completed": "Document created and draft closed",
+    "save": "Save draft now",
+    "discard": "Discard draft",
+    "confirmDiscard": "Discard this draft? Posted documents will not be affected.",
+    "empty": "No saved drafts.",
+    "kinds": {
+      "quotation": "Quotation",
+      "sales_order": "Sales order",
+      "sales_invoice": "Sales invoice",
+      "purchase_order": "Purchase order",
+      "supplier_invoice": "Supplier invoice",
+      "goods_receipt": "Goods receipt",
+      "stock_issue": "Stock issue",
+      "stock_count": "Stock count",
+      "journal_entry": "Journal entry",
+      "cash_expense": "Cash expense",
+      "purchase_request": "Purchase request",
+      "customer_receipt": "Customer receipt",
+      "supplier_payment": "Supplier payment"
+    }
+  },
+  "trail": {
+    "title": "Track document",
+    "subtitle": "Linked documents in creation order, within your permissions.",
+    "related": "Linked to",
+    "recorded": "Recorded",
+    "truncated": "This chain is large; open a linked document to explore further relationships.",
+    "kinds": {
+      "quotation": "Quotation",
+      "sales_order": "Sales order",
+      "sales_invoice": "Sales invoice",
+      "purchase_order": "Purchase order",
+      "supplier_invoice": "Supplier invoice",
+      "goods_receipt": "Goods receipt",
+      "stock_issue": "Stock issue",
+      "stock_count": "Stock count",
+      "journal_entry": "Journal entry",
+      "cash_expense": "Cash expense",
+      "purchase_request": "Purchase request",
+      "payment": "Receipt / payment"
+    },
+    "statuses": {
+      "OPEN": "Open",
+      "PENDING": "Pending review",
+      "PENDING_APPROVAL": "Pending approval",
+      "APPROVED": "Approved",
+      "ACCEPTED": "Accepted",
+      "PROCESSED": "Purchase order created",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled",
+      "CONVERTED": "Converted to sales order",
+      "PARTIALLY_RECEIVED": "Partly received",
+      "RECEIVED": "Received",
+      "CLOSED": "Closed",
+      "PARTIALLY_INVOICED": "Partly invoiced",
+      "INVOICED": "Invoiced",
+      "POSTED": "Posted",
+      "DRAFT": "Draft",
+      "INVOICE": "Posted invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note",
+      "VOIDED": "Reversed",
+      "RECEIPT": "Receipt",
+      "PAYMENT": "Payment"
+    }
+  },
+  "primeAria": {
+    "collapseRow": "Collapse row",
+    "expandRow": "Expand row",
+    "editRow": "Edit row",
+    "saveEdit": "Save edit",
+    "cancelEdit": "Cancel edit",
+    "selectRow": "Select row",
+    "unselectRow": "Unselect row",
+    "selectAll": "Select all",
+    "unselectAll": "Unselect all",
+    "showFilterMenu": "Show filter menu",
+    "hideFilterMenu": "Hide filter menu",
+    "navigation": "Navigation",
+    "scrollTop": "Scroll to top",
+    "previous": "Previous",
+    "next": "Next",
+    "removeLabel": "Remove",
+    "filterConstraint": "Filter constraint",
+    "filterOperator": "Filter operator",
+    "listLabel": "Options list"
   }
 }

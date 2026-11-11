@@ -1,3 +1,5 @@
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { DraftBar } from "../documents/DraftBar";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -25,7 +27,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: accounts } = useChartOfAccounts();
-  const create = useCreateCashExpense();
+
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const [date, setDate] = useState<Date>(new Date());
@@ -34,6 +36,8 @@ export function CashExpenseFormPage(): React.JSX.Element {
   const [expenseAccountId, setExpenseAccountId] = useState("");
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
+  const draft = useDocumentDraft("cash_expense", { date, amount, cashAccountId, expenseAccountId, description, reference }, (saved) => { setDate(saved.date); setAmount(saved.amount); setCashAccountId(saved.cashAccountId); setExpenseAccountId(saved.expenseAccountId); setDescription(saved.description); setReference(saved.reference); }, amount !== "" || description !== "" || cashAccountId !== "");
+  const create = useCreateCashExpense(draft.id);
 
   const cashAccounts = useMemo(() => (accounts ?? []).filter((a) => a.isPostable && a.type === "ASSET"), [accounts]);
   const expenseAccounts = useMemo(() => (accounts ?? []).filter((a) => a.isPostable && a.type === "EXPENSE"), [accounts]);
@@ -46,7 +50,8 @@ export function CashExpenseFormPage(): React.JSX.Element {
     create.reset();
   };
 
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
+    if (!valid || !draft.ready || !await draft.save()) return;
     create.mutate(
       {
         expenseDate: toDateOnlyIsoString(date),
@@ -58,6 +63,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
       },
       {
         onSuccess: (saved) => {
+          void draft.complete();
           const cash = accounts?.find((a) => a.id === cashAccountId);
           const expense = accounts?.find((a) => a.id === expenseAccountId);
           setCreated({
@@ -91,6 +97,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
         </div>
       </div>
 
+      <DraftBar draft={draft} />
       <div className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -138,7 +145,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
         {errKey ? <p className="erp-auth-card__error">{t(errKey)}</p> : null}
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate("/payments/cash-expenses")} />
-          <Button type="button" label={t("actions.save")} icon="pi pi-check" disabled={!valid} loading={create.isPending} onClick={submit} />
+          <Button type="button" label={t("actions.save")} icon="pi pi-check" disabled={!valid || !draft.ready || created !== null} loading={create.isPending} onClick={() => { void submit(); }} />
         </div>
       </div>
       <CreatedDialog info={created} onHide={() => void navigate("/payments/cash-expenses")} />

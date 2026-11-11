@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { DraftsPage } from "../features/documents/DraftsPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
@@ -80,6 +81,7 @@ export function AppRoutes(): React.JSX.Element {
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="/design-system" element={<DesignSystemPage />} />
+          <Route path="/documents/drafts" element={<DraftsPage />} />
           <Route element={<RequirePermission anyOf={permissionsFor("/accounting/chart-of-accounts")} />}>
             <Route path="/accounting/chart-of-accounts" element={<ChartOfAccountsPage />} />
           </Route>
