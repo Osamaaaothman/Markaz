@@ -1,4 +1,5 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
+import { OptionalIdempotencyKey } from "../common/idempotency-key.decorator.js";
+import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Query, Res, ServiceUnavailableException } from "@nestjs/common";
 import type { Response } from "express";
 import {
   QuotationService,
@@ -31,7 +32,7 @@ import { quotationToPdfHtml } from "./exports/quotation-export.js";
 import { quotationEmailContent } from "./exports/quotation-email-template.js";
 import { localizedCompanyName } from "../common/company-name.js";
 import { EMAIL_TRANSPORT } from "../notifications/mail.module.js";
-import { redactAddress, type EmailTransport } from "../notifications/email-transport.js";
+import { EmailDeliveryError, redactAddress, type EmailTransport } from "../notifications/email-transport.js";
 import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
@@ -145,7 +146,7 @@ export class SalesController {
 
   @Post("quotations")
   @RequirePermission("quotation", "create")
-  createQuotation(@Body() dto: CreateQuotationDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<QuotationSummary> {
+  createQuotation(@Body() dto: CreateQuotationDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string, @OptionalIdempotencyKey() submissionKey?: string): Promise<QuotationSummary> {
     return mapSalesErrors(
       this.quotations.create(
         {
@@ -157,6 +158,7 @@ export class SalesController {
         },
         actor,
         correlationId,
+        submissionKey,
       ),
     );
   }
@@ -209,11 +211,11 @@ export class SalesController {
     @Param("id") id: string,
     @Body() dto: QuotationEmailPreviewDto,
     @CurrentUser() actor: CurrentUserPayload,
-  ): Promise<{ html: string; subject: string; defaultRecipient: string | null }> {
+  ): Promise<{ html: string; subject: string; defaultRecipient: string | null; deliveryConfigured: boolean }> {
     const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
     const seller = await this.loadSellerContext(actor.companyId, dto.language);
     const { html, subject } = await quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress });
-    return { html, subject, defaultRecipient: quotation.customerEmail };
+    return { html, subject, defaultRecipient: quotation.customerEmail, deliveryConfigured: this.emailTransport.configured !== false };
   }
 
   // A deliberate, human-confirmed send after a preview — sent directly from this request rather
@@ -227,19 +229,24 @@ export class SalesController {
     @CurrentUser() actor: CurrentUserPayload,
     @CorrelationId() correlationId: string,
   ): Promise<{ sentAt: string }> {
+    if (this.emailTransport.configured === false) throw new ServiceUnavailableException({ code: "EMAIL_NOT_CONFIGURED" });
     const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
     const seller = await this.loadSellerContext(actor.companyId, dto.language);
     const [{ html, subject, text }, pdf] = await Promise.all([
       quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress }),
       renderHtmlToPdf(await quotationToPdfHtml({ quotation, language: dto.language, ...seller })),
     ]);
-    await this.emailTransport.send({
+    try {
+      await this.emailTransport.send({
       to: dto.to,
       subject,
       html,
       text,
       attachments: [{ filename: `${quotation.number}.pdf`, content: pdf, contentType: "application/pdf" }],
-    });
+      });
+    } catch (error) {
+      throw new ServiceUnavailableException({ code: error instanceof EmailDeliveryError ? error.code : "EMAIL_DELIVERY_FAILED" });
+    }
     const sentAt = new Date().toISOString();
     await this.audit.log({ actorId: actor.id, action: "quotation.emailed", entityType: "Quotation", entityId: id, after: { to: redactAddress(dto.to), language: dto.language }, correlationId });
     return { sentAt };
@@ -261,12 +268,13 @@ export class SalesController {
 
   @Post("sales-orders")
   @RequirePermission("sales_order", "create")
-  createOrder(@Body() dto: CreateSalesOrderDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<SalesOrderCreated> {
+  createOrder(@Body() dto: CreateSalesOrderDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string, @OptionalIdempotencyKey() submissionKey?: string): Promise<SalesOrderCreated> {
     return mapSalesErrors(
       this.orders.create(
         { customerId: dto.customerId, orderDate: new Date(dto.orderDate), ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines },
         actor,
         correlationId,
+        submissionKey,
       ),
     );
   }
@@ -302,6 +310,8 @@ export class SalesController {
   ): Promise<void> {
     const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
     const invoice = await mapSalesErrors(this.invoices.get(actor.companyId, id));
+    const issued = await this.prisma.salesInvoice.findFirstOrThrow({ where: { id, companyId: actor.companyId }, select: { actorId: true, createdAt: true } });
+    const issuer = await this.prisma.user.findFirst({ where: { id: issued.actorId, companyId: actor.companyId }, select: { email: true } });
     const company = await this.prisma.company.findUniqueOrThrow({
       where: { id: actor.companyId },
       select: {
@@ -331,6 +341,8 @@ export class SalesController {
     const pdf = await renderHtmlToPdf(
       await salesInvoiceToPdfHtml({
         invoice,
+        issuedBy: issuer?.email ?? null,
+        issuedAt: issued.createdAt.toISOString(),
         language,
         companyName: localizedCompanyName(company, language),
         logoDataUri,

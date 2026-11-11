@@ -73,12 +73,12 @@ export interface CreatePurchaseRequestPayload {
   readonly lines: readonly { readonly itemId: string; readonly quantity: string; readonly notes?: string }[];
 }
 
-export function useCreatePurchaseRequest() {
+export function useCreatePurchaseRequest(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
     mutationFn: async (payload: CreatePurchaseRequestPayload) =>
-      (await apiClient.post<PurchaseRequestSummary>("/v1/purchase-requests", payload)).data,
+      (await apiClient.post<PurchaseRequestSummary>("/v1/purchase-requests", payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["purchaseRequests"] });
       void qc.invalidateQueries({ queryKey: ["purchasingCounts"] });
@@ -219,12 +219,12 @@ interface PurchaseOrderCreated {
   readonly status: PurchaseOrderStatus;
 }
 
-export function useCreatePurchaseOrder() {
+export function useCreatePurchaseOrder(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
     mutationFn: async (payload: CreatePurchaseOrderPayload) =>
-      (await apiClient.post<PurchaseOrderCreated>("/v1/purchase-orders", payload)).data,
+      (await apiClient.post<PurchaseOrderCreated>("/v1/purchase-orders", payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["purchaseOrders"] });
       void qc.invalidateQueries({ queryKey: ["purchaseRequests"] });

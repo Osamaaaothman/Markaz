@@ -1,3 +1,4 @@
+import { LineField } from "../../shared/ui/LineField";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
@@ -31,7 +32,7 @@ export function AllowancesEditor({
       <div className="erp-lines">
         {rows.map((row, index) => (
           <div key={index} className="erp-lines__row">
-            <Dropdown
+            <LineField label={t("hr.allowances.type")}><Dropdown
               className="erp-lines__account"
               value={row.allowanceTypeId || null}
               onChange={(e) => update(index, { allowanceTypeId: (e.value as string | null) ?? "" })}
@@ -40,8 +41,8 @@ export function AllowancesEditor({
                 .map((type) => ({ label: localizedName(type, i18n.language), value: type.id }))}
               placeholder={t("hr.allowances.chooseType")}
               aria-label={t("hr.allowances.chooseType")}
-            />
-            <InputText
+            /></LineField>
+            <LineField label={t("hr.allowances.amount")}><InputText
               className="erp-lines__amount"
               dir="ltr"
               value={row.amount}
@@ -54,7 +55,7 @@ export function AllowancesEditor({
               }}
               aria-label={t("hr.allowances.amount")}
               placeholder={t("hr.allowances.amount")}
-            />
+            /></LineField>
             <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => onChange(rows.filter((_, i) => i !== index))} />
           </div>
         ))}

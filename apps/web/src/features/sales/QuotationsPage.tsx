@@ -1,3 +1,4 @@
+import { DocumentTrail } from "../documents/DocumentTrail";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -116,6 +117,7 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
               <PermissionButton allowed={can("quotation:create")} label={t("sales.quotations.email.sendButton")} icon="pi pi-send" onClick={() => setEmailOpen(true)} />
             </div>
           </div>
+          <DocumentTrail kind="quotation" id={data.id} />
           {data.notes ? <p>{data.notes}</p> : null}
           <DataGrid value={[...data.lines]} className="erp-table" size="small" showGridlines>
             <Column header={t("sales.description")} body={(l: SalesLineView) => l.description} />
@@ -224,7 +226,8 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
           />
         ) : null}
 
-        {send.isError ? <p className="erp-auth-card__error">{t("sales.quotations.email.errors.generic")}</p> : null}
+        {preview.data?.deliveryConfigured === false ? <p role="alert" className="erp-auth-card__error">{t("sales.quotations.email.errors.notConfigured")}</p> : null}
+        {send.isError ? <p role="alert" className="erp-auth-card__error">{t("sales.quotations.email.errors.generic")}</p> : null}
         {send.isSuccess ? <p className="erp-field__hint">{t("sales.quotations.email.success")}</p> : null}
 
         <div className="erp-form__actions">
@@ -233,7 +236,7 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
             type="button"
             label={t("sales.quotations.email.sendNow")}
             icon="pi pi-send"
-            disabled={!preview.data || send.isSuccess}
+            disabled={!toValid || !preview.data || preview.data.deliveryConfigured === false || send.isSuccess}
             loading={send.isPending}
             title={!preview.data ? t("sales.quotations.email.sendDisabledHint") : undefined}
             onClick={doSend}

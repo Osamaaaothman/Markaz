@@ -1,3 +1,7 @@
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { DraftBar } from "../documents/DraftBar";
+import { StockHint } from "../inventory/StockHint";
+import { LineField } from "../../shared/ui/LineField";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -6,7 +10,7 @@ import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
-import { Money, tafqeetAmount } from "@erp/shared";
+import { Money, newId, tafqeetAmount } from "@erp/shared";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -16,6 +20,7 @@ import { PartyPicker } from "../accounting/PartyPicker";
 import { useComplianceOverview } from "../compliance/use-compliance";
 import { useAllItems } from "../inventory/use-items";
 import { useStockLevels } from "../inventory/use-stock-levels";
+import { stockAvailability } from "../inventory/stock-availability";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { useTaxCodes } from "../purchasing/use-invoicing";
 import {
@@ -54,8 +59,7 @@ interface LineState {
   readonly salesOrderLineId: string;
 }
 
-let lineCounter = 0;
-const nextKey = (): string => `sl-${++lineCounter}`;
+const nextKey = (): string => newId();
 const trimZeros = (value: string): string => (value.includes(".") ? value.replace(/\.?0+$/, "") : value);
 
 // One form for the three documents of the chain — a quotation, a sales order, an invoice. They share
@@ -65,12 +69,14 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const orderId = mode === "invoice" ? params.get("order") : null;
+  const [restoredOrderId, setRestoredOrderId] = useState<string | null>(null);
+  const orderId = mode === "invoice" ? restoredOrderId ?? params.get("order") : null;
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: items } = useAllItems();
   const { data: warehouses } = useAllWarehouses();
-  const { data: stockLevels } = useStockLevels({ warehouseId: null, belowReorderOnly: false });
+  const stockQuery = useStockLevels({ warehouseId: null, belowReorderOnly: false });
+  const stockLevels = stockQuery.isError ? undefined : stockQuery.data;
   const { data: taxCodes } = useTaxCodes(false);
   const { data: order } = useSalesOrder(orderId);
   // Which ZATCA issuing unit (EGS) this invoice belongs to -- only relevant/shown once a company
@@ -80,17 +86,24 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const activeEgsUnits = useMemo(() => (complianceOverview?.egsUnits ?? []).filter((u) => u.isActive), [complianceOverview]);
   const [egsUnitId, setEgsUnitId] = useState("");
 
-  const createQuotation = useCreateQuotation();
-  const createOrder = useCreateSalesOrder();
-  const createInvoice = useCreateSalesInvoice();
+
+
+
   const [created, setCreated] = useState<{ info: CreatedInfo; to: string } | null>(null);
-  const mutation = mode === "quotation" ? createQuotation : mode === "order" ? createOrder : createInvoice;
+
 
   const [customerId, setCustomerId] = useState("");
   const [date, setDate] = useState<Date>(new Date());
   const [secondDate, setSecondDate] = useState<Date | null>(null); // valid until / due date
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<readonly LineState[]>([]);
+  const draft = useDocumentDraft(mode === "quotation" ? "quotation" : mode === "order" ? "sales_order" : "sales_invoice", { customerId, date, secondDate, notes, lines, egsUnitId, orderId }, (saved) => {
+    setCustomerId(saved.customerId); setDate(saved.date); setSecondDate(saved.secondDate); setNotes(saved.notes); setLines(saved.lines); setEgsUnitId(saved.egsUnitId); setRestoredOrderId(saved.orderId);
+  }, customerId !== "" || notes !== "" || lines.some((l) => l.itemId || l.description || l.unitPrice));
+  const createQuotation = useCreateQuotation(draft.id);
+  const createOrder = useCreateSalesOrder(draft.id);
+  const createInvoice = useCreateSalesInvoice(draft.id);
+  const mutation = mode === "quotation" ? createQuotation : mode === "order" ? createOrder : createInvoice;
 
   const defaultTaxId = useMemo(() => (taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "", [taxCodes]);
   const defaultWarehouseId = warehouses?.[0]?.id ?? "";
@@ -105,18 +118,18 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
   // Starting an invoice from an order: copy what is still to invoice.
   useEffect(() => {
-    if (!order || !defaultTaxId) return;
+    if (params.get("draft") || !order || !defaultTaxId) return;
     setCustomerId(order.customerId);
     setLines(
       order.lines.flatMap((l) => {
-        const left = Number(l.quantity) - Number(l.invoicedQuantity ?? "0");
-        if (left <= 0) return [];
+        const left = Money.of(l.quantity, currency).subtract(Money.of(l.invoicedQuantity ?? "0", currency));
+        if (!left.isPositive()) return [];
         return [
           {
             key: nextKey(),
             itemId: l.itemId ?? "",
             description: l.itemId ? "" : l.description,
-            quantity: trimZeros(String(Number(left.toFixed(4)))),
+            quantity: trimZeros(left.toDecimalString(4)),
             unitPrice: trimZeros(l.unitPrice),
             taxCodeId: l.taxCodeId,
             warehouseId: defaultWarehouseId,
@@ -137,6 +150,8 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   // button or forcing a manual delete; a line the user DID start filling in still needs to be complete.
   const isBlankLine = (l: LineState): boolean => l.salesOrderLineId === "" && l.itemId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
   const meaningfulLines = lines.filter((l) => !isBlankLine(l));
+  const availability = stockAvailability(lines, stockLevels);
+  const stockBlocked = mode === "invoice" && lines.some((line, index) => line.itemId && (availability[index]?.onHand === null || availability[index]?.exceeded));
 
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) &&
@@ -146,7 +161,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     (l.itemId !== "" || l.description.trim() !== "") &&
     (mode !== "invoice" || l.itemId === "" || l.warehouseId !== "");
   const egsUnitChoiceNeeded = mode === "invoice" && activeEgsUnits.length > 1;
-  const valid = customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
+  const valid = !stockBlocked && customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
 
   const totals = meaningfulLines.reduce(
     (sum, l) => {
@@ -159,7 +174,8 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     { net: Money.zero(currency), tax: Money.zero(currency) },
   );
 
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
+    if (!valid || !draft.ready || !await draft.save()) return;
     const payloadLines: SalesLinePayload[] = meaningfulLines.map((l) => ({
       ...(l.itemId ? { itemId: l.itemId } : {}),
       ...(l.description.trim() ? { description: l.description.trim() } : {}),
@@ -174,6 +190,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     const secondIso = secondDate ? toDateOnlyIsoString(secondDate) : null;
     const listPath = mode === "quotation" ? "/sales/quotations" : mode === "order" ? "/sales/orders" : "/sales/invoices";
     const done = (saved: { readonly id: string; readonly number: string }): void => {
+      void draft.complete();
       const gross = totals.net.add(totals.tax);
       setCreated({
         // An order or invoice opens on its own page; a quotation has none, so it goes back to the list.
@@ -218,6 +235,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
       {taxCodes && taxCodes.length === 0 ? <p className="erp-auth-card__error">{t("sales.noTaxCodes")}</p> : null}
 
+      <DraftBar draft={draft} />
       <div className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -250,22 +268,13 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
         </div>
 
         <h3 className="erp-form__section-title">{t("sales.lines")}</h3>
-        <div className="erp-lines__header" aria-hidden="true">
-          <span className="erp-lines__account">{t("sales.item")}</span>
-          <span className="erp-lines__amount">{t("purchasing.quantity")}</span>
-          <span className="erp-lines__amount">{t("purchasing.unitPrice")}</span>
-          <span style={{ flex: "0 0 7rem" }}>{t("purchasing.invoices.taxCode")}</span>
-          {mode === "invoice" ? <span style={{ flex: "0 0 10rem" }}>{t("inventory.stockLevels.warehouse")}</span> : null}
-          <span className="erp-lines__header__action" />
-        </div>
+
         <div className="erp-lines">
           {lines.map((l, index) => {
-            const onHand = mode === "invoice" && l.itemId && l.warehouseId
-              ? (stockLevels ?? []).find((s) => s.itemId === l.itemId && s.warehouseId === l.warehouseId)?.quantity ?? null
-              : null;
+            const stock = availability[index]!;
             return (
             <div key={l.key} className={`erp-lines__row${errLine === index + 1 ? " erp-lines__row--error" : ""}`}>
-              <Dropdown
+              <LineField label={t("sales.item")}><Dropdown
                 value={l.itemId || null}
                 onChange={(e) => setLine(l.key, { itemId: (e.value as string | null) ?? "" })}
                 options={(items ?? []).map((i) => ({ label: `${i.code} — ${localizedName(i, i18n.language)}`, value: i.id }))}
@@ -274,12 +283,12 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                 disabled={l.salesOrderLineId !== ""}
                 placeholder={t("sales.serviceLine")}
                 className="erp-lines__account"
-              />
+              /></LineField>
               {l.itemId === "" ? (
-                <InputText placeholder={t("sales.description")} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={l.salesOrderLineId !== ""} />
+                <LineField label={t("sales.description")}><InputText placeholder={t("sales.description")} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={l.salesOrderLineId !== ""} /></LineField>
               ) : null}
-              <InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} />
-              <InputText
+              <LineField label={t("purchasing.quantity")} hint={mode === "invoice" && l.itemId ? <StockHint {...stock} /> : undefined}><InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} /></LineField>
+              <LineField label={t("purchasing.unitPrice")}><InputText
                 dir="ltr"
                 placeholder={t("purchasing.unitPrice")}
                 value={l.unitPrice}
@@ -291,26 +300,21 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                   }
                 }}
                 className={`erp-lines__amount${DECIMAL.test(l.unitPrice) ? "" : " p-invalid"}`}
-              />
-              <Dropdown
+              /></LineField>
+              <LineField label={t("purchasing.invoices.taxCode")}><Dropdown
                 value={l.taxCodeId || null}
                 onChange={(e) => setLine(l.key, { taxCodeId: (e.value as string | null) ?? "" })}
                 options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))}
                 placeholder={t("purchasing.invoices.taxCode")}
-              />
+              /></LineField>
               {mode === "invoice" && l.itemId !== "" ? (
                 <div style={{ flex: "0 0 10rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-                  <Dropdown
+                  <LineField label={t("inventory.warehouses.title")}><Dropdown
                     value={l.warehouseId || null}
                     onChange={(e) => setLine(l.key, { warehouseId: (e.value as string | null) ?? "" })}
                     options={(warehouses ?? []).map((w) => ({ label: localizedName(w, i18n.language), value: w.id }))}
                     placeholder={t("inventory.warehouses.title")}
-                  />
-                  {onHand !== null ? (
-                    <span style={{ fontSize: "0.75rem", color: Number(onHand) > 0 ? "var(--mk-success)" : "var(--mk-danger)", fontVariantNumeric: "tabular-nums" }}>
-                      {t("inventory.stockLevels.onHand")}: {onHand}
-                    </span>
-                  ) : null}
+                  /></LineField>
                 </div>
               ) : null}
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))} disabled={lines.length <= 1} />
@@ -346,7 +350,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
         <div className="erp-form__actions">
           <Button type="button" label={t("actions.cancel")} text onClick={() => void navigate(-1)} />
-          <Button type="button" label={mode === "invoice" ? t("sales.invoices.submit") : t("actions.save")} icon="pi pi-check" disabled={!valid} loading={mutation.isPending} onClick={submit} />
+          <Button type="button" label={mode === "invoice" ? t("sales.invoices.submit") : t("actions.save")} icon="pi pi-check" disabled={!valid || !draft.ready || created !== null} loading={mutation.isPending} onClick={() => { void submit(); }} />
         </div>
       </div>
       <CreatedDialog info={created?.info ?? null} onHide={() => created && void navigate(created.to)} />

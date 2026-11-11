@@ -125,7 +125,8 @@ export function verifySignedInvoice(signedXml: string): ValidationReport {
     [1, "seller name", seller ? textOf(firstDescendant(seller, "cbc", "RegistrationName")) : undefined],
     [2, "seller VAT number", seller ? textOf(firstDescendant(seller, "cbc", "CompanyID")) : undefined],
     [3, "timestamp", `${textOf(children(root, "cbc", "IssueDate")[0]) ?? ""}T${textOf(children(root, "cbc", "IssueTime")[0]) ?? ""}`],
-    [4, "total with VAT", monetary ? textOf(children(monetary, "cbc", "TaxInclusiveAmount")[0]) : undefined],
+    // Official SDK 3.4.8 QrCodeValidator checks BT-115 (PayableAmount), including advances/rounding.
+    [4, "amount due with VAT", monetary ? textOf(children(monetary, "cbc", "PayableAmount")[0]) : undefined],
     [5, "VAT total", textOf(children(children(root, "cac", "TaxTotal")[0] ?? root, "cbc", "TaxAmount")[0])],
     [6, "invoice hash", invoiceDigest],
     [7, "signature", signatureValue],

@@ -14,6 +14,7 @@ import { TaxCodeService } from "../purchasing/tax-code.service.js";
 import { QuotationService } from "./quotation.service.js";
 import { SalesInvoiceService } from "./sales-invoice.service.js";
 import { SalesOrderService } from "./sales-order.service.js";
+import { DocumentTrailService } from "../documents/document-trail.service.js";
 
 // Real PostgreSQL (docs/10-TESTING-RULES.md §1); skipped without DATABASE_URL.
 const describeIfDb = process.env.DATABASE_URL ? describe : describe.skip;
@@ -96,6 +97,8 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
   let itemLineId: string;
   let serviceLineId: string;
   let invoiceId: string;
+
+
 
   it("turns a quotation into an order with the same lines, once", async () => {
     const quote = await quotations.create(
@@ -250,6 +253,25 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
     });
     await expect(quotations.get(stranger.companyId, orderId)).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
+
+  it("retries quotation and order creation concurrently without allocating duplicate documents", async () => {
+    const lines = [{ description: "Retry test", quantity: "1", unitPrice: "10", taxCodeId: vat15 }];
+    const quoteKey = newId(), orderKey = newId();
+    const quotes = await Promise.all([1, 2].map(() => quotations.create({ customerId, quotationDate: today, lines }, actor, cid(), quoteKey)));
+    expect(quotes[0]!.id).toBe(quotes[1]!.id);
+    expect(await prisma.auditLog.count({ where: { entityId: quotes[0]!.id, action: "quotation.created" } })).toBe(1);
+    const copies = await Promise.all([1, 2].map(() => orders.create({ customerId, orderDate: today, lines }, actor, cid(), orderKey)));
+    expect(copies[0]!.id).toBe(copies[1]!.id);
+    const converted = await orders.createFromQuotation(quotes[0]!.id, today, actor, cid());
+    const trail = new DocumentTrailService(prisma, { can: () => Promise.resolve(true) });
+    const graph = await trail.trail("quotation", quotes[0]!.id, actor);
+    expect(graph.nodes.map((n) => n.id)).toEqual(expect.arrayContaining([quotes[0]!.id, converted.id]));
+    await expect(trail.trail("quotation", quotes[0]!.id, { ...actor, companyId: newId() })).rejects.toThrow("NOT_FOUND");
+    const restricted = new DocumentTrailService(prisma, { can: (_id, _action, resource) => Promise.resolve(resource === "quotation") });
+    const limited = await restricted.trail("quotation", quotes[0]!.id, actor);
+    expect(limited.nodes).toHaveLength(1);
+    expect(limited.edges).toHaveLength(0);
+  });
 });
 
 // docs/01-OPEN-DECISIONS.md: which ZATCA issuing unit (EgsUnit) a sales document belongs to. A
@@ -341,4 +363,6 @@ describeIfDb("Sales invoices — ZATCA issuing unit (EgsUnit) resolution — rea
     const original = await prisma.salesInvoice.findUniqueOrThrow({ where: { id: invoiceId } });
     expect((await prisma.salesInvoice.findUniqueOrThrow({ where: { id: note.id } })).egsUnitId).toBe(original.egsUnitId);
   });
+
+
 });

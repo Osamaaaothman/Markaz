@@ -16,7 +16,14 @@ export interface EmailMessage {
 }
 
 export interface EmailTransport {
+  readonly configured?: boolean;
   send(message: EmailMessage): Promise<void>;
+}
+
+export class EmailDeliveryError extends Error {
+  constructor(readonly code: "EMAIL_NOT_CONFIGURED" | "EMAIL_DELIVERY_FAILED") {
+    super(code);
+  }
 }
 
 // docs/09-SECURITY-RULES.md §7: never log a recipient's full address or message
@@ -26,32 +33,30 @@ export function redactAddress(to: string): string {
   return at === -1 ? "[redacted]" : `${to.slice(0, 1)}***${to.slice(at)}`;
 }
 
-// docs/01-OPEN-DECISIONS.md: SMTP is a protocol, not a vendor — configuring
-// SMTP_HOST/PORT/USER/PASS lets Osama point this at any provider (SES, SendGrid,
-// Postmark, or a customer's own mail server) without a code change or picking one
-// here. Same "never crash on missing config" pattern as ActivationServiceClient
-// (packages/core/src/licensing/activation-client.ts): an unconfigured deployment
-// just logs instead of sending, rather than the worker crashing on every job.
+// Missing configuration is a delivery failure, never a successful send. The API
+// reports it explicitly and the worker retains its normal retry/failure semantics.
 export class LoggingEmailTransport implements EmailTransport {
+  readonly configured = false;
   constructor(private readonly logger: pino.Logger) {}
 
   send(message: EmailMessage): Promise<void> {
     this.logger.warn(
-      { to: redactAddress(message.to), subject: message.subject },
-      "email.not_sent_smtp_unconfigured",
+      { to: redactAddress(message.to) },
+      "email.not_sent_unconfigured",
     );
-    return Promise.resolve();
+    return Promise.reject(new EmailDeliveryError("EMAIL_NOT_CONFIGURED"));
   }
 }
 
 export class SmtpEmailTransport implements EmailTransport {
+  readonly configured = true;
   constructor(
     private readonly transporter: Transporter,
     private readonly fromAddress: string,
   ) {}
 
   async send(message: EmailMessage): Promise<void> {
-    await this.transporter.sendMail({
+    const result = await this.transporter.sendMail({
       from: this.fromAddress,
       to: message.to,
       subject: message.subject,
@@ -61,6 +66,7 @@ export class SmtpEmailTransport implements EmailTransport {
         ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) }
         : {}),
     });
+    if (Array.isArray(result.rejected) && result.rejected.length > 0) throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
   }
 }
 
@@ -84,11 +90,49 @@ export function createEmailTransport(
     host: config.host,
     port: config.port,
     secure: config.secure,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
     ...(config.user !== undefined && config.password !== undefined
       ? { auth: { user: config.user, pass: config.password } }
       : {}),
   });
   return new SmtpEmailTransport(transporter, config.fromAddress);
+}
+
+// HTTPS works on Railway Hobby, where outbound SMTP is unavailable. Never log provider response bodies or credentials.
+export class ResendEmailTransport implements EmailTransport {
+  readonly configured = true;
+  constructor(private readonly apiKey: string, private readonly fromAddress: string, private readonly request: typeof fetch = fetch) {}
+
+  async send(message: EmailMessage): Promise<void> {
+    try {
+      const response = await this.request("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15_000),
+        body: JSON.stringify({ from: this.fromAddress, to: [message.to], subject: message.subject,
+          html: message.html, text: message.text,
+          ...(message.attachments ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64"), content_type: a.contentType })) } : {}),
+        }),
+      });
+      if (!response.ok) throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
+      const body: unknown = await response.json();
+      if (!body || typeof body !== "object" || !("id" in body) || typeof body.id !== "string" || !body.id) throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
+    } catch {
+      throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
+    }
+  }
+}
+
+export function createEmailTransportFromEnv(env: NodeJS.ProcessEnv, logger: pino.Logger): EmailTransport {
+  if (env.EMAIL_PROVIDER === "resend") {
+    const key = env.RESEND_API_KEY?.trim();
+    const from = env.EMAIL_FROM_ADDRESS?.trim();
+    return key && from ? new ResendEmailTransport(key, from) : new LoggingEmailTransport(logger);
+  }
+  if (env.EMAIL_PROVIDER && env.EMAIL_PROVIDER !== "smtp") return new LoggingEmailTransport(logger);
+  return createEmailTransport(readSmtpConfigFromEnv(env), logger);
 }
 
 export function readSmtpConfigFromEnv(env: NodeJS.ProcessEnv): SmtpConfig | null {

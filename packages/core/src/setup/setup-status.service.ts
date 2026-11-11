@@ -22,6 +22,8 @@ export interface SetupStatus {
 const REQUIRED_KEYS = ACCOUNT_MAPPING_KEYS.filter((k) => !k.startsWith("EMPLOYEE_"));
 const EMPLOYEE_KEYS = ACCOUNT_MAPPING_KEYS.filter((k) => k.startsWith("EMPLOYEE_"));
 
+import { isWpsSettingsUsable } from "../hr/wps-file.js";
+
 export class SetupStatusService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -38,8 +40,8 @@ export class SetupStatusService {
     const keys = new Set(mapped.map((m) => m.key));
     const requiredMapped = REQUIRED_KEYS.filter((k) => keys.has(k)).length;
     const employeeMapped = EMPLOYEE_KEYS.filter((k) => keys.has(k)).length;
-    const logo = await this.prisma.attachment.count({ where: { companyId, ownerType: "COMPANY_LOGO" } }).catch(() => 0);
-    const wps = Boolean(company?.wpsBankSarieId && company.wpsBankAccountNumber && company.wpsMolEstablishmentId);
+    const logo = await this.prisma.attachment.count({ where: { companyId, ownerType: "COMPANY", ownerId: companyId, deletedAt: null } });
+    const wps = isWpsSettingsUsable({ bankSarieId: company?.wpsBankSarieId ?? "", bankAccountNumber: company?.wpsBankAccountNumber ?? "", molEstablishmentId: company?.wpsMolEstablishmentId ?? "" });
 
     const steps: SetupStep[] = [
       { key: "ACCOUNT_MAPPINGS", required: true, done: requiredMapped === REQUIRED_KEYS.length, progress: { done: requiredMapped, total: REQUIRED_KEYS.length }, link: "/settings/account-mapping" },
@@ -49,7 +51,7 @@ export class SetupStatusService {
       { key: "COMPANY_LOGO", required: false, done: logo > 0, progress: null, link: "/settings/company" },
       { key: "ALLOWANCE_TYPES", required: false, done: allowanceTypes > 0, progress: null, link: "/hr/allowance-types" },
       { key: "EMPLOYEE_FOLDERS", required: false, done: employeeMapped === EMPLOYEE_KEYS.length, progress: { done: employeeMapped, total: EMPLOYEE_KEYS.length }, link: "/settings/account-mapping" },
-      { key: "WPS", required: false, done: wps, progress: null, link: "/hr/payroll-runs" },
+      { key: "WPS", required: false, done: wps, progress: null, link: "/settings/company" },
       { key: "APPROVAL_POLICY", required: false, done: approvals > 0, progress: null, link: "/settings/approvals" },
     ];
     return { steps, requiredDone: steps.filter((s) => s.required).every((s) => s.done) };

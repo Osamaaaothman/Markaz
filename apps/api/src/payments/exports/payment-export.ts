@@ -1,3 +1,4 @@
+import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { PaymentDetail } from "@erp/core";
 import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -10,6 +11,8 @@ export async function paymentToPdfHtml(params: {
   readonly payment: PaymentDetail;
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
+  readonly issuedBy?: string | null;
+  readonly issuedAt?: string | null;
   readonly logoDataUri?: string | undefined;
   readonly sellerVatNumber?: string | null;
   readonly sellerCrNumber?: string | null;
@@ -108,7 +111,7 @@ ${allocationsSection}
   </table>
 </div>
 <p class="amount-words">${escapeHtml(t("payment.inWords"))}: ${escapeHtml(tafqeetAmount(payment.amount, cur))}</p>
-${payment.notes ? `<p class="pmt-notes">${escapeHtml(payment.notes)}</p>` : ""}
-<div class="pmt-footer">${escapeHtml(t("payment.computerGenerated"))}</div>`,
+${payment.notes ? `<p class="pmt-notes">${escapeHtml(payment.notes)}</p>` : ""}`,
+    footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("payment.computerGenerated") }),
   });
 }

@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
@@ -26,7 +27,9 @@ export function JournalEntriesPage(): React.JSX.Element {
     ...(filterRange.to ? { to: toDateOnlyIsoString(filterRange.to) } : {}),
   };
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useJournalEntries(filter);
-  const [formVisible, setFormVisible] = useState(false);
+  const [draftParams, setDraftParams] = useSearchParams();
+  const [formVisible, setFormVisible] = useState(draftParams.has("draft"));
+  const closeForm = (): void => { setFormVisible(false); setDraftParams((previous) => { const next = new URLSearchParams(previous); next.delete("draft"); return next; }, { replace: true }); };
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
@@ -143,7 +146,7 @@ export function JournalEntriesPage(): React.JSX.Element {
         </>
       )}
 
-      <JournalEntryForm visible={formVisible} onHide={() => setFormVisible(false)} onCreated={(info, entryId) => setCreated({ ...info, onOpen: () => setSelectedEntryId(entryId) })} />
+      {formVisible ? <JournalEntryForm visible={formVisible} onHide={closeForm} onCreated={(info, entryId) => setCreated({ ...info, onOpen: () => setSelectedEntryId(entryId) })} /> : null}
       <CreatedDialog info={created} onHide={() => setCreated(null)} />
       <JournalEntryDetailDialog entryId={selectedEntryId} onHide={() => setSelectedEntryId(null)} />
     </div>

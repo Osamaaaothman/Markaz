@@ -1,3 +1,4 @@
+import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { StockIssueDetail } from "@erp/core";
 import { Money } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -95,8 +96,7 @@ export async function stockIssueToPdfHtml(params: {
   <table class="iss-total">
     <tr><th>${escapeHtml(t("stockIssue.total"))}</th><td class="amount">${money(issue.totalValue)}</td></tr>
   </table>
-</div>
-${params.issuedBy || params.issuedAt ? `<div class="iss-issued-by">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}
-<div class="iss-footer">${escapeHtml(t("stockIssue.computerGenerated"))}</div>`,
+</div>`,
+    footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("stockIssue.computerGenerated") }),
   });
 }

@@ -1,3 +1,4 @@
+import { OptionalIdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Put, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
@@ -101,12 +102,13 @@ export class PurchasingController {
   @Post("purchase-requests")
   @RequirePermission("purchase_request", "create")
   createRequest(
+    @OptionalIdempotencyKey() submissionKey: string | undefined,
     @Body() dto: CreatePurchaseRequestDto,
     @CurrentUser() actor: CurrentUserPayload,
     @CorrelationId() correlationId: string,
   ): Promise<PurchaseRequestSummary> {
     return this.mapRequestErrors(
-      this.requests.create({ warehouseId: dto.warehouseId, ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines }, actor, correlationId),
+      this.requests.create({ warehouseId: dto.warehouseId, ...(dto.notes !== undefined ? { notes: dto.notes } : {}), lines: dto.lines }, actor, correlationId, submissionKey),
     );
   }
 
@@ -170,6 +172,7 @@ export class PurchasingController {
     @Body() dto: CreatePurchaseOrderDto,
     @CurrentUser() actor: CurrentUserPayload,
     @CorrelationId() correlationId: string,
+    @OptionalIdempotencyKey() submissionKey?: string,
   ): Promise<PurchaseOrderCreated> {
     return this.mapOrderErrors(
       this.orders.create(
@@ -184,6 +187,7 @@ export class PurchasingController {
         },
         actor,
         correlationId,
+        submissionKey,
       ),
     );
   }

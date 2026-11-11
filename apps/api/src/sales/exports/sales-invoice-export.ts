@@ -1,3 +1,4 @@
+import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { SalesInvoiceDetail } from "@erp/core";
 import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -10,6 +11,8 @@ export async function salesInvoiceToPdfHtml(params: {
   readonly invoice: SalesInvoiceDetail;
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
+  readonly issuedBy?: string | null;
+  readonly issuedAt?: string | null;
   readonly logoDataUri?: string | undefined;
   readonly sellerVatNumber?: string | null;
   readonly sellerCrNumber?: string | null;
@@ -114,7 +117,7 @@ export async function salesInvoiceToPdfHtml(params: {
   </table>
 </div>
 <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
-${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
-<div class="inv-footer">${escapeHtml(t("salesInvoice.computerGenerated"))}</div>`,
+${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
+    footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("salesInvoice.computerGenerated") }),
   });
 }

@@ -87,6 +87,24 @@ describeIfDb("First-run setup — real database", () => {
     expect(await prisma.accountMapping.count({ where: { companyId: theirs.companyId } })).toBe(0);
   });
 
+  it("recognizes only the current company's active logo attachment", async () => {
+    const mine = await company();
+    const theirs = await company();
+    const addLogo = (companyId: string) => prisma.attachment.create({ data: {
+      id: newId(), companyId, ownerType: "COMPANY", ownerId: companyId,
+      visibility: "PRIVATE", originalName: "logo.png", contentType: "image/png",
+      sizeBytes: 1, sha256: "a".repeat(64), storageProvider: "LOCAL",
+      storageKey: newId(), createdBy: "setup-clerk",
+    } });
+    await addLogo(theirs.companyId);
+    const hasLogo = async () => (await status.status(mine.companyId)).steps.find((s) => s.key === "COMPANY_LOGO")?.done;
+    expect(await hasLogo()).toBe(false);
+    const logo = await addLogo(mine.companyId);
+    expect(await hasLogo()).toBe(true);
+    await prisma.attachment.update({ where: { id: logo.id }, data: { deletedAt: new Date(), deletedBy: mine.actor.id } });
+    expect(await hasLogo()).toBe(false);
+  });
+
   it("reports how far the set-up is, and what is required", async () => {
     const { companyId, actor } = await company();
     const before = await status.status(companyId);

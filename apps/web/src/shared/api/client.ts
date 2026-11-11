@@ -1,5 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../auth/auth-store";
+import { createSessionRefresher } from "../auth/refresh-session";
+import { tokenPrincipal } from "../auth/token-principal";
 
 // Same-origin /api/... in both dev (vite.config.ts proxy) and production
 // (docker/web.nginx.conf) — the frontend never needs to know the API's real
@@ -27,7 +29,15 @@ interface RetryableConfig extends InternalAxiosRequestConfig {
 // request, and concurrent 401s share a single in-flight refresh instead of each
 // firing its own (which would trip the server's reuse-detection and log
 // everyone out).
-let refreshPromise: Promise<string | null> | null = null;
+const refreshSession = createSessionRefresher({
+  synchronize: async () => { await useAuthStore.persist.rehydrate(); },
+  accessToken: () => useAuthStore.getState().accessToken,
+  refresh: refreshAccessToken,
+  sameUser: (previous, current) => tokenPrincipal(previous) !== null && tokenPrincipal(previous) === tokenPrincipal(current),
+  lock: async (work) => typeof navigator !== "undefined" && navigator.locks
+    ? await navigator.locks.request("erp-auth-refresh", work)
+    : work(),
+});
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = useAuthStore.getState().refreshToken;
@@ -39,6 +49,9 @@ async function refreshAccessToken(): Promise<string | null> {
       "/v1/auth/refresh",
       { refreshToken },
     );
+    await useAuthStore.persist.rehydrate();
+    // A logout/login while the request was in flight must not resurrect the old session.
+    if (useAuthStore.getState().refreshToken !== refreshToken) return null;
     useAuthStore.getState().setTokens(response.data);
     return response.data.accessToken;
   } catch {
@@ -52,14 +65,14 @@ apiClient.interceptors.response.use(
     const original = error.config as RetryableConfig | undefined;
     if (error.response?.status === 401 && original !== undefined && !original._retried) {
       original._retried = true;
-      refreshPromise ??= refreshAccessToken();
-      const newToken = await refreshPromise;
-      refreshPromise = null;
+      const header = original.headers.get("Authorization");
+      const failedToken = typeof header === "string" && header.startsWith("Bearer ") ? header.slice(7) : null;
+      const { token: newToken, clear } = await refreshSession(failedToken);
       if (newToken !== null) {
         original.headers.set("Authorization", `Bearer ${newToken}`);
         return apiClient(original);
       }
-      useAuthStore.getState().clear();
+      if (clear) useAuthStore.getState().clear();
     }
     return Promise.reject(error);
   },

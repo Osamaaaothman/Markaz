@@ -1,3 +1,4 @@
+import { DocumentTrail } from "../documents/DocumentTrail";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -145,6 +146,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
       <ReceiveDialog order={order} visible={receiveOpen} onHide={() => setReceiveOpen(false)} onCreated={setCreated} />
       <ReturnDialog order={order} visible={returnOpen} onHide={() => setReturnOpen(false)} onCreated={setCreated} />
       <CreatedDialog info={created} onHide={() => setCreated(null)} />
+    <DocumentTrail kind="purchase_order" id={id} />
     </div>
   );
 }

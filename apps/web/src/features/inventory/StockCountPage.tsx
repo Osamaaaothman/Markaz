@@ -1,3 +1,6 @@
+import { DraftBar } from "../documents/DraftBar";
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { LineField } from "../../shared/ui/LineField";
 import { useState } from "react";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,7 +43,6 @@ export function StockCountPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { data: warehouses } = useAllWarehouses();
   const { data: items } = useAllItems();
-  const recordCount = useRecordStockCount();
   const postCount = usePostStockCount();
   const { data: counts, isPending, isError, refetch } = useStockCounts(false);
   const [postingId, setPostingId] = useState<string | null>(null);
@@ -57,6 +59,9 @@ export function StockCountPage(): React.JSX.Element {
     defaultValues: { warehouseId: "", documentDate: new Date(), lines: [EMPTY_LINE] },
   });
 
+  const values = watch();
+  const draft = useDocumentDraft("stock_count", values, reset, Boolean(values.warehouseId || values.lines.some((line) => line.itemId || line.countedQuantity)));
+  const recordCount = useRecordStockCount(draft.id);
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
 
   // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
@@ -68,7 +73,8 @@ export function StockCountPage(): React.JSX.Element {
     void onSubmit(e);
   };
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!await draft.save()) return;
     recordCount.mutate(
       {
         warehouseId: values.warehouseId,
@@ -81,6 +87,7 @@ export function StockCountPage(): React.JSX.Element {
       },
       {
         onSuccess: (saved) => {
+          void draft.complete();
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
             onOpen: () => void navigate(`/inventory/stock-counts/${saved.id}`),
@@ -92,7 +99,7 @@ export function StockCountPage(): React.JSX.Element {
               { label: t("created.lines"), value: String(values.lines.length) },
             ],
           });
-          reset({ warehouseId: values.warehouseId, documentDate: new Date(), lines: [EMPTY_LINE] });
+
         },
       },
     );
@@ -113,6 +120,7 @@ export function StockCountPage(): React.JSX.Element {
       </div>
 
       <h2 className="erp-form__section-title">{t("inventory.stockCount.recordNew")}</h2>
+      <DraftBar draft={draft} />
       <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -140,13 +148,7 @@ export function StockCountPage(): React.JSX.Element {
 
         <h3 className="erp-form__section-title">{t("inventory.stockCount.lines")}</h3>
         <p className="erp-field__hint">{t("inventory.stockCount.unitCostHint")}</p>
-        <div className="erp-lines__header" aria-hidden="true">
-          <span className="erp-lines__account">{t("inventory.stockCount.item")}</span>
-          <span className="erp-lines__amount">{t("inventory.stockCount.expectedQuantity")}</span>
-          <span className="erp-lines__amount">{t("inventory.stockCount.countedQuantity")}</span>
-          <span className="erp-lines__amount">{t("inventory.stockCount.unitCostIfNoStock")}</span>
-          <span className="erp-lines__header__action" />
-        </div>
+
         <div className="erp-lines">
           {fields.map((field, index) => (
             <div key={field.id} className="erp-lines__row">
@@ -154,34 +156,34 @@ export function StockCountPage(): React.JSX.Element {
                 control={control}
                 name={`lines.${index}.itemId`}
                 render={({ field: f }) => (
-                  <Dropdown
+                  <LineField label={t("inventory.items.title")}><Dropdown
                     value={f.value}
                     onChange={(e) => f.onChange(e.value)}
                     options={(items ?? []).map((i) => ({ label: `${i.code} — ${localizedName(i, i18n.language)}`, value: i.id }))}
                     filter
                     placeholder={t("inventory.items.title")}
                     className={errors.lines?.[index]?.itemId ? "p-invalid erp-lines__account" : "erp-lines__account"}
-                  />
+                  /></LineField>
                 )}
               />
               <Controller
                 control={control}
                 name={`lines.${index}.countedQuantity`}
                 render={({ field: f }) => (
-                  <InputText
+                  <LineField label={t("inventory.stockCount.countedQuantity")}><InputText
                     placeholder={t("inventory.stockCount.countedQuantity")}
                     dir="ltr"
                     value={f.value}
                     onChange={f.onChange}
                     className={`erp-lines__amount${errors.lines?.[index]?.countedQuantity ? " p-invalid" : ""}`}
-                  />
+                  /></LineField>
                 )}
               />
               <Controller
                 control={control}
                 name={`lines.${index}.unitCostIfNoStock`}
                 render={({ field: f }) => (
-                  <InputText
+                  <LineField label={t("inventory.stockCount.unitCostIfNoStock")}><InputText
                     placeholder={t("inventory.stockCount.unitCostIfNoStock")}
                     dir="ltr"
                     value={f.value}
@@ -193,7 +195,7 @@ export function StockCountPage(): React.JSX.Element {
                       }
                     }}
                     className="erp-lines__amount"
-                  />
+                  /></LineField>
                 )}
               />
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
@@ -219,7 +221,7 @@ export function StockCountPage(): React.JSX.Element {
         {recordCount.isSuccess ? <p className="erp-field__hint">{t("inventory.stockCount.recordedSuccess", { number: recordCount.data?.number })}</p> : null}
 
         <div className="erp-form__actions">
-          <Button type="submit" label={t("inventory.stockCount.record")} loading={recordCount.isPending} />
+          <Button type="submit" label={t("inventory.stockCount.record")} loading={recordCount.isPending} disabled={!draft.ready || draft.status === "completed"} />
         </div>
       </form>
 
@@ -255,7 +257,7 @@ export function StockCountPage(): React.JSX.Element {
           />
         </DataGrid>
       )}
-      <CreatedDialog info={created} onHide={() => setCreated(null)} />
+      <CreatedDialog info={created} onHide={() => { if (created?.onOpen) created.onOpen(); }} />
     </div>
   );
 }

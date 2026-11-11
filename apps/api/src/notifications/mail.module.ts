@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { createWorkerLogger } from "../jobs/worker-logger.js";
-import { createEmailTransport, readSmtpConfigFromEnv, type EmailTransport } from "./email-transport.js";
+import { createEmailTransportFromEnv, type EmailTransport } from "./email-transport.js";
 
 export const EMAIL_TRANSPORT = Symbol("EmailTransport");
 
@@ -10,7 +10,7 @@ export const EMAIL_TRANSPORT = Symbol("EmailTransport");
 // §6 is about system-triggered notifications tied to a business-event transaction; a deliberate,
 // human-confirmed send is a different thing and does not need outbox durability or retry).
 @Module({
-  providers: [{ provide: EMAIL_TRANSPORT, useFactory: (): EmailTransport => createEmailTransport(readSmtpConfigFromEnv(process.env), createWorkerLogger()) }],
+  providers: [{ provide: EMAIL_TRANSPORT, useFactory: (): EmailTransport => createEmailTransportFromEnv(process.env, createWorkerLogger()) }],
   exports: [EMAIL_TRANSPORT],
 })
 export class MailModule {}

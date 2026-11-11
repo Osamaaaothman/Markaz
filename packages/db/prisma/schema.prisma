@@ -17,6 +17,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Unposted working copies. They never allocate document numbers or change the ledger.
+model DocumentDraft {
+  id String @id
+  companyId String @map("company_id")
+  userId String @map("user_id")
+  kind String
+  payload Json
+  version Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  company Company @relation(fields: [companyId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  @@index([companyId, userId, updatedAt])
+  @@map("document_drafts")
+}
+
 // One row per customer-run legal entity within this single deployment (docs/00-PRODUCT-BRIEF.md
 // §4 note: "per tenant" here means per company/branch within one customer's own
 // deployment, not a cross-customer SaaS tenant).
@@ -57,6 +74,7 @@ model Company {
   version               Int      @default(1)
 
   users User[]
+  documentDrafts DocumentDraft[]
   roles Role[]
 
   fiscalYears      FiscalYear[]
@@ -107,6 +125,7 @@ model Company {
 }
 
 model User {
+  documentDrafts DocumentDraft[]
   id                  String    @id
   companyId           String    @map("company_id")
   // Human-readable label (USR-000012), unique per company; the UUID `id` stays the key.
@@ -899,6 +918,8 @@ model StockIssueLine {
 // warehouse's figures at the moment the count line was recorded, not read again at posting
 // time, so the variance stays reproducible even if other movements happen in between.
 model StockCount {
+  submissionKey String? @map("submission_key")
+  @@unique([companyId, submissionKey])
   id            String    @id
   companyId     String    @map("company_id")
   number        String
@@ -949,6 +970,8 @@ model StockCountLine {
 // An internal request to buy, raised by whoever needs the goods. PENDING until a buyer turns it
 // into an order (PROCESSED, linked) or turns it down (REJECTED, with a reason).
 model PurchaseRequest {
+  submissionKey String? @map("submission_key")
+  @@unique([companyId, submissionKey])
   id              String    @id
   companyId       String    @map("company_id")
   number          String
@@ -999,6 +1022,8 @@ model PurchaseRequestLine {
 // move it APPROVED -> PARTIALLY_RECEIVED -> RECEIVED. Lines are never edited after creation: a
 // wrong order is cancelled (only while nothing is received) and re-issued.
 model PurchaseOrder {
+  submissionKey String? @map("submission_key")
+  @@unique([companyId, submissionKey])
   id                String    @id
   companyId         String    @map("company_id")
   number            String
@@ -1237,6 +1262,8 @@ model GoodsReturnLine {
 // An offer to a customer. OPEN until it is turned into a sales order (CONVERTED), declined
 // (REJECTED) or withdrawn (CANCELLED). Lines are never edited; a changed offer is a new quotation.
 model Quotation {
+  submissionKey String? @map("submission_key")
+  @@unique([companyId, submissionKey])
   id            String    @id
   companyId     String    @map("company_id")
   number        String
@@ -1289,6 +1316,8 @@ model QuotationLine {
 
 // A confirmed order. OPEN -> PARTIALLY_INVOICED -> INVOICED as invoices are raised against it.
 model SalesOrder {
+  submissionKey String? @map("submission_key")
+  @@unique([companyId, submissionKey])
   id            String   @id
   companyId     String   @map("company_id")
   number        String

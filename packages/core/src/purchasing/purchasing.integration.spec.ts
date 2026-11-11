@@ -15,6 +15,7 @@ import { PurchaseOrderError, PurchaseOrderService } from "./purchase-order.servi
 import { PurchaseReceiptError, PurchaseReceiptService } from "./purchase-receipt.service.js";
 import { PurchaseRequestError, PurchaseRequestService } from "./purchase-request.service.js";
 import { PurchasingQueueService } from "./purchasing-queue.service.js";
+import { DocumentTrailService } from "../documents/document-trail.service.js";
 
 // Real PostgreSQL (docs/10-TESTING-RULES.md §1); skipped without DATABASE_URL.
 const describeIfDb = process.env.DATABASE_URL ? describe : describe.skip;
@@ -105,6 +106,8 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
   afterAll(async () => {
     await prisma.$disconnect();
   });
+
+
 
   it("numbers requests gaplessly and turns a request into an order", async () => {
     const request = await requests.create({ warehouseId, lines: [{ itemId: itemA, quantity: "100" }] }, actor, cid());
@@ -291,5 +294,33 @@ describeIfDb("Purchasing (M5, requests and orders) — real database", () => {
     await expect(
       receiving.receive(order.id, { warehouseId, documentDate: today, lines: [{ purchaseOrderLineId: newId(), quantity: "1" }] }, stranger, cid(), newId()),
     ).rejects.toMatchObject({ code: "ORDER_NOT_FOUND" });
+  });
+
+  it("retries purchase order creation with one submission key only once", async () => {
+    const key = newId();
+    const input = { supplierId, warehouseId, orderDate: today, lines: [{ itemId: itemA, quantity: "1", unitPrice: "10", taxCodeId }] };
+    const results = await Promise.all([1, 2].map(() => orders.create(input, actor, cid(), key)));
+    expect(results[0]!.id).toBe(results[1]!.id);
+    expect(await prisma.purchaseOrder.count({ where: { companyId, submissionKey: key } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { entityId: results[0]!.id, action: "purchase_order.created" } })).toBe(1);
+  });
+
+  it("replays a concurrently submitted purchase request without duplicate audit events", async () => {
+    const key = newId();
+    const input = { warehouseId, lines: [{ itemId: itemA, quantity: "3" }] };
+    const copies = await Promise.all([1, 2].map(() => requests.create(input, actor, cid(), key)));
+    expect(copies[0]!.id).toBe(copies[1]!.id);
+    expect(await prisma.auditLog.count({ where: { entityId: copies[0]!.id, action: "purchase_request.created" } })).toBe(1);
+  });
+
+  it("tracks a purchase receipt back to its order and accounting entry without exposing forbidden nodes", async () => {
+    const receipt = await prisma.goodsReceipt.findFirstOrThrow({ where: { companyId, purchaseOrderId: { not: null } } });
+    const service = new DocumentTrailService(prisma, { can: () => Promise.resolve(true) });
+    const graph = await service.trail("goods_receipt", receipt.id, actor);
+    expect(graph.nodes.map((node) => node.id)).toEqual(expect.arrayContaining([receipt.id, receipt.purchaseOrderId, receipt.journalEntryId]));
+    const restricted = new DocumentTrailService(prisma, { can: (_user, _action, resource) => Promise.resolve(resource === "goods_receipt") });
+    const limited = await restricted.trail("goods_receipt", receipt.id, actor);
+    expect(limited.nodes.map((node) => node.id)).toEqual([receipt.id]);
+    expect(limited.edges).toHaveLength(0);
   });
 });

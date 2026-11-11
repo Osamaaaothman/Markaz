@@ -18,6 +18,8 @@
 // bank's own test tool before relying on it -- this is the one remaining point the spec itself
 // left genuinely ambiguous.
 
+import { Money } from "@erp/shared";
+
 export interface WpsCompanySettings {
   readonly bankSarieId: string; // [DEST-ID] -- SARIE id of the establishment's bank
   readonly bankAccountNumber: string; // [BANK-ACC]
@@ -62,36 +64,42 @@ export class WpsFileError extends Error {
   }
 }
 
+// Reject demo markers and file delimiters. This is not bank acceptance or account verification.
+export function isWpsSettingsUsable(settings: WpsCompanySettings): boolean {
+  return [settings.bankSarieId, settings.bankAccountNumber, settings.molEstablishmentId].every((value) => value.trim().length > 0 && !/[\t\r\n]|demo|placeholder|test|تجريب/i.test(value));
+}
+
 export function buildWpsWagesFile(params: BuildWpsFileParams): string {
   if (params.employees.length === 0) throw new WpsFileError("No employees to include in the wages file");
+  if (!isWpsSettingsUsable(params.company)) throw new WpsFileError("Replace demo WPS settings with the bank's real establishment details before exporting");
+  if ([params.fileReference, ...params.employees.flatMap((e) => [e.name, e.iban, e.nationalId])].some((v) => /[\t\r\n]/.test(v))) throw new WpsFileError("WPS fields cannot contain tabs or newlines");
 
-  const totalAmount = params.employees.reduce((sum, e) => {
-    const net = Number(e.basicSalary) + Number(e.housingAllowance) + Number(e.otherEarnings) - Number(e.deductions);
-    return sum + net;
-  }, 0);
+  const amount = (value: string): Money => Money.of(value, "SAR").round(2);
+  const netOf = (e: WpsEmployeeRow): Money => amount(e.basicSalary).add(amount(e.housingAllowance)).add(amount(e.otherEarnings)).subtract(amount(e.deductions));
+  const totalAmount = params.employees.reduce((sum, e) => sum.add(netOf(e)), Money.zero("SAR"));
 
   const headerLine = [
     params.company.bankSarieId,
     params.company.bankAccountNumber,
     "SAR",
     yyyymmdd(params.valueDate),
-    wpsDecimal(totalAmount.toFixed(2)),
+    wpsDecimal(totalAmount.toDecimalString(2)),
     params.fileReference,
     params.company.molEstablishmentId,
   ].join(TAB);
 
   const contentLines = params.employees.map((e) => {
-    const net = Number(e.basicSalary) + Number(e.housingAllowance) + Number(e.otherEarnings) - Number(e.deductions);
+    const net = netOf(e);
     return [
-      wpsDecimal(net.toFixed(2)),
+      wpsDecimal(net.toDecimalString(2)),
       e.iban.toUpperCase(),
       e.name,
       // Spec format conventions (section 5.4): every MOL-* amount is two decimal places, same as
       // the header total -- the API's own figures carry four (NUMERIC(19,4)), so round here.
-      wpsDecimal(Number(e.basicSalary).toFixed(2)),
-      wpsDecimal(Number(e.housingAllowance).toFixed(2)),
-      wpsDecimal(Number(e.otherEarnings).toFixed(2)),
-      wpsDecimal(Number(e.deductions).toFixed(2)),
+      wpsDecimal(amount(e.basicSalary).toDecimalString(2)),
+      wpsDecimal(amount(e.housingAllowance).toDecimalString(2)),
+      wpsDecimal(amount(e.otherEarnings).toDecimalString(2)),
+      wpsDecimal(amount(e.deductions).toDecimalString(2)),
       e.nationalId,
     ].join(TAB);
   });

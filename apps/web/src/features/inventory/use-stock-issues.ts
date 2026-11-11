@@ -20,12 +20,12 @@ interface StockIssueResult {
   readonly number: string;
 }
 
-export function useCreateStockIssue() {
+export function useCreateStockIssue(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
     mutationFn: async (input: CreateStockIssueInput) => {
-      const idempotencyKey = newId();
+      const idempotencyKey = submissionKey ?? newId();
       return (
         await apiClient.post<StockIssueResult>("/v1/stock-issues", input, {
           headers: { "Idempotency-Key": idempotencyKey },

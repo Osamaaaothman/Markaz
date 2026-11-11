@@ -8,6 +8,22 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://erp_app@127.0.0.1:5432/postgres
+      REDIS_URL: redis://127.0.0.1:6379
     steps:
       - uses: actions/checkout@v4
 
@@ -18,6 +34,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Migrate isolated test database
+        run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://postgres@127.0.0.1:5432/postgres
 
       # `npm ci` installs the playwright package but never downloads the actual
       # Chromium binary — apps/api/src/documents/generic-document.spec.ts needs a

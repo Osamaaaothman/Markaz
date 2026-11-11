@@ -345,4 +345,13 @@ describeIfDb("Inventory (M4) — real database", () => {
     expect(after[0]?.quantity).toBe(before[0]?.quantity);
     expect(after[0]?.value).toBe(before[0]?.value);
   });
+
+  it("records a count only once when a saved draft is submitted concurrently", async () => {
+    const key = newId();
+    const input = { warehouseId, documentDate: new Date(), lines: [{ itemId, countedQuantity: "12", unitCostIfNoStock: "5" }] };
+    const copies = await Promise.all([1, 2].map(() => stockCounts.record(input, actor, cid(), key)));
+    expect(copies[0]!.id).toBe(copies[1]!.id);
+    expect(await prisma.stockCount.count({ where: { companyId, submissionKey: key } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { entityId: copies[0]!.id, action: "stock_count.recorded" } })).toBe(1);
+  });
 });

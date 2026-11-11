@@ -1,3 +1,4 @@
+import arCommon from "../../locales/ar/common.json";
 import { useEffect } from "react";
 import { addLocale, locale } from "primereact/api";
 import { useTranslation } from "react-i18next";
@@ -43,6 +44,7 @@ addLocale("ar", {
   emptyFilterMessage: "لا نتائج",
   emptyMessage: "لا توجد خيارات",
   aria: {
+    ...arCommon.primeAria,
     trueLabel: "نعم",
     falseLabel: "لا",
     nullLabel: "غير محدد",

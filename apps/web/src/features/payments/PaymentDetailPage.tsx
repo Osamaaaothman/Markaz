@@ -1,3 +1,4 @@
+import { DocumentTrail } from "../documents/DocumentTrail";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -134,6 +135,7 @@ export function PaymentDetailPage(): React.JSX.Element {
           <Button label={t("payments.reverse")} icon="pi pi-undo" severity="danger" loading={reversePayment.isPending} onClick={doReverse} />
         </div>
       </Dialog>
+    <DocumentTrail kind="payment" id={id} />
     </div>
   );
 }

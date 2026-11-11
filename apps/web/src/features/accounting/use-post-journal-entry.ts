@@ -22,7 +22,7 @@ interface PostingResult {
   readonly number: string;
 }
 
-export function usePostJournalEntry() {
+export function usePostJournalEntry(submissionKey?: string) {
   const queryClient = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
@@ -30,7 +30,7 @@ export function usePostJournalEntry() {
       // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine
       // submission — generated once here, not per network retry, so a real
       // double-click still only posts once.
-      const idempotencyKey = newId();
+      const idempotencyKey = submissionKey ?? newId();
       return (
         await apiClient.post<PostingResult>("/v1/journal-entries", input, {
           headers: { "Idempotency-Key": idempotencyKey },

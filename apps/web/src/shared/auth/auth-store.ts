@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { queryClient } from "../api/query-client";
+import { tokenPrincipal } from "./token-principal";
 
 // docs/08-FRONTEND-I18N-RULES.md §2: "Server data never goes into Zustand" — this
 // store deliberately holds ONLY the token pair and login/logout actions, never
@@ -34,3 +35,15 @@ export const useAuthStore = create<AuthState>()(
     { name: "erp-auth" },
   ),
 );
+
+// Other tabs must see rotations and logout before they attempt their own refresh.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== "erp-auth" && event.key !== null) return;
+    const previous = tokenPrincipal(useAuthStore.getState().accessToken);
+    void Promise.resolve(useAuthStore.persist.rehydrate()).then(() => {
+      // Cached user/profile data may belong to a different login in the other tab.
+      if (previous !== tokenPrincipal(useAuthStore.getState().accessToken)) queryClient.clear();
+    });
+  });
+}

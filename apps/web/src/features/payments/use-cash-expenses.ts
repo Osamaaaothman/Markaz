@@ -46,14 +46,14 @@ export interface CreateCashExpensePayload {
   readonly reference?: string;
 }
 
-export function useCreateCashExpense() {
+export function useCreateCashExpense(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateCashExpensePayload) =>
       (
         await apiClient.post<{ id: string; number: string; journalEntryId: string }>("/v1/cash-expenses", payload, {
-          headers: { "Idempotency-Key": newId() },
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
         })
       ).data,
     onSuccess: () => {

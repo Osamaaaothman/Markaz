@@ -87,11 +87,11 @@ export interface CreateQuotationPayload {
   readonly lines: readonly SalesLinePayload[];
 }
 
-export function useCreateQuotation() {
+export function useCreateQuotation(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
-    mutationFn: async (payload: CreateQuotationPayload) => (await apiClient.post<QuotationSummary>("/v1/quotations", payload)).data,
+    mutationFn: async (payload: CreateQuotationPayload) => (await apiClient.post<QuotationSummary>("/v1/quotations", payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["quotations"] }),
   });
 }
@@ -108,6 +108,7 @@ export function useQuotationAction(id: string, action: "reject" | "cancel" | "co
 }
 
 export interface QuotationEmailPreview {
+  readonly deliveryConfigured: boolean;
   readonly html: string;
   readonly subject: string;
   readonly defaultRecipient: string | null;
@@ -179,11 +180,11 @@ export interface CreateSalesOrderPayload {
   readonly lines: readonly SalesLinePayload[];
 }
 
-export function useCreateSalesOrder() {
+export function useCreateSalesOrder(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
-    mutationFn: async (payload: CreateSalesOrderPayload) => (await apiClient.post<{ id: string; number: string }>("/v1/sales-orders", payload)).data,
+    mutationFn: async (payload: CreateSalesOrderPayload) => (await apiClient.post<{ id: string; number: string }>("/v1/sales-orders", payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["salesOrders"] }),
   });
 }
@@ -270,7 +271,7 @@ function invalidateAfterPosting(qc: ReturnType<typeof useQueryClient>): void {
   void qc.invalidateQueries({ queryKey: ["accountBalances"] });
 }
 
-export function useCreateSalesInvoice() {
+export function useCreateSalesInvoice(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
@@ -278,7 +279,7 @@ export function useCreateSalesInvoice() {
       (
         await apiClient.post<{ id: string; number: string; totalGross: string }>("/v1/sales-invoices", payload, {
           // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine submission.
-          headers: { "Idempotency-Key": newId() },
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
         })
       ).data,
     onSuccess: () => invalidateAfterPosting(qc),

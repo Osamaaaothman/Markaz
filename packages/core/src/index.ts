@@ -77,3 +77,6 @@ export * from "./hr/end-of-service.service.js";
 export * from "./hr/wps-file.js";
 export * from "./setup/mapping-suggestions.js";
 export * from "./setup/setup-status.service.js";
+export * from "./setup/company-settings.service.js";
+export * from "./documents/document-draft.service.js";
+export * from "./documents/document-trail.service.js";

@@ -1,3 +1,4 @@
+import { lockSubmission } from "../documents/submission-lock.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAccountingEngine, IAuditLogger, INumberingService } from "../contracts.js";
@@ -168,12 +169,18 @@ export class StockCountService {
     };
   }
 
-  async record(input: RecordStockCountInput, actor: StockCountActor, correlationId: string): Promise<StockCountRecordResult> {
+  async record(input: RecordStockCountInput, actor: StockCountActor, correlationId: string, submissionKey?: string): Promise<StockCountRecordResult> {
     if (input.lines.length === 0) {
       throw new StockCountError("EMPTY_COUNT", "A stock count needs at least one line");
     }
 
+    const countId = newId();
     const result = await this.prisma.$transaction(async (tx) => {
+      await lockSubmission(tx, actor.companyId, "stock_count", submissionKey);
+      if (submissionKey) {
+        const existing = await tx.stockCount.findFirst({ where: { companyId: actor.companyId, submissionKey }, select: { id: true, number: true } });
+        if (existing) return existing;
+      }
       const warehouse = await tx.warehouse.findFirst({
         where: { id: input.warehouseId, companyId: actor.companyId, isActive: true },
         select: { id: true },
@@ -222,11 +229,11 @@ export class StockCountService {
 
       const number = await this.numbering.next("stock_count", { companyId: actor.companyId, fiscalYear: period.fiscalYear.name }, tx);
 
-      const countId = newId();
       await tx.stockCount.create({
         data: {
           id: countId,
           companyId: actor.companyId,
+          submissionKey: submissionKey ?? null,
           number,
           warehouseId: input.warehouseId,
           documentDate: input.documentDate,
@@ -248,7 +255,7 @@ export class StockCountService {
       return { id: countId, number };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "stock_count.recorded", entityType: "StockCount", entityId: result.id, after: result, correlationId });
+    if (result.id === countId) await this.audit.log({ actorId: actor.id, action: "stock_count.recorded", entityType: "StockCount", entityId: result.id, after: result, correlationId });
     return result;
   }
 

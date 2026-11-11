@@ -21,8 +21,24 @@ export async function renderHtmlToPdf(html: string): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
+    // Templates embed approved assets. Never allow a document to fetch remote URLs.
+    await page.route("**/*", (route) => route.request().url().startsWith("data:") ? route.continue() : route.abort());
+    await page.emulateMedia({ media: "print" });
     await page.setContent(html, { waitUntil: "load" });
-    return await page.pdf({ format: "A4", printBackground: true });
+    await page.evaluate("document.fonts.ready");
+    const footer = await page.evaluate<{ html: string; dir: string } | null>(`(() => {
+      const element = document.querySelector(".report-footer-block");
+      if (!element) return null;
+      const result = { html: element.innerHTML, dir: document.documentElement.dir };
+      element.remove();
+      return result;
+    })()`);
+    if (footer) await page.addStyleTag({ content: "@page { margin-bottom: 32mm; }" });
+    return await page.pdf({ format: "A4", printBackground: true,
+      ...(footer ? { displayHeaderFooter: true, headerTemplate: "<span></span>",
+        footerTemplate: `<style>.issued-by-block{display:flex;gap:28px;border-top:1px solid #ddd;padding-top:8px;margin-bottom:8px}.issued-by-block span{display:block}.issued-by-block strong{display:block;font-weight:400;color:#666;margin-bottom:3px}.computer-generated{text-align:center;margin:0;color:#666}bdi{unicode-bidi:isolate}</style><div dir="${footer.dir === "rtl" ? "rtl" : "ltr"}" style="font-family:'Noto Sans Arabic','Segoe UI',sans-serif;font-size:9px;color:#444;width:100%;padding:0 14mm;box-sizing:border-box">${footer.html}</div>`,
+        margin: { bottom: "32mm" } } : {}),
+    });
   } finally {
     await page.close();
   }

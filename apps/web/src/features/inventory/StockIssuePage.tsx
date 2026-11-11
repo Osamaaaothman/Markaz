@@ -1,3 +1,7 @@
+import { useDocumentDraft } from "../documents/use-document-draft";
+import { DraftBar } from "../documents/DraftBar";
+import { StockHint } from "./StockHint";
+import { LineField } from "../../shared/ui/LineField";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
@@ -15,10 +19,11 @@ import { useAllItems } from "./use-items";
 import { useAllWarehouses } from "./use-warehouses";
 import { useCreateStockIssue } from "./use-stock-issues";
 import { useStockLevels } from "./use-stock-levels";
+import { stockAvailability } from "./stock-availability";
 
 const lineSchema = z.object({
   itemId: z.string().min(1, "required"),
-  quantity: z.string().min(1, "required"),
+  quantity: z.string().regex(/^\d{1,15}(\.\d{1,4})?$/, "required").refine((v) => /[1-9]/.test(v), "required"),
 });
 
 const formSchema = z.object({
@@ -36,7 +41,6 @@ export function StockIssuePage(): React.JSX.Element {
   const navigate = useNavigate();
   const { data: warehouses } = useAllWarehouses();
   const { data: items } = useAllItems();
-  const createIssue = useCreateStockIssue();
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const {
@@ -45,15 +49,21 @@ export function StockIssuePage(): React.JSX.Element {
     handleSubmit,
     reset,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { warehouseId: "", costCenterRef: "", documentDate: new Date(), lines: [EMPTY_LINE] },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
+  const draftValues = watch();
+  const draft = useDocumentDraft("stock_issue", draftValues, (saved) => reset(saved), isDirty || draftValues.lines.some((l) => l.itemId !== ""));
+  const createIssue = useCreateStockIssue(draft.id);
   const selectedWarehouseId = watch("warehouseId") || null;
-  const { data: stockLevels } = useStockLevels({ warehouseId: selectedWarehouseId, belowReorderOnly: false });
+  const stockQuery = useStockLevels({ warehouseId: selectedWarehouseId, belowReorderOnly: false });
+  const stockLevels = stockQuery.isError ? undefined : stockQuery.data;
+  const availability = stockAvailability(watch("lines").map((l) => ({ ...l, warehouseId: selectedWarehouseId ?? "" })), stockLevels);
+  const stockBlocked = availability.some((s) => s.exceeded) || !stockLevels;
 
   // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
   // right before validation runs, instead of blocking the save button or forcing a manual delete.
@@ -64,11 +74,14 @@ export function StockIssuePage(): React.JSX.Element {
     void onSubmit(e);
   };
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
+    if (!draft.ready || !await draft.save()) return;
+    if (stockBlocked) return;
     createIssue.mutate(
       { warehouseId: values.warehouseId, costCenterRef: values.costCenterRef.trim(), documentDate: toDateOnlyIsoString(values.documentDate), lines: values.lines },
       {
         onSuccess: (saved) => {
+          void draft.complete();
           const warehouse = warehouses?.find((w) => w.id === values.warehouseId);
           setCreated({
             onOpen: () => void navigate(`/inventory/stock-issues/${saved.id}`),
@@ -102,6 +115,7 @@ export function StockIssuePage(): React.JSX.Element {
         </div>
       </div>
 
+      <DraftBar draft={draft} />
       <form onSubmit={(e) => { e.preventDefault(); submitWithCleanup(e); }} noValidate className="erp-form">
         <div className="erp-form__row">
           <div className="erp-field">
@@ -134,35 +148,28 @@ export function StockIssuePage(): React.JSX.Element {
         </div>
 
         <h3 className="erp-form__section-title">{t("inventory.goodsReceipt.lines")}</h3>
-        <div className="erp-lines__header" aria-hidden="true">
-          <span className="erp-lines__account">{t("inventory.stockIssue.item")}</span>
-          <span className="erp-lines__amount">{t("inventory.goodsReceipt.quantity")}</span>
-          <span className="erp-lines__header__action" />
-        </div>
+
         <div className="erp-lines">
           {fields.map((field, index) => {
-            const lineItemId = watch(`lines.${index}.itemId`);
-            const onHand = lineItemId && selectedWarehouseId
-              ? (stockLevels ?? []).find((s) => s.itemId === lineItemId && s.warehouseId === selectedWarehouseId)?.quantity ?? null
-              : null;
+            const stock = availability[index]!;
             return (
             <div key={field.id} className="erp-lines__row">
               <Controller
                 control={control}
                 name={`lines.${index}.itemId`}
                 render={({ field: f }) => (
-                  <Dropdown
+                  <LineField label={t("inventory.items.title")}><Dropdown
                     value={f.value}
                     onChange={(e) => f.onChange(e.value)}
                     options={(items ?? []).map((i) => ({ label: `${i.code} — ${localizedName(i, i18n.language)}`, value: i.id }))}
                     filter
                     placeholder={t("inventory.items.title")}
                     className={errors.lines?.[index]?.itemId ? "p-invalid erp-lines__account" : "erp-lines__account"}
-                  />
+                  /></LineField>
                 )}
               />
               <div style={{ flex: "1 1 6rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-                <InputText
+                <LineField label={t("inventory.goodsReceipt.quantity")} hint={<StockHint {...stock} />}><InputText
                   placeholder={t("inventory.goodsReceipt.quantity")}
                   dir="ltr"
                   {...register(`lines.${index}.quantity`)}
@@ -174,12 +181,7 @@ export function StockIssuePage(): React.JSX.Element {
                   }}
                   className={`erp-lines__amount${errors.lines?.[index]?.quantity ? " p-invalid" : ""}`}
                   style={{ width: "100%" }}
-                />
-                {onHand !== null ? (
-                  <span style={{ fontSize: "0.75rem", color: Number(onHand) > 0 ? "var(--mk-success)" : "var(--mk-danger)", fontVariantNumeric: "tabular-nums" }}>
-                    {t("inventory.stockLevels.onHand")}: {onHand}
-                  </span>
-                ) : null}
+                /></LineField>
               </div>
               <Button type="button" icon="pi pi-trash" text severity="danger" aria-label={t("actions.removeLine")} onClick={() => remove(index)} disabled={fields.length <= 1} />
             </div>
@@ -193,10 +195,10 @@ export function StockIssuePage(): React.JSX.Element {
         {createIssue.isSuccess ? <p className="erp-field__hint">{t("inventory.stockIssue.postedSuccess", { number: createIssue.data?.number })}</p> : null}
 
         <div className="erp-form__actions">
-          <Button type="submit" label={t("inventory.stockIssue.submit")} loading={createIssue.isPending} />
+          <Button type="submit" label={t("inventory.stockIssue.submit")} disabled={stockBlocked || !draft.ready || draft.status === "completed"} loading={createIssue.isPending} />
         </div>
       </form>
-      <CreatedDialog info={created} onHide={() => setCreated(null)} />
+      <CreatedDialog info={created} onHide={() => void navigate("/inventory/stock-issues")} />
     </div>
   );
 }

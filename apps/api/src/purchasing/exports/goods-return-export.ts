@@ -1,3 +1,4 @@
+import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { GoodsReturnDetail } from "@erp/core";
 import { Money } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -97,6 +98,6 @@ export async function goodsReturnToPdfHtml(params: {
   </table>
 </div>
 `,
-    footerHtml: `${params.issuedBy || params.issuedAt ? `<div class="issued-by-block">${params.issuedBy ? `<span><strong>${escapeHtml(t("document.issuedBy"))}</strong>${escapeHtml(params.issuedBy)}</span>` : ""}${params.issuedAt ? `<span><strong>${escapeHtml(t("document.issuedAt"))}</strong>${escapeHtml(params.issuedAt)}</span>` : ""}</div>` : ""}<p class="computer-generated">${escapeHtml(t("goodsReturn.computerGenerated"))}</p>`,
+    footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("goodsReturn.computerGenerated") }),
   });
 }

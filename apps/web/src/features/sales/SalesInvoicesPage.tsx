@@ -1,3 +1,4 @@
+import { DocumentTrail } from "../documents/DocumentTrail";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -173,6 +174,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
       </div>
       <CreditNoteDialog invoiceId={invoice.id} visible={creditOpen} onHide={() => setCreditOpen(false)} />
       <DebitNoteDialog invoiceId={invoice.id} visible={debitOpen} onHide={() => setDebitOpen(false)} />
+    <DocumentTrail kind="sales_invoice" id={id} />
     </div>
   );
 }
