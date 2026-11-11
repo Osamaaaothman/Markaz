@@ -200,7 +200,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
             <Controller
               control={control}
               name="supplierId"
-              render={({ field }) => <PartyPicker inputId="poSupplier" value={field.value || null} onChange={(party) => field.onChange(party?.id ?? "")} />}
+              render={({ field }) => <PartyPicker excludeEmployees inputId="poSupplier" value={field.value || null} onChange={(party) => field.onChange(party?.id ?? "")} />}
             />
             {errors.supplierId ? <small className="erp-field__error">{t("validation.required")}</small> : null}
           </div>

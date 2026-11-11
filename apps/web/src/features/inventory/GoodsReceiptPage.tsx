@@ -161,7 +161,7 @@ export function GoodsReceiptPage(): React.JSX.Element {
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="grParty">{t("inventory.goodsReceipt.supplier")}</label>
-            <Controller control={control} name="partyId" render={({ field }) => <PartyPicker inputId="grParty" value={field.value} onChange={(party) => field.onChange(party?.id ?? null)} />} />
+            <Controller control={control} name="partyId" render={({ field }) => <PartyPicker excludeEmployees inputId="grParty" value={field.value} onChange={(party) => field.onChange(party?.id ?? null)} />} />
           </div>
           <div className="erp-field">
             <label htmlFor="grReference">{t("inventory.goodsReceipt.reference")}</label>

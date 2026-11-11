@@ -148,6 +148,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
           <div className="erp-field">
             <label htmlFor="payParty">{t(`payments.${kind}.party`)}</label>
             <PartyPicker
+              excludeEmployees
               inputId="payParty"
               value={partyId || null}
               onChange={(party) =>

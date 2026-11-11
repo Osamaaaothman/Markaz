@@ -33,4 +33,13 @@ describe("party DTOs", () => {
     expect(await fieldsWithErrors(PartiesQueryDto, { kind: "ROBOT" })).toEqual(["kind"]);
     expect(await fieldsWithErrors(PartiesQueryDto, { companyId: "other" })).toEqual(["companyId"]);
   });
+
+  it("accepts only explicit boolean strings for employee exclusion", async () => {
+    for (const excludeEmployees of ["true", "false"]) {
+      expect(await fieldsWithErrors(PartiesQueryDto, { excludeEmployees })).toEqual([]);
+    }
+    for (const excludeEmployees of ["yes", true, ["true"]]) {
+      expect(await fieldsWithErrors(PartiesQueryDto, { excludeEmployees })).toEqual(["excludeEmployees"]);
+    }
+  });
 });

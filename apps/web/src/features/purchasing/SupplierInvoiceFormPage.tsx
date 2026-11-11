@@ -209,6 +209,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
           <div className="erp-field">
             <label htmlFor="siSupplier">{t("purchasing.supplier")}</label>
             <PartyPicker
+              excludeEmployees
               inputId="siSupplier"
               value={supplierId || null}
               onChange={(party) =>

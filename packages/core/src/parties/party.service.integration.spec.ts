@@ -66,4 +66,36 @@ describeIfDb("PartyService — real database", () => {
     expect(await service.update(mine.id, { name: "Hijacked" }, actorB, newId())).toBeNull();
     expect((await service.list(companyA, { q: "Only mine" })).data[0]?.name).toBe("Only mine");
   });
+
+  it("excludes employees before search pagination while retaining them in the party directory", async () => {
+    const companyId = newId();
+    await prisma.company.create({ data: { id: companyId, name: "Picker filtering", defaultCurrency: "SAR" } });
+    const employees = Array.from({ length: 55 }, (_, index) => ({
+      id: newId(), companyId, ref: `E-${index}`, name: `A Match Employee ${index}`,
+      nameAr: `موظف مشترك ${index}`, kind: "EMPLOYEE",
+    }));
+    const commercial = ["COMPANY", "PERSON", "OTHER"].map((kind, index) => ({
+      id: newId(), companyId, ref: `C-${index}`, name: `Z Match ${index}`,
+      nameAr: `جهة مشتركة ${index}`, kind,
+    }));
+    const inactive = { id: newId(), companyId, ref: "INACTIVE", name: "Z Match inactive", kind: "COMPANY", isActive: false };
+    await prisma.party.createMany({ data: [...employees, ...commercial, inactive] });
+
+    // More than a full page of alphabetically earlier employees must not hide customers/suppliers.
+    const first = await service.list(companyId, { excludeEmployees: "true", q: "match", limit: "2" });
+    expect(first.data.map((party) => party.id)).toEqual(commercial.slice(0, 2).map((party) => party.id));
+    expect(first.pageInfo.hasMore).toBe(true);
+    const second = await service.list(companyId, { excludeEmployees: "true", q: "match", limit: "2", cursor: first.pageInfo.nextCursor! });
+    expect(second.data.map((party) => party.id)).toEqual([commercial[2]!.id]);
+    expect(second.pageInfo.hasMore).toBe(false);
+    expect((await service.list(companyId, { excludeEmployees: "true", q: "مشترك" })).data).toHaveLength(3);
+    expect((await service.list(companyId, { excludeEmployees: "true", q: employees[0]!.ref })).data).toEqual([]);
+    expect((await service.list(companyId, { excludeEmployees: "true", includeInactive: "true" })).data).toHaveLength(4);
+    expect((await service.list(companyB, { excludeEmployees: "true", q: "match" })).data).toEqual([]);
+
+    expect((await service.list(companyId, { kind: "EMPLOYEE", limit: "100" })).data).toHaveLength(55);
+    expect((await service.list(companyId, { excludeEmployees: "false", limit: "100" })).data).toHaveLength(58);
+    expect((await service.list(companyId, { limit: "100" })).data).toHaveLength(58);
+    expect((await service.list(companyId, { kind: "EMPLOYEE", excludeEmployees: "true" })).data).toEqual([]);
+  });
 });
