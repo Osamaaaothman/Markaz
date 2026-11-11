@@ -14,7 +14,7 @@ import { createMonitoredWorker, createQueue } from "./jobs/create-monitored-work
 import { DEFAULT_JOB_OPTIONS, type JobData } from "./jobs/job-conventions.js";
 import { relayOutboxOnce, type OutboxJobData } from "./jobs/outbox-relay.js";
 import { workerLogger } from "./jobs/worker-logger.js";
-import { createEmailTransport, readSmtpConfigFromEnv } from "./notifications/email-transport.js";
+import { createEmailTransportFromEnv } from "./notifications/email-transport.js";
 import { createNotificationProcessor, NOTIFICATIONS_QUEUE } from "./notifications/notification.job.js";
 
 // docs/04-DATA-MODEL-RULES.md §3: see the matching comment in main.ts — same
@@ -56,7 +56,7 @@ const { worker: outboxRelayWorker, close: closeOutboxRelayWorker } = createMonit
   },
 );
 
-const emailTransport = createEmailTransport(readSmtpConfigFromEnv(process.env), workerLogger);
+const emailTransport = createEmailTransportFromEnv(process.env, workerLogger);
 const { close: closeNotificationsWorker } = createMonitoredWorker<OutboxJobData>(
   NOTIFICATIONS_QUEUE,
   connection,

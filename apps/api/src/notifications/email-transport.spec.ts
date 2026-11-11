@@ -5,6 +5,8 @@ import {
   LoggingEmailTransport,
   readSmtpConfigFromEnv,
   SmtpEmailTransport,
+  ResendEmailTransport,
+  createEmailTransportFromEnv,
 } from "./email-transport.js";
 
 function silentLogger(): pino.Logger {
@@ -12,7 +14,7 @@ function silentLogger(): pino.Logger {
 }
 
 describe("LoggingEmailTransport", () => {
-  it("never throws and never logs the full recipient address", async () => {
+  it("refuses an unconfigured send and never logs the full recipient address", async () => {
     const entries: unknown[] = [];
     const logger = pino({ level: "warn" }, {
       write: (line: string) => entries.push(JSON.parse(line)),
@@ -21,12 +23,38 @@ describe("LoggingEmailTransport", () => {
 
     await expect(
       transport.send({ to: "someone@example.com", subject: "s", html: "<p>h</p>", text: "t" }),
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({ code: "EMAIL_NOT_CONFIGURED" });
 
     expect(entries).toHaveLength(1);
     const entry = entries[0] as { to: string };
     expect(entry.to).not.toBe("someone@example.com");
     expect(entry.to).toContain("@example.com");
+  });
+});
+
+describe("ResendEmailTransport", () => {
+  it("sends the PDF as base64 over HTTPS and requires provider acceptance", async () => {
+    let body: Record<string, unknown> = {};
+    const request: typeof fetch = (url, init) => {
+      expect(url).toBe("https://api.resend.com/emails");
+      expect(init?.method).toBe("POST");
+      expect(init?.signal).toBeDefined();
+      if (typeof init?.body !== "string") throw new Error("Expected a JSON request body");
+      body = JSON.parse(init.body) as Record<string, unknown>;
+      return Promise.resolve(new Response(JSON.stringify({ id: "test-message" }), { status: 200 }));
+    };
+    await new ResendEmailTransport("test-key", "sales@example.test", request).send({ to: "buyer@example.test", subject: "Quotation", html: "<p>Quotation</p>", text: "Quotation", attachments: [{ filename: "quotation.pdf", content: Buffer.from("%PDF-test"), contentType: "application/pdf" }] });
+    expect(body).toMatchObject({ from: "sales@example.test", to: ["buyer@example.test"], attachments: [{ filename: "quotation.pdf", content: Buffer.from("%PDF-test").toString("base64"), content_type: "application/pdf" }] });
+  });
+
+  it.each([401, 429, 500])("never reports a provider %s response as sent", async (status) => {
+    const request: typeof fetch = () => Promise.resolve(new Response("private provider details", { status }));
+    await expect(new ResendEmailTransport("test-key", "sales@example.test", request).send({ to: "buyer@example.test", subject: "q", html: "q", text: "q" })).rejects.toMatchObject({ message: "EMAIL_DELIVERY_FAILED" });
+  });
+
+  it("requires an API key and sender without falling back to another provider", () => {
+    expect(createEmailTransportFromEnv({ EMAIL_PROVIDER: "resend" }, silentLogger()).configured).toBe(false);
+    expect(createEmailTransportFromEnv({ EMAIL_PROVIDER: "resend", RESEND_API_KEY: "test-key", EMAIL_FROM_ADDRESS: "sales@example.test" }, silentLogger())).toBeInstanceOf(ResendEmailTransport);
   });
 });
 
