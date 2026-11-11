@@ -108,6 +108,7 @@ export function useQuotationAction(id: string, action: "reject" | "cancel" | "co
 }
 
 export interface QuotationEmailPreview {
+  readonly text: string;
   readonly deliveryConfigured: boolean;
   readonly html: string;
   readonly subject: string;

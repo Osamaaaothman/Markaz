@@ -7,10 +7,12 @@ import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dropdown } from "primereact/dropdown";
 import { Tag } from "primereact/tag";
+import { Dialog } from "primereact/dialog";
+import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
-import { exportFile } from "../accounting/export-report";
+import { exportReport, type ExportFormat } from "../accounting/export-report";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
@@ -62,6 +64,9 @@ export function StockMovementsPage(): React.JSX.Element {
   const [type, setType] = useState<MovementType | null>(null);
   const [from, setFrom] = useState<Date | null>(null);
   const [to, setTo] = useState<Date | null>(null);
+  const [exportScope, setExportScope] = useState<"filtered" | "all">("filtered");
+  const [selectedMovement, setSelectedMovement] = useState<MovementEntry | null>(null);
+  const [exportError, setExportError] = useState(false);
 
   const filters: Record<string, string> = {
     ...(itemId ? { itemId } : {}),
@@ -82,8 +87,14 @@ export function StockMovementsPage(): React.JSX.Element {
   });
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
-  const exportCsv = async (): Promise<void> => {
-    await exportFile("/v1/stock-movements/export", { ...filters }, "stock-movements.csv");
+  const exportMovements = async (format: ExportFormat, row?: MovementEntry): Promise<void> => {
+    setExportError(false);
+    try {
+      const params = row ? { movementId: row.id } : exportScope === "all" ? {} : filters;
+      await exportReport("/v1/stock-movements/export", { ...params, lang: i18n.language.startsWith("ar") ? "ar" : "en" }, row ? `stock-movement-${row.id}` : "stock-movements", format);
+    } catch {
+      setExportError(true);
+    }
   };
 
   return (
@@ -94,9 +105,17 @@ export function StockMovementsPage(): React.JSX.Element {
           <p className="erp-page__subtitle">{t("inventory.movements.subtitle")}</p>
         </div>
         <div className="erp-page__header-actions">
-          <Button label={t("actions.exportCsv")} icon="pi pi-file" outlined onClick={() => void exportCsv()} />
+          <div className="erp-field">
+            <label htmlFor="mvExportScope">{t("inventory.movements.exportScope")}</label>
+            <Dropdown inputId="mvExportScope" value={exportScope} onChange={(e) => setExportScope(e.value as "filtered" | "all")}
+              options={[{ value: "filtered", label: t("inventory.movements.exportFiltered") }, { value: "all", label: t("inventory.movements.exportAll") }]} />
+          </div>
+          <ExportButtons onExport={(format) => exportMovements(format)} />
         </div>
       </div>
+
+      <p className="erp-field__hint">{t("inventory.movements.exportHint")}</p>
+      {exportError ? <p role="alert" className="erp-page__error">{t("inventory.movements.exportError")}</p> : null}
 
       <div className="erp-form__row">
         <div className="erp-field">
@@ -148,7 +167,8 @@ export function StockMovementsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid value={rows} searchable={false} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+            <Column header={t("inventory.movements.exportRow")} style={{ width: "9rem" }} body={(r: MovementEntry) => <Button type="button" icon="pi pi-download" text label={t("inventory.movements.exportRow")} onClick={() => { setExportError(false); setSelectedMovement(r); }} />} />
             <Column header={t("inventory.movements.date")} style={{ width: "9rem" }} body={(r: MovementEntry) => formatCalendarDate(r.date, i18n.language)} />
             <Column header={t("inventory.items.code")} style={{ width: "9rem" }} body={(r: MovementEntry) => <span className="coa-code">{r.itemCode}</span>} />
             <Column header={t("inventory.items.displayName")} body={(r: MovementEntry) => localizedName({ name: r.itemName, nameAr: r.itemNameAr }, i18n.language)} />
@@ -172,6 +192,14 @@ export function StockMovementsPage(): React.JSX.Element {
           ) : null}
         </>
       )}
+      <Dialog header={t("inventory.movements.exportRow")} visible={selectedMovement !== null} onHide={() => setSelectedMovement(null)} className="erp-dialog" modal>
+        {selectedMovement ? <>
+          <p>{selectedMovement.itemCode} — {localizedName({ name: selectedMovement.itemName, nameAr: selectedMovement.itemNameAr }, i18n.language)}</p>
+          <p>{t("inventory.movements.entry")}: <bdi>{selectedMovement.entryNumber}</bdi> · {t("purchasing.quantity")}: <bdi>{selectedMovement.quantity}</bdi></p>
+          <ExportButtons onExport={(format) => exportMovements(format, selectedMovement)} />
+          {exportError ? <p role="alert" className="erp-page__error">{t("inventory.movements.exportError")}</p> : null}
+        </> : null}
+      </Dialog>
     </div>
   );
 }

@@ -83,4 +83,15 @@ describeIfDb("Stock movements (stock card) — real database", () => {
     expect((await movements.list(newId(), {})).data).toEqual([]);
     expect((await movements.listForExport(companyId, {}))[0]).toMatchObject({ partyName: "Supplier Co", partyNameAr: "شركة المورد" });
   });
+
+  it("exports the selected movement only, retains filters, and prevents cross-company row access", async () => {
+    const all = await movements.listForExport(companyId, {});
+    const receipt = all[0]!;
+    expect(await movements.listForExport(companyId, { movementId: receipt.id })).toEqual([receipt]);
+    expect(await movements.listForExport(newId(), { movementId: receipt.id })).toEqual([]);
+    expect(await movements.listForExport(companyId, { movementId: receipt.id, movementType: "ISSUE" })).toEqual([]);
+    expect(await movements.listForExport(companyId, { warehouseId, movementType: "RECEIPT" })).toEqual([receipt]);
+    expect(await movements.listForExport(companyId, { warehouseId: newId() })).toEqual([]);
+    expect(await movements.listForExport(companyId, { limit: "1", cursor: receipt.id })).toEqual(all);
+  });
 });

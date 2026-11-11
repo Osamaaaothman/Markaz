@@ -18,8 +18,8 @@ export class StockMovementsQueryDto {
   warehouseId?: string;
 
   @IsOptional()
-  @IsIn(["RECEIPT", "ISSUE", "COUNT_ADJUSTMENT"])
-  movementType?: "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT";
+  @IsIn(["RECEIPT", "ISSUE", "COUNT_ADJUSTMENT", "RETURN"])
+  movementType?: "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT" | "RETURN";
 
   @IsOptional()
   @IsDateString()

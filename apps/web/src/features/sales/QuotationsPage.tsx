@@ -161,12 +161,15 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
   const [to, setTo] = useState(quotation.customerEmail ?? "");
   const preview = usePreviewQuotationEmail(quotation.id);
   const send = useSendQuotationEmail(quotation.id);
+  const [openingGmail, setOpeningGmail] = useState(false);
+  const [gmailError, setGmailError] = useState<string | null>(null);
 
   const openDialog = (): void => {
     setTo(quotation.customerEmail ?? "");
     setLanguage(i18n.language.startsWith("ar") ? "ar" : "en");
     preview.reset();
     send.reset();
+    setGmailError(null);
   };
 
   const toValid = DECIMAL_EMAIL.test(to);
@@ -180,13 +183,23 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
     send.mutate({ to, language });
   };
 
-  const openInGmail = (): void => {
-    void exportReport(`/v1/quotations/${quotation.id}/pdf`, { lang: language }, quotation.number, "pdf");
-    const customer = language === "ar" && quotation.customerNameAr ? quotation.customerNameAr : quotation.customerName;
-    const subject = t("sales.quotations.email.gmailSubject", { number: quotation.number });
-    const body = t("sales.quotations.email.gmailBody", { customer, number: quotation.number, total: formatMoney(quotation.totalGross, quotation.currency) });
-    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+  const openInGmail = async (): Promise<void> => {
+    if (!toValid || openingGmail) return;
+    const compose = window.open("about:blank", "_blank");
+    if (!compose) { setGmailError("sales.quotations.email.errors.popupBlocked"); return; }
+    compose.opener = null;
+    setOpeningGmail(true);
+    setGmailError(null);
+    try {
+      const content = await preview.mutateAsync(language);
+      await exportReport(`/v1/quotations/${quotation.id}/pdf`, { lang: language }, quotation.number, "pdf");
+      compose.location.href = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(content.subject)}&body=${encodeURIComponent(content.text)}`;
+    } catch {
+      compose.close();
+      setGmailError("sales.quotations.email.errors.generic");
+    } finally {
+      setOpeningGmail(false);
+    }
   };
 
   return (
@@ -195,12 +208,13 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="qeTo">{t("sales.quotations.email.recipient")}</label>
-            <InputText id="qeTo" dir="ltr" value={to} onChange={(e) => { setTo(e.target.value); preview.reset(); send.reset(); }} className={to !== "" && !toValid ? "p-invalid" : ""} />
+            <InputText id="qeTo" dir="ltr" value={to} disabled={openingGmail || preview.isPending || send.isPending} onChange={(e) => { setTo(e.target.value); preview.reset(); send.reset(); }} className={to !== "" && !toValid ? "p-invalid" : ""} />
           </div>
           <div className="erp-field">
             <label htmlFor="qeLang">{t("sales.quotations.email.language")}</label>
             <Dropdown
               inputId="qeLang"
+              disabled={openingGmail || preview.isPending || send.isPending}
               value={language}
               onChange={(e) => { setLanguage(e.value as "en" | "ar"); preview.reset(); send.reset(); }}
               options={[
@@ -212,11 +226,14 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
         </div>
 
         <div className="erp-form__actions" style={{ justifyContent: "flex-start" }}>
-          <Button type="button" label={t("sales.quotations.email.preview")} icon="pi pi-eye" outlined loading={preview.isPending} disabled={!toValid} onClick={doPreview} />
+          <Button type="button" label={t("sales.quotations.email.preview")} icon="pi pi-eye" outlined loading={preview.isPending} disabled={!toValid || openingGmail || send.isPending} onClick={doPreview} />
         </div>
         {preview.isError ? <p className="erp-auth-card__error">{t("sales.quotations.email.errors.generic")}</p> : null}
         {!preview.data ? <p className="erp-field__hint">{t("sales.quotations.email.previewHint")}</p> : null}
 
+        {preview.data ? (
+          <p><strong>{t("sales.quotations.email.subject")}:</strong> <span dir={language === "ar" ? "rtl" : "ltr"}>{preview.data.subject}</span></p>
+        ) : null}
         {preview.data ? (
           <iframe
             title="email-preview"
@@ -228,15 +245,16 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
 
         {preview.data?.deliveryConfigured === false ? <p role="alert" className="erp-auth-card__error">{t("sales.quotations.email.errors.notConfigured")}</p> : null}
         {send.isError ? <p role="alert" className="erp-auth-card__error">{t("sales.quotations.email.errors.generic")}</p> : null}
+        {gmailError ? <p role="alert" className="erp-auth-card__error">{t(gmailError)}</p> : null}
         {send.isSuccess ? <p className="erp-field__hint">{t("sales.quotations.email.success")}</p> : null}
 
         <div className="erp-form__actions">
-          <Button type="button" label={t("sales.quotations.email.openInGmail")} icon="pi pi-google" text disabled={!toValid} onClick={openInGmail} />
+          <Button type="button" label={t("sales.quotations.email.openInGmail")} icon="pi pi-google" text loading={openingGmail} disabled={!toValid || send.isPending || preview.isPending} onClick={() => void openInGmail()} />
           <Button
             type="button"
             label={t("sales.quotations.email.sendNow")}
             icon="pi pi-send"
-            disabled={!toValid || !preview.data || preview.data.deliveryConfigured === false || send.isSuccess}
+            disabled={!toValid || !preview.data || preview.data.deliveryConfigured === false || send.isSuccess || openingGmail || preview.isPending}
             loading={send.isPending}
             title={!preview.data ? t("sales.quotations.email.sendDisabledHint") : undefined}
             onClick={doSend}
