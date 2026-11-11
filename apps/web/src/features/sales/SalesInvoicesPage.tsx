@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
+import { DataTable } from "primereact/datatable";
 import { selectFilter } from "../../shared/ui/column-filters";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Dialog } from "primereact/dialog";
@@ -20,7 +21,7 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
 import { tafqeetAmount } from "@erp/shared";
-import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
+import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceDetail, type SalesInvoiceSummary } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 import { ZatcaInvoicePanel } from "../compliance/ZatcaInvoicePanel";
 
@@ -176,82 +177,128 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
       <div className="erp-form__actions">
         <Button type="button" label={t("sales.orders.back")} text onClick={() => void navigate("/sales/invoices")} />
       </div>
-      <CreditNoteDialog invoiceId={invoice.id} visible={creditOpen} onHide={() => setCreditOpen(false)} />
+      <SalesReturnDialog invoiceId={invoice.id} visible={creditOpen} onHide={() => setCreditOpen(false)} />
       <DebitNoteDialog invoiceId={invoice.id} visible={debitOpen} onHide={() => setDebitOpen(false)} />
     <DocumentTrail kind="sales_invoice" id={id} />
     </div>
   );
 }
 
-function CreditNoteDialog({ invoiceId, visible, onHide }: { invoiceId: string; visible: boolean; onHide: () => void }): React.JSX.Element {
+type SalesReturnLineRow = SalesInvoiceDetail["lines"][number] & {
+  included: boolean;
+  returnQty: string;
+  taxCodeId: string;
+};
+
+function SalesReturnDialog({ invoiceId, visible, onHide }: { invoiceId: string; visible: boolean; onHide: () => void }): React.JSX.Element {
   const { t } = useTranslation();
+  const { data: invoice } = useSalesInvoice(invoiceId);
   const { data: taxCodes } = useTaxCodes(false);
   const create = useCreateCreditNote(invoiceId);
   const [date, setDate] = useState<Date>(new Date());
-  const [description, setDescription] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [unitPrice, setUnitPrice] = useState("");
-  const [taxCodeId, setTaxCodeId] = useState("");
+  const [rows, setRows] = useState<SalesReturnLineRow[]>([]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !invoice?.lines || !taxCodes) return;
     create.reset();
     setDate(new Date());
-    setDescription("");
-    setQuantity("1");
-    setUnitPrice("");
-    setTaxCodeId((taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "");
-    // Reset each time the dialog opens.
-  }, [visible]);
+    setRows(
+      invoice.lines.map((l) => ({
+        ...l,
+        included: true,
+        returnQty: l.quantity,
+        taxCodeId: taxCodes.find((tc) => Number(tc.rate) === Number(l.taxRate))?.id ?? (taxCodes.find((c) => c.treatment === "STANDARD") ?? taxCodes[0])?.id ?? "",
+      })),
+    );
+  }, [visible, invoice?.lines, taxCodes]);
 
-  const valid = description.trim() !== "" && DECIMAL.test(quantity) && /[1-9]/.test(quantity) && DECIMAL.test(unitPrice) && taxCodeId !== "";
+  const updateRow = (idx: number, patch: Partial<SalesReturnLineRow>) =>
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+
+  const selectedRows = rows.filter((r) => r.included && DECIMAL.test(r.returnQty) && Number(r.returnQty) > 0 && Number(r.returnQty) <= Number(r.quantity) && r.taxCodeId !== "");
+  const valid = selectedRows.length > 0;
+
+  const handlePost = () => {
+    create.mutate(
+      {
+        creditDate: toDateOnlyIsoString(date),
+        lines: selectedRows.map((r) => ({
+          description: r.description,
+          quantity: r.returnQty,
+          unitPrice: r.unitPrice,
+          taxCodeId: r.taxCodeId,
+        })),
+      },
+      { onSuccess: onHide },
+    );
+  };
+
+  const currency = invoice?.currency ?? "";
   const code = (create.error as { response?: { data?: { error?: { code?: string } } } } | null)?.response?.data?.error?.code;
 
   return (
-    <Dialog header={t("sales.invoices.creditNote")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(40rem, 96vw)" }}>
-      <div className="erp-form">
-        <p className="erp-field__hint">{t("sales.invoices.creditNoteHint")}</p>
-        <div className="erp-form__row">
-          <div className="erp-field">
-            <label htmlFor="cnDate">{t("sales.invoices.creditDate")}</label>
-            <Calendar inputId="cnDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
+    <Dialog header={t("sales.invoices.salesReturn")} visible={visible} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(64rem, 96vw)" }}>
+      {!invoice ? (
+        <PageSkeleton />
+      ) : (
+        <div className="erp-form">
+          <p className="erp-field__hint">{t("sales.invoices.salesReturnHint")}</p>
+          <div className="erp-form__row">
+            <div className="erp-field">
+              <label htmlFor="srDate">{t("sales.invoices.creditDate")}</label>
+              <Calendar inputId="srDate" value={date} onChange={(e) => e.value && setDate(e.value as Date)} dateFormat="yy-mm-dd" />
+            </div>
+          </div>
+          <DataTable value={rows} className="erp-table" size="small" showGridlines>
+            <Column
+              header=""
+              style={{ width: "2.5rem" }}
+              body={(_: SalesReturnLineRow, opt) => (
+                <input
+                  type="checkbox"
+                  checked={rows[opt.rowIndex]?.included ?? false}
+                  onChange={(e) => updateRow(opt.rowIndex, { included: e.target.checked })}
+                />
+              )}
+            />
+            <Column header={t("sales.description")} body={(r: SalesReturnLineRow) => r.description} />
+            <Column header={t("purchasing.invoices.origQty")} align="right" style={{ width: "6rem" }} body={(r: SalesReturnLineRow) => r.quantity} />
+            <Column
+              header={t("purchasing.invoices.returnQty")}
+              style={{ width: "8rem" }}
+              body={(r: SalesReturnLineRow, opt) => (
+                <InputText
+                  disabled={!rows[opt.rowIndex]?.included}
+                  dir="ltr"
+                  value={rows[opt.rowIndex]?.returnQty ?? ""}
+                  style={{ width: "100%" }}
+                  onChange={(e) => updateRow(opt.rowIndex, { returnQty: e.target.value })}
+                  className={rows[opt.rowIndex]?.included && (!DECIMAL.test(rows[opt.rowIndex]?.returnQty ?? "") || Number(rows[opt.rowIndex]?.returnQty) > Number(r.quantity)) ? "p-invalid" : ""}
+                />
+              )}
+            />
+            <Column header={t("purchasing.unitPrice")} align="right" style={{ width: "9rem" }} body={(r: SalesReturnLineRow) => formatMoney(r.unitPrice, currency)} />
+            <Column
+              header={t("purchasing.invoices.taxCode")}
+              style={{ width: "10rem" }}
+              body={(_: SalesReturnLineRow, opt) => (
+                <Dropdown
+                  disabled={!rows[opt.rowIndex]?.included}
+                  value={rows[opt.rowIndex]?.taxCodeId || null}
+                  onChange={(e) => updateRow(opt.rowIndex, { taxCodeId: (e.value as string | null) ?? "" })}
+                  options={(taxCodes ?? []).map((c) => ({ label: `${c.code} (${Number(c.rate)}%)`, value: c.id }))}
+                  style={{ width: "100%" }}
+                />
+              )}
+            />
+          </DataTable>
+          {create.isError ? <p className="erp-auth-card__error">{code === "CREDIT_EXCEEDS_INVOICE" ? t("sales.errors.CREDIT_EXCEEDS_INVOICE") : t("sales.errors.generic")}</p> : null}
+          <div className="erp-form__actions">
+            <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
+            <Button type="button" label={t("sales.invoices.postCreditNote")} disabled={!valid} loading={create.isPending} onClick={handlePost} />
           </div>
         </div>
-        <div className="erp-field">
-          <label htmlFor="cnDesc">{t("sales.description")}</label>
-          <InputText id="cnDesc" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="erp-form__row">
-          <div className="erp-field">
-            <label htmlFor="cnQty">{t("purchasing.quantity")}</label>
-            <InputText id="cnQty" dir="ltr" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-          </div>
-          <div className="erp-field">
-            <label htmlFor="cnPrice">{t("purchasing.unitPrice")}</label>
-            <InputText id="cnPrice" dir="ltr" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
-          </div>
-          <div className="erp-field">
-            <label htmlFor="cnTax">{t("purchasing.invoices.taxCode")}</label>
-            <Dropdown inputId="cnTax" value={taxCodeId || null} onChange={(e) => setTaxCodeId((e.value as string | null) ?? "")} options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))} />
-          </div>
-        </div>
-        {create.isError ? <p className="erp-auth-card__error">{code === "CREDIT_EXCEEDS_INVOICE" ? t("sales.errors.CREDIT_EXCEEDS_INVOICE") : t("sales.errors.generic")}</p> : null}
-        <div className="erp-form__actions">
-          <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
-          <Button
-            type="button"
-            label={t("sales.invoices.postCreditNote")}
-            disabled={!valid}
-            loading={create.isPending}
-            onClick={() =>
-              create.mutate(
-                { creditDate: toDateOnlyIsoString(date), lines: [{ description: description.trim(), quantity, unitPrice, taxCodeId }] },
-                { onSuccess: onHide },
-              )
-            }
-          />
-        </div>
-      </div>
+      )}
     </Dialog>
   );
 }

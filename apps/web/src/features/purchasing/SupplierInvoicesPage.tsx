@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
+import { DataTable } from "primereact/datatable";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
@@ -16,7 +17,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
-import { useCreateDebitNote, useSupplierInvoices, useTaxCodes, type SupplierInvoiceSummary } from "./use-invoicing";
+import { useCreateDebitNote, useSupplierInvoice, useSupplierInvoices, useTaxCodes, type SupplierInvoiceLineDetail, type SupplierInvoiceSummary } from "./use-invoicing";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL = "ALL";
@@ -107,94 +108,153 @@ export function SupplierInvoicesPage(): React.JSX.Element {
         </>
       )}
 
-      {debitNoteFor ? <DebitNoteDialog invoice={debitNoteFor} visible={true} onHide={() => setDebitNoteFor(null)} /> : null}
+      {debitNoteFor ? <PurchaseReturnDialog invoice={debitNoteFor} visible={true} onHide={() => setDebitNoteFor(null)} /> : null}
     </div>
   );
 }
 
-function DebitNoteDialog({ invoice, visible, onHide }: { invoice: SupplierInvoiceSummary; visible: boolean; onHide: () => void }): React.JSX.Element {
+type ReturnLineRow = SupplierInvoiceLineDetail & {
+  included: boolean;
+  returnQty: string;
+  taxCodeId: string;
+  accountId: string;
+};
+
+function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierInvoiceSummary; visible: boolean; onHide: () => void }): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const { data: detail } = useSupplierInvoice(invoice.id);
   const { data: taxCodes } = useTaxCodes(false);
   const { data: accounts } = useChartOfAccounts();
   const postable = (accounts ?? []).filter((a) => a.isPostable);
   const create = useCreateDebitNote(invoice.id);
   const [date, setDate] = useState<Date>(new Date());
-  const [description, setDescription] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [unitPrice, setUnitPrice] = useState("");
-  const [taxCodeId, setTaxCodeId] = useState("");
-  const [accountId, setAccountId] = useState("");
+  const [rows, setRows] = useState<ReturnLineRow[]>([]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !detail?.lines || !taxCodes || !accounts) return;
     create.reset();
     setDate(new Date());
-    setDescription("");
-    setQuantity("1");
-    setUnitPrice("");
-    setTaxCodeId((taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "");
-    setAccountId("");
-    // Reset each time the dialog opens.
-  }, [visible]);
+    setRows(
+      detail.lines.map((l) => ({
+        ...l,
+        included: true,
+        returnQty: l.quantity,
+        taxCodeId: taxCodes.find((tc) => tc.code === l.taxCode)?.id ?? "",
+        accountId: accounts.find((a) => a.code === l.accountCode)?.id ?? "",
+      })),
+    );
+  }, [visible, detail?.lines, taxCodes, accounts]);
 
-  const valid = description.trim() !== "" && DECIMAL.test(quantity) && /[1-9]/.test(quantity) && DECIMAL.test(unitPrice) && taxCodeId !== "" && accountId !== "";
-  const code = (create.error as { response?: { data?: { error?: { code?: string } } } } | null)?.response?.data?.error?.code;
+  const updateRow = (idx: number, patch: Partial<ReturnLineRow>) =>
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+
+  const selectedRows = rows.filter((r) => r.included && DECIMAL.test(r.returnQty) && Number(r.returnQty) > 0 && Number(r.returnQty) <= Number(r.quantity) && r.taxCodeId !== "" && r.accountId !== "");
+  const valid = selectedRows.length > 0;
+
+  const handlePost = () => {
+    create.mutate(
+      {
+        debitDate: toDateOnlyIsoString(date),
+        lines: selectedRows.map((r) => ({
+          description:
+            r.kind === "PO_LINE"
+              ? localizedName({ name: r.itemName ?? "", nameAr: r.itemNameAr }, i18n.language)
+              : r.description ?? localizedName({ name: r.accountName ?? "", nameAr: r.accountNameAr }, i18n.language),
+          quantity: r.returnQty,
+          unitPrice: r.unitPrice,
+          taxCodeId: r.taxCodeId,
+          accountId: r.accountId,
+        })),
+      },
+      { onSuccess: onHide },
+    );
+  };
 
   return (
-    <Dialog header={t("purchasing.invoices.debitNote")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(40rem, 96vw)" }}>
-      <div className="erp-form">
-        <p className="erp-field__hint">{t("purchasing.invoices.debitNoteHint")}</p>
-        <div className="erp-form__row">
-          <div className="erp-field">
-            <label htmlFor="dnDate">{t("purchasing.invoices.debitDate")}</label>
-            <Calendar inputId="dnDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
+    <Dialog header={t("purchasing.invoices.purchaseReturn")} visible={visible} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(72rem, 96vw)" }}>
+      {!detail ? (
+        <PageSkeleton />
+      ) : (
+        <div className="erp-form">
+          <p className="erp-field__hint">{t("purchasing.invoices.purchaseReturnHint")}</p>
+          <div className="erp-form__row">
+            <div className="erp-field">
+              <label htmlFor="prDate">{t("purchasing.invoices.debitDate")}</label>
+              <Calendar inputId="prDate" value={date} onChange={(e) => e.value && setDate(e.value as Date)} dateFormat="yy-mm-dd" />
+            </div>
+          </div>
+          <DataTable value={rows} className="erp-table" size="small" showGridlines>
+            <Column
+              header=""
+              style={{ width: "2.5rem" }}
+              body={(_: ReturnLineRow, opt) => (
+                <input
+                  type="checkbox"
+                  checked={rows[opt.rowIndex]?.included ?? false}
+                  onChange={(e) => updateRow(opt.rowIndex, { included: e.target.checked })}
+                />
+              )}
+            />
+            <Column
+              header={t("documents.item")}
+              body={(r: ReturnLineRow) =>
+                r.kind === "PO_LINE" ? (
+                  <span><span className="coa-code">{r.itemCode}</span> {localizedName({ name: r.itemName ?? "", nameAr: r.itemNameAr }, i18n.language)}</span>
+                ) : (
+                  <span><span className="coa-code">{r.accountCode}</span> {localizedName({ name: r.accountName ?? "", nameAr: r.accountNameAr }, i18n.language)}{r.description ? ` — ${r.description}` : ""}</span>
+                )
+              }
+            />
+            <Column header={t("purchasing.invoices.origQty")} align="right" style={{ width: "6rem" }} body={(r: ReturnLineRow) => r.quantity} />
+            <Column
+              header={t("purchasing.invoices.returnQty")}
+              style={{ width: "8rem" }}
+              body={(r: ReturnLineRow, opt) => (
+                <InputText
+                  disabled={!rows[opt.rowIndex]?.included}
+                  dir="ltr"
+                  value={rows[opt.rowIndex]?.returnQty ?? ""}
+                  style={{ width: "100%" }}
+                  onChange={(e) => updateRow(opt.rowIndex, { returnQty: e.target.value })}
+                  className={rows[opt.rowIndex]?.included && (!DECIMAL.test(rows[opt.rowIndex]?.returnQty ?? "") || Number(rows[opt.rowIndex]?.returnQty) > Number(r.quantity)) ? "p-invalid" : ""}
+                />
+              )}
+            />
+            <Column header={t("purchasing.unitPrice")} align="right" style={{ width: "9rem" }} body={(r: ReturnLineRow) => formatMoney(r.unitPrice, invoice.currency)} />
+            <Column
+              header={t("purchasing.invoices.taxCode")}
+              style={{ width: "9rem" }}
+              body={(_: ReturnLineRow, opt) => (
+                <Dropdown
+                  disabled={!rows[opt.rowIndex]?.included}
+                  value={rows[opt.rowIndex]?.taxCodeId || null}
+                  onChange={(e) => updateRow(opt.rowIndex, { taxCodeId: (e.value as string | null) ?? "" })}
+                  options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))}
+                  style={{ width: "100%" }}
+                />
+              )}
+            />
+            <Column
+              header={t("purchasing.invoices.expenseAccount")}
+              body={(_: ReturnLineRow, opt) => (
+                <Dropdown
+                  disabled={!rows[opt.rowIndex]?.included}
+                  value={rows[opt.rowIndex]?.accountId || null}
+                  onChange={(e) => updateRow(opt.rowIndex, { accountId: (e.value as string | null) ?? "" })}
+                  options={postable.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id }))}
+                  filter
+                  style={{ width: "100%" }}
+                />
+              )}
+            />
+          </DataTable>
+          {create.isError ? <p className="erp-auth-card__error">{t("purchasing.invoices.errors.generic")}</p> : null}
+          <div className="erp-form__actions">
+            <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
+            <Button type="button" label={t("purchasing.invoices.postDebitNote")} disabled={!valid} loading={create.isPending} onClick={handlePost} />
           </div>
         </div>
-        <div className="erp-field">
-          <label htmlFor="dnDesc">{t("sales.description")}</label>
-          <InputText id="dnDesc" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="erp-form__row">
-          <div className="erp-field">
-            <label htmlFor="dnQty">{t("purchasing.quantity")}</label>
-            <InputText id="dnQty" dir="ltr" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-          </div>
-          <div className="erp-field">
-            <label htmlFor="dnPrice">{t("purchasing.unitPrice")}</label>
-            <InputText id="dnPrice" dir="ltr" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
-          </div>
-          <div className="erp-field">
-            <label htmlFor="dnTax">{t("purchasing.invoices.taxCode")}</label>
-            <Dropdown inputId="dnTax" value={taxCodeId || null} onChange={(e) => setTaxCodeId((e.value as string | null) ?? "")} options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))} />
-          </div>
-        </div>
-        <div className="erp-field">
-          <label htmlFor="dnAccount">{t("purchasing.invoices.expenseAccount")}</label>
-          <Dropdown
-            inputId="dnAccount"
-            value={accountId || null}
-            onChange={(e) => setAccountId((e.value as string | null) ?? "")}
-            options={postable.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id }))}
-            filter
-          />
-        </div>
-        {create.isError ? <p className="erp-auth-card__error">{code === "DEBIT_EXCEEDS_INVOICE" ? t("purchasing.invoices.errors.DEBIT_EXCEEDS_INVOICE") : t("purchasing.invoices.errors.generic")}</p> : null}
-        <div className="erp-form__actions">
-          <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
-          <Button
-            type="button"
-            label={t("purchasing.invoices.postDebitNote")}
-            disabled={!valid}
-            loading={create.isPending}
-            onClick={() =>
-              create.mutate(
-                { debitDate: toDateOnlyIsoString(date), lines: [{ description: description.trim(), quantity, unitPrice, taxCodeId, accountId }] },
-                { onSuccess: onHide },
-              )
-            }
-          />
-        </div>
-      </div>
+      )}
     </Dialog>
   );
 }
