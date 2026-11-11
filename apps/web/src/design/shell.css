@@ -6,6 +6,11 @@
 
 /* ---------- layout ---------- */
 
+/* keep anchor-linked content below the floating topbar on all devices */
+html {
+  scroll-padding-top: calc(0.75rem + var(--mk-topbar-h) + var(--mk-space-4));
+}
+
 .erp-shell {
   display: grid;
   grid-template-columns: var(--mk-sidebar-w) 1fr;

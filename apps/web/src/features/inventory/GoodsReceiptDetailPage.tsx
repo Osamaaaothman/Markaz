@@ -10,6 +10,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
 import { exportReport } from "../accounting/export-report";
+import { tafqeetAmount } from "@erp/shared";
 import { useGoodsReceipt, type GoodsReceiptLineDetail } from "./use-goods-receipts";
 
 // One goods receipt as posted: which warehouse took the stock, from whom, at what cost, and the entry it made.
@@ -72,6 +73,10 @@ export function GoodsReceiptDetailPage(): React.JSX.Element {
         <div>
           <dt>{t("documents.totalValue")}</dt>
           <dd dir="ltr"><strong>{money(receipt.totalValue)}</strong></dd>
+        </div>
+        <div>
+          <dt>{t("created.inWords")}</dt>
+          <dd><strong>{tafqeetAmount(receipt.totalValue, receipt.currency)}</strong></dd>
         </div>
       </dl>
 

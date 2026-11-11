@@ -26,6 +26,21 @@
   flex-wrap: wrap;
 }
 
+@media (max-width: 599px) {
+  .erp-page__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .erp-page__header-actions {
+    width: 100%;
+  }
+
+  .erp-page__title {
+    font-size: var(--mk-text-xl);
+  }
+}
+
 .erp-page__title {
   margin: 0;
   font-size: var(--mk-text-2xl);

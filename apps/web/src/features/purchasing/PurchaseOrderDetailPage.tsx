@@ -9,7 +9,7 @@ import { DataTable } from "primereact/datatable";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -124,6 +124,10 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
         <div className="erp-field">
           <label>{t("purchasing.invoices.gross")}</label>
           <strong>{formatMoney(totalGross.toDecimalString(), order.currency)}</strong>
+        </div>
+        <div className="erp-field">
+          <label>{t("created.inWords")}</label>
+          <strong>{tafqeetAmount(totalGross.toDecimalString(), order.currency)}</strong>
         </div>
       </div>
       {order.notes ? <p>{order.notes}</p> : null}

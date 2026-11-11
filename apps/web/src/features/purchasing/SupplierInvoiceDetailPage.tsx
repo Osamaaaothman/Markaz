@@ -12,6 +12,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
+import { tafqeetAmount } from "@erp/shared";
 import { useSupplierInvoice, type SupplierInvoiceLineDetail } from "./use-invoicing";
 import { exportReport } from "../accounting/export-report";
 
@@ -96,6 +97,10 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
         <div>
           <dt>{t("purchasing.invoices.gross")}</dt>
           <dd dir="ltr"><strong>{money(invoice.totalGross)}</strong></dd>
+        </div>
+        <div>
+          <dt>{t("created.inWords")}</dt>
+          <dd><strong>{tafqeetAmount(invoice.totalGross, invoice.currency)}</strong></dd>
         </div>
         {invoice.outstanding !== null ? (
           <div>

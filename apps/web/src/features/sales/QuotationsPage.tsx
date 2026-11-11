@@ -17,6 +17,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { exportReport } from "../accounting/export-report";
+import { tafqeetAmount } from "@erp/shared";
 import {
   useQuotation,
   useQuotationAction,
@@ -129,6 +130,9 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
           <div className="erp-table-footer">
             <span>
               {t("purchasing.invoices.gross")}: <strong>{formatMoney(data.totalGross, data.currency)}</strong>
+            </span>
+            <span>
+              {t("created.inWords")}: <strong>{tafqeetAmount(data.totalGross, data.currency)}</strong>
             </span>
           </div>
           {reject.isError || cancel.isError ? <p className="erp-auth-card__error">{t("sales.errors.generic")}</p> : null}

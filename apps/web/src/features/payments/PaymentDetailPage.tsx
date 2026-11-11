@@ -14,6 +14,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 import { exportReport } from "../accounting/export-report";
+import { tafqeetAmount } from "@erp/shared";
 import { usePayment, useReversePayment, type PaymentAllocationView } from "./use-payments";
 
 // One receipt or payment as posted: who, how much, through which bank account, which invoices it settled and what stayed on account.
@@ -102,6 +103,10 @@ export function PaymentDetailPage(): React.JSX.Element {
         <div>
           <dt>{t("payments.amount")}</dt>
           <dd dir="ltr"><strong>{money(payment.amount)}</strong></dd>
+        </div>
+        <div>
+          <dt>{t("created.inWords")}</dt>
+          <dd><strong>{tafqeetAmount(payment.amount, payment.currency)}</strong></dd>
         </div>
         <div>
           <dt>{t("payments.allocated")}</dt>

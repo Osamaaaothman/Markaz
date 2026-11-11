@@ -19,6 +19,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
+import { tafqeetAmount } from "@erp/shared";
 import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceSummary } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 import { ZatcaInvoicePanel } from "../compliance/ZatcaInvoicePanel";
@@ -165,6 +166,9 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         </span>
         <span>
           {t("purchasing.invoices.gross")}: <strong>{formatMoney(invoice.totalGross, invoice.currency)}</strong>
+        </span>
+        <span>
+          {t("created.inWords")}: <strong>{tafqeetAmount(invoice.totalGross, invoice.currency)}</strong>
         </span>
       </div>
       <ZatcaInvoicePanel salesInvoiceId={invoice.id} resubmitEnabled={false} />

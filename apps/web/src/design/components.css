@@ -572,6 +572,7 @@ html body .mk-grid--scroll .p-datatable-thead > tr > th {
 @media (max-width: 899px) {
   .erp-table {
     overflow: visible;
+    scroll-margin-top: calc(0.75rem + var(--mk-topbar-h) + 1rem);
   }
 
   html body .erp-table .p-datatable-wrapper,
@@ -579,9 +580,10 @@ html body .mk-grid--scroll .p-datatable-thead > tr > th {
     overflow-x: auto !important;
   }
 
+  /* force static — PrimeReact default theme may set sticky on thead; !important ensures we win */
   html body .erp-table .p-datatable-thead > tr > th,
   html body .erp-table .p-treetable-thead > tr > th {
-    position: static;
+    position: static !important;
   }
 }
 
@@ -810,6 +812,8 @@ html body .erp-table .p-datatable-emptymessage > td {
 }
 
 .p-dialog .erp-form__actions {
+  position: static;
+  margin-block-start: 0.75rem;
   background: linear-gradient(180deg, transparent, var(--mk-surface) 38%);
 }
 
