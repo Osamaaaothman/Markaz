@@ -27,13 +27,14 @@ export async function quotationEmailContent(params: {
   const cur = quotation.currency;
   const dir = params.language === "ar" ? "rtl" : "ltr";
   const align = params.language === "ar" ? "right" : "left";
-  const money = (v: string): string => `${Money.of(v, cur).toDecimalString()} ${cur}`;
+  const money = (v: string): string => `${Money.of(v, cur).toDecimalString().replace(/\B(?=(\d{3})+\.)/g, ",")} ${cur}`;
   const customer = params.language === "ar" && quotation.customerNameAr ? quotation.customerNameAr : quotation.customerName;
 
   const subject = t("quotation.email.subject", { number: quotation.number, company: params.companyName });
-  const intro = quotation.validUntil
-    ? t("quotation.email.intro", { number: quotation.number, validUntil: quotation.validUntil })
-    : t("quotation.email.introNoExpiry", { number: quotation.number });
+  const validUntil = quotation.validUntil ? new Intl.DateTimeFormat(params.language === "ar" ? "ar-SA" : "en-GB", { calendar: "gregory", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(quotation.validUntil)) : null;
+  const intro = validUntil
+    ? t("quotation.email.intro", { number: quotation.number, validUntil, company: params.companyName })
+    : t("quotation.email.introNoExpiry", { number: quotation.number, company: params.companyName });
 
   const palette = {
     ink: "#131b2e",
@@ -135,13 +136,13 @@ export async function quotationEmailContent(params: {
         <td style="padding:16px 20px;color:#ffffff;font-size:20px;font-weight:700;" align="${align === "right" ? "left" : "right"}">${escapeHtml(money(quotation.totalGross))}</td>
       </tr>
     </table>
-    <p style="margin:10px 2px 0 2px;font-size:12px;color:${palette.muted};font-style:italic;" align="${align}">${escapeHtml(tafqeetAmount(quotation.totalGross, cur))}</p>
+    ${params.language === "ar" ? `<p style="margin:10px 2px 0 2px;font-size:12px;color:${palette.muted};" align="${align}">${escapeHtml(tafqeetAmount(quotation.totalGross, cur))}</p>` : ""}
   </td></tr>
 
   <tr><td style="padding:26px 36px 4px 36px;" align="${align}">
-    <p style="margin:0 0 10px 0;font-size:13px;line-height:1.7;color:${palette.muted};">📎 ${escapeHtml(t("quotation.email.viewAttached"))}</p>
+    <p style="margin:0 0 10px 0;font-size:13px;line-height:1.7;color:${palette.muted};">${escapeHtml(t("quotation.email.viewAttached"))}</p>
     <p style="margin:0 0 18px 0;font-size:13px;line-height:1.7;color:${palette.muted};">${escapeHtml(t("quotation.email.closing"))}</p>
-    <p style="margin:0;font-size:13px;color:${palette.ink};">${escapeHtml(t("quotation.email.regards"))}<br/><strong>${escapeHtml(params.companyName)}</strong></p>
+    <p style="margin:0;font-size:13px;line-height:1.8;color:${palette.ink};">${escapeHtml(t("quotation.email.regards"))}<br/>${escapeHtml(t("quotation.email.salesTeam"))}<br/><strong>${escapeHtml(params.companyName)}</strong></p>
   </td></tr>
 
   <tr><td style="padding:22px 36px;background:${palette.paper};border-top:1px solid ${palette.line};" align="center">
@@ -157,13 +158,10 @@ export async function quotationEmailContent(params: {
   const text = [
     t("quotation.email.greeting", { customer }),
     intro,
-    `${t("quotation.number")}: ${quotation.number}`,
-    `${t("quotation.email.totalLabel")}: ${money(quotation.totalGross)}`,
-    tafqeetAmount(quotation.totalGross, cur),
+    [`${t("quotation.net")}: ${money(quotation.totalNet)}`, `${t("quotation.tax")}: ${money(quotation.totalTax)}`, `${t("quotation.email.totalLabel")}: ${money(quotation.totalGross)}`].join("\n"),
     t("quotation.email.viewAttached"),
     t("quotation.email.closing"),
-    t("quotation.email.regards"),
-    params.companyName,
+    [t("quotation.email.regards"), t("quotation.email.salesTeam"), params.companyName, params.sellerPhone].filter(Boolean).join("\n"),
   ].join("\n\n");
 
   return { subject, html, text };

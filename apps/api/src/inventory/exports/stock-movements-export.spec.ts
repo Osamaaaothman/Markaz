@@ -1,5 +1,5 @@
 import type { StockMovementEntry } from "@erp/core";
-import { stockMovementsToCsv } from "./stock-movements-export.js";
+import { stockMovementsToCsv, stockMovementsToPdfHtml } from "./stock-movements-export.js";
 
 const entry: StockMovementEntry = {
   id: "m1",
@@ -37,5 +37,25 @@ describe("stock movements CSV", () => {
 
   it("leaves the party columns empty for an internal movement", () => {
     expect(stockMovementsToCsv([{ ...entry, partyName: null, partyNameAr: null }])).toContain("000007,,\r\n");
+  });
+
+  it("renders an Arabic landscape report with names, precise signed amounts and escaped data", async () => {
+    const html = await stockMovementsToPdfHtml({ entries: [{ ...entry, itemNameAr: "أسمنت", warehouseNameAr: "الرئيسي", partyNameAr: "<script>شركة</script>" }], language: "ar", companyName: "مركز", currency: "SAR" });
+    expect(html).toContain("A4 landscape");
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain("أسمنت");
+    expect(html).toContain("الرئيسي");
+    expect(html).toContain("-4.0000");
+    expect(html).toContain("5.0000");
+    expect(html).toContain("000007");
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("stockMovements.");
+  });
+
+  it("prints the date range and a clear empty report without inventing totals", async () => {
+    const html = await stockMovementsToPdfHtml({ entries: [], language: "en", companyName: "Markaz", currency: "SAR", from: "2026-01-01", to: "2026-02-01" });
+    expect(html).toContain("No movements match this export.");
+    expect(html).toContain("2026-01-01 — 2026-02-01");
+    expect(html).toContain("Movements: 0");
   });
 });

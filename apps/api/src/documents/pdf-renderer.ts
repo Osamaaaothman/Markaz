@@ -17,7 +17,7 @@ async function getBrowser(): Promise<Browser> {
   return browserPromise;
 }
 
-export async function renderHtmlToPdf(html: string): Promise<Buffer> {
+export async function renderHtmlToPdf(html: string, options: { landscape?: boolean } = {}): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
@@ -34,7 +34,7 @@ export async function renderHtmlToPdf(html: string): Promise<Buffer> {
       return result;
     })()`);
     if (footer) await page.addStyleTag({ content: "@page { margin-bottom: 32mm; }" });
-    return await page.pdf({ format: "A4", printBackground: true,
+    return await page.pdf({ format: "A4", printBackground: true, landscape: options.landscape ?? false,
       ...(footer ? { displayHeaderFooter: true, headerTemplate: "<span></span>",
         footerTemplate: `<style>.issued-by-block{display:flex;gap:28px;border-top:1px solid #ddd;padding-top:8px;margin-bottom:8px}.issued-by-block span{display:block}.issued-by-block strong{display:block;font-weight:400;color:#666;margin-bottom:3px}.computer-generated{text-align:center;margin:0;color:#666}bdi{unicode-bidi:isolate}</style><div dir="${footer.dir === "rtl" ? "rtl" : "ltr"}" style="font-family:'Noto Sans Arabic','Segoe UI',sans-serif;font-size:9px;color:#444;width:100%;padding:0 14mm;box-sizing:border-box">${footer.html}</div>`,
         margin: { bottom: "32mm" } } : {}),

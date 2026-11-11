@@ -53,7 +53,7 @@ import { StockLevelsExportQueryDto } from "./dto/stock-levels-export-query.dto.j
 import { StockLevelsQueryDto } from "./dto/stock-levels-query.dto.js";
 import { InventoryExportService } from "./inventory-export.service.js";
 import { StockMovementsQueryDto } from "./dto/stock-movements-query.dto.js";
-import { stockMovementsToCsv } from "./exports/stock-movements-export.js";
+import { StockMovementsExportQueryDto } from "./dto/stock-movements-export-query.dto.js";
 import { UpdateItemDto } from "./dto/update-item.dto.js";
 import { UpdateWarehouseDto } from "./dto/update-warehouse.dto.js";
 import { WarehousesQueryDto } from "./dto/warehouses-query.dto.js";
@@ -197,13 +197,13 @@ export class InventoryController {
   @RequirePermission("stock", "read")
   async exportStockMovements(
     @CurrentUser() actor: CurrentUserPayload,
-    @Query() query: StockMovementsQueryDto,
+    @Query() query: StockMovementsExportQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    const entries = await this.movements.listForExport(actor.companyId, toMovementQuery(query));
-    res.header("Content-Type", "text/csv; charset=utf-8");
-    res.header("Content-Disposition", 'attachment; filename="stock-movements.csv"');
-    res.send(stockMovementsToCsv(entries));
+    const file = await this.exports.exportStockMovements(actor.companyId, { ...toMovementQuery(query), ...(query.movementId ? { movementId: query.movementId } : {}) }, query.format ?? "csv", query.lang ?? "en");
+    res.header("Content-Type", file.contentType);
+    res.header("Content-Disposition", `attachment; filename="${file.filename}"`);
+    res.send(file.content);
   }
 
   // ── Account mapping (tenant config: which account each posting key lands in) ─

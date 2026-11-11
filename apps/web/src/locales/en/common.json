@@ -734,7 +734,13 @@
         "stock_count": "Stock count",
         "sales_invoice": "Sales invoice",
         "goods_return": "Purchase return"
-      }
+      },
+      "exportScope": "Export scope",
+      "exportFiltered": "Current filters",
+      "exportAll": "All movements (no filters)",
+      "exportRow": "Export movement",
+      "exportHint": "Exports include every matching result, not just the current page. Maximum 20,000 movements; use filters to split larger reports.",
+      "exportError": "Export failed. Check your connection and date range, and narrow the filters if the report exceeds 20,000 movements."
     }
   },
   "purchasing": {
@@ -985,14 +991,14 @@
         "sendNow": "Send now",
         "sendDisabledHint": "Preview it first.",
         "openInGmail": "Open in Gmail",
-        "openInGmailHint": "The PDF downloads to your device — attach it in the Gmail window that opens.",
-        "gmailSubject": "Quotation {{number}}",
-        "gmailBody": "Dear {{customer}},\n\nPlease find our quotation {{number}}, total {{total}}.\nThe quotation PDF just downloaded to your device — please attach it to this email before sending.\n\nBest regards.",
+        "openInGmailHint": "Opening Gmail downloads the quotation first. Attach the PDF before sending. These instructions are not included in the email.",
         "success": "The email provider accepted the message for delivery. Inbox delivery is not yet confirmed.",
         "errors": {
           "generic": "Could not send the email. Check the recipient and try again.",
-          "notConfigured": "Email delivery is not configured. Add Resend or SMTP settings on the server, then try again."
-        }
+          "notConfigured": "Email delivery is not configured. Add Resend or SMTP settings on the server, then try again.",
+          "popupBlocked": "Allow popups for this site and try again."
+        },
+        "subject": "Email subject"
       }
     },
     "orders": {

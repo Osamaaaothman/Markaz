@@ -144,7 +144,7 @@ html[data-theme-mode="light"] {
   --mk-dur-slow: 420ms;
 
   /* ---- layout ---- */
-  --mk-sidebar-w: 288px;
+  --mk-sidebar-w: 328px;
   --mk-sidebar-w-collapsed: 92px;
   --mk-topbar-h: 64px;
 

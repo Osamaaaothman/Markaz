@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Tooltip } from "primereact/tooltip";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
@@ -31,6 +31,7 @@ export interface SidebarProps {
 // every label as a tooltip, so nothing becomes unreachable; expanded, the tooltip shows long labels in full.
 export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const { pathname } = useLocation();
   const closeMobileSidebar = useLayoutStore((state) => state.closeMobileSidebar);
   const collapsedPref = useLayoutStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useLayoutStore((state) => state.toggleSidebar);
@@ -78,12 +79,13 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
           const groupKey = item.groupKey;
           const groupStarts = groupKey !== undefined && groupKey !== visibleItems[index - 1]?.groupKey;
           const groupFolded = groupKey !== undefined && Boolean(collapsedGroups[groupKey]);
+          const groupActive = groupKey !== undefined && visibleItems.some((link) => link.groupKey === groupKey && (pathname === link.to || pathname.startsWith(`${link.to}/`)));
           return (
             <li key={item.to} className="erp-sidebar__item">
               {groupStarts ? (
                 <button
                   type="button"
-                  className="erp-sidebar__group"
+                  className={`erp-sidebar__group${groupActive ? " erp-sidebar__group--active" : ""}`}
                   onClick={() => toggleGroup(groupKey)}
                   aria-expanded={!groupFolded}
                   aria-label={t(groupFolded ? "shell.expandSection" : "shell.collapseSection", { section: t(groupKey) })}
@@ -99,9 +101,10 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
               {groupFolded ? null : (
                 <NavLink
                   to={item.to}
+                  aria-label={t(item.labelKey)}
                   end={item.to === "/"}
                   data-pr-tooltip={t(item.labelKey)}
-                  className={({ isActive }) => `erp-sidebar__link${isActive ? " erp-sidebar__link--active" : ""}`}
+                  className={({ isActive }) => `erp-sidebar__link${groupKey ? " erp-sidebar__link--nested" : ""}${isActive ? " erp-sidebar__link--active" : ""}`}
                   onClick={variant === "mobile-drawer" ? closeMobileSidebar : undefined}
                 >
                   <span className="erp-sidebar__icon">

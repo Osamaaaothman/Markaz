@@ -211,11 +211,11 @@ export class SalesController {
     @Param("id") id: string,
     @Body() dto: QuotationEmailPreviewDto,
     @CurrentUser() actor: CurrentUserPayload,
-  ): Promise<{ html: string; subject: string; defaultRecipient: string | null; deliveryConfigured: boolean }> {
+  ): Promise<{ html: string; text: string; subject: string; defaultRecipient: string | null; deliveryConfigured: boolean }> {
     const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
     const seller = await this.loadSellerContext(actor.companyId, dto.language);
-    const { html, subject } = await quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress });
-    return { html, subject, defaultRecipient: quotation.customerEmail, deliveryConfigured: this.emailTransport.configured !== false };
+    const { html, text, subject } = await quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress });
+    return { html, text, subject, defaultRecipient: quotation.customerEmail, deliveryConfigured: this.emailTransport.configured !== false };
   }
 
   // A deliberate, human-confirmed send after a preview — sent directly from this request rather

@@ -26,6 +26,7 @@ export interface StockMovementEntry {
 }
 
 export interface StockMovementQuery {
+  readonly movementId?: string | undefined;
   readonly cursor?: string | undefined;
   readonly limit?: string | undefined;
   readonly itemId?: string | undefined;
@@ -41,6 +42,10 @@ export interface StockMovementPage {
 }
 
 export const STOCK_MOVEMENT_EXPORT_LIMIT = 20_000;
+
+export class StockMovementExportLimitError extends Error {
+  constructor() { super("STOCK_MOVEMENT_EXPORT_LIMIT"); }
+}
 
 type Row = Prisma.StockMovementGetPayload<{ include: { item: true; warehouse: true; journalEntry: { select: { number: true } } } }>;
 
@@ -111,6 +116,7 @@ export class StockMovementService {
   private where(companyId: string, query: StockMovementQuery): Prisma.StockMovementWhereInput {
     return {
       companyId,
+      ...(query.movementId ? { id: query.movementId } : {}),
       ...(query.itemId ? { itemId: query.itemId } : {}),
       ...(query.warehouseId ? { warehouseId: query.warehouseId } : {}),
       ...(query.movementType ? { movementType: query.movementType } : {}),
@@ -140,8 +146,9 @@ export class StockMovementService {
       where: this.where(companyId, query),
       include: { item: true, warehouse: true, journalEntry: { select: { number: true } } },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      take: STOCK_MOVEMENT_EXPORT_LIMIT,
+      take: STOCK_MOVEMENT_EXPORT_LIMIT + 1,
     });
+    if (rows.length > STOCK_MOVEMENT_EXPORT_LIMIT) throw new StockMovementExportLimitError();
     return this.entries(companyId, rows);
   }
 }
