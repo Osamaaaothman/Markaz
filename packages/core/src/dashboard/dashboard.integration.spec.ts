@@ -29,11 +29,16 @@ describeIfDb("Dashboard — real database", () => {
   const companyId = newId();
   const actor = { id: "owner", companyId };
   const cid = (): string => newId();
-  const now = new Date();
+  const now = new Date("2026-06-15T12:00:00Z");
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const year = today.getUTCFullYear();
   // The "old" invoice is dated Jan 2; in January it falls in the current month too.
   const monthRevenue = today.getUTCMonth() === 0 ? "1500.0000" : "500.0000";
+
+  it("uses the company's date across Riyadh midnight and year boundaries", async () => {
+    expect((await dashboard.compute(companyId, NONE, new Date("2026-12-31T21:01:00Z"))).asOf).toBe("2027-01-01");
+    expect((await dashboard.compute(companyId, NONE, new Date("2026-12-31T20:59:00Z"))).asOf).toBe("2026-12-31");
+  });
 
   beforeAll(async () => {
     await prisma.company.create({ data: { id: companyId, name: `Dashboard Test ${companyId}`, defaultCurrency: "SAR" } });

@@ -4,6 +4,18 @@ const company = { bankSarieId: "RJHISARI", bankAccountNumber: "123456789012", mo
 const valueDate = new Date(Date.UTC(2026, 9, 18));
 
 describe("buildWpsWagesFile", () => {
+  it("uses exact decimal rounding and sums the amounts actually written to the file", () => {
+    const employee = { iban: "SA01", name: "A", nationalId: "1", basicSalary: "1.0050", housingAllowance: "0.0050", otherEarnings: "0", deductions: "0" };
+    const rows = buildWpsWagesFile({ company, valueDate, fileReference: "ROUND", employees: [employee, employee] }).split("\r\n").map((row) => row.split("\t"));
+    expect(rows[0]![4]).toBe("2,04");
+    expect(rows[1]![0]).toBe("1,02");
+    expect(rows[1]!.slice(3, 5)).toEqual(["1,01", "0,01"]);
+  });
+  it("refuses demo company details and embedded file delimiters", () => {
+    const employee = { iban: "SA01", name: "A", nationalId: "1", basicSalary: "1", housingAllowance: "0", otherEarnings: "0", deductions: "0" };
+    expect(() => buildWpsWagesFile({ company: { ...company, bankAccountNumber: "DEMO123" }, valueDate, fileReference: "X", employees: [employee] })).toThrow(WpsFileError);
+    expect(() => buildWpsWagesFile({ company, valueDate, fileReference: "X", employees: [{ ...employee, name: "A\tB" }] })).toThrow(WpsFileError);
+  });
   it("writes a TAB-separated header line, one content line per employee, and a closing '-' line", () => {
     const file = buildWpsWagesFile({
       company,

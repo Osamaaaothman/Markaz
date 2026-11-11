@@ -1,3 +1,4 @@
+import { lockSubmission } from "../documents/submission-lock.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
@@ -162,11 +163,17 @@ export class PurchaseOrderService {
     input: CreatePurchaseOrderInput,
     actor: PurchaseOrderActor,
     correlationId: string,
+    submissionKey?: string,
   ): Promise<PurchaseOrderCreated> {
     if (input.lines.length === 0) throw new PurchaseOrderError("EMPTY_ORDER", "A purchase order needs at least one line");
 
     const id = newId();
     const created = await this.prisma.$transaction(async (tx) => {
+      await lockSubmission(tx, actor.companyId, "purchase_order", submissionKey);
+      if (submissionKey) {
+        const existing = await tx.purchaseOrder.findFirst({ where: { companyId: actor.companyId, submissionKey } });
+        if (existing) return { id: existing.id, number: existing.number, status: existing.status as PurchaseOrderStatus };
+      }
       const supplier = await tx.party.findFirst({
         where: { id: input.supplierId, companyId: actor.companyId, isActive: true },
         select: { id: true },
@@ -215,6 +222,7 @@ export class PurchaseOrderService {
 
       await tx.purchaseOrder.create({
         data: {
+          submissionKey: submissionKey ?? null,
           id,
           companyId: actor.companyId,
           number,
@@ -262,7 +270,7 @@ export class PurchaseOrderService {
       return { id, number, status };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "purchase_order.created", entityType: "PurchaseOrder", entityId: id, after: { ...created }, correlationId });
+    if (created.id === id) await this.audit.log({ actorId: actor.id, action: "purchase_order.created", entityType: "PurchaseOrder", entityId: id, after: { ...created }, correlationId });
     return created;
   }
 

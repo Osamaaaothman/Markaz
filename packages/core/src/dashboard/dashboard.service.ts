@@ -50,8 +50,11 @@ export class DashboardService {
   ) {}
 
   async compute(companyId: string, sections: DashboardSections, now: Date = new Date()): Promise<DashboardData> {
-    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { defaultCurrency: true } });
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { defaultCurrency: true, timezone: true } });
+    // A business date is a calendar fact in the company's timezone, represented at UTC midnight for DATE queries.
+    const parts = new Intl.DateTimeFormat("en", { timeZone: company.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+    const part = (type: string): string => parts.find((p) => p.type === type)!.value;
+    const today = new Date(`${part("year")}-${part("month")}-${part("day")}T00:00:00Z`);
 
     const [receivables, payables, cash, monthly, stock, sales, purchasing] = await Promise.all([
       sections.receivables ? this.agingSummary(companyId, "SALES", today) : undefined,

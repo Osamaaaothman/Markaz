@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { DocumentsModule } from "./documents/documents.module.js";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { LoggerModule } from "nestjs-pino";
 import { HealthController } from "./health/health.controller.js";
@@ -38,6 +39,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
       },
     }),
     PrismaModule,
+    DocumentsModule,
     CommonModule,
     JobsModule,
     IdentityModule,

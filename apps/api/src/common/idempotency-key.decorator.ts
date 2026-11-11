@@ -12,3 +12,11 @@ export const IdempotencyKey = createParamDecorator((_: unknown, ctx: ExecutionCo
   }
   throw new BadRequestException("Idempotency-Key header is required");
 });
+
+// Backwards-compatible commercial document creation; financial posting still requires the key.
+export const OptionalIdempotencyKey = createParamDecorator((_: unknown, ctx: ExecutionContext): string | undefined => {
+  const header = ctx.switchToHttp().getRequest<Request>().headers["idempotency-key"];
+  if (header === undefined) return undefined;
+  if (typeof header !== "string" || header.length < 1 || header.length > 128) throw new BadRequestException("Invalid Idempotency-Key");
+  return header;
+});

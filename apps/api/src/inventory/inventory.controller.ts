@@ -38,7 +38,7 @@ import {
 } from "@erp/core";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
-import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
+import { IdempotencyKey, OptionalIdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { CreateItemDto } from "./dto/create-item.dto.js";
 import { CreateGoodsReceiptDto } from "./dto/create-goods-receipt.dto.js";
@@ -376,6 +376,7 @@ export class InventoryController {
   @Post("stock-counts")
   @RequirePermission("stock_count", "create")
   recordStockCount(
+    @OptionalIdempotencyKey() submissionKey: string | undefined,
     @Body() dto: RecordStockCountDto,
     @CurrentUser() actor: CurrentUserPayload,
     @CorrelationId() correlationId: string,
@@ -385,6 +386,7 @@ export class InventoryController {
         { warehouseId: dto.warehouseId, documentDate: new Date(dto.documentDate), lines: dto.lines },
         actor,
         correlationId,
+        submissionKey,
       ),
     );
   }

@@ -1,3 +1,4 @@
+import { lockSubmission } from "../documents/submission-lock.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger, TransactionClient } from "../contracts.js";
@@ -79,13 +80,19 @@ export class SalesOrderService {
     private readonly audit: IAuditLogger,
   ) {}
 
-  async create(input: CreateSalesOrderInput, actor: SalesActor, correlationId: string): Promise<SalesOrderCreated> {
+  async create(input: CreateSalesOrderInput, actor: SalesActor, correlationId: string, submissionKey?: string): Promise<SalesOrderCreated> {
+    let replay = false;
     const created = await this.prisma.$transaction(async (tx) => {
+      await lockSubmission(tx, actor.companyId, "sales_order", submissionKey);
+      if (submissionKey) {
+        const existing = await tx.salesOrder.findFirst({ where: { companyId: actor.companyId, submissionKey } });
+        if (existing) { replay = true; return { id: existing.id, number: existing.number, status: existing.status as SalesOrderStatus }; }
+      }
       await lockCustomer(tx, actor.companyId, input.customerId);
       const lines = await resolveSalesLines(tx, actor.companyId, input.lines);
-      return this.insert(tx, actor, correlationId, input.customerId, input.orderDate, blankToNull(input.notes), lines);
+      return this.insert(tx, actor, correlationId, input.customerId, input.orderDate, blankToNull(input.notes), lines, submissionKey);
     });
-    await this.audit.log({ actorId: actor.id, action: "sales_order.created", entityType: "SalesOrder", entityId: created.id, after: { ...created }, correlationId });
+    if (!replay) await this.audit.log({ actorId: actor.id, action: "sales_order.created", entityType: "SalesOrder", entityId: created.id, after: { ...created }, correlationId });
     return created;
   }
 
@@ -118,6 +125,7 @@ export class SalesOrderService {
     orderDate: Date,
     notes: string | null,
     lines: Awaited<ReturnType<typeof resolveSalesLines>>,
+    submissionKey?: string,
   ): Promise<SalesOrderCreated> {
     const totals = totalsOf(lines);
     const currency = await companyCurrency(tx, actor.companyId);
@@ -127,6 +135,7 @@ export class SalesOrderService {
     await tx.salesOrder.create({
       data: {
         id,
+        submissionKey: submissionKey ?? null,
         companyId: actor.companyId,
         number,
         customerId,

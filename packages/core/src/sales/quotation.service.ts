@@ -1,3 +1,4 @@
+import { lockSubmission } from "../documents/submission-lock.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger, TransactionClient } from "../contracts.js";
@@ -105,9 +106,14 @@ export class QuotationService {
     private readonly audit: IAuditLogger,
   ) {}
 
-  async create(input: CreateQuotationInput, actor: SalesActor, correlationId: string): Promise<QuotationSummary> {
+  async create(input: CreateQuotationInput, actor: SalesActor, correlationId: string, submissionKey?: string): Promise<QuotationSummary> {
     const id = newId();
     const created = await this.prisma.$transaction(async (tx) => {
+      await lockSubmission(tx, actor.companyId, "quotation", submissionKey);
+      if (submissionKey) {
+        const existing = await tx.quotation.findFirst({ where: { companyId: actor.companyId, submissionKey }, include: { customer: true } });
+        if (existing) return existing;
+      }
       await lockCustomer(tx, actor.companyId, input.customerId);
       const lines = await resolveSalesLines(tx, actor.companyId, input.lines);
       const totals = totalsOf(lines);
@@ -118,6 +124,7 @@ export class QuotationService {
       return tx.quotation.create({
         data: {
           id,
+          submissionKey: submissionKey ?? null,
           companyId: actor.companyId,
           number,
           customerId: input.customerId,
@@ -150,7 +157,7 @@ export class QuotationService {
       });
     });
     const summary = toSummary(created);
-    await this.audit.log({ actorId: actor.id, action: "quotation.created", entityType: "Quotation", entityId: id, after: { ...summary }, correlationId });
+    if (created.id === id) await this.audit.log({ actorId: actor.id, action: "quotation.created", entityType: "Quotation", entityId: id, after: { ...summary }, correlationId });
     return summary;
   }
 

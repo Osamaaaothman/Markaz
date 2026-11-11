@@ -1,3 +1,4 @@
+import { lockSubmission } from "../documents/submission-lock.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "../contracts.js";
@@ -108,11 +109,16 @@ export class PurchaseRequestService {
     private readonly audit: IAuditLogger,
   ) {}
 
-  async create(input: CreatePurchaseRequestInput, actor: PurchaseRequestActor, correlationId: string): Promise<PurchaseRequestSummary> {
+  async create(input: CreatePurchaseRequestInput, actor: PurchaseRequestActor, correlationId: string, submissionKey?: string): Promise<PurchaseRequestSummary> {
     if (input.lines.length === 0) throw new PurchaseRequestError("EMPTY_REQUEST", "A purchase request needs at least one line");
 
     const id = newId();
     const created = await this.prisma.$transaction(async (tx) => {
+      await lockSubmission(tx, actor.companyId, "purchase_request", submissionKey);
+      if (submissionKey) {
+        const existing = await tx.purchaseRequest.findFirst({ where: { companyId: actor.companyId, submissionKey }, include: { warehouse: true, _count: { select: { lines: true } } } });
+        if (existing) return existing;
+      }
       const itemIds = [...new Set(input.lines.map((l) => l.itemId))];
       const items = await tx.item.findMany({ where: { id: { in: itemIds }, companyId: actor.companyId, isActive: true }, select: { id: true } });
       if (items.length !== itemIds.length) throw new PurchaseRequestError("ITEM_NOT_FOUND", "An item on the request was not found");
@@ -128,6 +134,7 @@ export class PurchaseRequestService {
         data: {
           id,
           companyId: actor.companyId,
+          submissionKey: submissionKey ?? null,
           number,
           status: "PENDING",
           warehouseId: input.warehouseId,
@@ -149,7 +156,7 @@ export class PurchaseRequestService {
     });
 
     const summary = toSummary(created);
-    await this.audit.log({ actorId: actor.id, action: "purchase_request.created", entityType: "PurchaseRequest", entityId: id, after: { ...summary }, correlationId });
+    if (created.id === id) await this.audit.log({ actorId: actor.id, action: "purchase_request.created", entityType: "PurchaseRequest", entityId: id, after: { ...summary }, correlationId });
     return summary;
   }
 

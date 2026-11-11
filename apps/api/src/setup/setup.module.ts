@@ -3,10 +3,13 @@ import { AccountMappingService, ChartOfAccountsService, MappingSuggestionService
 import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SetupController } from "./setup.controller.js";
+import { CompanySettingsService } from "@erp/core";
+import { CompanySettingsController } from "./company-settings.controller.js";
 
 @Module({
-  controllers: [SetupController],
+  controllers: [SetupController, CompanySettingsController],
   providers: [
+    { provide: CompanySettingsService, useFactory: (prisma: PrismaService, audit: IAuditLogger) => new CompanySettingsService(prisma, audit), inject: [PrismaService, AUDIT_LOGGER] },
     { provide: SetupStatusService, useFactory: (prisma: PrismaService) => new SetupStatusService(prisma), inject: [PrismaService] },
     {
       provide: MappingSuggestionService,
