@@ -92,6 +92,29 @@ describe("every Tier 1 document type: built, signed, and checked", () => {
 describe("checkInvoiceConsistency — catches our own mistakes", () => {
   const bare = buildBareInvoiceXml(makeInput("STANDARD", "INVOICE"));
 
+  it("accepts omitted optional zero totals but rejects malformed present amounts", () => {
+    const omitted = bare.replace(/<cbc:(AllowanceTotalAmount|PrepaidAmount) currencyID="SAR">0\.00<\/cbc:\1>/g, "");
+    expect(omitted).not.toBe(bare);
+    expect(checkInvoiceConsistency(omitted).valid).toBe(true);
+    const malformed = omitted.replace("</cac:LegalMonetaryTotal>", '<cbc:PrepaidAmount currencyID="SAR">invalid</cbc:PrepaidAmount></cac:LegalMonetaryTotal>');
+    expect(codes(checkInvoiceConsistency(malformed))).toContain("AMOUNT_MISSING_OR_MALFORMED");
+  });
+
+  it("allows only the accounting-currency root tax total to use a second currency", () => {
+    const foreign = bare.replace(/currencyID="SAR"/g, 'currencyID="USD"').replace("<cbc:DocumentCurrencyCode>SAR", "<cbc:DocumentCurrencyCode>USD")
+      .replace('<cac:TaxTotal><cbc:TaxAmount currencyID="USD">0.60</cbc:TaxAmount></cac:TaxTotal>', '<cac:TaxTotal><cbc:TaxAmount currencyID="SAR">2.25</cbc:TaxAmount></cac:TaxTotal>');
+    expect(checkInvoiceConsistency(foreign).valid).toBe(true);
+    expect(codes(checkInvoiceConsistency(foreign.replace('<cbc:PayableAmount currencyID="USD">', '<cbc:PayableAmount currencyID="SAR">')))).toContain("CURRENCY_MISMATCH");
+  });
+
+  it("checks amount due after prepayments and rounding", () => {
+    const prepaid = bare.replace('<cbc:PrepaidAmount currencyID="SAR">0.00', '<cbc:PrepaidAmount currencyID="SAR">2.00')
+      .replace('<cbc:PayableAmount currencyID="SAR">14.60', '<cbc:PayableAmount currencyID="SAR">12.61')
+      .replace('</cac:LegalMonetaryTotal>', '<cbc:PayableRoundingAmount currencyID="SAR">0.01</cbc:PayableRoundingAmount></cac:LegalMonetaryTotal>');
+    expect(checkInvoiceConsistency(prepaid)).toEqual({ valid: true, issues: [] });
+    expect(allCodes(checkInvoiceConsistency(prepaid.replace('>12.61</cbc:PayableAmount>', '>14.60</cbc:PayableAmount>')))).toContain("BR_CO_16");
+  });
+
   it("flags a total with VAT that is not net plus tax (BR-CO-15)", () => {
     const broken = bare.replace('<cbc:TaxInclusiveAmount currencyID="SAR">14.60', '<cbc:TaxInclusiveAmount currencyID="SAR">14.61');
     expect(broken).not.toBe(bare);

@@ -43,8 +43,9 @@ function isRealDate(value: string): boolean {
   return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(value);
 }
 
-function amountOf(scope: Element, name: string, c: IssueCollector, where: string): bigint | undefined {
+function amountOf(scope: Element, name: string, c: IssueCollector, where: string, optional = false): bigint | undefined {
   const raw = childText(scope, "cbc", name);
+  if (optional && raw === undefined) return 0n;
   const parsed = toHundredths(raw);
   if (parsed === undefined) c.error("AMOUNT_MISSING_OR_MALFORMED", `${where}: ${name} is ${raw === undefined ? "missing" : `"${raw}", not a decimal with at most 2 places`}`);
   return parsed;
@@ -147,6 +148,7 @@ interface LineFacts {
   readonly net: bigint;
   readonly tax: bigint;
   readonly key: string; // category|percent
+  readonly prepayment: boolean;
 }
 
 function checkTotals(root: Element, c: IssueCollector): void {
@@ -188,7 +190,10 @@ function checkTotals(root: Element, c: IssueCollector): void {
     const taxDiff = tax * 10_000n - net * percent; // both in units of 1e-6
     if ((taxDiff < 0n ? -taxDiff : taxDiff) > 10_000n) c.warn("LINE_TAX_NOT_RATE_TIMES_NET", `${where}: tax ${formatHundredths(tax)} differs from ${percentText}% of ${formatHundredths(net)} by more than 0.01`);
 
-    lines.push({ id, net, tax, key: `${catId}|${percent.toString()}` });
+    const prepayment = children(line, "cac", "DocumentReference").some((ref) => childText(ref, "cbc", "DocumentTypeCode") === "386");
+    // SDK BR-KSA-82: a prepayment reference line carries zero current invoice net/tax.
+    if (prepayment && (net !== 0n || tax !== 0n)) c.error("PREPAYMENT_LINE_NONZERO", `${where}: a prepayment reference must not add current invoice net or VAT`);
+    lines.push({ id, net, tax, key: `${catId}|${percent.toString()}`, prepayment });
   }
 
   const monetary = children(root, "cac", "LegalMonetaryTotal")[0];
@@ -201,25 +206,30 @@ function checkTotals(root: Element, c: IssueCollector): void {
   const lineExt = amountOf(monetary, "LineExtensionAmount", c, "LegalMonetaryTotal");
   const taxExclusive = amountOf(monetary, "TaxExclusiveAmount", c, "LegalMonetaryTotal");
   const taxInclusive = amountOf(monetary, "TaxInclusiveAmount", c, "LegalMonetaryTotal");
-  const allowance = amountOf(monetary, "AllowanceTotalAmount", c, "LegalMonetaryTotal") ?? 0n;
-  const prepaid = amountOf(monetary, "PrepaidAmount", c, "LegalMonetaryTotal") ?? 0n;
+  const allowance = amountOf(monetary, "AllowanceTotalAmount", c, "LegalMonetaryTotal", true) ?? 0n;
+  const charges = amountOf(monetary, "ChargeTotalAmount", c, "LegalMonetaryTotal", true) ?? 0n;
+  const prepaid = amountOf(monetary, "PrepaidAmount", c, "LegalMonetaryTotal", true) ?? 0n;
+  const rounding = amountOf(monetary, "PayableRoundingAmount", c, "LegalMonetaryTotal", true) ?? 0n;
   const payable = amountOf(monetary, "PayableAmount", c, "LegalMonetaryTotal");
 
   // BR-CO-10 and BR-CO-13 are "warning" severity in the official Schematron (confirmed directly
   // from docs/vendor/zatca/sdk/Data/Rules/Schematrons/CEN-EN16931-UBL.xsl, both flag="warning"),
   // not hard errors -- this file previously escalated them past what ZATCA's own rule set does.
   if (lineExt !== undefined && lineExt !== sumNet) c.warn("BR_CO_10", `LineExtensionAmount ${formatHundredths(lineExt)} is not the sum of the line amounts ${formatHundredths(sumNet)}`);
-  if (taxExclusive !== undefined && lineExt !== undefined && taxExclusive !== lineExt - allowance) c.warn("BR_CO_13", `TaxExclusiveAmount ${formatHundredths(taxExclusive)} is not LineExtensionAmount minus allowances`);
+  if (taxExclusive !== undefined && lineExt !== undefined && taxExclusive !== lineExt - allowance + charges) c.warn("BR_CO_13", `TaxExclusiveAmount ${formatHundredths(taxExclusive)} is not LineExtensionAmount minus allowances plus charges`);
 
   const docTaxTotals = children(root, "cac", "TaxTotal");
   if (docTaxTotals.length === 0) c.error("TAX_TOTAL_MISSING", "The document has no cac:TaxTotal");
-  const taxTotalAmounts = docTaxTotals.map((t) => amountOf(t, "TaxAmount", c, "Document TaxTotal"));
+  const taxTotalAmounts = docTaxTotals.filter((t) => children(t, "cbc", "TaxAmount")[0]?.getAttribute("currencyID") === childText(root, "cbc", "DocumentCurrencyCode"))
+    .map((t) => amountOf(t, "TaxAmount", c, "Document TaxTotal"));
 
   // The breakdown per tax category must reproduce the lines.
   const subtotals = docTaxTotals.flatMap((t) => children(t, "cac", "TaxSubtotal"));
   if (subtotals.length === 0) c.error("TAX_SUBTOTAL_MISSING", "The document has no cac:TaxSubtotal breakdown");
   const fromLines = new Map<string, { net: bigint }>();
   for (const l of lines) {
+    // Advance references describe the earlier invoice's VAT, not today's breakdown.
+    if (l.prepayment) continue;
     const g = fromLines.get(l.key) ?? { net: 0n };
     fromLines.set(l.key, { net: g.net + l.net });
   }
@@ -275,7 +285,7 @@ function checkTotals(root: Element, c: IssueCollector): void {
   if (taxInclusive !== undefined && taxExclusive !== undefined && taxInclusive !== taxExclusive + subtotalTaxSum)
     c.error("BR_CO_15", `TaxInclusiveAmount ${formatHundredths(taxInclusive)} is not TaxExclusiveAmount plus the tax ${formatHundredths(subtotalTaxSum)}`);
   // BR-CO-16 is "warning" severity in the official Schematron too.
-  if (payable !== undefined && taxInclusive !== undefined && payable !== taxInclusive - prepaid) c.warn("BR_CO_16", `PayableAmount ${formatHundredths(payable)} is not TaxInclusiveAmount minus prepayments`);
+  if (payable !== undefined && taxInclusive !== undefined && payable !== taxInclusive - prepaid + rounding) c.warn("BR_CO_16", `PayableAmount ${formatHundredths(payable)} is not TaxInclusiveAmount minus prepayments plus rounding`);
 }
 
 function checkCurrencyAttributes(doc: Document, root: Element, c: IssueCollector): void {
@@ -289,6 +299,9 @@ function checkCurrencyAttributes(doc: Document, root: Element, c: IssueCollector
     const el = all[i]!;
     const attr = el.getAttribute("currencyID");
     if (attr && attr !== docCurrency) {
+      // BT-111 is the root TaxTotal expressed in TaxCurrencyCode; no other amount may switch currency.
+      const taxParent = children(root, "cac", "TaxTotal").find((total) => children(total, "cbc", "TaxAmount").includes(el));
+      if (taxParent && children(taxParent, "cac", "TaxSubtotal").length === 0 && attr === childText(root, "cbc", "TaxCurrencyCode")) continue;
       c.error("CURRENCY_MISMATCH", `<${el.tagName}> is in ${attr} but the document currency is ${docCurrency}`);
       return;
     }
