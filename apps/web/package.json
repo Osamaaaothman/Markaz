@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --experimental-strip-types --test src/features/accounting/account-tree.test.mjs src/features/accounting/account-code.test.mjs src/shared/auth/permissions.test.mjs src/features/purchasing/request-lines.test.mjs src/shared/lib/feedback-policy.test.mjs src/shared/auth/refresh-session.test.mjs src/features/inventory/stock-availability.test.mjs src/features/documents/draft-payload.test.mjs src/features/parties/party-picker-options.test.mjs"
+    "test": "node --experimental-strip-types --test src/features/accounting/account-tree.test.mjs src/features/accounting/account-code.test.mjs src/shared/auth/permissions.test.mjs src/features/purchasing/request-lines.test.mjs src/shared/lib/feedback-policy.test.mjs src/shared/auth/refresh-session.test.mjs src/features/inventory/stock-availability.test.mjs src/features/documents/draft-payload.test.mjs src/features/parties/party-picker-options.test.mjs src/shared/ui/imports/import-table.test.mjs src/features/audit/audit-details.test.mjs"
   },
   "dependencies": {
     "@erp/shared": "*",
@@ -24,6 +24,7 @@
     "react-hook-form": "^7.88.0",
     "react-i18next": "^17.0.13",
     "react-router-dom": "^7.18.3",
+    "read-excel-file": "^9.3.15",
     "zod": "^4.6.7",
     "zustand": "^5.0.15"
   },

@@ -8,6 +8,7 @@ export interface EmailAttachment {
 }
 
 export interface EmailMessage {
+  readonly idempotencyKey?: string;
   readonly to: string;
   readonly subject: string;
   readonly html: string;
@@ -17,11 +18,12 @@ export interface EmailMessage {
 
 export interface EmailTransport {
   readonly configured?: boolean;
-  send(message: EmailMessage): Promise<void>;
+  send(message: EmailMessage): Promise<void | { id: string; provider: string }>;
+  deliveryStatus?(id: string): Promise<string | null>;
 }
 
 export class EmailDeliveryError extends Error {
-  constructor(readonly code: "EMAIL_NOT_CONFIGURED" | "EMAIL_DELIVERY_FAILED") {
+  constructor(readonly code: "EMAIL_NOT_CONFIGURED" | "EMAIL_DELIVERY_FAILED" | "EMAIL_DELIVERY_UNCERTAIN") {
     super(code);
   }
 }
@@ -105,23 +107,35 @@ export class ResendEmailTransport implements EmailTransport {
   readonly configured = true;
   constructor(private readonly apiKey: string, private readonly fromAddress: string, private readonly request: typeof fetch = fetch) {}
 
-  async send(message: EmailMessage): Promise<void> {
+  async send(message: EmailMessage): Promise<{ id: string; provider: string }> {
     try {
       const response = await this.request("https://api.resend.com/emails", {
         method: "POST",
-        headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json", ...(message.idempotencyKey ? { "Idempotency-Key": message.idempotencyKey } : {}) },
         signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({ from: this.fromAddress, to: [message.to], subject: message.subject,
           html: message.html, text: message.text,
           ...(message.attachments ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64"), content_type: a.contentType })) } : {}),
         }),
       });
-      if (!response.ok) throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
+      if (!response.ok) throw new EmailDeliveryError(response.status >= 500 ? "EMAIL_DELIVERY_UNCERTAIN" : "EMAIL_DELIVERY_FAILED");
       const body: unknown = await response.json();
-      if (!body || typeof body !== "object" || !("id" in body) || typeof body.id !== "string" || !body.id) throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
-    } catch {
-      throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
+      if (!body || typeof body !== "object" || !("id" in body) || typeof body.id !== "string" || !body.id) throw new EmailDeliveryError("EMAIL_DELIVERY_UNCERTAIN");
+      return { id: body.id, provider: "resend" };
+    } catch (error) {
+      throw error instanceof EmailDeliveryError ? error : new EmailDeliveryError("EMAIL_DELIVERY_UNCERTAIN");
     }
+  }
+
+  async deliveryStatus(id: string): Promise<string | null> {
+    try {
+      const response = await this.request(`https://api.resend.com/emails/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${this.apiKey}` }, signal: AbortSignal.timeout(10000) });
+      if (!response.ok) return null;
+      const body: unknown = await response.json();
+      if (!body || typeof body !== "object" || !("last_event" in body) || typeof body.last_event !== "string") return null;
+      const statuses: Record<string, string> = { sent: "ACCEPTED", delivered: "DELIVERED", opened: "DELIVERED", clicked: "DELIVERED", failed: "FAILED", bounced: "BOUNCED", delivery_delayed: "DELAYED", complained: "COMPLAINED", suppressed: "FAILED" };
+      return statuses[body.last_event] ?? null;
+    } catch { return null; }
   }
 }
 

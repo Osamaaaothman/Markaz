@@ -1,0 +1,88 @@
+.audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  margin-block-end: 1rem;
+}
+.audit-filters label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  min-width: 10rem;
+}
+.audit-filters .p-dropdown {
+  max-width: 22rem;
+}
+.audit-muted {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+}
+.audit-document-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.audit-document-link .pi {
+  font-size: 0.75rem;
+}
+.audit-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.audit-related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  list-style: none;
+  padding: 0;
+}
+.audit-related li {
+  display: grid;
+  gap: 0.4rem;
+}
+.audit-changes-wrapper {
+  overflow-x: auto;
+}
+.audit-changes {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.audit-changes th,
+.audit-changes td {
+  padding: 0.8rem 1rem;
+  text-align: start;
+  border-bottom: 1px solid var(--surface-border);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  vertical-align: top;
+}
+.audit-changes thead {
+  background: var(--surface-100);
+}
+.audit-changes tbody th {
+  font-weight: 500;
+}
+.audit-changed td:last-child {
+  background: var(--highlight-bg);
+  color: var(--highlight-text-color);
+}
+.audit-technical {
+  border-top: 1px solid var(--surface-border);
+  padding-block-start: 1rem;
+}
+.audit-technical summary {
+  cursor: pointer;
+  margin-block-end: 1rem;
+}
+.audit-detail dd {
+  overflow-wrap: anywhere;
+}
+.audit-scope {
+  overflow-wrap: anywhere;
+}

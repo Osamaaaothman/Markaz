@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { Outlet } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
 import { ExportProgress } from "./ExportProgress";
@@ -33,7 +35,7 @@ export function AppShell(): React.JSX.Element {
       <div className="erp-shell__main">
         <Topbar />
         <main className="erp-shell__content">
-          <Outlet />
+          <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
         </main>
       </div>
       <CommandPalette />

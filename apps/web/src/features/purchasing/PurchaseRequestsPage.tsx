@@ -43,7 +43,8 @@ export function PurchaseRequestsPage(): React.JSX.Element {
   const [params, setParams] = useSearchParams();
   const [newOpen, setNewOpen] = useState(params.has("draft"));
   const closeNew = (): void => { setNewOpen(false); setParams((previous) => { const next = new URLSearchParams(previous); next.delete("draft"); return next; }, { replace: true }); };
-  const [viewId, setViewId] = useState<string | null>(null);
+  const viewId = params.get("view");
+  const setViewId = (id: string | null): void => { setParams((previous) => { const next = new URLSearchParams(previous); if (id) next.set("view", id); else next.delete("view"); return next; }); };
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseRequests(status);

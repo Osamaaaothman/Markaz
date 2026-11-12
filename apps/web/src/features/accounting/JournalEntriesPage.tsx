@@ -30,7 +30,8 @@ export function JournalEntriesPage(): React.JSX.Element {
   const [draftParams, setDraftParams] = useSearchParams();
   const [formVisible, setFormVisible] = useState(draftParams.has("draft"));
   const closeForm = (): void => { setFormVisible(false); setDraftParams((previous) => { const next = new URLSearchParams(previous); next.delete("draft"); return next; }, { replace: true }); };
-  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const selectedEntryId = draftParams.get("view");
+  const setSelectedEntryId = (id: string | null): void => { setDraftParams((previous) => { const next = new URLSearchParams(previous); if (id) next.set("view", id); else next.delete("view"); return next; }); };
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const entries = data?.pages.flatMap((page) => page.data) ?? [];

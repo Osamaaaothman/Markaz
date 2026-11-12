@@ -1,3 +1,4 @@
+import { invoiceAuditSnapshot } from "../audit/invoice-audit-snapshot.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAccountingEngine, IAuditLogger, JournalLineInput, TransactionClient } from "../contracts.js";
@@ -393,7 +394,7 @@ export class SupplierInvoiceService {
       return { id: invoiceId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "supplier_invoice.posted", entityType: "SupplierInvoice", entityId: result.id, after: { ...result }, correlationId });
+    await this.audit.log({ actorId: actor.id, action: "supplier_invoice.posted", entityType: "SupplierInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "supplier") }, correlationId });
     return result;
   }
 
@@ -605,7 +606,7 @@ export class SupplierInvoiceService {
       return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: gross.toFixed(4) };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "supplier_debit_note.posted", entityType: "SupplierInvoice", entityId: result.id, after: { ...result }, correlationId });
+    await this.audit.log({ actorId: actor.id, action: "supplier_debit_note.posted", entityType: "SupplierInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "supplier") }, correlationId });
     return result;
   }
 

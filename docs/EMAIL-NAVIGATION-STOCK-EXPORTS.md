@@ -8,9 +8,11 @@ Download/attachment instructions are shown only to the operator in the app. Gmai
 downloads the PDF before opening its prepared draft; the operator must attach it.
 This change does not send mail automatically or configure production email credentials.
 
-The expanded sidebar is 328px wide. Group headings, readable wrapping labels,
-smaller icons, current-section highlighting, keyboard focus outlines and a visible
-scrollbar improve navigation. Existing permissions, section order, collapsed-state
+The expanded sidebar retains its original 288px width, colors, spacing and boxed
+icons. Long navigation and section labels use a single line with an ellipsis;
+desktop tooltips reveal the complete name on hover or keyboard focus, and links
+retain their complete accessible names. Keyboard focus outlines and centered
+collapsed icons remain. Existing permissions, section order, collapsed-state
 preferences and mobile drawer behavior are preserved.
 
 Stock movements provide PDF, CSV and print for current server filters, all movements,

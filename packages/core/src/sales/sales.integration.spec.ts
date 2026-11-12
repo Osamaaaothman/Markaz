@@ -456,4 +456,17 @@ describeIfDb("Sales invoices — ZATCA issuing unit (EgsUnit) resolution — rea
   });
 
 
+  it("records invoice numbers, counterparty, decimal totals and lines in posting audit events", async () => {
+    const documents = await prisma.salesInvoice.findMany({ where: { companyId }, select: { id: true } });
+    const row = await prisma.auditLog.findFirstOrThrow({ where: { entityId: { in: documents.map((d) => d.id) }, actorId: actor.id, entityType: "SalesInvoice", action: "sales_invoice.posted", afterJson: { path: ["currency"], equals: "SAR" } }, orderBy: { createdAt: "desc" } });
+    const snapshot = row.afterJson as Record<string, unknown>;
+    expect(snapshot.currency).toBe("SAR");
+    for (const field of ["number", "customerName", "totalNet", "totalTax", "totalGross", "journalEntryId"]) expect(typeof snapshot[field]).toBe("string");
+    expect(snapshot.totalNet).toMatch(/^-?\d+\.\d{4}$/);
+    expect(Array.isArray(snapshot.lines)).toBe(true);
+    const lines = snapshot.lines as Record<string, unknown>[];
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) for (const field of ["quantity", "unitPrice", "netAmount", "taxAmount"]) expect(typeof line[field]).toBe("string");
+  });
+
 });

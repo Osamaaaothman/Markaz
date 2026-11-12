@@ -48,6 +48,7 @@ module.exports = {
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.base.json" },
     enhancedResolveOptions: { exportsFields: ["exports"], conditionNames: ["import", "require"] },
-    exclude: { path: "node_modules" },
+    // Inspect source, not Rollup's generated shared/lazy chunk graph.
+    exclude: { path: "(^|/)(node_modules|dist)/" },
   },
 };

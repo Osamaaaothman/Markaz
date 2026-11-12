@@ -1,3 +1,4 @@
+import { invoiceAuditSnapshot } from "../audit/invoice-audit-snapshot.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { IAccountingEngine, IAuditLogger, JournalLineInput, TransactionClient } from "../contracts.js";
@@ -360,7 +361,7 @@ export class SalesInvoiceService {
       return { id: invoiceId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "sales_invoice.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result }, correlationId });
+    await this.audit.log({ actorId: actor.id, action: "sales_invoice.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales") }, correlationId });
     return result;
   }
 
@@ -530,7 +531,7 @@ export class SalesInvoiceService {
       return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "sales_credit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result }, correlationId });
+    await this.audit.log({ actorId: actor.id, action: "sales_credit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales") }, correlationId });
     return result;
   }
 
@@ -645,7 +646,7 @@ export class SalesInvoiceService {
       return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "sales_debit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result }, correlationId });
+    await this.audit.log({ actorId: actor.id, action: "sales_debit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales") }, correlationId });
     return result;
   }
 

@@ -38,6 +38,7 @@ model DocumentDraft {
 // §4 note: "per tenant" here means per company/branch within one customer's own
 // deployment, not a cross-customer SaaS tenant).
 model Company {
+  quotationEmailAttempts QuotationEmailAttempt[]
   id                    String   @id
   name                  String
   // The name in Arabic, for Arabic documents and the Arabic interface. Null = use `name` everywhere.
@@ -1268,6 +1269,7 @@ model GoodsReturnLine {
 // An offer to a customer. OPEN until it is turned into a sales order (CONVERTED), declined
 // (REJECTED) or withdrawn (CANCELLED). Lines are never edited; a changed offer is a new quotation.
 model Quotation {
+  emailAttempts QuotationEmailAttempt[]
   submissionKey String? @map("submission_key")
   @@unique([companyId, submissionKey])
   id            String    @id
@@ -2062,4 +2064,32 @@ model ZatcaInvoiceRecord {
   @@index([egsUnitId])
   @@index([companyId, status])
   @@map("zatca_invoice_records")
+}
+
+// Outgoing quotation correspondence. Provider acceptance is distinct from delivery.
+model QuotationEmailAttempt {
+  id String @id
+  companyId String @map("company_id")
+  quotationId String @map("quotation_id")
+  requestKey String @map("request_key")
+  recipient String
+  language String
+  subject String?
+  status String
+  provider String?
+  providerId String? @map("provider_id")
+  errorCode String? @map("error_code")
+  sentAt DateTime? @map("sent_at") @db.Timestamptz(3)
+  checkedAt DateTime? @map("checked_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy String @map("created_by")
+  updatedBy String @map("updated_by")
+  version Int @default(1)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  @@unique([companyId, requestKey])
+  @@index([companyId, quotationId, id])
+  @@index([quotationId])
+  @@map("quotation_email_attempts")
 }

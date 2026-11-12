@@ -7,7 +7,7 @@ import type { AuditEvent, IAuditLogger } from "../contracts.js";
 // role the running app connects as has no UPDATE/DELETE grant on audit_log either
 // (see the M1 migration and docker-compose.yml) — enforced at both layers on purpose.
 export class PrismaAuditLogger implements IAuditLogger {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: Pick<PrismaClient, "user" | "auditLog">) {}
 
   async log(event: AuditEvent): Promise<void> {
     // docs/02-ARCHITECTURE-RULES.md §3.4: "Writing audit records must not silently

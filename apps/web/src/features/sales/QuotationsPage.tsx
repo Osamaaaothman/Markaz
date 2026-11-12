@@ -1,7 +1,9 @@
+import { newId } from "@erp/shared";
+import { QuotationEmailHistory } from "./QuotationEmailHistory";
 import { DocumentTrail } from "../documents/DocumentTrail";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { selectFilter } from "../../shared/ui/column-filters";
@@ -39,7 +41,9 @@ export function QuotationsPage(): React.JSX.Element {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [status, setStatus] = useState<QuotationStatus | null>(null);
-  const [viewId, setViewId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const viewId = params.get("view");
+  const setViewId = (id: string | null): void => { setParams((previous) => { const next = new URLSearchParams(previous); if (id) next.set("view", id); else next.delete("view"); return next; }); };
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useQuotations(status);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
@@ -164,11 +168,13 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
   const [language, setLanguage] = useState<"en" | "ar">(i18n.language.startsWith("ar") ? "ar" : "en");
   const [to, setTo] = useState(quotation.customerEmail ?? "");
   const preview = usePreviewQuotationEmail(quotation.id);
-  const send = useSendQuotationEmail(quotation.id);
+  const [emailKey, setEmailKey] = useState(newId);
+  const send = useSendQuotationEmail(quotation.id, emailKey);
   const [openingGmail, setOpeningGmail] = useState(false);
   const [gmailError, setGmailError] = useState<string | null>(null);
 
   const openDialog = (): void => {
+    setEmailKey(newId());
     setTo(quotation.customerEmail ?? "");
     setLanguage(i18n.language.startsWith("ar") ? "ar" : "en");
     preview.reset();
@@ -212,7 +218,7 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="qeTo">{t("sales.quotations.email.recipient")}</label>
-            <InputText id="qeTo" dir="ltr" value={to} disabled={openingGmail || preview.isPending || send.isPending} onChange={(e) => { setTo(e.target.value); preview.reset(); send.reset(); }} className={to !== "" && !toValid ? "p-invalid" : ""} />
+            <InputText id="qeTo" dir="ltr" value={to} disabled={openingGmail || preview.isPending || send.isPending} onChange={(e) => { setEmailKey(newId()); setTo(e.target.value); preview.reset(); send.reset(); }} className={to !== "" && !toValid ? "p-invalid" : ""} />
           </div>
           <div className="erp-field">
             <label htmlFor="qeLang">{t("sales.quotations.email.language")}</label>
@@ -220,7 +226,7 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
               inputId="qeLang"
               disabled={openingGmail || preview.isPending || send.isPending}
               value={language}
-              onChange={(e) => { setLanguage(e.value as "en" | "ar"); preview.reset(); send.reset(); }}
+              onChange={(e) => { setEmailKey(newId()); setLanguage(e.value as "en" | "ar"); preview.reset(); send.reset(); }}
               options={[
                 { label: t("sales.quotations.email.languages.en"), value: "en" },
                 { label: t("sales.quotations.email.languages.ar"), value: "ar" },
@@ -265,6 +271,7 @@ function QuotationEmailDialog({ quotation, visible, onHide }: { quotation: Quota
           />
         </div>
         <p className="erp-field__hint">{t("sales.quotations.email.openInGmailHint")}</p>
+        <QuotationEmailHistory quotationId={quotation.id} visible={visible} disabled={send.isPending || openingGmail || preview.isPending} onResend={(recipient, lang) => { setTo(recipient); setLanguage(lang); setEmailKey(newId()); send.reset(); preview.mutate(lang); }} />
       </div>
     </Dialog>
   );
