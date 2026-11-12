@@ -1,3 +1,4 @@
+import { documentPath } from "../../shared/lib/document-path";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -18,15 +19,6 @@ interface Trail {
   edges: { from: string; to: string }[];
   truncated: boolean;
 }
-const paths: Record<string, string> = {
-  purchase_order: "/purchasing/orders/",
-  goods_receipt: "/inventory/goods-receipts/",
-  supplier_invoice: "/purchasing/invoices/",
-  sales_order: "/sales/orders/",
-  sales_invoice: "/sales/invoices/",
-  stock_issue: "/inventory/stock-issues/",
-  stock_count: "/inventory/stock-counts/",
-};
 export function DocumentTrail({ kind, id }: { kind: string; id: string }): React.JSX.Element {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -80,8 +72,8 @@ export function DocumentTrail({ kind, id }: { kind: string; id: string }): React
                 >
                   <strong>
                     {t(`trail.kinds.${node.kind}`)}:{" "}
-                    {paths[node.kind] ? (
-                      <Link to={`${paths[node.kind]}${node.id}`}>{node.number}</Link>
+                    {documentPath(node.kind, node.id) ? (
+                      <Link to={documentPath(node.kind, node.id)!}>{node.number}</Link>
                     ) : (
                       <bdi>{node.number}</bdi>
                     )}

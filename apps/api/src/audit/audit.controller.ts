@@ -12,7 +12,7 @@ export class AuditController {
   @Get("audit-log")
   @RequirePermission("audit_log", "read")
   list(@CurrentUser() actor: CurrentUserPayload, @Query() query: AuditLogQueryDto): Promise<AuditLogPage> {
-    return this.audit.list(actor.companyId, query);
+    return this.audit.list(actor.companyId, query, actor.id);
   }
 
   // The entity types and users that appear in this company's log, to fill the screen's filters.

@@ -3,7 +3,7 @@ import { QuotationEmailHistory } from "./QuotationEmailHistory";
 import { DocumentTrail } from "../documents/DocumentTrail";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { selectFilter } from "../../shared/ui/column-filters";
@@ -41,7 +41,9 @@ export function QuotationsPage(): React.JSX.Element {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [status, setStatus] = useState<QuotationStatus | null>(null);
-  const [viewId, setViewId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const viewId = params.get("view");
+  const setViewId = (id: string | null): void => { setParams((previous) => { const next = new URLSearchParams(previous); if (id) next.set("view", id); else next.delete("view"); return next; }); };
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useQuotations(status);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
