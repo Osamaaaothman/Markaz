@@ -1,5 +1,8 @@
+import { QuotationEmailError, QuotationEmailService } from "./quotation-email.service.js";
+import { EmailHistoryQueryDto } from "./dto/email-history-query.dto.js";
+import { newId } from "@erp/shared";
 import { OptionalIdempotencyKey } from "../common/idempotency-key.decorator.js";
-import { BadRequestException, Body, ConflictException, Controller, Get, Inject, NotFoundException, Param, Post, Query, Res, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Controller, Get, HttpException, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
   QuotationService,
@@ -7,7 +10,6 @@ import {
   SalesInvoiceService,
   SalesOrderService,
   UnmappedAccountError,
-  type IAuditLogger,
   type QuotationDetail,
   type QuotationListPage,
   type QuotationSummary,
@@ -22,7 +24,6 @@ import {
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
-import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -32,7 +33,7 @@ import { quotationToPdfHtml } from "./exports/quotation-export.js";
 import { quotationEmailContent } from "./exports/quotation-email-template.js";
 import { localizedCompanyName } from "../common/company-name.js";
 import { EMAIL_TRANSPORT } from "../notifications/mail.module.js";
-import { EmailDeliveryError, redactAddress, type EmailTransport } from "../notifications/email-transport.js";
+import { type EmailTransport } from "../notifications/email-transport.js";
 import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
@@ -106,13 +107,13 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
 @Controller("v1")
 export class SalesController {
   constructor(
+    private readonly quotationEmails: QuotationEmailService,
     private readonly quotations: QuotationService,
     private readonly orders: SalesOrderService,
     private readonly invoices: SalesInvoiceService,
     private readonly prisma: PrismaService,
     private readonly attachments: AttachmentService,
     @Inject(EMAIL_TRANSPORT) private readonly emailTransport: EmailTransport,
-    @Inject(AUDIT_LOGGER) private readonly audit: IAuditLogger,
   ) {}
 
   // Shared by the quotation PDF, preview and send endpoints: the company's own identity as it
@@ -218,38 +219,36 @@ export class SalesController {
     return { html, text, subject, defaultRecipient: quotation.customerEmail, deliveryConfigured: this.emailTransport.configured !== false };
   }
 
-  // A deliberate, human-confirmed send after a preview — sent directly from this request rather
-  // than through the notification outbox/job queue (that pattern is for notices tied to a business
-  // event in the same DB transaction; this is a one-off action the user just watched and approved).
+  private async mapEmailErrors<T>(work: Promise<T>): Promise<T> {
+    try { return await work; } catch (error) {
+      if (error instanceof QuotationEmailError) throw new HttpException({ code: error.code, attemptId: error.attemptId }, error.status);
+      throw error;
+    }
+  }
+
+  @Get("quotations/:id/email/history")
+  @RequirePermission("quotation", "read")
+  emailHistory(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload, @Query() query: EmailHistoryQueryDto) {
+    return this.mapEmailErrors(this.quotationEmails.history(actor.companyId, id, query.cursor));
+  }
+
+  @Post("quotations/:id/email/:attemptId/refresh")
+  @RequirePermission("quotation", "read")
+  refreshEmailStatus(@Param("id") id: string, @Param("attemptId") attemptId: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string) {
+    return this.mapEmailErrors(this.quotationEmails.refresh(actor.companyId, id, attemptId, actor.id, correlationId));
+  }
+
   @Post("quotations/:id/email/send")
   @RequirePermission("quotation", "create")
-  async sendQuotationEmail(
-    @Param("id") id: string,
-    @Body() dto: SendQuotationEmailDto,
-    @CurrentUser() actor: CurrentUserPayload,
-    @CorrelationId() correlationId: string,
-  ): Promise<{ sentAt: string }> {
-    if (this.emailTransport.configured === false) throw new ServiceUnavailableException({ code: "EMAIL_NOT_CONFIGURED" });
-    const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
-    const seller = await this.loadSellerContext(actor.companyId, dto.language);
-    const [{ html, subject, text }, pdf] = await Promise.all([
-      quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress }),
-      renderHtmlToPdf(await quotationToPdfHtml({ quotation, language: dto.language, ...seller })),
-    ]);
-    try {
-      await this.emailTransport.send({
-      to: dto.to,
-      subject,
-      html,
-      text,
-      attachments: [{ filename: `${quotation.number}.pdf`, content: pdf, contentType: "application/pdf" }],
-      });
-    } catch (error) {
-      throw new ServiceUnavailableException({ code: error instanceof EmailDeliveryError ? error.code : "EMAIL_DELIVERY_FAILED" });
-    }
-    const sentAt = new Date().toISOString();
-    await this.audit.log({ actorId: actor.id, action: "quotation.emailed", entityType: "Quotation", entityId: id, after: { to: redactAddress(dto.to), language: dto.language }, correlationId });
-    return { sentAt };
+  async sendQuotationEmail(@Param("id") id: string, @Body() dto: SendQuotationEmailDto,
+    @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string, @OptionalIdempotencyKey() key?: string): Promise<{ sentAt: string; attemptId: string }> {
+    return this.mapEmailErrors(this.quotationEmails.send(id, dto, actor, correlationId, key ?? newId(), async () => {
+      const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
+      const seller = await this.loadSellerContext(actor.companyId, dto.language);
+      const content = await quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress });
+      const pdf = await renderHtmlToPdf(await quotationToPdfHtml({ quotation, language: dto.language, ...seller }));
+      return { ...content, to: dto.to, attachments: [{ filename: `${quotation.number}.pdf`, content: pdf, contentType: "application/pdf" }] };
+    }));
   }
 
   // ── Sales orders ────────────────────────────────────────────────────────────

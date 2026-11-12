@@ -33,6 +33,14 @@ describe("LoggingEmailTransport", () => {
 });
 
 describe("ResendEmailTransport", () => {
+  it.each([["sent", "ACCEPTED"], ["delivered", "DELIVERED"], ["bounced", "BOUNCED"], ["delivery_delayed", "DELAYED"], ["complained", "COMPLAINED"]])("maps delivery observation %s independently of send acceptance", async (event, expected) => {
+    const transport = new ResendEmailTransport("test", "sender@example.test", () => Promise.resolve(new Response(JSON.stringify({ last_event: event }), { status: 200 })));
+    expect(await transport.deliveryStatus("id")).toBe(expected);
+  });
+  it("does not invent a delivery status when the provider is unavailable", async () => {
+    const transport = new ResendEmailTransport("test", "sender@example.test", () => Promise.resolve(new Response("private", { status: 403 })));
+    expect(await transport.deliveryStatus("id")).toBeNull();
+  });
   it("sends the PDF as base64 over HTTPS and requires provider acceptance", async () => {
     let body: Record<string, unknown> = {};
     const request: typeof fetch = (url, init) => {
@@ -49,7 +57,7 @@ describe("ResendEmailTransport", () => {
 
   it.each([401, 429, 500])("never reports a provider %s response as sent", async (status) => {
     const request: typeof fetch = () => Promise.resolve(new Response("private provider details", { status }));
-    await expect(new ResendEmailTransport("test-key", "sales@example.test", request).send({ to: "buyer@example.test", subject: "q", html: "q", text: "q" })).rejects.toMatchObject({ message: "EMAIL_DELIVERY_FAILED" });
+    await expect(new ResendEmailTransport("test-key", "sales@example.test", request).send({ to: "buyer@example.test", subject: "q", html: "q", text: "q" })).rejects.toMatchObject({ message: status >= 500 ? "EMAIL_DELIVERY_UNCERTAIN" : "EMAIL_DELIVERY_FAILED" });
   });
 
   it("requires an API key and sender without falling back to another provider", () => {

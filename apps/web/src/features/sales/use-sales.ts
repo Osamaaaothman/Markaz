@@ -122,10 +122,12 @@ export function usePreviewQuotationEmail(id: string) {
   });
 }
 
-export function useSendQuotationEmail(id: string) {
+export function useSendQuotationEmail(id: string, submissionKey?: string) {
+  const qc = useQueryClient();
   return useMutation({
     meta: { successKey: "feedback.sent" },
-    mutationFn: async (payload: { to: string; language: "en" | "ar" }) => (await apiClient.post<{ sentAt: string }>(`/v1/quotations/${id}/email/send`, payload)).data,
+    mutationFn: async (payload: { to: string; language: "en" | "ar" }) => (await apiClient.post<{ sentAt: string }>(`/v1/quotations/${id}/email/send`, payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
+    onSettled: () => qc.invalidateQueries({ queryKey: ["quotationEmails", id] }),
   });
 }
 

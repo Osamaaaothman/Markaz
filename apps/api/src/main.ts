@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { ValidationPipe } from "@nestjs/common";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module.js";
@@ -19,7 +20,9 @@ async function bootstrap(): Promise<void> {
   // starts — never on the first request that needs the missing variable.
   validateEnv(process.env);
 
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  // A bounded 200-row master-data import can exceed Express's default 100 KiB.
+  app.useBodyParser("json", { limit: "1mb" });
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
 

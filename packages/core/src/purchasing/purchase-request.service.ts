@@ -1,3 +1,5 @@
+import { replenishmentRows } from "../inventory/replenishment.service.js";
+import { PrismaAuditLogger } from "../audit/audit-logger.js";
 import { lockSubmission } from "../documents/submission-lock.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
@@ -10,7 +12,7 @@ export type PurchaseRequestStatus = "PENDING" | "ACCEPTED" | "PROCESSED" | "REJE
 
 export class PurchaseRequestError extends Error {
   constructor(
-    readonly code: "EMPTY_REQUEST" | "ITEM_NOT_FOUND" | "REQUEST_NOT_FOUND" | "NOT_PENDING" | "WAREHOUSE_NOT_FOUND",
+    readonly code: "STALE_REPLENISHMENT" | "EMPTY_REQUEST" | "ITEM_NOT_FOUND" | "REQUEST_NOT_FOUND" | "NOT_PENDING" | "WAREHOUSE_NOT_FOUND",
     message: string,
   ) {
     super(message);
@@ -109,7 +111,7 @@ export class PurchaseRequestService {
     private readonly audit: IAuditLogger,
   ) {}
 
-  async create(input: CreatePurchaseRequestInput, actor: PurchaseRequestActor, correlationId: string, submissionKey?: string): Promise<PurchaseRequestSummary> {
+  async create(input: CreatePurchaseRequestInput, actor: PurchaseRequestActor, correlationId: string, submissionKey?: string, replenishment = false): Promise<PurchaseRequestSummary> {
     if (input.lines.length === 0) throw new PurchaseRequestError("EMPTY_REQUEST", "A purchase request needs at least one line");
 
     const id = newId();
@@ -126,11 +128,19 @@ export class PurchaseRequestService {
       const warehouse = await tx.warehouse.findFirst({ where: { id: input.warehouseId, companyId: actor.companyId, isActive: true }, select: { id: true } });
       if (!warehouse) throw new PurchaseRequestError("WAREHOUSE_NOT_FOUND", "The warehouse was not found or is not active");
 
+      if (replenishment) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${actor.companyId}:replenish:${input.warehouseId}`}, 0))`;
+        const current = await replenishmentRows(tx, actor.companyId, input.warehouseId, itemIds);
+        if (input.lines.length > 100 || itemIds.length !== input.lines.length || input.lines.some(line => {
+          const row = current.data.find(r => r.itemId === line.itemId);
+          return !row || !new Prisma.Decimal(line.quantity).gt(0) || new Prisma.Decimal(line.quantity).gt(row.suggested);
+        })) throw new PurchaseRequestError("STALE_REPLENISHMENT", "Refresh replenishment suggestions");
+      }
       const now = new Date();
       const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, now);
       const number = await allocateDocumentNumber(tx, actor.companyId, "purchase_request", "PRQ", fiscalYear);
 
-      return tx.purchaseRequest.create({
+      const request = await tx.purchaseRequest.create({
         data: {
           id,
           companyId: actor.companyId,
@@ -153,10 +163,12 @@ export class PurchaseRequestService {
         },
         include: { warehouse: true, _count: { select: { lines: true } } },
       });
+      if (replenishment) await new PrismaAuditLogger(tx).log({ actorId: actor.id, action: "purchase_request.created", entityType: "PurchaseRequest", entityId: id, after: { ...toSummary(request), source: "replenishment" }, correlationId });
+      return request;
     });
 
     const summary = toSummary(created);
-    if (created.id === id) await this.audit.log({ actorId: actor.id, action: "purchase_request.created", entityType: "PurchaseRequest", entityId: id, after: { ...summary }, correlationId });
+    if (created.id === id && !replenishment) await this.audit.log({ actorId: actor.id, action: "purchase_request.created", entityType: "PurchaseRequest", entityId: id, after: { ...summary }, correlationId });
     return summary;
   }
 

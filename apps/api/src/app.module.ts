@@ -1,3 +1,4 @@
+import { ImportsModule } from "./imports/imports.module.js";
 import { Module } from "@nestjs/common";
 import { DocumentsModule } from "./documents/documents.module.js";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
@@ -35,10 +36,11 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
         // docs/09-SECURITY-RULES.md §7: never log request bodies of financial
         // endpoints, monetary amounts, or PII. Redaction rules grow alongside the
         // first real financial endpoint that needs them (M2+).
-        redact: ["req.headers.authorization", "req.body.password"],
+        redact: ["req.headers.authorization", "req.headers.cookie", "req.body.password"],
       },
     }),
     PrismaModule,
+    ImportsModule,
     DocumentsModule,
     CommonModule,
     JobsModule,

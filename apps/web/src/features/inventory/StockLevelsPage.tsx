@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
@@ -14,10 +14,16 @@ import { exportReport, type ExportFormat } from "../accounting/export-report";
 import { useAllWarehouses } from "./use-warehouses";
 import { useStockLevels, type StockLevelEntry } from "./use-stock-levels";
 
+import { Button } from "primereact/button";
+import { usePermissions } from "../../shared/auth/use-permissions";
+const ReplenishmentDialog = lazy(() => import("./ReplenishmentDialog"));
+
 const ALL_WAREHOUSES = "ALL";
 
 export function StockLevelsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const { can } = usePermissions();
+  const [replenishOpen, setReplenishOpen] = useState(false);
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: warehouses } = useAllWarehouses();
@@ -47,10 +53,12 @@ export function StockLevelsPage(): React.JSX.Element {
           <p className="erp-page__subtitle">{t("inventory.stockLevels.subtitle")}</p>
         </div>
         <div className="erp-page__header-actions">
+          {can("purchase_request:create") ? <Button label={t("replenishment.title")} icon="pi pi-shopping-cart" outlined onClick={() => setReplenishOpen(true)} /> : null}
           <ExportButtons onExport={handleExport} />
         </div>
       </div>
 
+      {replenishOpen ? <Suspense fallback={<PageSkeleton />}><ReplenishmentDialog warehouseId={warehouseId} onHide={() => setReplenishOpen(false)} /></Suspense> : null}
       <div className="coa-toolbar">
         <div className="coa-levels">
           <span className="coa-levels__label">{t("inventory.stockLevels.warehouse")}</span>

@@ -1,3 +1,5 @@
+import { ReplenishmentService } from "@erp/core";
+import { ReplenishmentQueryDto } from "./dto/replenishment-query.dto.js";
 import { BadRequestException, Body, ConflictException, Controller, Get, NotFoundException, Param, Patch, Post, Put, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
@@ -68,6 +70,7 @@ import { localizedCompanyName } from "../common/company-name.js";
 @Controller("v1")
 export class InventoryController {
   constructor(
+    private readonly replenishment: ReplenishmentService,
     private readonly warehouses: WarehouseService,
     private readonly items: ItemService,
     private readonly accountMappings: AccountMappingService,
@@ -82,6 +85,14 @@ export class InventoryController {
   ) {}
 
   // ── Warehouses ──────────────────────────────────────────────────────────────
+
+  @Get("replenishment")
+  @RequirePermission("stock", "read")
+  async replenishmentList(@CurrentUser() actor: CurrentUserPayload, @Query() query: ReplenishmentQueryDto) {
+    const result = await this.replenishment.list(actor.companyId, query.warehouseId, query.cursor);
+    if (!result) throw new NotFoundException();
+    return result;
+  }
 
   @Get("warehouses")
   @RequirePermission("warehouse", "read")

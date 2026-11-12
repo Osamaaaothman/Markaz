@@ -252,6 +252,7 @@ export class QuotationEmailPreviewDto {
 }
 
 export class SendQuotationEmailDto {
+  @MaxLength(200)
   @IsEmail()
   to!: string;
 
