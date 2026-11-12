@@ -994,3 +994,7 @@ closing the symmetry Osama already approved on both ledger sides.
   document to submit for the compliance check) — the feature here is the general AR capability; wiring it into the
   compliance pack's sample-submission step is separate work. No "known gap" entry needed for sales credit notes'
   existing behaviour; only the two statement/ageing queries above changed.
+
+## Invoice returns — November 12, 2026
+
+The request to complete purchase and sales returns supersedes the earlier scope limits in D9 and E2 for invoice-linked returns. Linked supplier debit notes now remove stock at weighted-average cost and reverse original input VAT, with the net/cost difference in purchase price variance. Linked sales credit notes restore stock at historical cost and reverse original revenue and output VAT. Unlinked financial notes retain their existing behavior. The follow-up request restricts new purchase returns to posted supplier invoices: the pre-invoice creation action and API endpoint are removed, while historical documents remain readable. Sales stock returns now let the user select any active receiving warehouse in the same company. Details, API compatibility, deployment and known limits: [INVOICE-RETURNS.md](INVOICE-RETURNS.md).

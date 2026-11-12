@@ -1,3 +1,5 @@
+import { useAllWarehouses } from "../inventory/use-warehouses";
+import { positiveReturnQuantity, validReturnQuantity } from "../../shared/lib/return-quantity";
 import { DocumentTrail } from "../documents/DocumentTrail";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,7 +22,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { exportReport } from "../accounting/export-report";
 import { useTaxCodes } from "../purchasing/use-invoicing";
-import { tafqeetAmount } from "@erp/shared";
+import { newId, tafqeetAmount } from "@erp/shared";
 import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceDetail, type SalesInvoiceSummary } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 import { ZatcaInvoicePanel } from "../compliance/ZatcaInvoicePanel";
@@ -34,25 +36,25 @@ function documentTypeSeverity(documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_N
   return "danger";
 }
 
-export function SalesInvoicesPage(): React.JSX.Element {
+export function SalesInvoicesPage({ returnsOnly = false }: { returnsOnly?: boolean }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [type, setType] = useState<"INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | null>(null);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSalesInvoices(type);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSalesInvoices(returnsOnly ? "CREDIT_NOTE" : type);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
   return (
     <div className="erp-page erp-page--wide">
       <div className="erp-page__header">
         <div>
-          <h1 className="erp-page__title">{t("sales.invoices.title")}</h1>
+          <h1 className="erp-page__title">{t(returnsOnly ? "returns.salesTitle" : "sales.invoices.title")}</h1>
           <p className="erp-page__subtitle">{t("sales.invoices.subtitle")}</p>
         </div>
-        <PermissionButton allowed={can("sales_invoice:create")} label={t("sales.invoices.new")} icon="pi pi-plus" onClick={() => void navigate("/sales/invoices/new")} />
+        {returnsOnly ? <Button label={t("returns.new")} icon="pi pi-plus" onClick={() => void navigate("/sales/invoices")} /> : <PermissionButton allowed={can("sales_invoice:create")} label={t("sales.invoices.new")} icon="pi pi-plus" onClick={() => void navigate("/sales/invoices/new")} />}
       </div>
 
-      <div className="coa-toolbar">
+      {!returnsOnly ? <div className="coa-toolbar">
         <div className="coa-levels">
           <span className="coa-levels__label">{t("sales.invoices.documentType")}</span>
           <Dropdown
@@ -66,7 +68,7 @@ export function SalesInvoicesPage(): React.JSX.Element {
             ]}
           />
         </div>
-      </div>
+      </div> : null}
 
       {isPending ? (
         <PageSkeleton />
@@ -79,7 +81,7 @@ export function SalesInvoicesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("sales_invoice:create"), label: t("sales.invoices.new"), onClick: () => void navigate("/sales/invoices/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/invoices/${(e.data as SalesInvoiceSummary).id}`)}>
+          <DataGrid emptyAction={{ allowed: !returnsOnly && can("sales_invoice:create"), label: t("sales.invoices.new"), onClick: () => void navigate("/sales/invoices/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/invoices/${(e.data as SalesInvoiceSummary).id}`)}>
             <Column field="number" filter header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
             <Column field="documentType" filter filterMatchMode="equals" filterElement={selectFilter((["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"] as const).map((v) => ({ label: t(`sales.invoices.types.${v}`), value: v })), t("table.filterPlaceholder"))} header={t("sales.invoices.documentType")} style={{ width: "10rem" }} body={(r: SalesInvoiceSummary) => <Tag value={t(`sales.invoices.types.${r.documentType}`)} severity={documentTypeSeverity(r.documentType)} />} />
             <Column header={t("sales.customer")} body={(r: SalesInvoiceSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
@@ -134,7 +136,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           <AttachmentsButton ownerType="SALES_INVOICE" ownerId={invoice.id} label={invoice.number} />
           <Button label={t("sales.invoices.downloadPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "pdf")} />
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/sales-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "print")} />
-          {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("credit_note:create")} label={t("sales.invoices.creditNote")} icon="pi pi-minus-circle" outlined onClick={() => setCreditOpen(true)} /> : null}
+          {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("credit_note:create")} label={t("sales.invoices.salesReturn")} icon="pi pi-minus-circle" outlined onClick={() => setCreditOpen(true)} /> : null}
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("debit_note:create")} label={t("sales.invoices.debitNote")} icon="pi pi-plus-circle" outlined onClick={() => setDebitOpen(true)} /> : null}
           {invoice.documentType === "INVOICE" ? <PermissionButton allowed={can("customer_receipt:create")} label={t("payments.recordPayment")} icon="pi pi-wallet" outlined onClick={() => void navigate(`/payments/receipts/new?party=${invoice.customerId}`)} /> : null}
           {invoice.originalInvoiceId ? <Button label={t("sales.invoices.openOriginal")} text onClick={() => void navigate(`/sales/invoices/${invoice.originalInvoiceId}`)} /> : null}
@@ -191,45 +193,56 @@ type SalesReturnLineRow = SalesInvoiceDetail["lines"][number] & {
 };
 
 function SalesReturnDialog({ invoiceId, visible, onHide }: { invoiceId: string; visible: boolean; onHide: () => void }): React.JSX.Element {
-  const { t } = useTranslation();
-  const { data: invoice } = useSalesInvoice(invoiceId);
-  const { data: taxCodes } = useTaxCodes(false);
-  const create = useCreateCreditNote(invoiceId);
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const { data: invoice, isError: loadError, refetch } = useSalesInvoice(invoiceId);
+  const { data: warehouses, isPending: warehousesPending, isError: warehousesError, refetch: refetchWarehouses } = useAllWarehouses();
+  const [warehouseId, setWarehouseId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submissionKey, setSubmissionKey] = useState(newId);
+  const create = useCreateCreditNote(invoiceId, submissionKey);
   const [date, setDate] = useState<Date>(new Date());
   const [rows, setRows] = useState<SalesReturnLineRow[]>([]);
 
   useEffect(() => {
-    if (!visible || !invoice?.lines || !taxCodes) return;
+    if (!visible || !invoice?.lines) return;
     create.reset();
     setDate(new Date());
+    setNotes("");
+    setWarehouseId("");
+    setSubmissionKey(newId());
     setRows(
       invoice.lines.map((l) => ({
         ...l,
-        included: true,
-        returnQty: l.quantity,
-        taxCodeId: taxCodes.find((tc) => Number(tc.rate) === Number(l.taxRate))?.id ?? (taxCodes.find((c) => c.treatment === "STANDARD") ?? taxCodes[0])?.id ?? "",
+        included: positiveReturnQuantity(l.returnableQuantity),
+        returnQty: l.returnableQuantity,
       })),
     );
-  }, [visible, invoice?.lines, taxCodes]);
+  }, [visible, invoice?.lines]);
 
   const updateRow = (idx: number, patch: Partial<SalesReturnLineRow>) =>
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
-  const selectedRows = rows.filter((r) => r.included && DECIMAL.test(r.returnQty) && Number(r.returnQty) > 0 && Number(r.returnQty) <= Number(r.quantity) && r.taxCodeId !== "");
-  const valid = selectedRows.length > 0;
+  const selectedRows = rows.filter((r) => r.included);
+  const needsWarehouse = selectedRows.some((r) => r.itemId !== null);
+  const valid = (!needsWarehouse || (warehouses ?? []).some((w) => w.id === warehouseId && w.isActive)) && selectedRows.length > 0 && selectedRows.every((r) => validReturnQuantity(r.returnQty, r.returnableQuantity)) && !create.isPending;
 
   const handlePost = () => {
+    if (!valid) return;
     create.mutate(
       {
         creditDate: toDateOnlyIsoString(date),
+        notes,
         lines: selectedRows.map((r) => ({
+          originalLineId: r.id,
+          ...(r.itemId ? { warehouseId } : {}),
           description: r.description,
           quantity: r.returnQty,
           unitPrice: r.unitPrice,
           taxCodeId: r.taxCodeId,
         })),
       },
-      { onSuccess: onHide },
+      { onSuccess: (result) => { onHide(); void navigate(`/sales/invoices/${result.id}`); } },
     );
   };
 
@@ -238,7 +251,7 @@ function SalesReturnDialog({ invoiceId, visible, onHide }: { invoiceId: string; 
 
   return (
     <Dialog header={t("sales.invoices.salesReturn")} visible={visible} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(64rem, 96vw)" }}>
-      {!invoice ? (
+      {loadError ? <div role="alert"><p>{t("status.error")}</p><Button label={t("actions.retry")} onClick={() => void refetch()} /></div> : !invoice ? (
         <PageSkeleton />
       ) : (
         <div className="erp-form">
@@ -249,6 +262,16 @@ function SalesReturnDialog({ invoiceId, visible, onHide }: { invoiceId: string; 
               <Calendar inputId="srDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
             </div>
           </div>
+          {rows.some((r) => r.itemId !== null) ? <div className="erp-field">
+            <label htmlFor="srWarehouse">{t("returns.destinationWarehouse")}</label>
+            <Dropdown inputId="srWarehouse" value={warehouseId || null}
+              onChange={(e) => setWarehouseId((e.value as string | null) ?? "")}
+              options={(warehouses ?? []).filter((w) => w.isActive).map((w) => ({ label: w.code + " — " + localizedName(w, i18n.language), value: w.id }))}
+              placeholder={t("returns.chooseWarehouse")} filter showClear
+              disabled={create.isPending || warehousesPending} />
+            {warehousesError ? <div role="alert"><span>{t("status.error")}</span><Button label={t("actions.retry")} text onClick={() => void refetchWarehouses()} /></div> : null}
+          </div> : null}
+          <div className="erp-field"><label htmlFor="srNotes">{t("purchasing.returns.reason")}</label><InputText id="srNotes" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} /></div>
           <DataTable value={rows} className="erp-table" size="small" showGridlines>
             <Column
               header=""
@@ -256,12 +279,15 @@ function SalesReturnDialog({ invoiceId, visible, onHide }: { invoiceId: string; 
               body={(_: SalesReturnLineRow, opt) => (
                 <input
                   type="checkbox"
+                  disabled={!positiveReturnQuantity(rows[opt.rowIndex]?.returnableQuantity ?? "0") || create.isPending}
+                  aria-label={t("documents.item")}
                   checked={rows[opt.rowIndex]?.included ?? false}
                   onChange={(e) => updateRow(opt.rowIndex, { included: e.target.checked })}
                 />
               )}
             />
             <Column header={t("sales.description")} body={(r: SalesReturnLineRow) => r.description} />
+            <Column header={t("returns.remaining")} align="right" body={(r: SalesReturnLineRow) => r.returnableQuantity} />
             <Column header={t("purchasing.invoices.origQty")} align="right" style={{ width: "6rem" }} body={(r: SalesReturnLineRow) => r.quantity} />
             <Column
               header={t("purchasing.invoices.returnQty")}
@@ -273,26 +299,14 @@ function SalesReturnDialog({ invoiceId, visible, onHide }: { invoiceId: string; 
                   value={rows[opt.rowIndex]?.returnQty ?? ""}
                   style={{ width: "100%" }}
                   onChange={(e) => updateRow(opt.rowIndex, { returnQty: e.target.value })}
-                  className={rows[opt.rowIndex]?.included && (!DECIMAL.test(rows[opt.rowIndex]?.returnQty ?? "") || Number(rows[opt.rowIndex]?.returnQty) > Number(r.quantity)) ? "p-invalid" : ""}
+                  className={rows[opt.rowIndex]?.included && !validReturnQuantity(rows[opt.rowIndex]?.returnQty ?? "", r.returnableQuantity) ? "p-invalid" : ""}
                 />
               )}
             />
             <Column header={t("purchasing.unitPrice")} align="right" style={{ width: "9rem" }} body={(r: SalesReturnLineRow) => formatMoney(r.unitPrice, currency)} />
-            <Column
-              header={t("purchasing.invoices.taxCode")}
-              style={{ width: "10rem" }}
-              body={(_: SalesReturnLineRow, opt) => (
-                <Dropdown
-                  disabled={!rows[opt.rowIndex]?.included}
-                  value={rows[opt.rowIndex]?.taxCodeId || null}
-                  onChange={(e) => updateRow(opt.rowIndex, { taxCodeId: (e.value as string | null) ?? "" })}
-                  options={(taxCodes ?? []).map((c) => ({ label: `${c.code} (${Number(c.rate)}%)`, value: c.id }))}
-                  style={{ width: "100%" }}
-                />
-              )}
-            />
+            <Column header={t("purchasing.invoices.taxCode")} body={(r: SalesReturnLineRow) => `${r.taxRate}%`} />
           </DataTable>
-          {create.isError ? <p className="erp-auth-card__error">{code === "CREDIT_EXCEEDS_INVOICE" ? t("sales.errors.CREDIT_EXCEEDS_INVOICE") : t("sales.errors.generic")}</p> : null}
+          {create.isError ? <p className="erp-auth-card__error">{t(`returns.errors.${code ?? "generic"}`, { defaultValue: t("returns.errors.generic") })}</p> : null}
           <div className="erp-form__actions">
             <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
             <Button type="button" label={t("sales.invoices.postCreditNote")} disabled={!valid} loading={create.isPending} onClick={handlePost} />

@@ -7,6 +7,7 @@ import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-per
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
 import { lockStockRow, saveStockRow } from "../inventory/stock-row.repo.js";
 import { InsufficientStockError, applyIssue } from "../inventory/weighted-average.util.js";
+import { returnShare } from "../inventory/return-amount.util.js";
 import { allocateDocumentNumber } from "../reference.js";
 import type { SalesActor } from "./quotation.service.js";
 import { SalesError, blankToNull, dateOnly, lockCustomer, resolveEgsUnitId, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
@@ -31,6 +32,8 @@ export interface CreateSalesInvoiceInput {
 }
 
 export interface CreditNoteLineInput {
+  readonly warehouseId?: string | undefined;
+  readonly originalLineId?: string | undefined;
   readonly description: string;
   readonly quantity: string;
   readonly unitPrice: string;
@@ -102,6 +105,13 @@ export interface SalesInvoiceDetail extends SalesInvoiceSummary {
   readonly customerPostalCode: string | null;
   readonly lines: readonly {
     readonly id: string;
+    readonly taxCodeId: string;
+    readonly returnableQuantity: string;
+    readonly itemId: string | null;
+    readonly warehouseId: string | null;
+    readonly warehouseName: string | null;
+    readonly warehouseNameAr: string | null;
+    readonly originalLineId: string | null;
     readonly description: string;
     readonly quantity: string;
     readonly unitPrice: string;
@@ -155,8 +165,8 @@ function toSummary(row: InvoiceRow): SalesInvoiceSummary {
 // fails the whole invoice (no negative stock). A sale never posts a loss to hide a missing cost: the
 // cost is whatever the weighted average is, even when that is zero.
 //
-// Credit note posting is the mirror of the revenue side only (Dr revenue, Dr output VAT, Cr receivable);
-// it does NOT return goods to stock — a return to stock is a separate document not built yet.
+// Linked credit notes reverse original revenue and VAT and restore stock at its historical cost.
+// Unlinked credit notes remain financial adjustments.
 export class SalesInvoiceService {
   constructor(
     private readonly prisma: PrismaClient,
@@ -362,19 +372,50 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const original = await tx.salesInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId } });
+      // Invoice tables are immutable for the runtime role; serialize returns without UPDATE privileges.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.companyId + ":sales-return:" + input.originalInvoiceId}, 0))::text`;
+      const original = await tx.salesInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId }, include: { lines: { include: { returnLines: true } } } });
       if (!original) throw new SalesError("NOT_FOUND", "Invoice not found");
+      const previous = await tx.journalEntry.findUnique({ where: { companyId_idempotencyKey: { companyId: actor.companyId, idempotencyKey } } });
+      if (previous) {
+        const note = await tx.salesInvoice.findFirst({ where: { journalEntryId: previous.id, originalInvoiceId: original.id, companyId: actor.companyId, documentType: "CREDIT_NOTE" } });
+        if (!note) throw new SalesError("INVALID_RETURN", "Submission key belongs to a different document");
+        return { id: note.id, number: note.number, journalEntryId: previous.id, totalGross: note.totalGross.toFixed(4) };
+      }
       if (original.documentType !== "INVOICE") throw new SalesError("NOT_AN_INVOICE", "A credit note can only be raised against an invoice");
       await lockCustomer(tx, actor.companyId, original.customerId);
       // A credit note inherits the original invoice's issuing unit by default -- it is the same
       // legal document lineage, not a fresh choice -- unless the caller explicitly overrides it.
       const egsUnitId = input.egsUnitId ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId) : original.egsUnitId;
 
-      const lines = await resolveSalesLines(
-        tx,
-        actor.companyId,
-        input.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, taxCodeId: l.taxCodeId })),
-      );
+      const linked = input.lines.some((l) => l.originalLineId !== undefined);
+      const seen = new Set<string>();
+      const sources = input.lines.map((line) => {
+        if (!linked) {
+          if (line.warehouseId !== undefined) throw new SalesError("INVALID_RETURN", "A warehouse requires an original stock invoice line");
+          return null;
+        }
+        const source = original.lines.find((l) => l.id === line.originalLineId);
+        if (!source || seen.has(source.id)) throw new SalesError("INVALID_RETURN", "Choose distinct lines from the original invoice");
+        seen.add(source.id);
+        const quantity = new Prisma.Decimal(line.quantity);
+        const returned = source.returnLines.reduce((sum, l) => sum.plus(l.quantity), new Prisma.Decimal(0));
+        if (!quantity.isFinite() || quantity.decimalPlaces() > 4 || !quantity.greaterThan(0) || quantity.plus(returned).greaterThan(source.quantity)) {
+          throw new SalesError("OVER_RETURN", "The return quantity exceeds the remaining invoice quantity");
+        }
+        if (!source.itemId && line.warehouseId !== undefined) throw new SalesError("INVALID_RETURN", "Service returns cannot move stock");
+        const warehouseId = source.itemId ? line.warehouseId ?? source.warehouseId : null;
+        if (source.itemId && !warehouseId) throw new SalesError("WAREHOUSE_REQUIRED", "Choose a warehouse for returned goods");
+        return { source, quantity, returned, warehouseId, cost: returnShare(source.costValue, source.quantity, returned, quantity) };
+      });
+      if (linked && input.creditDate < original.invoiceDate) throw new SalesError("INVALID_RETURN", "Return date cannot precede the invoice");
+      const lines = linked ? sources.map((entry, index) => {
+        const { source, quantity, returned } = entry!;
+        return { itemId: source.itemId, description: source.description, quantity, unitPrice: source.unitPrice,
+          taxCodeId: source.taxCodeId, taxRate: source.taxRate,
+          net: returnShare(source.netAmount, source.quantity, returned, quantity),
+          tax: returnShare(source.taxAmount, source.quantity, returned, quantity), lineNumber: index + 1 };
+      }) : await resolveSalesLines(tx, actor.companyId, input.lines);
       const totals = totalsOf(lines);
       if (totals.gross.isZero()) throw new SalesError("ZERO_DOCUMENT", "A credit note with nothing to credit cannot be posted");
 
@@ -391,9 +432,9 @@ export class SalesInvoiceService {
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.creditDate);
       if (!period) throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the credit note date");
-      const currency = await companyCurrency(tx, actor.companyId);
+      const currency = linked ? original.currency : await companyCurrency(tx, actor.companyId);
 
-      const revenueByAccount = await this.revenueByAccount(tx, actor.companyId, lines, input.lines.map((l) => l.revenueAccountId));
+      const revenueByAccount = await this.revenueByAccount(tx, actor.companyId, lines, input.lines.map((l, i) => linked ? sources[i]!.source.revenueAccountId ?? undefined : l.revenueAccountId));
       const journalLines: JournalLineInput[] = [];
       for (const [accountId, amount] of revenueByAccount) {
         if (!amount.isZero()) journalLines.push({ accountId, debit: amount.toFixed(4), description: "Credit note: revenue" });
@@ -402,6 +443,24 @@ export class SalesInvoiceService {
         journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"), debit: totals.tax.toFixed(4), description: "Credit note: output VAT" });
       }
       journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"), credit: totals.gross.toFixed(4), description: "Credit note" });
+
+      // Restore historical cost into the selected destination, never the selling price.
+      const destinationIds = [...new Set(sources.flatMap((entry) => entry?.warehouseId ? [entry.warehouseId] : []))];
+      const destinations = await tx.warehouse.findMany({ where: { id: { in: destinationIds }, companyId: actor.companyId, isActive: true }, select: { id: true } });
+      if (destinations.length !== destinationIds.length) throw new SalesError("WAREHOUSE_NOT_FOUND", "Choose an active warehouse belonging to this company");
+      const stockReturns = sources.filter((entry) => entry?.source.itemId && entry.warehouseId)
+        .sort((a, b) => (a!.source.itemId! + a!.warehouseId!).localeCompare(b!.source.itemId! + b!.warehouseId!));
+      let restoredCost = new Prisma.Decimal(0);
+      for (const entry of stockReturns) {
+        const { source, quantity, cost, warehouseId } = entry!;
+        const stock = await lockStockRow(tx, actor.companyId, source.itemId!, warehouseId!);
+        await saveStockRow(tx, stock.id, { quantity: stock.state.quantity.plus(quantity), value: stock.state.value.plus(cost) });
+        restoredCost = restoredCost.plus(cost);
+      }
+      if (restoredCost.greaterThan(0)) {
+        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY"), debit: restoredCost.toFixed(4), description: "Sales return: stock restored" });
+        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "COST_OF_GOODS_SOLD"), credit: restoredCost.toFixed(4), description: "Sales return: cost reversed" });
+      }
 
       const noteId = newId();
       const posting = await this.engine.postEntry(
@@ -453,12 +512,22 @@ export class SalesInvoiceService {
               taxCodeId: l.taxCodeId,
               taxRate: l.taxRate,
               taxAmount: l.tax,
-              revenueAccountId: input.lines[l.lineNumber - 1]?.revenueAccountId ?? null,
+              originalLineId: sources[l.lineNumber - 1]?.source.id ?? null,
+              itemId: sources[l.lineNumber - 1]?.source.itemId ?? null,
+              warehouseId: sources[l.lineNumber - 1]?.warehouseId ?? null,
+              costValue: sources[l.lineNumber - 1]?.cost ?? new Prisma.Decimal(0),
+              revenueAccountId: linked ? sources[l.lineNumber - 1]!.source.revenueAccountId : input.lines[l.lineNumber - 1]?.revenueAccountId ?? null,
               lineNumber: l.lineNumber,
             })),
           },
         },
       });
+      if (stockReturns.length) await tx.stockMovement.createMany({ data: stockReturns.map((entry) => {
+        const { source, quantity, cost, warehouseId } = entry!;
+        return { id: newId(), companyId: actor.companyId, itemId: source.itemId!, warehouseId: warehouseId!,
+          movementType: "RETURN", quantity, unitCost: cost.div(quantity).toDecimalPlaces(4), value: cost,
+          sourceDocumentType: "sales_credit_note", sourceDocumentId: noteId, journalEntryId: posting.journalEntryId, actorId: actor.id, correlationId };
+      }) });
       return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
     });
 
@@ -602,7 +671,7 @@ export class SalesInvoiceService {
   async get(companyId: string, id: string): Promise<SalesInvoiceDetail> {
     const row = await this.prisma.salesInvoice.findFirst({
       where: { id, companyId },
-      include: { customer: true, lines: { orderBy: { lineNumber: "asc" } } },
+      include: { customer: true, lines: { orderBy: { lineNumber: "asc" }, include: { returnLines: true, warehouse: { select: { name: true, nameAr: true } } } } },
     });
     if (!row) throw new SalesError("NOT_FOUND", "Invoice not found");
     return {
@@ -619,6 +688,13 @@ export class SalesInvoiceService {
       customerPostalCode: row.customer.postalCode,
       lines: row.lines.map((l) => ({
         id: l.id,
+        taxCodeId: l.taxCodeId,
+        originalLineId: l.originalLineId,
+        itemId: l.itemId,
+        warehouseId: l.warehouseId,
+        warehouseName: l.warehouse?.name ?? null,
+        warehouseNameAr: l.warehouse?.nameAr ?? null,
+        returnableQuantity: l.quantity.minus(l.returnLines.reduce((sum, r) => sum.plus(r.quantity), new Prisma.Decimal(0))).toFixed(4),
         description: l.description,
         quantity: l.quantity.toFixed(4),
         unitPrice: l.unitPrice.toFixed(4),

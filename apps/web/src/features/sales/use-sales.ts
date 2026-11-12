@@ -222,6 +222,13 @@ export interface SalesInvoiceDetail extends SalesInvoiceSummary {
   readonly notes: string | null;
   readonly lines: readonly {
     readonly id: string;
+    readonly taxCodeId: string;
+    readonly originalLineId: string | null;
+    readonly returnableQuantity: string;
+    readonly itemId: string | null;
+    readonly warehouseId: string | null;
+    readonly warehouseName: string | null;
+    readonly warehouseNameAr: string | null;
     readonly description: string;
     readonly quantity: string;
     readonly unitPrice: string;
@@ -271,6 +278,9 @@ function invalidateAfterPosting(qc: ReturnType<typeof useQueryClient>): void {
   void qc.invalidateQueries({ queryKey: ["salesInvoices"] });
   void qc.invalidateQueries({ queryKey: ["salesOrders"] });
   void qc.invalidateQueries({ queryKey: ["stockLevels"] });
+  void qc.invalidateQueries({ queryKey: ["stockMovements"] });
+  void qc.invalidateQueries({ queryKey: ["payments"] });
+  void qc.invalidateQueries({ queryKey: ["reports"] });
   void qc.invalidateQueries({ queryKey: ["accountBalances"] });
 }
 
@@ -292,16 +302,17 @@ export function useCreateSalesInvoice(submissionKey?: string) {
 export interface CreditNotePayload {
   readonly creditDate: string;
   readonly notes?: string;
-  readonly lines: readonly { readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string }[];
+  readonly lines: readonly { readonly originalLineId?: string; readonly warehouseId?: string; readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string }[];
 }
 
-export function useCreateCreditNote(invoiceId: string) {
+export function useCreateCreditNote(invoiceId: string, submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: CreditNotePayload) =>
       (
         await apiClient.post<{ id: string; number: string }>(`/v1/sales-invoices/${invoiceId}/credit-notes`, payload, {
-          headers: { "Idempotency-Key": newId() },
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
         })
       ).data,
     onSuccess: () => invalidateAfterPosting(qc),

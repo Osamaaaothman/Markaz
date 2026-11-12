@@ -85,9 +85,10 @@ export class StockMovementService {
       [...new Set(rows.filter((row) => types.includes(row.sourceDocumentType)).map((row) => row.sourceDocumentId))];
     const receiptIds = sourceIds(["goods_receipt"]);
     const returnIds = sourceIds(["goods_return"]);
+    const supplierNoteIds = sourceIds(["supplier_debit_note"]);
     const invoiceIds = sourceIds(["sales_invoice", "sales_credit_note", "sales_debit_note"]);
     const partySelect = { name: true, nameAr: true } as const;
-    const [receipts, returns, invoices] = await Promise.all([
+    const [receipts, returns, invoices, supplierNotes] = await Promise.all([
       receiptIds.length ? this.prisma.goodsReceipt.findMany({
         where: { companyId, id: { in: receiptIds }, party: { companyId } },
         select: { id: true, party: { select: partySelect } },
@@ -100,8 +101,13 @@ export class StockMovementService {
         where: { companyId, id: { in: invoiceIds }, customer: { companyId } },
         select: { id: true, documentType: true, customer: { select: partySelect } },
       }) : [],
+      supplierNoteIds.length ? this.prisma.supplierInvoice.findMany({
+        where: { companyId, id: { in: supplierNoteIds }, supplier: { companyId } },
+        select: { id: true, supplier: { select: partySelect } },
+      }) : [],
     ]);
     const parties = new Map<string, MovementParty>();
+    for (const note of supplierNotes) parties.set(`supplier_debit_note:${note.id}`, note.supplier);
     for (const receipt of receipts) {
       if (receipt.party) parties.set(`goods_receipt:${receipt.id}`, receipt.party);
     }

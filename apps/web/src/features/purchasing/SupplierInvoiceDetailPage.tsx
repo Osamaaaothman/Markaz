@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { PurchaseReturnDialog } from "./SupplierInvoicesPage";
 import { DocumentTrail } from "../documents/DocumentTrail";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -19,6 +21,7 @@ import { exportReport } from "../accounting/export-report";
 // One supplier invoice (or debit note) as posted: what it was for, the tax on each line, what has been paid against it.
 export function SupplierInvoiceDetailPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const [returnOpen, setReturnOpen] = useState(false);
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const { can } = usePermissions();
@@ -40,6 +43,7 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
 
   return (
     <div className="erp-page">
+      {returnOpen ? <PurchaseReturnDialog invoice={invoice} visible onHide={() => setReturnOpen(false)} /> : null}
       <div className="erp-page__header">
         <div>
           <h1 className="erp-page__title">{invoice.number}</h1>
@@ -51,6 +55,7 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
         <div className="erp-page__header-actions">
           <Tag value={t(`purchasing.invoices.types.${invoice.documentType}`)} severity={isInvoice ? "info" : "warning"} />
           {invoice.outstanding !== null && Number(invoice.outstanding) > 0 ? <PermissionButton allowed={can("supplier_payment:create")} label={t("payments.recordPayment")} icon="pi pi-wallet" outlined onClick={() => void navigate(`/payments/supplier/new?party=${invoice.supplierId}`)} /> : null}
+          {isInvoice ? <PermissionButton allowed={can("debit_note:create")} label={t("purchasing.invoices.purchaseReturn")} icon="pi pi-replay" outlined onClick={() => setReturnOpen(true)} /> : null}
           <JournalEntryLinkButton entryId={invoice.journalEntryId} />
           <Button label={t("actions.exportPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/supplier-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "pdf")} />
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/supplier-invoices/${invoice.id}/pdf`, { lang: i18n.language }, invoice.number, "print")} />

@@ -7,4 +7,10 @@ dist
 coverage
 .git
 .env
+**/.env.local
+**/.env.*.local
+output/
+.deploy-keys/
+.tmp-shim/
+docs/vendor/
 *.log

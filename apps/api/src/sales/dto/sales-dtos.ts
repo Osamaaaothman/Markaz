@@ -115,6 +115,16 @@ export class CreateSalesInvoiceDto {
 }
 
 export class CreditNoteLineDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  warehouseId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  originalLineId?: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(300)
