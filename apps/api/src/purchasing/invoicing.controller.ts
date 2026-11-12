@@ -128,14 +128,18 @@ export class InvoicingController {
         case "PO_LINE_NOT_FOUND":
         case "TAX_CODE_NOT_FOUND":
         case "ACCOUNT_NOT_FOUND":
+        case "WAREHOUSE_NOT_FOUND":
         case "INVOICE_NOT_FOUND":
           throw new NotFoundException(body);
+        case "OVER_RETURN":
+        case "INSUFFICIENT_STOCK":
         case "QTY_EXCEEDS_RECEIVED":
         case "PRICE_VARIANCE_NOT_ACCEPTED":
         case "DUPLICATE_INVOICE":
         case "SUPPLIER_MISMATCH":
         case "DEBIT_EXCEEDS_INVOICE":
           throw new ConflictException(body);
+        case "INVALID_RETURN":
         case "EMPTY_INVOICE":
         case "ACCOUNT_NOT_POSTABLE":
         case "NO_OPEN_PERIOD":

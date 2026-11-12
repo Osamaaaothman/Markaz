@@ -172,7 +172,10 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/returns")} />}>
             <Route path="/purchasing/returns" element={<GoodsReturnsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["goods_return:read"]} />}>
             <Route path="/purchasing/returns/:id" element={<GoodsReturnDetailPage />} />
+
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/invoices")} />}>
             <Route path="/purchasing/invoices" element={<SupplierInvoicesPage />} />
@@ -205,6 +208,7 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/sales/invoices")} />}>
             <Route path="/sales/invoices" element={<SalesInvoicesPage />} />
+            <Route path="/sales/returns" element={<SalesInvoicesPage returnsOnly />} />
             <Route path="/sales/invoices/:id" element={<SalesInvoiceDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={["sales_invoice:create"]} />}>

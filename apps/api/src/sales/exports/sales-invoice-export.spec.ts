@@ -25,7 +25,7 @@ const invoice: SalesInvoiceDetail = {
   customerDistrict: null,
   customerCity: null,
   customerPostalCode: null,
-  lines: [{ id: "l1", description: "Cement", quantity: "3.0000", unitPrice: "100.0000", netAmount: "300.0000", taxRate: "15.0000", taxAmount: "45.0000" }],
+  lines: [{ itemId: null, warehouseId: null, warehouseName: null, warehouseNameAr: null, taxCodeId: "vat15", returnableQuantity: "1.0000", originalLineId: null, id: "l1", description: "Cement", quantity: "3.0000", unitPrice: "100.0000", netAmount: "300.0000", taxRate: "15.0000", taxAmount: "45.0000" }],
 };
 
 describe("sales invoice PDF html", () => {

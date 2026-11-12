@@ -4,11 +4,18 @@ import type { IAccountingEngine, IAuditLogger, JournalLineInput, TransactionClie
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
+import { returnShare } from "../inventory/return-amount.util.js";
+import { lockStockRow, saveStockRow } from "../inventory/stock-row.repo.js";
+import { applyIssue, InsufficientStockError } from "../inventory/weighted-average.util.js";
 import { loadOutstanding } from "../payments/outstanding.js";
 import { allocateDocumentNumber } from "../reference.js";
 import { expenseLineMath, invoiceTotals, poLineMath, type PoLineMath } from "./supplier-invoice.util.js";
 
 export type SupplierInvoiceErrorCode =
+  | "INVALID_RETURN"
+  | "OVER_RETURN"
+  | "WAREHOUSE_NOT_FOUND"
+  | "INSUFFICIENT_STOCK"
   | "EMPTY_INVOICE"
   | "SUPPLIER_NOT_FOUND"
   | "PO_LINE_NOT_FOUND"
@@ -98,6 +105,10 @@ export interface SupplierInvoiceResult {
 
 // One line of an invoice as it was posted: an order line (an item received and priced) or a direct expense.
 export interface SupplierInvoiceLineDetail {
+  readonly id: string;
+  readonly taxCodeId: string;
+  readonly originalLineId: string | null;
+  readonly returnableQuantity: string;
   readonly lineNumber: number;
   readonly kind: "PO_LINE" | "EXPENSE";
   readonly itemCode: string | null;
@@ -148,6 +159,8 @@ export interface SupplierInvoiceSummary {
 }
 
 export interface DebitNoteLineInput {
+  readonly originalLineId?: string | undefined;
+  readonly warehouseId?: string | undefined;
   readonly description: string;
   readonly quantity: string;
   readonly unitPrice: string;
@@ -384,17 +397,9 @@ export class SupplierInvoiceService {
     return result;
   }
 
-  // The AP mirror of SalesInvoiceService.createCreditNote: free-typed lines against an expense
-  // account, like a supplier invoice's EXPENSE lines — never touching a purchase order's
-  // received/invoiced quantities or GRNI, the payable's mirror of "credit notes don't return stock"
-  // (docs/01-OPEN-DECISIONS.md E2). Posting:
-  //   Dr Accounts payable   gross   (reduces what's owed to the supplier)
-  //   Cr expense account    net     (reverses the expense the original invoice booked)
-  //   Cr Input VAT          tax
-  //
-  // REVIEW (accounting judgement, for the accountant): mirrors the credit-note default exactly — no
-  // link back to the purchase order, no re-costing, no stock movement. Confirm before the first real
-  // debit note posts, same as D1-D7/E1-E6.
+  // Linked returns reverse original amounts and input VAT. Stock leaves at weighted-average
+  // cost, with the invoice/cost difference posted to purchase price variance.
+  // Unlinked debit notes remain financial adjustments.
   async createDebitNote(
     input: CreateDebitNoteInput,
     actor: SupplierInvoiceActor,
@@ -402,8 +407,16 @@ export class SupplierInvoiceService {
     idempotencyKey: string,
   ): Promise<SupplierInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const original = await tx.supplierInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId } });
+      // Invoice tables are immutable for the runtime role; serialize returns without UPDATE privileges.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.companyId + ":supplier-return:" + input.originalInvoiceId}, 0))::text`;
+      const original = await tx.supplierInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId }, include: { lines: { include: { returnLines: true, purchaseOrderLine: true } } } });
       if (!original) throw new SupplierInvoiceError("INVOICE_NOT_FOUND", "Invoice not found");
+      const previous = await tx.journalEntry.findUnique({ where: { companyId_idempotencyKey: { companyId: actor.companyId, idempotencyKey } } });
+      if (previous) {
+        const note = await tx.supplierInvoice.findFirst({ where: { journalEntryId: previous.id, originalInvoiceId: original.id, companyId: actor.companyId, documentType: "DEBIT_NOTE" } });
+        if (!note) throw new SupplierInvoiceError("INVALID_RETURN", "Submission key belongs to a different document");
+        return { id: note.id, number: note.number, journalEntryId: previous.id, totalGross: note.totalGross.toFixed(4) };
+      }
       if (original.documentType !== "INVOICE") throw new SupplierInvoiceError("NOT_AN_INVOICE", "A debit note can only be raised against an invoice");
       if (input.lines.length === 0) throw new SupplierInvoiceError("EMPTY_INVOICE", "A debit note needs at least one line");
 
@@ -415,7 +428,32 @@ export class SupplierInvoiceService {
       const accounts = await tx.account.findMany({ where: { id: { in: accountIds }, companyId: actor.companyId } });
       const accountById = new Map(accounts.map((a) => [a.id, a]));
 
-      const evaluated = input.lines.map((line, index) => {
+      const linked = input.lines.some((l) => l.originalLineId !== undefined);
+      const seen = new Set<string>();
+      const sources = input.lines.map((line) => {
+        if (!linked) return null;
+        const source = original.lines.find((l) => l.id === line.originalLineId);
+        if (!source || seen.has(source.id)) throw new SupplierInvoiceError("INVALID_RETURN", "Choose distinct lines from the original invoice");
+        seen.add(source.id);
+        const quantity = new Prisma.Decimal(line.quantity);
+        const returned = source.returnLines.reduce((sum, l) => sum.plus(l.quantity), new Prisma.Decimal(0));
+        if (!quantity.isFinite() || quantity.decimalPlaces() > 4 || !quantity.greaterThan(0) || quantity.plus(returned).greaterThan(source.quantity)) {
+          throw new SupplierInvoiceError("OVER_RETURN", "The return quantity exceeds the remaining invoice quantity");
+        }
+        return { source, quantity, returned, warehouseId: line.warehouseId };
+      });
+      if (linked && input.debitDate < original.invoiceDate) throw new SupplierInvoiceError("INVALID_RETURN", "Return date cannot precede the invoice");
+      const inventoryAccountId = sources.some((l) => l?.source.kind === "PO_LINE")
+        ? await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY") : null;
+      const evaluated = linked ? sources.map((entry, index) => {
+        const { source, quantity, returned } = entry!;
+        const accountId = source.kind === "PO_LINE" ? inventoryAccountId : source.accountId;
+        if (!accountId) throw new SupplierInvoiceError("ACCOUNT_NOT_FOUND", "Original line has no account");
+        return { lineNumber: index + 1, description: source.description ?? "Purchase return", quantity, unitPrice: source.unitPrice,
+          taxCode: { id: source.taxCodeId, rate: source.taxRate }, account: { id: accountId },
+          net: returnShare(source.netAmount, source.quantity, returned, quantity),
+          tax: returnShare(source.taxAmount, source.quantity, returned, quantity) };
+      }) : input.lines.map((line, index) => {
         const lineNumber = index + 1;
         const taxCode = taxById.get(line.taxCodeId);
         if (!taxCode) throw new SupplierInvoiceError("TAX_CODE_NOT_FOUND", "A tax code on the debit note was not found or is inactive", lineNumber);
@@ -447,17 +485,48 @@ export class SupplierInvoiceService {
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.debitDate);
       if (!period) throw new SupplierInvoiceError("NO_OPEN_PERIOD", "No open fiscal period covers the debit note date");
-      const currency = await companyCurrency(tx, actor.companyId);
+      const currency = linked ? original.currency : await companyCurrency(tx, actor.companyId);
 
       const journalLines: JournalLineInput[] = [
         { accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_PAYABLE"), debit: gross.toFixed(4), description: "Debit note" },
       ];
+      const stockReturns: { itemId: string; warehouseId: string; quantity: Prisma.Decimal; value: Prisma.Decimal; unitCost: Prisma.Decimal }[] = [];
+      const stockValues = new Map<string, Prisma.Decimal>();
+      const ordered = sources.filter((entry) => entry?.source.kind === "PO_LINE")
+        .sort((a, b) => (a!.source.purchaseOrderLine!.itemId + a!.warehouseId).localeCompare(b!.source.purchaseOrderLine!.itemId + b!.warehouseId));
+      for (const entry of ordered) {
+        const { source, quantity, warehouseId } = entry!;
+        const warehouse = warehouseId ? await tx.warehouse.findFirst({ where: { id: warehouseId, companyId: actor.companyId, isActive: true } }) : null;
+        if (!warehouse) throw new SupplierInvoiceError("WAREHOUSE_NOT_FOUND", "Choose an active return warehouse");
+        const itemId = source.purchaseOrderLine!.itemId;
+        const stock = await lockStockRow(tx, actor.companyId, itemId, warehouse.id);
+        let issued;
+        try { issued = applyIssue(stock.state, quantity); }
+        catch (error) {
+          if (error instanceof InsufficientStockError) throw new SupplierInvoiceError("INSUFFICIENT_STOCK", error.message);
+          throw error;
+        }
+        await saveStockRow(tx, stock.id, issued.state);
+        stockValues.set(source.id, issued.value);
+        stockReturns.push({ itemId, warehouseId: warehouse.id, quantity, value: issued.value, unitCost: issued.unitCost });
+      }
+      let variance = new Prisma.Decimal(0);
       const netByAccount = new Map<string, Prisma.Decimal>();
       for (const l of evaluated) {
-        netByAccount.set(l.account.id, (netByAccount.get(l.account.id) ?? new Prisma.Decimal(0)).plus(l.net));
+        const source = sources[l.lineNumber - 1]?.source;
+        const stockValue = source ? stockValues.get(source.id) : undefined;
+        const amount = stockValue ?? l.net;
+        if (stockValue !== undefined) variance = variance.plus(l.net.minus(stockValue));
+        netByAccount.set(l.account.id, (netByAccount.get(l.account.id) ?? new Prisma.Decimal(0)).plus(amount));
       }
       for (const [accountId, amount] of netByAccount) {
         if (!amount.isZero()) journalLines.push({ accountId, credit: amount.toFixed(4), description: "Debit note: expense reversed" });
+      }
+      if (!variance.isZero()) {
+        const accountId = await this.accountMappings.resolve(tx, actor.companyId, "PURCHASE_PRICE_VARIANCE");
+        journalLines.push(variance.greaterThan(0)
+          ? { accountId, credit: variance.toFixed(4), description: "Purchase return: cost difference" }
+          : { accountId, debit: variance.abs().toFixed(4), description: "Purchase return: cost difference" });
       }
       if (!totalTax.isZero()) {
         journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_INPUT"), credit: totalTax.toFixed(4), description: "Debit note: input VAT" });
@@ -507,8 +576,10 @@ export class SupplierInvoiceService {
           lines: {
             create: evaluated.map((l) => ({
               id: newId(),
-              kind: "EXPENSE",
-              accountId: l.account.id,
+              originalLineId: sources[l.lineNumber - 1]?.source.id ?? null,
+              kind: sources[l.lineNumber - 1]?.source.kind ?? "EXPENSE",
+              purchaseOrderLineId: sources[l.lineNumber - 1]?.source.purchaseOrderLineId ?? null,
+              accountId: sources[l.lineNumber - 1]?.source.kind === "PO_LINE" ? null : l.account.id,
               description: l.description,
               quantity: l.quantity,
               unitPrice: l.unitPrice,
@@ -523,6 +594,14 @@ export class SupplierInvoiceService {
         },
       });
 
+      if (stockReturns.length) await tx.stockMovement.createMany({ data: stockReturns.map((l) => ({
+        id: newId(), companyId: actor.companyId, itemId: l.itemId, warehouseId: l.warehouseId,
+        movementType: "RETURN", quantity: l.quantity.negated(), unitCost: l.unitCost, value: l.value,
+        sourceDocumentType: "supplier_debit_note", sourceDocumentId: noteId,
+        journalEntryId: posting.journalEntryId, actorId: actor.id, correlationId,
+      })) });
+      // Invoiced/received PO counters remain historical: a return cannot make invoiced
+      // units eligible for a second unbilled goods return or a second supplier invoice.
       return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: gross.toFixed(4) };
     });
 
@@ -577,7 +656,7 @@ export class SupplierInvoiceService {
         paymentAllocations: { include: { payment: { select: { id: true, number: true, paymentDate: true } } } },
         lines: {
           orderBy: { lineNumber: "asc" },
-          include: { account: { select: { code: true, name: true, nameAr: true } }, taxCode: { select: { code: true } }, purchaseOrderLine: { include: { item: { select: { code: true, name: true, nameAr: true } } } } },
+          include: { returnLines: true, account: { select: { code: true, name: true, nameAr: true } }, taxCode: { select: { code: true } }, purchaseOrderLine: { include: { item: { select: { code: true, name: true, nameAr: true } } } } },
         },
       },
     });
@@ -604,6 +683,10 @@ export class SupplierInvoiceService {
       originalInvoiceNumber: r.originalInvoice?.number ?? null,
       journalEntryId: r.journalEntryId,
       lines: r.lines.map((l) => ({
+        id: l.id,
+        taxCodeId: l.taxCodeId,
+        originalLineId: l.originalLineId,
+        returnableQuantity: l.quantity.minus(l.returnLines.reduce((sum, r) => sum.plus(r.quantity), new Prisma.Decimal(0))).toFixed(4),
         lineNumber: l.lineNumber,
         kind: l.kind as "PO_LINE" | "EXPENSE",
         itemCode: l.purchaseOrderLine?.item.code ?? null,

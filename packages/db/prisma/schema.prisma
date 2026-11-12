@@ -1171,6 +1171,11 @@ model SupplierInvoice {
 }
 
 model SupplierInvoiceLine {
+  // Null for original invoices and legacy financial adjustments.
+  originalLineId String? @map("original_line_id")
+  originalLine SupplierInvoiceLine? @relation("SupplierInvoiceLineReturns", fields: [originalLineId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  returnLines SupplierInvoiceLine[] @relation("SupplierInvoiceLineReturns")
+
   id                  String  @id
   supplierInvoiceId   String  @map("supplier_invoice_id")
   kind                String // PO_LINE | EXPENSE
@@ -1195,6 +1200,7 @@ model SupplierInvoiceLine {
 
   @@index([supplierInvoiceId])
   @@map("supplier_invoice_lines")
+  @@index([originalLineId])
 }
 
 // ─── Purchase returns (M5) ──────────────────────────────────────────────────────
@@ -1415,6 +1421,11 @@ model SalesInvoice {
 }
 
 model SalesInvoiceLine {
+  // Null for original invoices and legacy financial adjustments.
+  originalLineId String? @map("original_line_id")
+  originalLine SalesInvoiceLine? @relation("SalesInvoiceLineReturns", fields: [originalLineId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  returnLines SalesInvoiceLine[] @relation("SalesInvoiceLineReturns")
+
   id               String  @id
   salesInvoiceId   String  @map("sales_invoice_id")
   salesOrderLineId String? @map("sales_order_line_id")
@@ -1444,6 +1455,7 @@ model SalesInvoiceLine {
 
   @@index([salesInvoiceId])
   @@map("sales_invoice_lines")
+  @@index([originalLineId])
 }
 
 // ─── Payments (customer receipts and supplier payments) ─────────────────────────

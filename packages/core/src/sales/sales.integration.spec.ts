@@ -100,6 +100,7 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
 
 
 
+
   it("turns a quotation into an order with the same lines, once", async () => {
     const quote = await quotations.create(
       {
@@ -272,6 +273,96 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
     expect(limited.nodes).toHaveLength(1);
     expect(limited.edges).toHaveLength(0);
   });
+  it("returns partial stock at historical cost, uses original tax/account and replays without duplicate movements", async () => {
+    const item = (await items.create({ code: "RET-S", name: "Return test", unit: "EA" }, actor, cid())).id;
+    await receipts.create({ warehouseId, documentDate: today, lines: [{ itemId: item, quantity: "3", unitCost: "10.3333" }] }, actor, cid(), newId());
+    const sale = await invoices.createInvoice({ customerId, invoiceDate: today, lines: [{ itemId: item, warehouseId, quantity: "3", unitPrice: "20.1234", taxCodeId: vat15, revenueAccountId: acc.services! }] }, actor, cid(), newId());
+    const source = (await invoices.get(companyId, sale.id)).lines[0]!;
+    const line = { originalLineId: source.id, quantity: "1", description: "ignored", unitPrice: "999", taxCodeId: vat0 };
+    const input = { originalInvoiceId: sale.id, creditDate: today, lines: [line] };
+    const key = newId();
+    const first = await invoices.createCreditNote(input, actor, cid(), key);
+    expect(await invoices.createCreditNote(input, actor, cid(), key)).toEqual(first);
+    expect(await prisma.stockMovement.count({ where: { sourceDocumentId: first.id } })).toBe(1);
+    const stored = await prisma.salesInvoiceLine.findFirstOrThrow({ where: { salesInvoiceId: first.id } });
+    expect(stored.unitPrice.toFixed(4)).toBe("20.1234");
+    expect(stored.taxCodeId).toBe(vat15);
+    expect(stored.revenueAccountId).toBe(acc.services);
+    expect((await invoices.get(companyId, sale.id)).lines[0]!.returnableQuantity).toBe("2.0000");
+    const outcomes = await Promise.allSettled([1, 2].map(() => invoices.createCreditNote({ ...input, lines: [{ ...line, quantity: "2" }] }, actor, cid(), newId())));
+    expect(outcomes.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(outcomes.filter((r) => r.status === "rejected")).toHaveLength(1);
+    const stock = await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId } });
+    expect(stock.quantity.toFixed(4)).toBe("3.0000");
+    expect(stock.value.toFixed(4)).toBe("30.9999");
+    const credits = await prisma.salesInvoice.aggregate({ where: { originalInvoiceId: sale.id }, _sum: { totalGross: true } });
+    expect(credits._sum.totalGross!.toFixed(4)).toBe(sale.totalGross);
+    await expect(invoices.createCreditNote(input, actor, cid(), newId())).rejects.toMatchObject({ code: "OVER_RETURN" });
+    await expect(invoices.createCreditNote(input, { ...actor, companyId: newId() }, cid(), newId())).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("restores stock into the selected warehouse at the original cost and records the destination", async () => {
+    const destination = (await warehouses.create({ code: "RET-WH", name: "Returns", nameAr: "مخزن المرتجعات" }, actor, cid())).id;
+    const item = (await items.create({ code: "RET-DEST", name: "Destination return", unit: "EA" }, actor, cid())).id;
+    await receipts.create({ warehouseId, documentDate: today, lines: [{ itemId: item, quantity: "3", unitCost: "10" }] }, actor, cid(), newId());
+    await receipts.create({ warehouseId: destination, documentDate: today, lines: [{ itemId: item, quantity: "1", unitCost: "30" }] }, actor, cid(), newId());
+    const sale = await invoices.createInvoice({ customerId, invoiceDate: today, lines: [{ itemId: item, warehouseId, quantity: "3", unitPrice: "20", taxCodeId: vat15 }] }, actor, cid(), newId());
+    const source = (await invoices.get(companyId, sale.id)).lines[0]!;
+    expect(source).toMatchObject({ itemId: item, warehouseId, warehouseName: "Main" });
+    const line = { originalLineId: source.id, warehouseId: destination, quantity: "1", description: "Return", unitPrice: "20", taxCodeId: vat15 };
+    const input = { originalInvoiceId: sale.id, creditDate: today, lines: [line] };
+    const key = newId();
+    const note = await invoices.createCreditNote(input, actor, cid(), key);
+    expect(await invoices.createCreditNote(input, actor, cid(), key)).toEqual(note);
+    const stock = await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId: destination } });
+    expect(stock.quantity.toFixed(4)).toBe("2.0000");
+    expect(stock.value.toFixed(4)).toBe("40.0000");
+    const originalStock = await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId } });
+    expect(originalStock.quantity.toFixed(4)).toBe("0.0000");
+    expect((await invoices.get(companyId, note.id)).lines[0]).toMatchObject({ itemId: item, warehouseId: destination, warehouseName: "Returns", warehouseNameAr: "مخزن المرتجعات" });
+    const moves = await prisma.stockMovement.findMany({ where: { sourceDocumentId: note.id } });
+    expect(moves).toHaveLength(1);
+    expect(moves[0]!.warehouseId).toBe(destination);
+    const journal = await prisma.journalEntryLine.findMany({ where: { journalEntryId: note.journalEntryId, accountId: acc.inventory! } });
+    expect(journal[0]!.debit.toFixed(4)).toBe("10.0000");
+    await invoices.createCreditNote({ ...input, lines: [{ ...line, warehouseId, quantity: "2" }] }, actor, cid(), newId());
+    await expect(invoices.createCreditNote(input, actor, cid(), newId())).rejects.toMatchObject({ code: "OVER_RETURN" });
+    expect((await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId } })).quantity.toFixed(4)).toBe("2.0000");
+  });
+
+  it("rejects invalid, inactive and foreign warehouses without posting any return", async () => {
+    const inactive = (await warehouses.create({ code: "INACTIVE-RET", name: "Inactive" }, actor, cid())).id;
+    await prisma.warehouse.update({ where: { id: inactive }, data: { isActive: false } });
+    const foreignCompany = await prisma.company.create({ data: { id: newId(), name: "Foreign return company" } });
+    const foreign = (await warehouses.create({ code: "FOREIGN", name: "Foreign" }, { ...actor, companyId: foreignCompany.id }, cid())).id;
+    const item = (await items.create({ code: "RET-INVALID", name: "Invalid destination", unit: "EA" }, actor, cid())).id;
+    await receipts.create({ warehouseId, documentDate: today, lines: [{ itemId: item, quantity: "1", unitCost: "10" }] }, actor, cid(), newId());
+    const sale = await invoices.createInvoice({ customerId, invoiceDate: today, lines: [{ itemId: item, warehouseId, quantity: "1", unitPrice: "20", taxCodeId: vat15 }] }, actor, cid(), newId());
+    const source = (await invoices.get(companyId, sale.id)).lines[0]!;
+    for (const destination of [newId(), inactive, foreign]) {
+      await expect(invoices.createCreditNote({ originalInvoiceId: sale.id, creditDate: today, lines: [{ originalLineId: source.id, warehouseId: destination, quantity: "1", description: "Return", unitPrice: "20", taxCodeId: vat15 }] }, actor, cid(), newId())).rejects.toMatchObject({ code: "WAREHOUSE_NOT_FOUND" });
+    }
+    expect(await prisma.salesInvoice.count({ where: { originalInvoiceId: sale.id } })).toBe(0);
+    expect((await invoices.get(companyId, sale.id)).lines[0]!.returnableQuantity).toBe("1.0000");
+    expect((await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId } })).quantity.toFixed(4)).toBe("0.0000");
+  });
+
+  it("rejects duplicate source lines and a line from another sales invoice atomically", async () => {
+    const sale = await invoices.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "Service", quantity: "2", unitPrice: "10", taxCodeId: vat0 }] }, actor, cid(), newId());
+    const source = (await invoices.get(companyId, sale.id)).lines[0]!;
+    const line = { originalLineId: source.id, quantity: "1", description: "Service", unitPrice: "10", taxCodeId: vat0 };
+    await expect(invoices.createCreditNote({ originalInvoiceId: sale.id, creditDate: today, lines: [line, line] }, actor, cid(), newId())).rejects.toMatchObject({ code: "INVALID_RETURN" });
+    await expect(invoices.createCreditNote({ originalInvoiceId: sale.id, creditDate: today, lines: [{ ...line, originalLineId: newId() }] }, actor, cid(), newId())).rejects.toMatchObject({ code: "INVALID_RETURN" });
+    expect(await prisma.salesInvoice.count({ where: { originalInvoiceId: sale.id } })).toBe(0);
+    await expect(invoices.createCreditNote({ originalInvoiceId: sale.id, creditDate: today, lines: [{ ...line, warehouseId }] }, actor, cid(), newId())).rejects.toMatchObject({ code: "INVALID_RETURN" });
+    const note = await invoices.createCreditNote({ originalInvoiceId: sale.id, creditDate: today, lines: [{ ...line, revenueAccountId: acc.services! }] }, actor, cid(), newId());
+    const returned = await prisma.salesInvoiceLine.findFirstOrThrow({ where: { salesInvoiceId: note.id } });
+    expect(returned.revenueAccountId).toBeNull();
+    const entry = await prisma.journalEntryLine.findFirstOrThrow({ where: { journalEntryId: note.journalEntryId, accountId: acc.revenue! } });
+    expect(entry.debit.toFixed(4)).toBe("10.0000");
+  });
+
+
 });
 
 // docs/01-OPEN-DECISIONS.md: which ZATCA issuing unit (EgsUnit) a sales document belongs to. A

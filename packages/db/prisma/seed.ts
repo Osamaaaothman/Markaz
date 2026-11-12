@@ -164,7 +164,7 @@ const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly str
     item: "*", warehouse: "*", stock: "*", goods_receipt: "*", stock_issue: "*", stock_count: "*", attachment: ["read", "create"],
   },
   Sales: {
-    quotation: "*", sales_order: "*", sales_invoice: "*", credit_note: "*", debit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], stock: ["read"], attachment: ["read", "create"],
+    quotation: "*", sales_order: "*", sales_invoice: "*", credit_note: "*", debit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], warehouse: ["read"], stock: ["read"], attachment: ["read", "create"],
   },
   "Human resources": {
     employee: "*", payroll_run: "*", salary_advance: "*", end_of_service: "*", allowance_type: "*", hr_payment: "*", party: ["read"], attachment: ["read", "create"],

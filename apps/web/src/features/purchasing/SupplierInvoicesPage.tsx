@@ -1,3 +1,4 @@
+import { positiveReturnQuantity, validReturnQuantity } from "../../shared/lib/return-quantity";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -16,33 +17,32 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
-import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
-import { useCreateDebitNote, useSupplierInvoice, useSupplierInvoices, useTaxCodes, type SupplierInvoiceLineDetail, type SupplierInvoiceSummary } from "./use-invoicing";
+import { useAllWarehouses } from "../inventory/use-warehouses";
+import { newId } from "@erp/shared";
+import { useCreateDebitNote, useSupplierInvoice, useSupplierInvoices, type SupplierInvoiceLineDetail, type SupplierInvoiceSummary } from "./use-invoicing";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
 const ALL = "ALL";
-const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 
-export function SupplierInvoicesPage(): React.JSX.Element {
+export function SupplierInvoicesPage({ returnsOnly = false }: { returnsOnly?: boolean }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [type, setType] = useState<"INVOICE" | "DEBIT_NOTE" | null>(null);
-  const [debitNoteFor, setDebitNoteFor] = useState<SupplierInvoiceSummary | null>(null);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSupplierInvoices(type);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSupplierInvoices(returnsOnly ? "DEBIT_NOTE" : type);
   const invoices = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
     <div className="erp-page erp-page--wide">
       <div className="erp-page__header">
         <div>
-          <h1 className="erp-page__title">{t("purchasing.invoices.title")}</h1>
-          <p className="erp-page__subtitle">{t("purchasing.invoices.subtitle")}</p>
+          <h1 className="erp-page__title">{t(returnsOnly ? "returns.purchaseTitle" : "purchasing.invoices.title")}</h1>
+          <p className="erp-page__subtitle">{t(returnsOnly ? "returns.purchaseHint" : "purchasing.invoices.subtitle")}</p>
         </div>
-        <PermissionButton allowed={can("supplier_invoice:create")} label={t("purchasing.invoices.new")} icon="pi pi-plus" onClick={() => void navigate("/purchasing/invoices/new")} />
+        {returnsOnly ? <PermissionButton allowed={can("debit_note:create")} label={t("returns.new")} icon="pi pi-plus" onClick={() => void navigate("/purchasing/invoices")} /> : <PermissionButton allowed={can("supplier_invoice:create")} label={t("purchasing.invoices.new")} icon="pi pi-plus" onClick={() => void navigate("/purchasing/invoices/new")} />}
       </div>
 
-      <div className="coa-toolbar">
+      {!returnsOnly ? <div className="coa-toolbar">
         <div className="coa-levels">
           <span className="coa-levels__label">{t("purchasing.invoices.documentType")}</span>
           <Dropdown
@@ -55,7 +55,7 @@ export function SupplierInvoicesPage(): React.JSX.Element {
             ]}
           />
         </div>
-      </div>
+      </div> : null}
 
       {isPending ? (
         <PageSkeleton />
@@ -68,7 +68,7 @@ export function SupplierInvoicesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("supplier_invoice:create"), label: t("purchasing.invoices.new"), onClick: () => void navigate("/purchasing/invoices/new") }} value={invoices} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid emptyAction={{ allowed: !returnsOnly && can("supplier_invoice:create"), label: t("purchasing.invoices.new"), onClick: () => void navigate("/purchasing/invoices/new") }} value={invoices} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SupplierInvoiceSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/purchasing/invoices/${r.id}`)}>{r.number}</button>} />
             <Column header={t("purchasing.invoices.documentType")} style={{ width: "10rem" }} body={(r: SupplierInvoiceSummary) => <Tag value={t(`purchasing.invoices.types.${r.documentType}`)} severity={r.documentType === "INVOICE" ? "info" : "warning"} />} />
             <Column header={t("purchasing.invoices.supplierInvoiceNumber")} style={{ width: "12rem" }} body={(r: SupplierInvoiceSummary) => r.supplierInvoiceNumber ?? "—"} />
@@ -83,18 +83,6 @@ export function SupplierInvoicesPage(): React.JSX.Element {
               style={{ width: "8rem" }}
               body={(r: SupplierInvoiceSummary) => (
                 <div style={{ display: "flex", gap: "0.25rem" }}>
-                  {r.documentType === "INVOICE" ? (
-                    <PermissionButton
-                      allowed={can("debit_note:create")}
-                      label=""
-                      icon="pi pi-minus-circle"
-                      rounded
-                      text
-                      severity="secondary"
-                      aria-label={t("purchasing.invoices.debitNote")}
-                      onClick={() => setDebitNoteFor(r)}
-                    />
-                  ) : null}
                   <AttachmentsButton ownerType="SUPPLIER_INVOICE" ownerId={r.id} label={r.number} />
                 </div>
               )}
@@ -108,7 +96,6 @@ export function SupplierInvoicesPage(): React.JSX.Element {
         </>
       )}
 
-      {debitNoteFor ? <PurchaseReturnDialog invoice={debitNoteFor} visible={true} onHide={() => setDebitNoteFor(null)} /> : null}
     </div>
   );
 }
@@ -120,42 +107,50 @@ type ReturnLineRow = SupplierInvoiceLineDetail & {
   accountId: string;
 };
 
-function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierInvoiceSummary; visible: boolean; onHide: () => void }): React.JSX.Element {
+export function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierInvoiceSummary; visible: boolean; onHide: () => void }): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const { data: detail } = useSupplierInvoice(invoice.id);
-  const { data: taxCodes } = useTaxCodes(false);
-  const { data: accounts } = useChartOfAccounts();
-  const postable = (accounts ?? []).filter((a) => a.isPostable);
-  const create = useCreateDebitNote(invoice.id);
+  const navigate = useNavigate();
+  const { data: detail, isError: loadError, refetch } = useSupplierInvoice(invoice.id);
+  const { data: warehouses } = useAllWarehouses();
+  const [warehouseId, setWarehouseId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submissionKey, setSubmissionKey] = useState(newId);
+  const create = useCreateDebitNote(invoice.id, submissionKey);
   const [date, setDate] = useState<Date>(new Date());
   const [rows, setRows] = useState<ReturnLineRow[]>([]);
 
   useEffect(() => {
-    if (!visible || !detail?.lines || !taxCodes || !accounts) return;
+    if (!visible || !detail?.lines) return;
     create.reset();
     setDate(new Date());
+    setNotes("");
+    setSubmissionKey(newId());
     setRows(
       detail.lines.map((l) => ({
         ...l,
-        included: true,
-        returnQty: l.quantity,
-        taxCodeId: taxCodes.find((tc) => tc.code === l.taxCode)?.id ?? "",
-        accountId: accounts.find((a) => a.code === l.accountCode)?.id ?? "",
+        included: positiveReturnQuantity(l.returnableQuantity),
+        returnQty: l.returnableQuantity,
+        accountId: "",
       })),
     );
-  }, [visible, detail?.lines, taxCodes, accounts]);
+  }, [visible, detail?.lines]);
 
   const updateRow = (idx: number, patch: Partial<ReturnLineRow>) =>
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
-  const selectedRows = rows.filter((r) => r.included && DECIMAL.test(r.returnQty) && Number(r.returnQty) > 0 && Number(r.returnQty) <= Number(r.quantity) && r.taxCodeId !== "" && r.accountId !== "");
-  const valid = selectedRows.length > 0;
+  const selectedRows = rows.filter((r) => r.included);
+  const valid = selectedRows.length > 0 && selectedRows.every((r) => validReturnQuantity(r.returnQty, r.returnableQuantity))
+    && (!selectedRows.some((r) => r.kind === "PO_LINE") || warehouseId !== "") && !create.isPending;
 
   const handlePost = () => {
+    if (!valid) return;
     create.mutate(
       {
         debitDate: toDateOnlyIsoString(date),
+        notes,
         lines: selectedRows.map((r) => ({
+          originalLineId: r.id,
+          ...(r.kind === "PO_LINE" ? { warehouseId } : {}),
           description:
             r.kind === "PO_LINE"
               ? localizedName({ name: r.itemName ?? "", nameAr: r.itemNameAr }, i18n.language)
@@ -166,13 +161,13 @@ function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierI
           accountId: r.accountId,
         })),
       },
-      { onSuccess: onHide },
+      { onSuccess: (result) => { onHide(); void navigate(`/purchasing/invoices/${result.id}`); } },
     );
   };
 
   return (
     <Dialog header={t("purchasing.invoices.purchaseReturn")} visible={visible} onHide={onHide} className="erp-dialog erp-dialog--wide" modal style={{ width: "min(72rem, 96vw)" }}>
-      {!detail ? (
+      {loadError ? <div role="alert"><p>{t("status.error")}</p><Button label={t("actions.retry")} onClick={() => void refetch()} /></div> : !detail ? (
         <PageSkeleton />
       ) : (
         <div className="erp-form">
@@ -180,9 +175,15 @@ function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierI
           <div className="erp-form__row">
             <div className="erp-field">
               <label htmlFor="prDate">{t("purchasing.invoices.debitDate")}</label>
-              <Calendar inputId="prDate" value={date} onChange={(e) => e.value && setDate(e.value as Date)} dateFormat="yy-mm-dd" />
+              <Calendar inputId="prDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
             </div>
           </div>
+          {rows.some((r) => r.kind === "PO_LINE") ? <div className="erp-field">
+            <label htmlFor="prWarehouse">{t("purchasing.returns.warehouse")}</label>
+            <Dropdown inputId="prWarehouse" value={warehouseId} onChange={(e) => setWarehouseId(e.value as string)}
+              options={(warehouses ?? []).map((w) => ({ label: localizedName(w, i18n.language), value: w.id }))} filter />
+          </div> : null}
+          <div className="erp-field"><label htmlFor="prNotes">{t("purchasing.returns.reason")}</label><InputText id="prNotes" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} /></div>
           <DataTable value={rows} className="erp-table" size="small" showGridlines>
             <Column
               header=""
@@ -190,6 +191,8 @@ function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierI
               body={(_: ReturnLineRow, opt) => (
                 <input
                   type="checkbox"
+                  disabled={!positiveReturnQuantity(rows[opt.rowIndex]?.returnableQuantity ?? "0") || create.isPending}
+                  aria-label={t("documents.item")}
                   checked={rows[opt.rowIndex]?.included ?? false}
                   onChange={(e) => updateRow(opt.rowIndex, { included: e.target.checked })}
                 />
@@ -205,6 +208,7 @@ function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierI
                 )
               }
             />
+            <Column header={t("returns.remaining")} align="right" body={(r: ReturnLineRow) => r.returnableQuantity} />
             <Column header={t("purchasing.invoices.origQty")} align="right" style={{ width: "6rem" }} body={(r: ReturnLineRow) => r.quantity} />
             <Column
               header={t("purchasing.invoices.returnQty")}
@@ -216,39 +220,14 @@ function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierI
                   value={rows[opt.rowIndex]?.returnQty ?? ""}
                   style={{ width: "100%" }}
                   onChange={(e) => updateRow(opt.rowIndex, { returnQty: e.target.value })}
-                  className={rows[opt.rowIndex]?.included && (!DECIMAL.test(rows[opt.rowIndex]?.returnQty ?? "") || Number(rows[opt.rowIndex]?.returnQty) > Number(r.quantity)) ? "p-invalid" : ""}
+                  className={rows[opt.rowIndex]?.included && !validReturnQuantity(rows[opt.rowIndex]?.returnQty ?? "", r.returnableQuantity) ? "p-invalid" : ""}
                 />
               )}
             />
             <Column header={t("purchasing.unitPrice")} align="right" style={{ width: "9rem" }} body={(r: ReturnLineRow) => formatMoney(r.unitPrice, invoice.currency)} />
-            <Column
-              header={t("purchasing.invoices.taxCode")}
-              style={{ width: "9rem" }}
-              body={(_: ReturnLineRow, opt) => (
-                <Dropdown
-                  disabled={!rows[opt.rowIndex]?.included}
-                  value={rows[opt.rowIndex]?.taxCodeId || null}
-                  onChange={(e) => updateRow(opt.rowIndex, { taxCodeId: (e.value as string | null) ?? "" })}
-                  options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))}
-                  style={{ width: "100%" }}
-                />
-              )}
-            />
-            <Column
-              header={t("purchasing.invoices.expenseAccount")}
-              body={(_: ReturnLineRow, opt) => (
-                <Dropdown
-                  disabled={!rows[opt.rowIndex]?.included}
-                  value={rows[opt.rowIndex]?.accountId || null}
-                  onChange={(e) => updateRow(opt.rowIndex, { accountId: (e.value as string | null) ?? "" })}
-                  options={postable.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id }))}
-                  filter
-                  style={{ width: "100%" }}
-                />
-              )}
-            />
+            <Column header={t("purchasing.invoices.taxCode")} body={(r: ReturnLineRow) => `${r.taxCode} (${r.taxRate}%)`} />
           </DataTable>
-          {create.isError ? <p className="erp-auth-card__error">{t("purchasing.invoices.errors.generic")}</p> : null}
+          {create.isError ? <p role="alert" className="erp-auth-card__error">{t("returns.errors." + ((create.error as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code ?? "generic"), { defaultValue: t("returns.errors.generic") })}</p> : null}
           <div className="erp-form__actions">
             <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
             <Button type="button" label={t("purchasing.invoices.postDebitNote")} disabled={!valid} loading={create.isPending} onClick={handlePost} />

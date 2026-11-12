@@ -33,6 +33,14 @@ describe("sales invoice DTO", () => {
 });
 
 describe("credit note DTO", () => {
+  it("accepts a return destination and rejects empty or non-string warehouse IDs", async () => {
+    const input = { creditDate: "2026-01-01", lines: [{ ...serviceLine, originalLineId: "line", warehouseId: "destination" }] };
+    expect(await fieldsWithErrors(CreateCreditNoteDto, input)).toEqual([]);
+    for (const warehouseId of ["", 123]) {
+      expect(await fieldsWithErrors(CreateCreditNoteDto, { ...input, lines: [{ ...input.lines[0], warehouseId }] })).toEqual(["lines"]);
+    }
+  });
+
   it("needs a description and a positive quantity on every line", async () => {
     expect(await fieldsWithErrors(CreateCreditNoteDto, { creditDate: "2026-01-01", lines: [{ description: "Damaged", quantity: "1", unitPrice: "100", taxCodeId: "t1" }] })).toEqual([]);
     expect(await fieldsWithErrors(CreateCreditNoteDto, { creditDate: "2026-01-01", lines: [{ description: "", quantity: "1", unitPrice: "100", taxCodeId: "t1" }] })).toEqual(["lines"]);

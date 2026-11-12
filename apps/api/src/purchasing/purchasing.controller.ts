@@ -8,7 +8,6 @@ import {
   ApprovalPolicyService,
   AttachmentService,
   GoodsReceiptError,
-  GoodsReturnError,
   GoodsReturnService,
   PurchaseOrderError,
   PurchaseOrderService,
@@ -24,7 +23,6 @@ import {
   type PurchasingQueueCounts,
   type GoodsReturnDetail,
   type GoodsReturnListPage,
-  type GoodsReturnResult,
   type PurchaseOrderCreated,
   type PurchaseOrderDetail,
   type PurchaseOrderListPage,
@@ -46,7 +44,6 @@ import { purchaseOrderToPdfHtml } from "./exports/purchase-order-export.js";
 import { goodsReturnToPdfHtml } from "./exports/goods-return-export.js";
 import { localizedCompanyName } from "../common/company-name.js";
 import {
-  CreateGoodsReturnDto,
   CreatePurchaseOrderDto,
   CreatePurchaseRequestDto,
   DecidePurchaseOrderDto,
@@ -298,7 +295,7 @@ export class PurchasingController {
     }
   }
 
-  // ── Returning goods to the supplier (before the supplier invoice is matched) ─
+  // Historical goods returns remain readable; new returns use supplier-invoice debit notes.
 
   @Get("goods-returns")
   @RequirePermission("goods_return", "read")
@@ -312,53 +309,6 @@ export class PurchasingController {
     const goodsReturn = await this.goodsReturns.get(id, actor.companyId);
     if (!goodsReturn) throw new NotFoundException("Goods return not found");
     return goodsReturn;
-  }
-
-  @Post("goods-returns")
-  @RequirePermission("goods_return", "create")
-  createGoodsReturn(
-    @Body() dto: CreateGoodsReturnDto,
-    @CurrentUser() actor: CurrentUserPayload,
-    @CorrelationId() correlationId: string,
-    @IdempotencyKey() idempotencyKey: string,
-  ): Promise<GoodsReturnResult> {
-    return this.mapReturnErrors(
-      this.goodsReturns.create(
-        {
-          purchaseOrderId: dto.purchaseOrderId,
-          warehouseId: dto.warehouseId,
-          documentDate: new Date(dto.documentDate),
-          ...(dto.reference !== undefined ? { reference: dto.reference } : {}),
-          ...(dto.reason !== undefined ? { reason: dto.reason } : {}),
-          lines: dto.lines,
-        },
-        actor,
-        correlationId,
-        idempotencyKey,
-      ),
-    );
-  }
-
-  private async mapReturnErrors<T>(work: Promise<T>): Promise<T> {
-    try {
-      return await work;
-    } catch (error) {
-      if (error instanceof UnmappedAccountError) throw new BadRequestException(error.message);
-      if (!(error instanceof GoodsReturnError)) throw error;
-      switch (error.code) {
-        case "ORDER_NOT_FOUND":
-        case "WAREHOUSE_NOT_FOUND":
-        case "LINE_NOT_ON_ORDER":
-          throw new NotFoundException(error.message);
-        case "ORDER_NOT_RETURNABLE":
-        case "OVER_RETURN":
-        case "INSUFFICIENT_STOCK":
-          throw new ConflictException(error.message);
-        case "NO_OPEN_PERIOD":
-        case "EMPTY_RETURN":
-          throw new BadRequestException(error.message);
-      }
-    }
   }
 
   // ── Approval policy (settings) ──────────────────────────────────────────────

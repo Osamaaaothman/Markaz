@@ -96,6 +96,16 @@ export class SupplierInvoicesQueryDto {
 }
 
 export class DebitNoteLineDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  originalLineId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  warehouseId?: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(300)

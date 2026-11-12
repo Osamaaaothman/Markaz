@@ -5,6 +5,8 @@ import { expenseLineMath } from "../purchasing/supplier-invoice.util.js";
 export class SalesError extends Error {
   constructor(
     readonly code:
+      | "INVALID_RETURN"
+      | "OVER_RETURN"
       | "EMPTY_DOCUMENT"
       | "CUSTOMER_NOT_FOUND"
       | "ITEM_NOT_FOUND"

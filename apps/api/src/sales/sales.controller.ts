@@ -90,6 +90,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
         throw new NotFoundException(body);
       case "INVALID_STATE":
       case "INSUFFICIENT_STOCK":
+      case "OVER_RETURN":
       case "OVER_INVOICED":
       case "CUSTOMER_MISMATCH":
       case "CREDIT_EXCEEDS_INVOICE":

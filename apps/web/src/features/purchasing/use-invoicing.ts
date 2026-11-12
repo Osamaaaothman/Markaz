@@ -75,6 +75,10 @@ export interface SupplierInvoiceSummary {
 }
 
 export interface SupplierInvoiceLineDetail {
+  readonly id: string;
+  readonly taxCodeId: string;
+  readonly originalLineId: string | null;
+  readonly returnableQuantity: string;
   readonly lineNumber: number;
   readonly kind: "PO_LINE" | "EXPENSE";
   readonly itemCode: string | null;
@@ -139,21 +143,26 @@ export function useSupplierInvoice(id: string) {
 export interface DebitNotePayload {
   readonly debitDate: string;
   readonly notes?: string;
-  readonly lines: readonly { readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string; readonly accountId: string }[];
+  readonly lines: readonly { readonly originalLineId?: string; readonly warehouseId?: string; readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string; readonly accountId: string }[];
 }
 
-export function useCreateDebitNote(invoiceId: string) {
+export function useCreateDebitNote(invoiceId: string, submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { feedback: "dialog" },
     mutationFn: async (payload: DebitNotePayload) =>
       (
         await apiClient.post<{ id: string; number: string }>(`/v1/supplier-invoices/${invoiceId}/debit-notes`, payload, {
-          headers: { "Idempotency-Key": newId() },
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
         })
       ).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["supplierInvoices"] });
       void qc.invalidateQueries({ queryKey: ["accountBalances"] });
+      void qc.invalidateQueries({ queryKey: ["stockLevels"] });
+      void qc.invalidateQueries({ queryKey: ["stockMovements"] });
+      void qc.invalidateQueries({ queryKey: ["payments"] });
+      void qc.invalidateQueries({ queryKey: ["reports"] });
     },
   });
 }

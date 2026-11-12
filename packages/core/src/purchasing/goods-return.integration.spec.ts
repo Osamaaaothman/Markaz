@@ -103,6 +103,7 @@ describeIfDb("Purchase returns (M5) — real database", () => {
     await prisma.$disconnect();
   });
 
+
   it("reverses the receipt exactly when the cost has not moved: no variance line, status follows the counters", async () => {
     const { itemId, orderId, lineId } = await receivedOrder("5", "50", "5");
     const inventory = await balance(acc.inventory!);
@@ -256,4 +257,39 @@ describeIfDb("Purchase returns (M5) — real database", () => {
     expect(await returns.get(first.id, newId())).toBeNull();
     expect(await returns.get(newId(), companyId)).toBeNull();
   });
+  it("returns invoiced goods with supplier/VAT reversal, stock reduction, quantity caps and replay", async () => {
+    await mappings.set("PURCHASE_PRICE_VARIANCE", acc.ppv!, actor, cid());
+    const { itemId: item, orderId, lineId } = await receivedOrder("3", "10", "3");
+    const invoice = await invoices.create({ supplierId, supplierInvoiceNumber: newId(), invoiceDate: today, acceptPriceVariance: true,
+      lines: [{ kind: "PO_LINE", purchaseOrderLineId: lineId, quantity: "3", unitPrice: "12", taxCodeId: vat15 }] }, actor, cid(), newId());
+    const original = (await invoices.get(invoice.id, companyId))!;
+    const source = original.lines[0]!;
+    const line = { originalLineId: source.id, warehouseId, quantity: "1", description: "Return", unitPrice: "999", taxCodeId: vat15, accountId: "" };
+    const input = { originalInvoiceId: invoice.id, debitDate: today, lines: [line] };
+    const beforeAp = await balance(acc.ap!);
+    const beforeVat = await balance(acc.vat!);
+    const key = newId();
+    const note = await invoices.createDebitNote(input, actor, cid(), key);
+    expect(note.totalGross).toBe("13.8000");
+    expect(await invoices.createDebitNote(input, actor, cid(), key)).toEqual(note);
+    expect(await prisma.stockMovement.count({ where: { sourceDocumentId: note.id } })).toBe(1);
+    expect((await balance(acc.ap!)) - beforeAp).toBeCloseTo(13.8, 4);
+    expect((await balance(acc.vat!)) - beforeVat).toBeCloseTo(-1.8, 4);
+    expect((await invoices.get(invoice.id, companyId))!.lines[0]!.returnableQuantity).toBe("2.0000");
+    const stock = await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId } });
+    expect(stock.quantity.toFixed(4)).toBe("2.0000");
+    expect(stock.value.toFixed(4)).toBe("20.0000");
+    await expect(invoices.createDebitNote({ ...input, lines: [{ ...line, warehouseId: emptyWarehouseId }] }, actor, cid(), newId())).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK" });
+    await expect(invoices.createDebitNote({ ...input, lines: [line, line] }, actor, cid(), newId())).rejects.toMatchObject({ code: "INVALID_RETURN" });
+    const outcomes = await Promise.allSettled([1, 2].map(() => invoices.createDebitNote({ ...input, lines: [{ ...line, quantity: "2" }] }, actor, cid(), newId())));
+    expect(outcomes.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(outcomes.filter((r) => r.status === "rejected")).toHaveLength(1);
+    const empty = await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId } });
+    expect(empty.quantity.toFixed(4)).toBe("0.0000");
+    expect(empty.value.toFixed(4)).toBe("0.0000");
+    await expect(returns.create(returnInput(orderId, lineId, "1"), actor, cid(), newId())).rejects.toMatchObject({ code: "OVER_RETURN" });
+    await expect(invoices.createDebitNote(input, { ...actor, companyId: newId() }, cid(), newId())).rejects.toMatchObject({ code: "INVOICE_NOT_FOUND" });
+  });
+
+
 });

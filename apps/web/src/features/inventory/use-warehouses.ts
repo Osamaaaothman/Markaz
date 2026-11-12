@@ -57,14 +57,21 @@ export function useWarehouses(filter: WarehouseFilter) {
   });
 }
 
-// Every active warehouse, for a document form's warehouse picker — rarely more than a
-// handful, so no pagination or search needed there.
+// Every active warehouse for document pickers, including warehouses beyond the first page.
 export function useAllWarehouses() {
   const { can } = usePermissions();
   return useQuery({
     queryKey: ["warehouses", "all"],
-    queryFn: async () =>
-      (await apiClient.get<WarehouseListPage>("/v1/warehouses", { params: { limit: "100" } })).data.data,
+    queryFn: async () => {
+      const warehouses: WarehouseSummary[] = [];
+      let cursor: string | null = null;
+      do {
+        const page: WarehouseListPage = (await apiClient.get<WarehouseListPage>("/v1/warehouses", { params: { limit: "100", ...(cursor ? { cursor } : {}) } })).data;
+        warehouses.push(...page.data);
+        cursor = page.pageInfo.hasMore ? page.pageInfo.nextCursor : null;
+      } while (cursor);
+      return warehouses;
+    },
     staleTime: 60_000,
     enabled: can("warehouse:read"),
   });
