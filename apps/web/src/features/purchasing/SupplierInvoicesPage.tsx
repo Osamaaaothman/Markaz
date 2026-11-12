@@ -180,7 +180,7 @@ function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: SupplierI
           <div className="erp-form__row">
             <div className="erp-field">
               <label htmlFor="prDate">{t("purchasing.invoices.debitDate")}</label>
-              <Calendar inputId="prDate" value={date} onChange={(e) => e.value && setDate(e.value as Date)} dateFormat="yy-mm-dd" />
+              <Calendar inputId="prDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
             </div>
           </div>
           <DataTable value={rows} className="erp-table" size="small" showGridlines>

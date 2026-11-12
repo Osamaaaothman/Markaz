@@ -246,7 +246,7 @@ function SalesReturnDialog({ invoiceId, visible, onHide }: { invoiceId: string; 
           <div className="erp-form__row">
             <div className="erp-field">
               <label htmlFor="srDate">{t("sales.invoices.creditDate")}</label>
-              <Calendar inputId="srDate" value={date} onChange={(e) => e.value && setDate(e.value as Date)} dateFormat="yy-mm-dd" />
+              <Calendar inputId="srDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
             </div>
           </div>
           <DataTable value={rows} className="erp-table" size="small" showGridlines>
