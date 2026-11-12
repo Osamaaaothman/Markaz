@@ -208,34 +208,53 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   padding: 0;
   display: flex;
   flex-direction: column;
-  /* A visible, narrow scrollbar makes the remaining sections discoverable. */
-  scrollbar-width: thin;
-  scrollbar-color: var(--mk-side-border) transparent;
-  padding-inline-end: 4px;
+  /* still scrolls with wheel, touch and keyboard; the bar itself is not drawn */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .erp-sidebar__nav::-webkit-scrollbar {
-  width: 4px;
+  display: none;
 }
 
-.erp-sidebar__link--nested {
-  margin-inline-start: 0.75rem;
+.erp-sidebar__link {
+  margin-inline-start: 1.7rem;
+}
+
+/* Keep the original compact rows; long names must not crowd icons or badges. */
+.erp-sidebar__link > .erp-sidebar__label,
+.erp-sidebar__group-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.erp-sidebar__link > .erp-sidebar__label {
+  flex: 1;
+}
+
+.erp-sidebar__link:focus-visible,
+.erp-sidebar__group:focus-visible,
+.erp-sidebar__search:focus-visible,
+.erp-sidebar__collapse:focus-visible {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: -2px;
 }
 
 .erp-sidebar__link {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.85rem;
   margin-block: 2px;
-  padding: 0.5rem 0.65rem;
+  padding: 0.35rem 0.5rem;
   border-radius: var(--mk-radius);
-  color: var(--mk-side-text-strong);
+  color: var(--mk-side-text);
   text-decoration: none;
   font-size: 0.97rem;
   font-weight: 500;
-  white-space: normal;
-  line-height: 1.5;
+  white-space: nowrap;
   transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, box-shadow var(--mk-dur) ease;
 }
 
@@ -243,12 +262,12 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  inline-size: 2rem;
-  block-size: 2rem;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
   border-radius: var(--mk-radius-sm);
-  background: transparent;
+  background: var(--mk-side-tile);
   color: var(--mk-side-text);
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, transform var(--mk-dur) var(--mk-ease);
 }
 
@@ -290,17 +309,15 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   gap: var(--mk-space-2);
   width: 100%;
   margin-block-end: var(--mk-space-1);
-  padding: 0.75rem 0.65rem;
+  padding: 0.5rem 0.6rem;
   border: 0;
   background: none;
-  color: var(--mk-side-text-strong);
+  color: var(--mk-side-group);
   font: inherit;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0;
-  white-space: normal;
-  line-height: 1.5;
-  text-align: start;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
   cursor: pointer;
   border-radius: var(--mk-radius-sm);
   transition: color var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease;
@@ -309,25 +326,6 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 .erp-sidebar__group:hover {
   color: var(--mk-side-group);
   background: var(--mk-side-hover);
-}
-
-.erp-sidebar__group--active {
-  background: var(--mk-side-hover);
-  color: var(--mk-side-text-strong);
-}
-
-.erp-sidebar__link > .erp-sidebar__label {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.erp-sidebar__link:focus-visible,
-.erp-sidebar__group:focus-visible,
-.erp-sidebar__search:focus-visible,
-.erp-sidebar__collapse:focus-visible {
-  outline: 2px solid var(--mk-primary);
-  outline-offset: -2px;
 }
 
 .erp-sidebar__group-title {
