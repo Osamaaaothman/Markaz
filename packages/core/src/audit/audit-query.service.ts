@@ -1,4 +1,6 @@
 import { Prisma, type PrismaClient } from "@erp/db";
+import type { IPermissionService } from "../contracts.js";
+import { auditReferences, referenceKey, resolveAuditReferences, type AuditReference } from "./audit-references.js";
 
 // Reading the audit log. The log is append-only and this service only reads it.
 //
@@ -27,6 +29,8 @@ export interface AuditLogEntry {
   readonly before: unknown;
   readonly after: unknown;
   readonly correlationId: string;
+  readonly document: AuditReference | null;
+  readonly relatedDocuments: readonly AuditReference[];
 }
 
 export interface AuditLogPage {
@@ -35,9 +39,9 @@ export interface AuditLogPage {
 }
 
 export class AuditQueryService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient, private readonly permissions: IPermissionService) {}
 
-  async list(companyId: string, query: AuditLogQuery): Promise<AuditLogPage> {
+  async list(companyId: string, query: AuditLogQuery, actorId: string): Promise<AuditLogPage> {
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 200);
     const users = await this.prisma.user.findMany({ where: { companyId }, select: { id: true, email: true } });
     const userIds = users.map((u) => u.id);
@@ -62,6 +66,7 @@ export class AuditQueryService {
     });
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
+    const references = await resolveAuditReferences(this.prisma, this.permissions, companyId, actorId, page);
     return {
       data: page.map((r) => ({
         id: r.id,
@@ -74,6 +79,9 @@ export class AuditQueryService {
         before: r.beforeJson,
         after: r.afterJson,
         correlationId: r.correlationId,
+        document: references.get(referenceKey(r.entityType, r.entityId)) ?? null,
+        relatedDocuments: auditReferences(r).filter((ref) => ref.entityType !== r.entityType || ref.id !== r.entityId)
+          .flatMap((ref) => { const doc = references.get(referenceKey(ref.entityType, ref.id)); return doc ? [doc] : []; }),
       })),
       pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null },
     };

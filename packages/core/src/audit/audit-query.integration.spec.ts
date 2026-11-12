@@ -9,7 +9,8 @@ const describeIfDb = process.env.DATABASE_URL ? describe : describe.skip;
 describeIfDb("Audit log reading — real database", () => {
   const prisma = new PrismaClient();
   const logger = new PrismaAuditLogger(prisma);
-  const audit = new AuditQueryService(prisma);
+  const service = new AuditQueryService(prisma, { can: () => Promise.resolve(true) });
+  const audit = { list: (companyId: string, query: Parameters<AuditQueryService["list"]>[1]) => service.list(companyId, query, userA), filters: (companyId: string) => service.filters(companyId) };
   const companyA = newId();
   const companyB = newId();
   const userA = newId();
@@ -88,4 +89,50 @@ describeIfDb("Audit log reading — real database", () => {
     expect(f.entityTypes).not.toContain("JournalEntry");
     expect(f.users.map((u) => u.id)).toEqual([userB]);
   });
+  it("resolves invoice and related journal numbers without rewriting historical snapshots", async () => {
+    const date = new Date("2026-01-01T00:00:00Z");
+    const year = await prisma.fiscalYear.create({ data: { id: newId(), companyId: companyA, name: "Audit fixture", startDate: date, endDate: new Date("2026-12-31T00:00:00Z") } });
+    const period = await prisma.fiscalPeriod.create({ data: { id: newId(), companyId: companyA, fiscalYearId: year.id, periodNumber: 1, startDate: date, endDate: year.endDate } });
+    const journal = await prisma.journalEntry.create({ data: { id: newId(), companyId: companyA, fiscalPeriodId: period.id, number: "JE-AUDIT-1", entryDate: date, postingDate: date, currency: "SAR", sourceModule: "sales", sourceDocumentType: "sales_invoice", sourceDocumentId: newId(), actorId: userA, correlationId: newId(), idempotencyKey: newId() } });
+    const party = await prisma.party.create({ data: { id: newId(), companyId: companyA, ref: "CUSTOMER", name: "Audit fixture customer", kind: "COMPANY" } });
+    const common = { companyId: companyA, invoiceDate: date, currency: "SAR", totalNet: "0", totalTax: "0", totalGross: "0", journalEntryId: journal.id, actorId: userA, correlationId: newId() };
+    const invoice = await prisma.salesInvoice.create({ data: { ...common, id: newId(), documentType: "INVOICE", number: "INV-AUDIT-1", customerId: party.id } });
+    const supplier = await prisma.supplierInvoice.create({ data: { ...common, id: newId(), number: "BILL-AUDIT-1", supplierId: party.id } });
+    for (const [entityType, doc] of [["SalesInvoice", invoice], ["SupplierInvoice", supplier]] as const) {
+      // Older logs may carry only the id; the current, permission-checked reference fills the number.
+      await logAs(userA, "invoice.posted", entityType, doc.id, { after: { journalEntryId: journal.id, totalGross: "0.0000" } });
+      const entry = (await audit.list(companyA, { entityId: doc.id })).data[0]!;
+      expect(entry.document).toMatchObject({ id: doc.id, number: doc.number });
+      expect(entry.relatedDocuments).toEqual([expect.objectContaining({ id: journal.id, number: journal.number })]);
+      expect(entry.after).toEqual({ journalEntryId: journal.id, totalGross: "0.0000" });
+      expect((await prisma.auditLog.findUniqueOrThrow({ where: { id: entry.id } })).afterJson).toEqual(entry.after);
+    }
+    const denied = new AuditQueryService(prisma, { can: () => Promise.resolve(false) });
+    const restricted = (await denied.list(companyA, { entityId: invoice.id }, userA)).data[0]!;
+    expect(restricted.document).toBeNull();
+    expect(restricted.relatedDocuments).toEqual([]);
+    const invoiceOnly = new AuditQueryService(prisma, { can: (_actor, _action, resource) => Promise.resolve(resource === "sales_invoice") });
+    const partial = (await invoiceOnly.list(companyA, { entityId: invoice.id }, userA)).data[0]!;
+    expect(partial.document?.number).toBe(invoice.number);
+    expect(partial.relatedDocuments).toEqual([]);
+  });
+
+  it("never resolves another company's document, including references inside an allowed audit event", async () => {
+    const foreign = await prisma.purchaseRequest.create({ data: { id: newId(), companyId: companyB, number: "PRIVATE-REQUEST", status: "PENDING", requestedBy: userB, correlationId: newId() } });
+    await logAs(userA, "purchase_request.updated", "PurchaseRequest", foreign.id, { after: { purchaseRequestId: foreign.id, quotationId: newId() } });
+    const row = (await audit.list(companyA, { entityId: foreign.id })).data[0]!;
+    expect(row.document).toBeNull();
+    expect(row.relatedDocuments).toEqual([]);
+    expect(JSON.stringify(row)).not.toContain("PRIVATE-REQUEST");
+  });
+
+  it("keeps missing and unsupported documents readable without fabricated links", async () => {
+    const id = newId();
+    await logAs(userA, "quotation.cancelled", "Quotation", id, { after: { number: "QUO-REMOVED", status: "CANCELLED" } });
+    const row = (await audit.list(companyA, { entityId: id })).data[0]!;
+    expect(row.document).toBeNull();
+    expect(row.after).toEqual({ number: "QUO-REMOVED", status: "CANCELLED" });
+    expect((await audit.list(companyA, { entityType: "Account" })).data[0]!.document).toBeNull();
+  });
+
 });
