@@ -2,6 +2,12 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 
+export interface AuditReference {
+  readonly entityType: string;
+  readonly id: string;
+  readonly number: string;
+  readonly kind: string;
+}
 export interface AuditLogEntry {
   readonly id: string;
   readonly createdAt: string;
@@ -13,9 +19,12 @@ export interface AuditLogEntry {
   readonly before: unknown;
   readonly after: unknown;
   readonly correlationId: string;
+  readonly document: AuditReference | null;
+  readonly relatedDocuments: readonly AuditReference[];
 }
 
 export interface AuditFilter {
+  readonly entityId: string;
   readonly entityType: string;
   readonly action: string;
   readonly actorId: string;
