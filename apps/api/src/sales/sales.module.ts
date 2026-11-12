@@ -1,3 +1,4 @@
+import { QuotationEmailService } from "./quotation-email.service.js";
 import { Module } from "@nestjs/common";
 import {
   AccountMappingService,
@@ -14,7 +15,8 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { SALES_ENGINE, SALES_NUMBERING } from "./sales.tokens.js";
 import { SalesController } from "./sales.controller.js";
 import { AttachmentsModule } from "../attachments/attachments.module.js";
-import { MailModule } from "../notifications/mail.module.js";
+import type { EmailTransport } from "../notifications/email-transport.js";
+import { EMAIL_TRANSPORT, MailModule } from "../notifications/mail.module.js";
 
 // Same shape as the inventory and purchasing modules: stateless core services over PrismaService and
 // a module-local accounting engine.
@@ -22,6 +24,7 @@ import { MailModule } from "../notifications/mail.module.js";
   imports: [AttachmentsModule, MailModule],
   controllers: [SalesController],
   providers: [
+    { provide: QuotationEmailService, useFactory: (prisma: PrismaService, transport: EmailTransport) => new QuotationEmailService(prisma, transport), inject: [PrismaService, EMAIL_TRANSPORT] },
     { provide: SALES_NUMBERING, useFactory: () => new PrismaNumberingService() },
     {
       provide: SALES_ENGINE,

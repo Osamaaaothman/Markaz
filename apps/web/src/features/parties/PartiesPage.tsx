@@ -1,3 +1,4 @@
+import { ImportButton } from "../../shared/ui/imports/ImportButton";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
@@ -51,12 +52,13 @@ export function PartiesPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("parties.title")}</h1>
           <p className="erp-page__subtitle">{t("parties.subtitle")}</p>
         </div>
+        <div className="erp-page__header-actions">{can("party:create") ? <ImportButton kind="parties" /> : null}
         <PermissionButton
           allowed={can("party:create")}
           label={t("parties.add")}
           icon="pi pi-plus"
           onClick={() => openDialog(null)}
-        />
+        /></div>
       </div>
 
       <div className="coa-toolbar">

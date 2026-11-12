@@ -1,3 +1,4 @@
+import { ImportButton } from "../../shared/ui/imports/ImportButton";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
@@ -43,7 +44,8 @@ export function ItemsPage(): React.JSX.Element {
           <h1 className="erp-page__title">{t("inventory.items.title")}</h1>
           <p className="erp-page__subtitle">{t("inventory.items.subtitle")}</p>
         </div>
-        <PermissionButton allowed={can("item:create")} label={t("inventory.items.add")} icon="pi pi-plus" onClick={() => openDialog(null)} />
+        <div className="erp-page__header-actions">{can("item:create") ? <ImportButton kind="items" /> : null}
+        <PermissionButton allowed={can("item:create")} label={t("inventory.items.add")} icon="pi pi-plus" onClick={() => openDialog(null)} /></div>
       </div>
 
       <div className="coa-toolbar">

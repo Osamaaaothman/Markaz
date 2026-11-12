@@ -8,6 +8,7 @@ import {
   StockCountService,
   StockIssueService,
   StockLevelService,
+  ReplenishmentService,
   StockMovementService,
   WarehouseService,
   type IAccountingEngine,
@@ -74,6 +75,7 @@ import { AttachmentsModule } from "../attachments/attachments.module.js";
       inject: [PrismaService, INVENTORY_ENGINE, INVENTORY_NUMBERING, AccountMappingService, AUDIT_LOGGER],
     },
     InventoryExportService,
+    { provide: ReplenishmentService, useFactory: (prisma: PrismaService) => new ReplenishmentService(prisma), inject: [PrismaService] },
     { provide: StockMovementService, useFactory: (prisma: PrismaService) => new StockMovementService(prisma), inject: [PrismaService] },
   ],
 })

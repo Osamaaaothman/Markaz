@@ -14,6 +14,10 @@ export function toDateOnlyIsoString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function formatDateTime(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { timeZone: "Asia/Riyadh", dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
 // docs/04-DATA-MODEL-RULES.md §3: a calendar-fact date (entryDate, postingDate,
 // fiscal period boundaries) must never round-trip through a local-timezone Date
 // construction — `new Date(isoString).toLocaleDateString()` renders the PREVIOUS

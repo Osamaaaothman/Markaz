@@ -87,6 +87,18 @@ export class PurchasingController {
 
   // ── Purchase requests ───────────────────────────────────────────────────────
 
+  @Post("replenishment/requests")
+  @RequirePermission("purchase_request", "create")
+  async createReplenishment(@Body() dto: CreatePurchaseRequestDto, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string, @OptionalIdempotencyKey() key?: string) {
+    if (!key || dto.lines.length > 100) throw new BadRequestException({ code: "INVALID_REPLENISHMENT" });
+    try { return await this.requests.create(dto, actor, correlationId, key, true); }
+    catch (error) {
+      if (error instanceof PurchaseRequestError && error.code === "STALE_REPLENISHMENT") throw new ConflictException({ code: error.code });
+      if (!(error instanceof PurchaseRequestError)) throw error;
+      return this.mapRequestErrors(Promise.reject(error));
+    }
+  }
+
   @Get("purchase-requests")
   @RequirePermission("purchase_request", "read")
   listRequests(@CurrentUser() actor: CurrentUserPayload, @Query() query: PurchaseRequestsQueryDto): Promise<PurchaseRequestListPage> {
@@ -145,6 +157,7 @@ export class PurchasingController {
         case "WAREHOUSE_NOT_FOUND":
           throw new NotFoundException(error.message);
         case "NOT_PENDING":
+        case "STALE_REPLENISHMENT":
           throw new ConflictException(error.message);
         case "EMPTY_REQUEST":
           throw new BadRequestException(error.message);

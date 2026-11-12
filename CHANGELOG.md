@@ -5,6 +5,16 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Reviewed operations and on-demand screens (2026-11-12)
+- Load feature screens and the Excel importer on demand.
+- Add item/party XLSX and CSV import previews, colored row validation and
+  duplicate checks with atomic import and auditing.
+- Add persistent quotation email attempts, explicit delivery checks and reviewed
+  resends. Add migration `20261112130000_quotation_email_attempts`.
+- Add stock replenishment suggestions that create reviewable purchase requests
+  and subtract existing requests and outstanding purchase orders.
+- See [operation and rollout details](docs/OPERATIONS-UPGRADES.md).
+
 ### Stability, drafts and document tracking (2026-11-11)
 - Add private server drafts with autosave, version conflicts and stable submission
   keys across purchasing, sales, inventory, journals and payments. Add a
