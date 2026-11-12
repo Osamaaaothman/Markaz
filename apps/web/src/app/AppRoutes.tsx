@@ -1,71 +1,80 @@
+import { lazy, Suspense } from "react";
+import { PageSkeleton } from "../shared/ui/PageSkeleton";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { DraftsPage } from "../features/documents/DraftsPage";
-import { LoginPage } from "../features/auth/LoginPage";
-import { DashboardPage } from "../features/dashboard/DashboardPage";
-import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
-import { ChartOfAccountsPage } from "../features/accounting/ChartOfAccountsPage";
-import { AccountStatementPage } from "../features/accounting/AccountStatementPage";
-import { TrialBalancePage } from "../features/accounting/TrialBalancePage";
-import { BalanceSheetPage } from "../features/accounting/BalanceSheetPage";
-import { IncomeStatementPage } from "../features/accounting/IncomeStatementPage";
-import { CashFlowPage } from "../features/accounting/CashFlowPage";
-import { JournalEntriesPage } from "../features/accounting/JournalEntriesPage";
-import { PartiesPage } from "../features/parties/PartiesPage";
-import { SetupPage } from "../features/setup/SetupPage";
-import { AuditLogPage } from "../features/audit/AuditLogPage";
-import { AccountMappingPage } from "../features/inventory/AccountMappingPage";
-import { GoodsReceiptDetailPage } from "../features/inventory/GoodsReceiptDetailPage";
-import { GoodsReceiptsPage } from "../features/inventory/GoodsReceiptsPage";
-import { StockIssueDetailPage } from "../features/inventory/StockIssueDetailPage";
-import { StockIssuesPage } from "../features/inventory/StockIssuesPage";
-import { GoodsReceiptPage } from "../features/inventory/GoodsReceiptPage";
-import { ItemsPage } from "../features/inventory/ItemsPage";
-import { StockCountDetailPage } from "../features/inventory/StockCountDetailPage";
-import { StockCountPage } from "../features/inventory/StockCountPage";
-import { StockIssuePage } from "../features/inventory/StockIssuePage";
-import { StockLevelsPage } from "../features/inventory/StockLevelsPage";
-import { StockMovementsPage } from "../features/inventory/StockMovementsPage";
-import { WarehousesPage } from "../features/inventory/WarehousesPage";
-import { ApprovalPolicyPage } from "../features/purchasing/ApprovalPolicyPage";
-import { CompliancePage } from "../features/compliance/CompliancePage";
-import { SupplierInvoiceFormPage } from "../features/purchasing/SupplierInvoiceFormPage";
-import { SupplierInvoicesPage } from "../features/purchasing/SupplierInvoicesPage";
-import { TaxCodesPage } from "../features/purchasing/TaxCodesPage";
-import { GoodsReturnDetailPage } from "../features/purchasing/GoodsReturnDetailPage";
-import { GoodsReturnsPage } from "../features/purchasing/GoodsReturnsPage";
-import { SupplierInvoiceDetailPage } from "../features/purchasing/SupplierInvoiceDetailPage";
-import { PurchaseOrderDetailPage } from "../features/purchasing/PurchaseOrderDetailPage";
-import { PurchaseOrderFormPage } from "../features/purchasing/PurchaseOrderFormPage";
-import { PurchaseOrdersPage } from "../features/purchasing/PurchaseOrdersPage";
-import { PurchaseRequestReviewPage } from "../features/purchasing/PurchaseRequestReviewPage";
-import { PurchaseRequestsPage } from "../features/purchasing/PurchaseRequestsPage";
-import { HrPaymentDetailPage } from "../features/hr/HrPaymentDetailPage";
-import { HrPaymentsPage } from "../features/hr/HrPaymentsPage";
-import { AllowanceTypesPage } from "../features/hr/AllowanceTypesPage";
-import { EmployeeDetailPage } from "../features/hr/EmployeeDetailPage";
-import { EmployeesPage } from "../features/hr/EmployeesPage";
-import { PayrollRunDetailPage } from "../features/hr/PayrollRunDetailPage";
-import { PayrollRunsPage } from "../features/hr/PayrollRunsPage";
-import { QuotationsPage } from "../features/sales/QuotationsPage";
-import { QuotationFormPage, SalesInvoiceFormPage, SalesOrderFormPage } from "../features/sales/SalesDocumentFormPage";
-import { SalesInvoiceDetailPage, SalesInvoicesPage } from "../features/sales/SalesInvoicesPage";
-import { SalesOrderDetailPage, SalesOrdersPage } from "../features/sales/SalesOrdersPage";
-import { CustomerReceiptPage, SupplierPaymentPage } from "../features/payments/PaymentFormPage";
-import { PaymentDetailPage } from "../features/payments/PaymentDetailPage";
-import { ReceiptsPage, SupplierPaymentsPage } from "../features/payments/PaymentsPage";
-import { SettleReceiptsPage, SettleSupplierPage } from "../features/payments/SettlePage";
-import { CashExpensesPage } from "../features/payments/CashExpensesPage";
-import { CashExpenseFormPage } from "../features/payments/CashExpenseFormPage";
-import { AgingPage } from "../features/payments/AgingPage";
-import { PartyStatementPage } from "../features/payments/PartyStatementPage";
-import { UsersPage } from "../features/settings/UsersPage";
+const DraftsPage = lazy(() => import("../features/documents/DraftsPage").then((module) => ({ default: module.DraftsPage })));
+const LoginPage = lazy(() => import("../features/auth/LoginPage").then((module) => ({ default: module.LoginPage })));
+const DashboardPage = lazy(() => import("../features/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })));
+const DesignSystemPage = lazy(() => import("../features/design-system/DesignSystemPage").then((module) => ({ default: module.DesignSystemPage })));
+const ChartOfAccountsPage = lazy(() => import("../features/accounting/ChartOfAccountsPage").then((module) => ({ default: module.ChartOfAccountsPage })));
+const AccountStatementPage = lazy(() => import("../features/accounting/AccountStatementPage").then((module) => ({ default: module.AccountStatementPage })));
+const TrialBalancePage = lazy(() => import("../features/accounting/TrialBalancePage").then((module) => ({ default: module.TrialBalancePage })));
+const BalanceSheetPage = lazy(() => import("../features/accounting/BalanceSheetPage").then((module) => ({ default: module.BalanceSheetPage })));
+const IncomeStatementPage = lazy(() => import("../features/accounting/IncomeStatementPage").then((module) => ({ default: module.IncomeStatementPage })));
+const CashFlowPage = lazy(() => import("../features/accounting/CashFlowPage").then((module) => ({ default: module.CashFlowPage })));
+const JournalEntriesPage = lazy(() => import("../features/accounting/JournalEntriesPage").then((module) => ({ default: module.JournalEntriesPage })));
+const PartiesPage = lazy(() => import("../features/parties/PartiesPage").then((module) => ({ default: module.PartiesPage })));
+const SetupPage = lazy(() => import("../features/setup/SetupPage").then((module) => ({ default: module.SetupPage })));
+const AuditLogPage = lazy(() => import("../features/audit/AuditLogPage").then((module) => ({ default: module.AuditLogPage })));
+const AccountMappingPage = lazy(() => import("../features/inventory/AccountMappingPage").then((module) => ({ default: module.AccountMappingPage })));
+const GoodsReceiptDetailPage = lazy(() => import("../features/inventory/GoodsReceiptDetailPage").then((module) => ({ default: module.GoodsReceiptDetailPage })));
+const GoodsReceiptsPage = lazy(() => import("../features/inventory/GoodsReceiptsPage").then((module) => ({ default: module.GoodsReceiptsPage })));
+const StockIssueDetailPage = lazy(() => import("../features/inventory/StockIssueDetailPage").then((module) => ({ default: module.StockIssueDetailPage })));
+const StockIssuesPage = lazy(() => import("../features/inventory/StockIssuesPage").then((module) => ({ default: module.StockIssuesPage })));
+const GoodsReceiptPage = lazy(() => import("../features/inventory/GoodsReceiptPage").then((module) => ({ default: module.GoodsReceiptPage })));
+const ItemsPage = lazy(() => import("../features/inventory/ItemsPage").then((module) => ({ default: module.ItemsPage })));
+const StockCountDetailPage = lazy(() => import("../features/inventory/StockCountDetailPage").then((module) => ({ default: module.StockCountDetailPage })));
+const StockCountPage = lazy(() => import("../features/inventory/StockCountPage").then((module) => ({ default: module.StockCountPage })));
+const StockIssuePage = lazy(() => import("../features/inventory/StockIssuePage").then((module) => ({ default: module.StockIssuePage })));
+const StockLevelsPage = lazy(() => import("../features/inventory/StockLevelsPage").then((module) => ({ default: module.StockLevelsPage })));
+const StockMovementsPage = lazy(() => import("../features/inventory/StockMovementsPage").then((module) => ({ default: module.StockMovementsPage })));
+const WarehousesPage = lazy(() => import("../features/inventory/WarehousesPage").then((module) => ({ default: module.WarehousesPage })));
+const ApprovalPolicyPage = lazy(() => import("../features/purchasing/ApprovalPolicyPage").then((module) => ({ default: module.ApprovalPolicyPage })));
+const CompliancePage = lazy(() => import("../features/compliance/CompliancePage").then((module) => ({ default: module.CompliancePage })));
+const SupplierInvoiceFormPage = lazy(() => import("../features/purchasing/SupplierInvoiceFormPage").then((module) => ({ default: module.SupplierInvoiceFormPage })));
+const SupplierInvoicesPage = lazy(() => import("../features/purchasing/SupplierInvoicesPage").then((module) => ({ default: module.SupplierInvoicesPage })));
+const TaxCodesPage = lazy(() => import("../features/purchasing/TaxCodesPage").then((module) => ({ default: module.TaxCodesPage })));
+const GoodsReturnDetailPage = lazy(() => import("../features/purchasing/GoodsReturnDetailPage").then((module) => ({ default: module.GoodsReturnDetailPage })));
+const GoodsReturnsPage = lazy(() => import("../features/purchasing/GoodsReturnsPage").then((module) => ({ default: module.GoodsReturnsPage })));
+const SupplierInvoiceDetailPage = lazy(() => import("../features/purchasing/SupplierInvoiceDetailPage").then((module) => ({ default: module.SupplierInvoiceDetailPage })));
+const PurchaseOrderDetailPage = lazy(() => import("../features/purchasing/PurchaseOrderDetailPage").then((module) => ({ default: module.PurchaseOrderDetailPage })));
+const PurchaseOrderFormPage = lazy(() => import("../features/purchasing/PurchaseOrderFormPage").then((module) => ({ default: module.PurchaseOrderFormPage })));
+const PurchaseOrdersPage = lazy(() => import("../features/purchasing/PurchaseOrdersPage").then((module) => ({ default: module.PurchaseOrdersPage })));
+const PurchaseRequestReviewPage = lazy(() => import("../features/purchasing/PurchaseRequestReviewPage").then((module) => ({ default: module.PurchaseRequestReviewPage })));
+const PurchaseRequestsPage = lazy(() => import("../features/purchasing/PurchaseRequestsPage").then((module) => ({ default: module.PurchaseRequestsPage })));
+const HrPaymentDetailPage = lazy(() => import("../features/hr/HrPaymentDetailPage").then((module) => ({ default: module.HrPaymentDetailPage })));
+const HrPaymentsPage = lazy(() => import("../features/hr/HrPaymentsPage").then((module) => ({ default: module.HrPaymentsPage })));
+const AllowanceTypesPage = lazy(() => import("../features/hr/AllowanceTypesPage").then((module) => ({ default: module.AllowanceTypesPage })));
+const EmployeeDetailPage = lazy(() => import("../features/hr/EmployeeDetailPage").then((module) => ({ default: module.EmployeeDetailPage })));
+const EmployeesPage = lazy(() => import("../features/hr/EmployeesPage").then((module) => ({ default: module.EmployeesPage })));
+const PayrollRunDetailPage = lazy(() => import("../features/hr/PayrollRunDetailPage").then((module) => ({ default: module.PayrollRunDetailPage })));
+const PayrollRunsPage = lazy(() => import("../features/hr/PayrollRunsPage").then((module) => ({ default: module.PayrollRunsPage })));
+const QuotationsPage = lazy(() => import("../features/sales/QuotationsPage").then((module) => ({ default: module.QuotationsPage })));
+const QuotationFormPage = lazy(() => import("../features/sales/SalesDocumentFormPage").then((module) => ({ default: module.QuotationFormPage })));
+const SalesInvoiceFormPage = lazy(() => import("../features/sales/SalesDocumentFormPage").then((module) => ({ default: module.SalesInvoiceFormPage })));
+const SalesOrderFormPage = lazy(() => import("../features/sales/SalesDocumentFormPage").then((module) => ({ default: module.SalesOrderFormPage })));
+const SalesInvoiceDetailPage = lazy(() => import("../features/sales/SalesInvoicesPage").then((module) => ({ default: module.SalesInvoiceDetailPage })));
+const SalesInvoicesPage = lazy(() => import("../features/sales/SalesInvoicesPage").then((module) => ({ default: module.SalesInvoicesPage })));
+const SalesOrderDetailPage = lazy(() => import("../features/sales/SalesOrdersPage").then((module) => ({ default: module.SalesOrderDetailPage })));
+const SalesOrdersPage = lazy(() => import("../features/sales/SalesOrdersPage").then((module) => ({ default: module.SalesOrdersPage })));
+const CustomerReceiptPage = lazy(() => import("../features/payments/PaymentFormPage").then((module) => ({ default: module.CustomerReceiptPage })));
+const SupplierPaymentPage = lazy(() => import("../features/payments/PaymentFormPage").then((module) => ({ default: module.SupplierPaymentPage })));
+const PaymentDetailPage = lazy(() => import("../features/payments/PaymentDetailPage").then((module) => ({ default: module.PaymentDetailPage })));
+const ReceiptsPage = lazy(() => import("../features/payments/PaymentsPage").then((module) => ({ default: module.ReceiptsPage })));
+const SupplierPaymentsPage = lazy(() => import("../features/payments/PaymentsPage").then((module) => ({ default: module.SupplierPaymentsPage })));
+const SettleReceiptsPage = lazy(() => import("../features/payments/SettlePage").then((module) => ({ default: module.SettleReceiptsPage })));
+const SettleSupplierPage = lazy(() => import("../features/payments/SettlePage").then((module) => ({ default: module.SettleSupplierPage })));
+const CashExpensesPage = lazy(() => import("../features/payments/CashExpensesPage").then((module) => ({ default: module.CashExpensesPage })));
+const CashExpenseFormPage = lazy(() => import("../features/payments/CashExpenseFormPage").then((module) => ({ default: module.CashExpenseFormPage })));
+const AgingPage = lazy(() => import("../features/payments/AgingPage").then((module) => ({ default: module.AgingPage })));
+const PartyStatementPage = lazy(() => import("../features/payments/PartyStatementPage").then((module) => ({ default: module.PartyStatementPage })));
+const UsersPage = lazy(() => import("../features/settings/UsersPage").then((module) => ({ default: module.UsersPage })));
 import { AppShell } from "./layout/AppShell";
 import { NAV_ITEMS } from "./layout/NavConfig";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RequirePermission } from "./RequirePermission";
-import { DocumentsPage } from "../features/attachments/DocumentsPage";
-import { CompanyPage } from "../features/settings/CompanyPage";
-import { InterfaceSettingsPage } from "../features/settings/InterfaceSettingsPage";
+const DocumentsPage = lazy(() => import("../features/attachments/DocumentsPage").then((module) => ({ default: module.DocumentsPage })));
+const CompanyPage = lazy(() => import("../features/settings/CompanyPage").then((module) => ({ default: module.CompanyPage })));
+const InterfaceSettingsPage = lazy(() => import("../features/settings/InterfaceSettingsPage").then((module) => ({ default: module.InterfaceSettingsPage })));
 
 // The permissions a route needs come from NAV_ITEMS, so hiding a nav entry and guarding its
 // page can never disagree.
@@ -75,7 +84,7 @@ function permissionsFor(path: string): readonly string[] {
 
 export function AppRoutes(): React.JSX.Element {
   return (
-    <Routes>
+    <Suspense fallback={<PageSkeleton />}><Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
@@ -253,6 +262,6 @@ export function AppRoutes(): React.JSX.Element {
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    </Routes></Suspense>
   );
 }
