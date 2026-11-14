@@ -177,6 +177,9 @@ export class CashExpenseService {
           amount: total,
           currency,
           cashAccountId: cash.id,
+          expenseAccountId: lines.every((line) => line.expenseAccountId === lines[0]!.expenseAccountId)
+            ? lines[0]!.expenseAccountId
+            : null,
           description: blankToNull(input.description),
           reference: blankToNull(input.reference),
           journalEntryId: posting.journalEntryId,

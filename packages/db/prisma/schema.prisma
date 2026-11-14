@@ -396,6 +396,7 @@ model Account {
   hrPaymentsFrom                HrPayment[]              @relation("HrPaymentCash")
   hrPaymentItems                HrPaymentItem[]          @relation("HrPaymentItemAccount")
   cashExpensesFrom              CashExpense[]            @relation("CashExpenseCash")
+  legacyCashExpenses            CashExpense[]            @relation("CashExpenseLegacyExpense")
   cashExpenseLines              CashExpenseLine[]        @relation("CashExpenseLineExpenseAccount")
 
   @@unique([companyId, code])
@@ -1542,6 +1543,8 @@ model CashExpense {
   currency         String
   // The petty-cash or bank account the money came out of.
   cashAccountId    String   @map("cash_account_id")
+  // Retained during the line-items rollout. Null when several expense accounts are used.
+  expenseAccountId String?  @map("expense_account_id")
   description      String?
   reference        String?
   journalEntryId   String   @map("journal_entry_id")
@@ -1551,6 +1554,7 @@ model CashExpense {
 
   company        Company      @relation(fields: [companyId], references: [id])
   cashAccount    Account      @relation("CashExpenseCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  expenseAccount Account?     @relation("CashExpenseLegacyExpense", fields: [expenseAccountId], references: [id], onDelete: Restrict)
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
   lines          CashExpenseLine[]
 
