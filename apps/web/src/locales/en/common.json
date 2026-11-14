@@ -424,10 +424,19 @@
     "kind": "Kind",
     "allKinds": "All kinds",
     "kinds": {
+      "SUPPLIER": "Supplier",
+      "CUSTOMER": "Customer",
+      "CUSTOMER_SUPPLIER": "Customer and supplier",
       "COMPANY": "Company",
       "PERSON": "Person",
       "EMPLOYEE": "Employee",
       "OTHER": "Other"
+    },
+    "tabs": {
+      "suppliers": "Suppliers",
+      "customers": "Customers",
+      "employees": "Employees",
+      "others": "Others"
     },
     "phone": "Phone",
     "email": "Email",
@@ -568,6 +577,8 @@
       "nameAr": "Name (Arabic, optional)",
       "unit": "Unit",
       "unitPlaceholder": "e.g. EA, KG, M",
+      "unitCode": "Standard unit (ZATCA)",
+      "unitCodePlaceholder": "Select UN/ECE code",
       "reorderPoint": "Reorder point",
       "status": "Status",
       "active": "Active",
@@ -951,6 +962,8 @@
       "generic": "Could not save this document.",
       "badRequest": "Check that Settings > Account mapping has the receivable, revenue, VAT and cost-of-goods accounts set, and that the date is in an open period.",
       "INSUFFICIENT_STOCK": "Not enough stock in that warehouse for this line.",
+      "INSUFFICIENT_STOCK_WARN": "One or more lines may have insufficient stock. Replenish the selected warehouse or reduce the quantity before invoicing.",
+      "BELOW_COST": "Unit price is below the weighted-average cost. Raise the price or use a credit note to adjust.",
       "OVER_INVOICED": "More than the quantity still to invoice on the order.",
       "CUSTOMER_MISMATCH": "An order line belongs to a different customer.",
       "WAREHOUSE_REQUIRED": "A line with an item needs a warehouse.",
@@ -1054,7 +1067,9 @@
       "debitDate": "Debit note date",
       "postDebitNote": "Post debit note",
       "openOriginal": "Open the invoice",
-      "downloadPdf": "Download PDF"
+      "downloadPdf": "Download PDF",
+      "customerDetails": "Buyer details",
+      "customerAddress": "Buyer address"
     },
     "item": "Item (or service)"
   },
@@ -1149,6 +1164,12 @@
     "cashAccount": "Cash / bank account",
     "expenseAccount": "Expense account",
     "pickExpenseAccount": "Choose the expense account",
+    "lines": "Lines",
+    "addLine": "Add line",
+    "total": "Total",
+    "costCenter": "Cost center",
+    "costCenterPlaceholder": "Project / dept / cost center",
+    "lineDescriptionPlaceholder": "Line description (optional)",
     "description": "Description",
     "errors": {
       "CASH_ACCOUNT_NOT_FOUND": "The cash or bank account was not found.",
@@ -1156,6 +1177,7 @@
       "EXPENSE_ACCOUNT_NOT_FOUND": "The expense account was not found.",
       "EXPENSE_ACCOUNT_INVALID": "Choose a postable expense account.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+      "LINES_EMPTY": "Add at least one expense line.",
       "generic": "Something went wrong. Please try again."
     }
   },
@@ -1386,7 +1408,8 @@
     "pictureNone": "No picture yet.",
     "uploadPicture": "Upload picture",
     "replacePicture": "Replace",
-    "removePicture": "Remove"
+    "removePicture": "Remove",
+    "imageLoadError": "The image could not be loaded. Please retry."
   },
   "company": {
     "title": "Company",
@@ -2124,7 +2147,31 @@
       "downloadSigned": "Download signed XML",
       "downloadCleared": "Download cleared XML",
       "resubmit": "Resubmit",
-      "resubmitError": "Could not request a resubmission."
+      "resubmitError": "Could not request a resubmission.",
+      "egs": "Issuing unit",
+      "uuid": "Invoice UUID",
+      "icv": "Invoice counter (ICV)",
+      "attempts": "Submission attempts",
+      "submittedAt": "Last submitted",
+      "clearedAt": "Cleared at",
+      "reportedAt": "Reported at",
+      "completedAt": "Completed at",
+      "history": "Attempt history",
+      "noHistory": "No detailed attempts have been recorded. History is retained for submissions made after this update.",
+      "qr": "Invoice QR code",
+      "qrSource": {
+        "SIGNED": "QR from the signed simplified invoice",
+        "CLEARED": "QR returned with the cleared invoice"
+      },
+      "downloadQr": "Download QR (PNG)",
+      "dataPreviewTitle": "Invoice data test QR",
+      "dataPreviewNotice": "Data-reading test QR only — not ZATCA approved. It has no digital signature and does not prove invoice acceptance.",
+      "dataPreviewFields": "Contains only seller name, VAT number, timestamp, total and VAT total.",
+      "qrUnavailable": "No usable QR is available yet. Standard invoices need a matching QR from the clearance response.",
+      "scanHint": "Use a ZATCA-compatible reader. Reading a QR is separate from checking acceptance; the QR has no explicit Sandbox label.",
+      "awaiting": "This invoice is linked to an EGS unit and is awaiting processing. If it remains here, check the unit and retry.",
+      "notLinked": "This invoice is not linked to an issuing unit. No ZATCA submission is available.",
+      "downloadError": "The XML download failed. Please retry."
     },
     "invoiceStatus": {
       "PENDING": "Pending",
@@ -2134,7 +2181,32 @@
       "WARNING": "Cleared with warnings",
       "REJECTED": "Rejected",
       "FAILED": "Failed",
-      "FAILED_RETRYABLE": "Failed, will retry"
+      "FAILED_RETRYABLE": "Needs retry / review",
+      "NOT_SUBMITTED": "Awaiting processing",
+      "ACCEPTED_WITH_WARNINGS": "Accepted with warnings"
+    },
+    "testNotice": "TEST DOCUMENT — not a production tax invoice.",
+    "environmentHint": {
+      "sandbox": "Sandbox uses sample API responses. A successful response or readable QR does not prove acceptance by ZATCA.",
+      "simulation": "Simulation validates test documents before production. Onboarding requires a taxpayer Fatoora account and a Simulation OTP.",
+      "production": "Production sends actual fiscal documents to ZATCA. Use the production account and OTP."
+    },
+    "invoices": {
+      "title": "Invoice submissions",
+      "hint": "Track sales invoices, credit notes and debit notes issued by this system. Open a document to download its XML and QR. This list does not import historical invoices from ZATCA.",
+      "search": "Search number or customer",
+      "all": "All",
+      "status": "Status",
+      "environment": "Environment",
+      "documentType": "Document type",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "attemptStage": {
+      "BEFORE_SIGNING": "Validation before signing",
+      "AFTER_SIGNING": "Validation after signing",
+      "CLEARANCE": "Clearance",
+      "REPORTING": "Reporting"
     }
   },
   "setup": {
@@ -2317,7 +2389,7 @@
     "items": "items",
     "parties": "parties",
     "hint": "Upload XLSX (first worksheet) or CSV. Maximum 200 rows and 2 MB. Download the column template; preview does not save anything. Correct errors in your file and upload it again.",
-    "kindsHint": "Party kinds: COMPANY, PERSON, OTHER. Import employees through HR. Keep phone numbers and identifiers as text in Excel to preserve leading zeros.",
+    "kindsHint": "Party kinds: CUSTOMER, SUPPLIER, CUSTOMER_SUPPLIER (both), COMPANY, PERSON, OTHER. Import employees through HR. Keep phone numbers and identifiers as text in Excel to preserve leading zeros.",
     "template": "Download column template",
     "choose": "Choose file and preview",
     "row": "File row",

@@ -7,6 +7,7 @@ import {
   SmtpEmailTransport,
   ResendEmailTransport,
   createEmailTransportFromEnv,
+  withInlineImages,
 } from "./email-transport.js";
 
 function silentLogger(): pino.Logger {
@@ -33,6 +34,23 @@ describe("LoggingEmailTransport", () => {
 });
 
 describe("ResendEmailTransport", () => {
+  it("embeds the actual logo as a CID attachment instead of an unsupported data URI", async () => {
+    let body: Record<string, unknown> = {};
+    const request: typeof fetch = (_url, init) => {
+      if (typeof init?.body !== "string") throw new Error("Expected a JSON request body");
+      body = JSON.parse(init.body) as Record<string, unknown>;
+      return Promise.resolve(new Response(JSON.stringify({ id: "preview-only" }), { status: 200 }));
+    };
+    const png = Buffer.from("synthetic-logo");
+    const message = { to: "buyer@example.test", subject: "Test", text: "Test", html: `<img src="data:image/png;base64,${png.toString("base64")}"/>` };
+    const prepared = withInlineImages(message);
+    await new ResendEmailTransport("test", "sales@example.test", request).send(message);
+    const image = prepared.attachments![0]!;
+    expect(body.html).toContain(`src="cid:${image.contentId}"`);
+    expect(body.html).not.toContain("data:image");
+    expect(body.attachments).toEqual([{ filename: "company-logo.png", content: png.toString("base64"), content_type: "image/png", content_id: image.contentId }]);
+    expect(withInlineImages(prepared)).toEqual(prepared);
+  });
   it.each([["sent", "ACCEPTED"], ["delivered", "DELIVERED"], ["bounced", "BOUNCED"], ["delivery_delayed", "DELAYED"], ["complained", "COMPLAINED"]])("maps delivery observation %s independently of send acceptance", async (event, expected) => {
     const transport = new ResendEmailTransport("test", "sender@example.test", () => Promise.resolve(new Response(JSON.stringify({ last_event: event }), { status: 200 })));
     expect(await transport.deliveryStatus("id")).toBe(expected);
@@ -67,6 +85,24 @@ describe("ResendEmailTransport", () => {
 });
 
 describe("SmtpEmailTransport", () => {
+  it("composes inline image MIME content without sending a message", async () => {
+    const transporter = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" });
+    let mime = "";
+    const original = transporter.sendMail.bind(transporter);
+    transporter.sendMail = async (mail: Parameters<typeof original>[0]) => {
+      const result = await original(mail);
+      if (!Buffer.isBuffer(result.message)) throw new Error("Expected a buffered MIME message");
+      mime = result.message.toString();
+      return result;
+    };
+    await new SmtpEmailTransport(transporter, "sender@example.test").send({ to: "buyer@example.test", subject: "Logo", text: "Test",
+      html: '<img src="data:image/png;base64,cGljdHVyZQ=="/>',
+    });
+    expect(mime).toContain("multipart/related");
+    expect(mime).toContain("Content-ID: <image-");
+    expect(mime).toContain("Content-Disposition: inline");
+    expect(mime).not.toContain("data:image/png");
+  });
   it("hands the message to the transporter with the configured from address", async () => {
     const transporter = nodemailer.createTransport({ jsonTransport: true });
     const transport = new SmtpEmailTransport(transporter, "no-reply@markaz.test");

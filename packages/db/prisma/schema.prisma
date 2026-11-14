@@ -396,7 +396,8 @@ model Account {
   hrPaymentsFrom                HrPayment[]              @relation("HrPaymentCash")
   hrPaymentItems                HrPaymentItem[]          @relation("HrPaymentItemAccount")
   cashExpensesFrom              CashExpense[]            @relation("CashExpenseCash")
-  cashExpenseLines              CashExpense[]            @relation("CashExpenseExpenseAccount")
+  legacyCashExpenses            CashExpense[]            @relation("CashExpenseLegacyExpense")
+  cashExpenseLines              CashExpenseLine[]        @relation("CashExpenseLineExpenseAccount")
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -414,7 +415,7 @@ model Party {
   ref                    String
   name                   String
   nameAr                 String?  @map("name_ar")
-  kind                   String // COMPANY | PERSON | EMPLOYEE | OTHER
+  kind                   String // SUPPLIER | CUSTOMER | CUSTOMER_SUPPLIER | COMPANY | PERSON | EMPLOYEE | OTHER
   phone                  String?
   email                  String?
   // M7 ZATCA buyer fields, needed on a standard (B2B) invoice so the customer can deduct input VAT
@@ -708,6 +709,8 @@ model Item {
   name         String
   nameAr       String?  @map("name_ar")
   unit         String
+  // UN/ECE Recommendation 20 unit code for ZATCA (e.g. "PCE", "KGM"). Null = mapper uses "PCE".
+  unitCode     String?  @map("unit_code")
   // Below this on-hand quantity, the item shows on the reorder list (docs/14 M4). No
   // per-warehouse override in M4 — one point per item, company-wide.
   reorderPoint Decimal  @default(0) @map("reorder_point") @db.Decimal(19, 4)
@@ -1107,7 +1110,10 @@ model TaxCode {
   nameAr    String?  @map("name_ar")
   // Percentage, e.g. 15.0000 for 15%.
   rate      Decimal  @db.Decimal(7, 4)
-  treatment String // STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE
+  treatment            String  // STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE
+  // Required by ZATCA XML builder when treatment is ZERO_RATED or EXEMPT.
+  exemptionReasonCode  String?  @map("exemption_reason_code")
+  exemptionReason      String?  @map("exemption_reason")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1387,8 +1393,12 @@ model SalesInvoice {
   salesOrderId      String?   @map("sales_order_id")
   // CREDIT_NOTE / DEBIT_NOTE only: the invoice it reduces or bills against.
   originalInvoiceId String?   @map("original_invoice_id")
-  invoiceDate       DateTime  @map("invoice_date") @db.Date
+  // Full TIMESTAMPTZ: date portion = document date (user-selected); time portion = wall-clock
+  // issue time captured at posting — required by ZATCA XML issueTime without a separate column.
+  invoiceDate       DateTime  @map("invoice_date")
   dueDate           DateTime? @map("due_date") @db.Date
+  // UNCL4461: 10=cash, 42=bank transfer (default), 48=card.
+  paymentMeansCode  String    @default("42") @map("payment_means_code")
   currency          String
   totalNet          Decimal   @map("total_net") @db.Decimal(19, 4)
   totalTax          Decimal   @map("total_tax") @db.Decimal(19, 4)
@@ -1533,8 +1543,8 @@ model CashExpense {
   currency         String
   // The petty-cash or bank account the money came out of.
   cashAccountId    String   @map("cash_account_id")
-  // The expense account it was spent on.
-  expenseAccountId String   @map("expense_account_id")
+  // Retained during the line-items rollout. Null when several expense accounts are used.
+  expenseAccountId String?  @map("expense_account_id")
   description      String?
   reference        String?
   journalEntryId   String   @map("journal_entry_id")
@@ -1544,12 +1554,28 @@ model CashExpense {
 
   company        Company      @relation(fields: [companyId], references: [id])
   cashAccount    Account      @relation("CashExpenseCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
-  expenseAccount Account      @relation("CashExpenseExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  expenseAccount Account?     @relation("CashExpenseLegacyExpense", fields: [expenseAccountId], references: [id], onDelete: Restrict)
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  lines          CashExpenseLine[]
 
   @@unique([companyId, number])
   @@index([companyId, expenseDate])
   @@map("cash_expenses")
+}
+
+model CashExpenseLine {
+  id               String   @id
+  cashExpenseId    String   @map("cash_expense_id")
+  expenseAccountId String   @map("expense_account_id")
+  amount           Decimal  @db.Decimal(19, 4)
+  costCenterRef    String?  @map("cost_center_ref")
+  description      String?
+
+  cashExpense    CashExpense @relation(fields: [cashExpenseId], references: [id], onDelete: Cascade)
+  expenseAccount Account     @relation("CashExpenseLineExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+
+  @@index([cashExpenseId])
+  @@map("cash_expense_lines")
 }
 
 // Scanned bills, receipts and supporting documents linked to a business record. Insert-only for the runtime
@@ -2058,12 +2084,30 @@ model ZatcaInvoiceRecord {
 
   egsUnit      EgsUnit      @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
   salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+    history      ZatcaSubmissionAttempt[]
 
   @@unique([egsUnitId, icv])
   @@index([companyId])
   @@index([egsUnitId])
   @@index([companyId, status])
   @@map("zatca_invoice_records")
+}
+
+model ZatcaSubmissionAttempt {
+  id          String   @id
+  companyId   String   @map("company_id")
+  recordId    String   @map("record_id")
+  stage       String
+  status      String
+  startedAt   DateTime @map("started_at")
+  completedAt DateTime @map("completed_at")
+  warnings    Json
+  errors      Json
+  httpStatus  Int?     @map("http_status")
+  record      ZatcaInvoiceRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, recordId, startedAt])
+  @@map("zatca_submission_attempts")
 }
 
 // Outgoing quotation correspondence. Provider acceptance is distinct from delivery.

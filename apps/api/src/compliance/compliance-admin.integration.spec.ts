@@ -3,6 +3,7 @@
 // calls it, proving the HTTP-adjacent layer (status transitions, audit, tenant isolation, secret
 // handling) on top of what packages/compliance/zatca-sa/src/onboarding/onboarding.service.spec.ts
 // already proves about the onboarding orchestration itself.
+import "reflect-metadata";
 import { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import type { AuditEvent, IAuditLogger } from "@erp/core";

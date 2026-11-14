@@ -19,7 +19,7 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { supplierInvoiceToPdfHtml } from "./exports/supplier-invoice-export.js";
@@ -48,7 +48,7 @@ function toInput(dto: SupplierInvoiceDto): SupplierInvoiceInput {
 
 @Controller("v1")
 export class InvoicingController {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly invoices: SupplierInvoiceService,
     private readonly taxCodes: TaxCodeService,
     private readonly prisma: PrismaService,
@@ -207,7 +207,7 @@ export class InvoicingController {
     const building = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
     const sellerAddress = [building, company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(Boolean).join(sep).trim() || null;
     const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
-    const pdf = await renderHtmlToPdf(await supplierInvoiceToPdfHtml({ invoice, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    const pdf = await this.documents.render(actor.companyId, language, await supplierInvoiceToPdfHtml({ supplierDetails: await this.documents.party(actor.companyId, invoice.supplierId), invoice, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${invoice.number}.pdf"`);
     res.send(pdf);

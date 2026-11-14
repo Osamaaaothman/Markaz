@@ -36,6 +36,7 @@ type Mode = "quotation" | "order" | "invoice";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 const KNOWN_ERRORS = new Set([
   "INSUFFICIENT_STOCK",
+  "BELOW_COST",
   "OVER_INVOICED",
   "CUSTOMER_MISMATCH",
   "WAREHOUSE_REQUIRED",
@@ -151,7 +152,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const isBlankLine = (l: LineState): boolean => l.salesOrderLineId === "" && l.itemId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
   const meaningfulLines = lines.filter((l) => !isBlankLine(l));
   const availability = stockAvailability(lines, stockLevels);
-  const stockBlocked = mode === "invoice" && lines.some((line, index) => line.itemId && (availability[index]?.onHand === null || availability[index]?.exceeded));
+  const stockWarning = mode === "invoice" && lines.some((line, index) => line.itemId && (availability[index]?.onHand === null || availability[index]?.exceeded));
 
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) &&
@@ -161,7 +162,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     (l.itemId !== "" || l.description.trim() !== "") &&
     (mode !== "invoice" || l.itemId === "" || l.warehouseId !== "");
   const egsUnitChoiceNeeded = mode === "invoice" && activeEgsUnits.length > 1;
-  const valid = !stockBlocked && customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
+  const valid = customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
 
   const totals = meaningfulLines.reduce(
     (sum, l) => {
@@ -205,7 +206,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             { label: t("created.net"), value: formatMoney(totals.net.toDecimalString(4), currency), ltr: true },
             { label: t("created.tax"), value: formatMoney(totals.tax.toDecimalString(4), currency), ltr: true },
             { label: t("created.gross"), value: formatMoney(gross.toDecimalString(4), currency), ltr: true },
-            { label: t("created.inWords"), value: tafqeetAmount(gross.toDecimalString(4), currency) },
+            { label: t("created.inWords"), value: tafqeetAmount(gross.toDecimalString(4), currency, i18n.language) },
             { label: t("created.lines"), value: String(meaningfulLines.length) },
           ].filter((row) => row.label !== ""),
         },
@@ -240,7 +241,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
         <div className="erp-form__row">
           <div className="erp-field">
             <label htmlFor="sdCustomer">{t("sales.customer")}</label>
-            <PartyPicker excludeEmployees inputId="sdCustomer" value={customerId || null} onChange={(party) => !orderId && setCustomerId(party?.id ?? "")} />
+            <PartyPicker excludeEmployees kind="CUSTOMER" inputId="sdCustomer" value={customerId || null} onChange={(party) => !orderId && setCustomerId(party?.id ?? "")} />
           </div>
           <div className="erp-field">
             <label htmlFor="sdDate">{t(`${prefix}.date`)}</label>
@@ -259,7 +260,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                 inputId="sdEgsUnit"
                 value={egsUnitId || null}
                 onChange={(e) => setEgsUnitId((e.value as string | null) ?? "")}
-                options={activeEgsUnits.map((u) => ({ label: u.branchName ? `${u.name} — ${u.branchName}` : u.name, value: u.id }))}
+                options={activeEgsUnits.map((u) => ({ label: `${u.name}${u.branchName ? ` — ${u.branchName}` : ""} (${t(`compliance.environment.${u.environment}`)})`, value: u.id }))}
                 placeholder={t("sales.invoices.egsUnitPlaceholder")}
                 className={egsUnitId === "" ? "p-invalid" : ""}
               />
@@ -340,6 +341,10 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             {t("purchasing.invoices.gross")}: <strong>{formatMoney(totals.net.add(totals.tax).toDecimalString(4), currency)}</strong>
           </span>
         </div>
+
+        {stockWarning ? (
+          <p className="erp-auth-card__warning">{t("sales.errors.INSUFFICIENT_STOCK_WARN")}</p>
+        ) : null}
 
         {errKey ? (
           <p className="erp-auth-card__error">

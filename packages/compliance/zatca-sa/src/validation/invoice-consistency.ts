@@ -95,7 +95,8 @@ function checkHeader(root: Element, doc: Document, c: IssueCollector): void {
   const issueDate = childText(root, "cbc", "IssueDate");
   if (!issueDate || !isRealDate(issueDate)) c.error("ISSUE_DATE_INVALID", `cbc:IssueDate must be a real YYYY-MM-DD date, got "${issueDate ?? ""}"`);
   const issueTime = childText(root, "cbc", "IssueTime");
-  if (!issueTime || !/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(issueTime)) c.error("ISSUE_TIME_INVALID", `cbc:IssueTime must be HH:mm:ss, got "${issueTime ?? ""}"`);
+  // BR-KSA-70: local AST uses HH:mm:ss; UTC uses HH:mm:ssZ.
+  if (!issueTime || !/^([01]\d|2[0-3]):[0-5]\d:[0-5]\dZ?$/.test(issueTime)) c.error("ISSUE_TIME_INVALID", `cbc:IssueTime must be HH:mm:ss or HH:mm:ssZ, got "${issueTime ?? ""}"`);
 
   if (!childText(root, "cbc", "ID")) c.error("ID_MISSING", "cbc:ID (the document number) is missing");
 

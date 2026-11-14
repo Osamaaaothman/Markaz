@@ -5,6 +5,26 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Invoice, compliance and document release (2026-11-14)
+- Wire sales invoices and credit/debit notes to the compliance pack, with submission
+  evidence, retry history, XML downloads and printable QR status. Sandbox data-only
+  QR previews remain explicitly labelled; real onboarding still needs portal access.
+- Unify company letterheads, buyer/supplier details, PDF pagination, email branding
+  and inline logos. Fix stored-image content types and add English amount wording.
+- Add customer/supplier/dual-role parties and multi-line cash expenses.
+- Preserve insufficient-stock rejection; include the entire report cutoff date in
+  sales dashboard totals, receivables and party statements after adding issuance time.
+- Seven migrations: `20261114090000_zatca_submission_history`,
+  `20261114100000_zatca_invoice_wiring`, `20261114110000_sales_invoice_datetime`,
+  `20261114120000_cash_expense_lines`, `20261114140000_party_commercial_kinds`,
+  `20261114150000_party_dual_commercial_role`, `20261114160000_party_ledger_parent_keys`.
+  The expense rollout retains the legacy account column and synchronizes old inserts.
+  Historical invoice dates migrate explicitly at UTC midnight.
+- Rollout: back up and restore-check the database, apply migrations with the schema
+  owner, then deploy API, worker and web from the same merge commit. Keep the expanded
+  schema during rollback. Older releases cannot represent multi-account expenses;
+  disable new expense entry if reverting application code after such documents exist.
+
 ### Reviewed operations and on-demand screens (2026-11-12)
 - Load feature screens and the Excel importer on demand.
 - Add item/party XLSX and CSV import previews, colored row validation and

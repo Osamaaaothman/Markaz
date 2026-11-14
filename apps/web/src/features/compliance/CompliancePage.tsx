@@ -17,8 +17,10 @@ import {
   type EgsUnitView,
   type ExpiryState,
   type SellerProfileInput,
+  type ZatcaEnvironment,
 } from "./use-compliance";
 import { EgsOnboardingDialog } from "./EgsOnboardingDialog";
+import { ZatcaInvoicesTable } from "./ZatcaInvoicesTable";
 
 const CR_SCHEMES = ["CRN", "MOM", "MLS", "SAG", "OTH", "NAT", "GCC", "IQA", "PAS", "CCN", "CBI"];
 
@@ -59,6 +61,8 @@ export function CompliancePage(): React.JSX.Element {
       </div>
 
       <SellerProfileCard profile={data.seller} />
+      {data.environment !== "production" ? <p className="compliance-test-notice">{t("compliance.testNotice")} {t(`compliance.environmentHint.${data.environment}`)}</p> : null}
+      <ZatcaInvoicesTable />
 
       <section className="erp-card">
         <div className="erp-card__header">
@@ -69,13 +73,14 @@ export function CompliancePage(): React.JSX.Element {
         <DataGrid value={[...data.egsUnits]} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("compliance.egsUnits.empty")} selectionMode="single" onRowClick={(e) => setActiveEgsId((e.data as EgsUnitView).id)}>
           <Column header={t("compliance.egsUnits.name")} body={(r: EgsUnitView) => r.name} />
           <Column header={t("compliance.egsUnits.branch")} body={(r: EgsUnitView) => r.branchName ?? "—"} />
+          <Column header={t("compliance.invoices.environment")} body={(r: EgsUnitView) => <Tag value={t(`compliance.environment.${r.environment}`)} severity={r.environment === "production" ? "success" : "warning"} />} />
           <Column header={t("compliance.egsUnits.status")} body={(r: EgsUnitView) => <Tag value={t(`compliance.egsStatus.${r.status}`)} severity={r.status === "ACTIVE" ? "success" : "secondary"} />} />
           <Column header={t("compliance.egsUnits.certificate")} body={(r: EgsUnitView) => (r.expiry ? <Tag value={t(`compliance.expiry.${r.expiry}`, { days: r.daysUntilExpiry })} severity={expirySeverity(r.expiry)} /> : "—")} />
           <Column header="" style={{ width: "8rem" }} body={(r: EgsUnitView) => <Button type="button" label={t("compliance.egsUnits.manage")} text onClick={() => setActiveEgsId(r.id)} />} />
         </DataGrid>
       </section>
 
-      <CreateEgsUnitDialog visible={createOpen} onHide={() => setCreateOpen(false)} />
+      {createOpen ? <CreateEgsUnitDialog visible={true} onHide={() => setCreateOpen(false)} defaultEnvironment={data.environment} allowedEnvironments={data.allowedEnvironments} /> : null}
       {activeEgsId ? <EgsOnboardingDialog egsUnitId={activeEgsId} visible={true} onHide={() => setActiveEgsId(null)} /> : null}
     </div>
   );
@@ -190,19 +195,25 @@ function SellerProfileCard({ profile }: { readonly profile: NonNullable<ReturnTy
   );
 }
 
-function CreateEgsUnitDialog({ visible, onHide }: { readonly visible: boolean; readonly onHide: () => void }): React.JSX.Element {
+function CreateEgsUnitDialog({ visible, onHide, defaultEnvironment, allowedEnvironments }: { readonly visible: boolean; readonly onHide: () => void; readonly defaultEnvironment: ZatcaEnvironment; readonly allowedEnvironments: readonly ZatcaEnvironment[] }): React.JSX.Element {
   const { t } = useTranslation();
   const create = useCreateEgsUnit();
   const [name, setName] = useState("");
   const [branchName, setBranchName] = useState("");
   const [businessCategory, setBusinessCategory] = useState("");
   const [invoiceTypes, setInvoiceTypes] = useState("1100");
+  const [environment, setEnvironment] = useState<ZatcaEnvironment>(defaultEnvironment);
 
   const valid = name.trim() !== "" && businessCategory.trim() !== "" && /^[01]{4}$/.test(invoiceTypes);
 
   return (
     <Dialog header={t("compliance.egsUnits.add")} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(32rem, 96vw)" }}>
       <div className="erp-form">
+        <div className="erp-field">
+          <label htmlFor="egs-environment">{t("compliance.invoices.environment")}</label>
+          <Dropdown inputId="egs-environment" value={environment} options={allowedEnvironments.map((value) => ({ value, label: t(`compliance.environment.${value}`) }))} onChange={(event) => setEnvironment(event.value as ZatcaEnvironment)} />
+          <p className="erp-field__hint">{t(`compliance.environmentHint.${environment}`)}</p>
+        </div>
         <div className="erp-field">
           <label htmlFor="egs-name">{t("compliance.egsUnits.name")}</label>
           <InputText id="egs-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -238,7 +249,7 @@ function CreateEgsUnitDialog({ visible, onHide }: { readonly visible: boolean; r
             loading={create.isPending}
             onClick={() =>
               create.mutate(
-                { name: name.trim(), businessCategory: businessCategory.trim(), invoiceTypes, ...(branchName.trim() ? { branchName: branchName.trim() } : {}) },
+                { name: name.trim(), businessCategory: businessCategory.trim(), invoiceTypes, environment, ...(branchName.trim() ? { branchName: branchName.trim() } : {}) },
                 { onSuccess: () => { onHide(); setName(""); setBranchName(""); setBusinessCategory(""); setInvoiceTypes("1100"); } },
               )
             }

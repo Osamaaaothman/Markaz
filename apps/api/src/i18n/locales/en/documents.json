@@ -356,5 +356,30 @@
       "sales_invoice": "Sales invoice",
       "goods_return": "Purchase return"
     }
+  },
+  "compliance": {
+    "dataPreviewNotice": "Data-reading test QR only — not ZATCA approved. Contains invoice data without a digital signature and does not prove acceptance.",
+    "testNotice": "TEST DOCUMENT — not a production tax invoice.",
+    "environment": {
+      "sandbox": "Sandbox",
+      "simulation": "Simulation",
+      "production": "Production"
+    },
+    "status": "Status",
+    "statuses": {
+      "PENDING": "Pending",
+      "SUBMITTING": "Submitting",
+      "REPORTED": "Reported",
+      "CLEARED": "Cleared",
+      "WARNING": "Cleared with warnings",
+      "REJECTED": "Rejected",
+      "FAILED": "Failed",
+      "FAILED_RETRYABLE": "Needs retry / review",
+      "NOT_SUBMITTED": "Awaiting processing",
+      "ACCEPTED_WITH_WARNINGS": "Accepted with warnings"
+    },
+    "qr": "Invoice QR code",
+    "qrUnavailable": "No usable QR is available yet. Standard invoices need a matching QR from the clearance response.",
+    "xmlNotice": "This PDF is a visual copy. Retain the original electronic XML from the invoice details."
   }
 }

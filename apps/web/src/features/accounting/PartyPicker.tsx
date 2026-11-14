@@ -4,7 +4,7 @@ import { Dropdown } from "primereact/dropdown";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { localizedName } from "../../shared/lib/localized-name";
 import { useDebouncedValue } from "../../shared/lib/use-debounced-value";
-import { usePartySearch } from "../parties/use-parties";
+import { usePartySearch, type PartyKind } from "../parties/use-parties";
 import { partyPickerOptions } from "../parties/party-picker-options";
 
 interface PartyLike {
@@ -22,6 +22,7 @@ export function PartyPicker({
   value,
   current,
   excludeEmployees = false,
+  kind,
   onChange,
 }: {
   inputId: string;
@@ -31,13 +32,15 @@ export function PartyPicker({
   current?: PartyLike | null;
   // Customer/supplier fields exclude employees; account links keep all kinds.
   excludeEmployees?: boolean;
+  // When provided, only parties of this kind are shown.
+  kind?: PartyKind;
   onChange: (party: PartyLike | null) => void;
 }): React.JSX.Element | null {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const [typed, setTyped] = useState("");
   const query = useDebouncedValue(typed);
-  const { data: results } = usePartySearch(query, excludeEmployees);
+  const { data: results } = usePartySearch(query, excludeEmployees, kind);
 
   const parties = useMemo(
     () => partyPickerOptions<PartyLike>(results, current, excludeEmployees),

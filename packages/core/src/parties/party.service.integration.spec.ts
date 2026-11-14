@@ -98,4 +98,50 @@ describeIfDb("PartyService — real database", () => {
     expect((await service.list(companyId, { limit: "100" })).data).toHaveLength(58);
     expect((await service.list(companyId, { kind: "EMPLOYEE", excludeEmployees: "true" })).data).toEqual([]);
   });
+
+  it("keeps one dual-role party visible in both commercial filters and preserves its identity on reclassification", async () => {
+    const companyId = newId();
+    await prisma.company.create({ data: { id: companyId, name: "Dual roles", defaultCurrency: "SAR" } });
+    const actor = { ...actorA, companyId };
+    const customer = await service.create({ name: "A customer", kind: "CUSTOMER" }, actor, newId());
+    const supplier = await service.create({ name: "B supplier", kind: "SUPPLIER" }, actor, newId());
+    const dual = await service.create({ name: "C dual", kind: "CUSTOMER_SUPPLIER" }, actor, newId());
+    expect(dual.accountCodes).toEqual([]);
+    const legacy = await service.create({ name: "D legacy", kind: "COMPANY" }, actor, newId());
+    expect(await service.update(legacy.id, { kind: "CUSTOMER_SUPPLIER" }, actor, newId()))
+      .toMatchObject({ id: legacy.id, ref: legacy.ref, kind: "CUSTOMER_SUPPLIER" });
+
+    expect((await service.list(companyId, { kind: "CUSTOMER" })).data.map((p) => p.id)).toEqual([customer.id, dual.id, legacy.id]);
+    expect((await service.list(companyId, { kind: "SUPPLIER" })).data.map((p) => p.id)).toEqual([supplier.id, dual.id, legacy.id]);
+    const first = await service.list(companyId, { kind: "CUSTOMER", limit: "2" });
+    const next = await service.list(companyId, { kind: "CUSTOMER", limit: "2", cursor: first.pageInfo.nextCursor! });
+    expect(next.data.map((p) => p.id)).toEqual([legacy.id]);
+    expect((await service.list(companyId, { kind: "SUPPLIER", q: dual.ref })).data.map((p) => p.id)).toEqual([dual.id]);
+    expect((await service.list(companyB, { kind: "SUPPLIER", q: dual.ref })).data).toEqual([]);
+    expect(await service.update(dual.id, { kind: "OTHER" }, actorB, newId())).toBeNull();
+    expect(await prisma.party.count({ where: { companyId } })).toBe(4);
+    await service.update(dual.id, { isActive: false }, actor, newId());
+    expect((await service.list(companyId, { kind: "CUSTOMER_SUPPLIER" })).data.map((p) => p.id)).toEqual([legacy.id]);
+    expect((await service.list(companyId, { kind: "CUSTOMER_SUPPLIER", includeInactive: "true" })).data).toHaveLength(2);
+  });
+
+  it("provisions separate customer and supplier accounts for a new dual-role party when both folders are mapped", async () => {
+    const companyId = newId();
+    await prisma.company.create({ data: { id: companyId, name: "Dual ledgers", defaultCurrency: "SAR" } });
+    for (const [index, kind] of ["CUSTOMER", "SUPPLIER"].entries()) {
+      const id = newId();
+      await prisma.account.create({ data: {
+        id, companyId, ref: `PARENT-${index}`, code: `${index + 1}`, name: kind,
+        type: kind === "CUSTOMER" ? "ASSET" : "LIABILITY",
+        normalBalance: kind === "CUSTOMER" ? "DEBIT" : "CREDIT", isPostable: false,
+      } });
+      await prisma.accountMapping.create({ data: { id: newId(), companyId, key: `${kind}_LEDGER_PARENT`, accountId: id } });
+    }
+    const party = await service.create({ name: "Both", kind: "CUSTOMER_SUPPLIER" }, { ...actorA, companyId }, newId());
+    expect(party.accountCodes).toHaveLength(2);
+    expect(party.accountCode).toBe(party.accountCodes[0]);
+    const accounts = await prisma.account.findMany({ where: { companyId, partyId: party.id }, orderBy: { type: "asc" } });
+    expect(accounts.map((a) => a.type)).toEqual(["ASSET", "LIABILITY"]);
+    expect(new Set(accounts.map((a) => a.code)).size).toBe(2);
+  });
 });

@@ -1,5 +1,54 @@
 # ZATCA Phase 2 (Fatoora) — production go-live checklist
 
+## Current delivery status — 2026-11-14
+
+This update supersedes the historical implementation gaps below. It does **not** certify a production deployment.
+
+- Sales invoices, invoice-based sales returns (credit notes), and debit notes now feed the per-EGS submission queue. Purchase returns are outside this sales flow.
+- The mapper uses the unit's stored environment and its issued Production CSID for reporting/clearance in every environment, including the test Production CSID in developer Sandbox. Compliance credentials are only for onboarding. UTC invoice time and QR time match exactly, including `Z` (XML standard BR-KSA-70).
+- `/settings/zatca` has a tenant-scoped invoice list with number/customer search and status/environment/document-type filters. Open an invoice to inspect UUID, ICV, submission timestamps, warnings/errors, append-only completed attempt history, XML downloads, QR preview/download, and an authorized retry. New unprocessed linked invoices can also be queued manually.
+- Standard invoices display only the QR returned in a matching cleared XML. A canned or mismatched Sandbox document does not supply a usable QR for that invoice. Simplified invoices use their signed XML QR. Retry uses the identical saved XML, UUID, hash and submission route, even if source customer data or the certificate changes later.
+- When no signed/cleared QR artifact exists, Sandbox invoices can display a separately labeled **data-reading preview** in the screen, PNG download and PDF. It contains only TLV tags 1–5 (seller, VAT number, timestamp, gross total and VAT total), has no signature, and is never used in submission XML or stored as an official QR. Simulation and production never get this fallback. Missing or oversized fields suppress the preview; Arabic/English notices explicitly say it is not ZATCA approved. The submission status, errors and attempt history remain unchanged.
+- The generation chain advances atomically with verified signed XML before HTTP submission. Network/authentication failures preserve the document for retry without blocking the next invoice or reusing its ICV. The previous version's unadvanced signed tail is recovered from unchanged stored evidence; retrying older invoices never rewinds the chain. Regression tests cover HTTP 401/503, subsequent invoices and legacy-tail recovery.
+- Screen and printable PDF explicitly label Sandbox/Simulation documents as tests. A PDF is a visual copy, **not PDF/A-3**; retain/download the original XML separately. QR TLV does not have a Sandbox label; no promise is made about an external scanner's wording or trust verdict.
+- Completed attempts are retained from migration `20261114090000_zatca_submission_history` onward. Old attempts are not reconstructed. The runtime role can insert/read history but cannot update/delete it.
+- Workers discover newly active EGS units every 30 seconds and enforce queue-wide concurrency 1 across worker instances. Docker installs the Playwright Chromium headless shell for PDF rendering.
+- Local verification: all 156 pack tests (including the locally installed official SDK checks); 13 targeted API tests, including real database posting → mapping → signing → scripted clearance/reporting for all six invoice/note variants; six generated PDF QR payloads decoded back to their exact source payloads; Arabic/English browser checks of filtering, QR display, authenticated XML/PNG download, retry and its permission restriction. Final API/web builds and changed-file lint passed. Scripted responses are **not** evidence of ZATCA acceptance.
+- An existing sales test still expects insufficient stock to reject, while the pre-existing sales implementation allows factory-direct posting at zero stock cost. That unrelated policy was not changed. The same-day return date comparison was fixed and exercised in the six-document flow.
+- Docker API, worker and web were rebuilt and restarted locally; all three health checks passed. The Linux API container rendered all six synthetic PDFs, and every rendered QR decoded to its exact expected payload. The authenticated live UI passed Arabic/English checks at `http://localhost:8080/settings/zatca`, and the worker registered the active unit with Redis queue concurrency set to 1. This verifies local operation, not external acceptance.
+
+**Actual external validation still required:** the developer Sandbox unit is ACTIVE after its sample checks, but Sandbox can return canned successes. The owner confirmed no taxpayer portal account is currently available. A real Simulation run (account + Simulation OTP) and production onboarding remain unverified. Production credentials were not requested from the production environment and no production invoices were sent.
+
+The live local quotation-to-invoice exercise exposed two fixed defects: Sandbox submissions used
+the compliance authentication credential, and a transport failure left an occupied ICV behind.
+After those fixes, a newly generated simplified invoice correctly failed local signature verification:
+the Sandbox test Production CSID public key did not match the unit's generated private key.
+[ZATCA's support explanation](https://zatca1.discourse.group/t/completed-compliance-invoice-but-getting-on-production-csid/4357)
+confirms Sandbox certificates are static and recommends Simulation for actual integration.
+Signature verification remains enforced; an ACTIVE onboarding status is not proof that a signed
+invoice can be generated with those Sandbox credentials. No local test invoice is claimed accepted.
+
+Latest validation: the preceding full run passed 156 compliance-pack tests and 15 party/import
+database tests. The subsequent data-preview change passed all six QR tests and five API tests:
+four journeys (standard/simplified in Sandbox/Simulation, scripted authority, three document types
+each), plus preview isolation, unchanged failure evidence, PDF rendering and production exclusion.
+An owner-authorized local browser journey converted a quotation to a sales order and posted a
+demo invoice. Both downloaded Arabic/English PDFs were rendered and their QR payloads decoded to
+the exact on-screen five-field payload. API/web builds, changed-file lint and locale parity passed.
+Local runtime images reuse the existing
+tested Chromium/dependency layers plus the newly compiled application code; a full clean Docker
+build was interrupted during slow dependency downloads. Railway and remote Git branches were not changed.
+
+To try the UI locally: open Settings → ZATCA, check the active unit/environment, then issue a test sales invoice linked to that unit. A customer without a VAT number follows the simplified reporting route; a VAT-registered customer follows standard clearance. Use the invoice detail for QR/PDF/XML and status history. Creating a test invoice posts accounting entries: use an isolated test company/database. Our automated tests used a disposable database and did not post into the owner's company.
+
+Non-production installations allow new Sandbox or Simulation units; a production-configured installation allows production units. A unit's environment is immutable in the UI: onboarding a separate unit is required. Obtain the temporary OTP only when ready to run onboarding.
+
+Local rollout: the existing database was backed up before applying the pending repository migrations `20261112130000_quotation_email_attempts`, `20261114090000_zatca_submission_history`, and `20261114120000_cash_expense_lines`. This was a local update only; Railway was not changed. The ZATCA history migration is additive. To roll back this feature's application code, retain the history table and its evidence; do not delete submitted records or rewind an EGS chain. Apply migrations explicitly before starting the new API/worker on another installation.
+
+Primary references: [ZATCA XML implementation standard, BR-KSA-70](https://www.zatca.gov.sa/ar/E-Invoicing/SystemsDevelopers/Documents/20230519_ZATCA_Electronic_Invoice_XML_Implementation_Standard_%20vF.pdf), [ZATCA detailed guideline, QR after clearance](https://zatca.gov.sa/en/E-Invoicing/Introduction/Guidelines/Documents/E-Invoicing_Detailed__Guideline.pdf), [official Developer Portal explanation](https://zatca1.discourse.group/t/developer-portal/484), [Developer Portal manual: only a test Production CSID may submit Sandbox invoices and notes](https://www.zatca.gov.sa/en/E-Invoicing/SystemsDevelopers/ComplianceEnablementToolbox/Documents/Developer%20Portal%20User%20Manual.pdf).
+
+The remaining sections describe the earlier 2026-11-08 baseline and operational prerequisites; statements that mapping, QR display, worker wiring or local SDK execution are unbuilt are historical.
+
 Written at the end of Phase 7 (2026-11-08), after the admin API/UI shipped and two real correctness
 bugs were found and fixed by actually running this code against a real database and a real browser
 (not just reading it). This document is the honest state of what it takes to let a real customer's

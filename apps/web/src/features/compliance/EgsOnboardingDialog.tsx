@@ -55,6 +55,8 @@ export function EgsOnboardingDialog({ egsUnitId, visible, onHide }: { readonly e
   return (
     <Dialog header={t("compliance.onboarding.titleFor", { name: egs.name })} visible={visible} onHide={onHide} className="erp-dialog" modal style={{ width: "min(40rem, 96vw)" }}>
       <div className="erp-form">
+        <Tag value={t(`compliance.environment.${egs.environment}`)} severity={egs.environment === "production" ? "success" : "warning"} />
+        <p className={egs.environment === "production" ? "erp-field__hint" : "compliance-test-notice"}>{t(`compliance.environmentHint.${egs.environment}`)}</p>
         <p className="erp-field__hint">{t(`compliance.onboarding.hint.${status}`, { defaultValue: t("compliance.onboarding.hint.default") })}</p>
 
         {status === "NEW" || status === "CSR_GENERATED" ? (

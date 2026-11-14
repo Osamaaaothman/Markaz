@@ -61,6 +61,17 @@ export function buildQrBase64(fields: QrFields): string {
   return buildQrTlv(fields).toString("base64");
 }
 
+// Data-reading exercise only; never a signed artifact or part of submission XML.
+export function buildSandboxDataQrBase64(
+  environment: string,
+  fields: Pick<QrFields, "sellerName" | "vatNumber" | "timestamp" | "invoiceTotalWithVat" | "vatTotal">,
+): string | null {
+  if (environment !== "sandbox") return null;
+  const values = [fields.sellerName, fields.vatNumber, fields.timestamp, fields.invoiceTotalWithVat, fields.vatTotal];
+  if (values.some((value) => !value || Buffer.byteLength(value, "utf8") > 255)) return null;
+  return Buffer.concat(values.map((value, index) => textTlv(index + 1, value))).toString("base64");
+}
+
 // The inverse of buildQrTlv: splits a QR payload into its tag -> value map. Throws on a payload
 // that does not parse cleanly (a length running past the end, or a repeated tag), because a QR
 // that cannot be read back is exactly what a verifier has to flag.

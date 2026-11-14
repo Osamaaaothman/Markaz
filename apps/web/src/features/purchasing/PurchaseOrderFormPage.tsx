@@ -163,7 +163,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
               { label: t("created.warehouse"), value: warehouse ? localizedName(warehouse, i18n.language) : "" },
               { label: t("created.date"), value: toDateOnlyIsoString(values.orderDate), ltr: true },
               { label: t("created.total"), value: formatMoney(total.toDecimalString(4), currency), ltr: true },
-              { label: t("created.inWords"), value: tafqeetAmount(total.toDecimalString(4), currency) },
+              { label: t("created.inWords"), value: tafqeetAmount(total.toDecimalString(4), currency, i18n.language) },
               { label: t("created.lines"), value: String(values.lines.length) },
             ],
           });
@@ -200,7 +200,7 @@ export function PurchaseOrderFormPage(): React.JSX.Element {
             <Controller
               control={control}
               name="supplierId"
-              render={({ field }) => <PartyPicker excludeEmployees inputId="poSupplier" value={field.value || null} onChange={(party) => field.onChange(party?.id ?? "")} />}
+              render={({ field }) => <PartyPicker excludeEmployees kind="SUPPLIER" inputId="poSupplier" value={field.value || null} onChange={(party) => field.onChange(party?.id ?? "")} />}
             />
             {errors.supplierId ? <small className="erp-field__error">{t("validation.required")}</small> : null}
           </div>

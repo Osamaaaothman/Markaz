@@ -9,10 +9,11 @@
 // non-negotiable "never fabricate" extends to compliance-check documents too; this service only
 // knows how to sign and submit what it's given, same separation of concerns as
 // InvoiceSubmissionService.buildInvoiceInput in ../submission/).
-import { X509Certificate } from "node:crypto";
 import { newId } from "@erp/shared";
+import { validationMessages } from "../submission/validation-messages.js";
 import type { PrismaClient } from "@erp/db";
 import { encryptText, decryptText } from "../key-encryption.js";
+import { parseCertificate } from "../xml/cert-parser.js";
 import { toPem } from "../xml/signing.js";
 import { buildBareInvoiceXml } from "../xml/invoice-xml-builder.js";
 import { signInvoiceXml } from "../xml/xades-signature.js";
@@ -77,7 +78,7 @@ export class OnboardingService {
     const data = {
       csr: csrPem,
       privateKeyCiphertext: toBytesColumn(encryptText(privateKeyPem, this.encryptionKey)),
-      complianceRequestId: response.requestID,
+      complianceRequestId: String(response.requestID),
       complianceCsidCiphertext: toBytesColumn(encryptText(certificatePem, this.encryptionKey)),
       complianceSecretCiphertext: toBytesColumn(encryptText(response.secret, this.encryptionKey)),
       status: "COMPLIANCE_CSID_ISSUED",
@@ -92,7 +93,7 @@ export class OnboardingService {
     if (existing) {
       await this.prisma.egsCredential.update({ where: { id: existing.id }, data });
     }
-    return { egsCredentialId, complianceRequestId: response.requestID };
+    return { egsCredentialId, complianceRequestId: String(response.requestID) };
   }
 
   // Signs the given sample invoice with the compliance CSID issued by `startOnboarding` and
@@ -128,7 +129,7 @@ export class OnboardingService {
     };
     const result = await client.submitComplianceInvoice(credentials, body, params.acceptLanguage ?? "en");
     if (result.validationResults.errorMessages.length > 0 || result.clearanceStatus === "NOT_CLEARED" || result.reportingStatus === "NOT_REPORTED") {
-      throw new OnboardingError("COMPLIANCE_CHECK_FAILED", `Compliance check failed for ${params.sampleInvoice.documentType}/${params.sampleInvoice.subtype}: ${result.validationResults.errorMessages.join("; ")}`);
+      throw new OnboardingError("COMPLIANCE_CHECK_FAILED", `Compliance check failed for ${params.sampleInvoice.documentType}/${params.sampleInvoice.subtype}: ${validationMessages(result.validationResults.errorMessages).join("; ")}`);
     }
     return result;
   }
@@ -204,7 +205,7 @@ export class OnboardingService {
 }
 
 function certificateNotAfter(certificatePem: string): Date {
-  return new Date(new X509Certificate(certificatePem).validTo);
+  return new Date(parseCertificate(certificatePem).validTo);
 }
 
 // Current @types/node parameterizes `Buffer` over `ArrayBufferLike` (which includes
@@ -216,9 +217,9 @@ function toBytesColumn(value: Buffer): Uint8Array<ArrayBuffer> {
   return value as unknown as Uint8Array<ArrayBuffer>;
 }
 
-// ZATCA's Basic auth "username" is the raw base64 certificate body (the same value
-// `binarySecurityToken` carried in the onboarding response) — not the PEM-armored form stored
-// in EgsCredential, which exists for X509Certificate parsing and PCKS#10/XAdES use elsewhere.
+// Preserve the exact binarySecurityToken from the response for Basic auth. Its
+// encrypted storage uses PEM armor even when the token has an extra base64 layer;
+// parseCertificate unwraps that layer only for signing and expiry, never for auth.
 function certificateBodyBase64(certificatePem: string): string {
   return certificatePem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
 }

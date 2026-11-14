@@ -1,74 +1,98 @@
+import { useState } from "react";
+import "./compliance.css";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Tag } from "primereact/tag";
 import { apiClient } from "../../shared/api/client";
 import { downloadBlob } from "../../shared/lib/download-file";
+import { formatDateTime } from "../../shared/lib/format-date";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { usePermissions } from "../../shared/auth/use-permissions";
-import { useInvoiceRecord, useResubmitInvoice, type InvoiceRecordView } from "./use-compliance";
+import { useComplianceOverview, useInvoiceRecord, useInvoiceStatuses, useResubmitInvoice } from "./use-compliance";
 
 function statusSeverity(status: string): "success" | "warning" | "danger" | "info" | "secondary" {
   if (status === "CLEARED" || status === "REPORTED") return "success";
-  if (status === "FAILED_RETRYABLE" || status === "SUBMITTING") return "warning";
+  if (["FAILED_RETRYABLE", "SUBMITTING", "ACCEPTED_WITH_WARNINGS"].includes(status)) return "warning";
   if (status === "REJECTED" || status === "FAILED") return "danger";
-  if (status === "PENDING") return "info";
-  return "secondary";
+  return "info";
 }
 
-// Shown on a sales invoice's detail page. A 404 (no ZATCA record) is a normal state — ZATCA
-// submission is not wired to real invoices yet (docs/01-OPEN-DECISIONS.md section Z) — so this
-// renders nothing rather than an error, until that changes.
-export function ZatcaInvoicePanel({ salesInvoiceId, resubmitEnabled }: { readonly salesInvoiceId: string; readonly resubmitEnabled: boolean }): React.JSX.Element | null {
-  const { t } = useTranslation();
+export function ZatcaInvoicePanel({ salesInvoiceId }: { readonly salesInvoiceId: string }): React.JSX.Element | null {
+  const { t, i18n } = useTranslation();
   const { can } = usePermissions();
-  const { data: record, isError, isPending } = useInvoiceRecord(salesInvoiceId);
+  const { data: record, isError, isPending, refetch } = useInvoiceRecord(salesInvoiceId);
+  const overview = useComplianceOverview();
+  const statuses = useInvoiceStatuses(record === null ? [salesInvoiceId] : []);
   const resubmit = useResubmitInvoice();
-
-  if (!can("compliance:read") || isPending || isError || !record) return null;
-
-  // The XML endpoint needs the same Authorization header as every other API call, so it can't be a plain
-  // <a href>/window.open link (the browser would send no bearer token and get a 401) -- fetch the blob through
-  // the authenticated client instead, the same way every other download in this app works (shared/lib/download-file.ts).
+  const [downloadError, setDownloadError] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  if (!can("compliance:read")) return null;
+  const pendingStatus = statuses.data?.[salesInvoiceId];
+  const environment = record?.environment ?? pendingStatus?.environment;
+  const retryEnabled = overview.data?.capabilities.resubmit && (record?.canResubmit || (!record && pendingStatus));
+  const date = (value: string | null): string => value ? formatDateTime(value, i18n.language) : "—";
   const downloadXml = async (kind: "signed" | "cleared"): Promise<void> => {
-    const response = await apiClient.get<Blob>(`/v1/compliance/invoices/${salesInvoiceId}/xml`, { params: { kind }, responseType: "blob" });
-    downloadBlob(response.data, `${salesInvoiceId}-${kind}.xml`);
+    setDownloadError(false); setDownloading(true);
+    try {
+      const response = await apiClient.get<Blob>(`/v1/compliance/invoices/${salesInvoiceId}/xml`, { params: { kind }, responseType: "blob" });
+      downloadBlob(response.data, `${record?.invoiceNumber ?? salesInvoiceId}-${kind}.xml`);
+    } catch { setDownloadError(true); } finally { setDownloading(false); }
   };
-
   return (
     <section className="erp-card">
       <div className="erp-card__header">
         <h2 className="erp-card__title">{t("compliance.invoicePanel.title")}</h2>
-        <Tag value={t(`compliance.invoiceStatus.${record.status}`)} severity={statusSeverity(record.status)} />
-        <Tag value={t(`compliance.environment.${record.environment}`)} severity={record.environment === "production" ? "danger" : "secondary"} />
+        <ZatcaStatusBadge status={record?.status ?? pendingStatus?.status} />
+        {environment ? <Tag value={t(`compliance.environment.${environment}`)} severity={environment === "production" ? "success" : "warning"} /> : null}
       </div>
-
-      {record.warnings.length > 0 ? (
-        <ul className="erp-field__hint">
-          {record.warnings.map((w, i) => <li key={i}>{w}</li>)}
-        </ul>
-      ) : null}
-      {record.errors.length > 0 ? (
-        <ul className="erp-auth-card__error">
-          {record.errors.map((e, i) => <li key={i}>{e}</li>)}
-        </ul>
-      ) : null}
-
-      <div className="erp-row-actions">
-        {record.hasSignedXml ? <Button type="button" label={t("compliance.invoicePanel.downloadSigned")} icon="pi pi-file" outlined onClick={() => void downloadXml("signed")} /> : null}
-        {record.hasClearedXml ? <Button type="button" label={t("compliance.invoicePanel.downloadCleared")} icon="pi pi-verified" outlined onClick={() => void downloadXml("cleared")} /> : null}
-        {resubmitEnabled && record.canResubmit ? (
-          <PermissionButton allowed={can("compliance:manage")} label={t("compliance.invoicePanel.resubmit")} icon="pi pi-refresh" loading={resubmit.isPending} onClick={() => resubmit.mutate(salesInvoiceId)} />
-        ) : null}
-      </div>
-      {resubmit.isError ? <p className="erp-auth-card__error">{t("compliance.invoicePanel.resubmitError")}</p> : null}
+      {environment && environment !== "production" ? <p role="note" className="compliance-test-notice">{t("compliance.testNotice")} {t(`compliance.environmentHint.${environment}`)}</p> : null}
+      {isPending ? <p>{t("status.loading")}</p> : isError ? <p role="alert">{t("status.error")} <Button label={t("actions.retry")} text onClick={() => void refetch()} /></p> : !record ? <p>{t(pendingStatus ? "compliance.invoicePanel.awaiting" : "compliance.invoicePanel.notLinked")}</p> : (
+        <>
+          <dl className="erp-detail-grid">
+            <dt>{t("compliance.invoicePanel.egs")}</dt><dd>{record.egsName}</dd>
+            <dt>{t("compliance.invoicePanel.uuid")}</dt><dd dir="ltr" style={{ overflowWrap: "anywhere" }}>{record.uuid}</dd>
+            <dt>{t("compliance.invoicePanel.icv")}</dt><dd>{record.icv}</dd>
+            <dt>{t("compliance.invoicePanel.attempts")}</dt><dd>{record.attempts}</dd>
+            <dt>{t("compliance.invoicePanel.submittedAt")}</dt><dd>{date(record.submittedAt)}</dd>
+            <dt>{t("compliance.invoicePanel.clearedAt")}</dt><dd>{date(record.clearedAt)}</dd>
+            <dt>{t("compliance.invoicePanel.reportedAt")}</dt><dd>{date(record.reportedAt)}</dd>
+          </dl>
+          {record.warnings.length ? <ul className="erp-field__hint">{record.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul> : null}
+          {record.errors.length ? <ul role="alert" className="erp-auth-card__error">{record.errors.map((error, index) => <li key={index}>{error}</li>)}</ul> : null}
+          {record.qrImageDataUrl ? <figure style={{ marginInline: 0 }}>
+            <img src={record.qrImageDataUrl} alt={t("compliance.invoicePanel.qr")} width={280} height={280} style={{ maxWidth: "100%", height: "auto", imageRendering: "pixelated" }} />
+            <figcaption>{t(`compliance.invoicePanel.qrSource.${record.qrSource}`)}</figcaption>
+            <a href={record.qrImageDataUrl} download={`${record.invoiceNumber}-qr.png`} className="erp-button-link">{t("compliance.invoicePanel.downloadQr")}</a>
+          </figure> : record.dataPreviewQrImageDataUrl ? <figure style={{ marginInline: 0 }}>
+            <figcaption className="compliance-test-notice">{t("compliance.invoicePanel.dataPreviewNotice")}</figcaption>
+            <img src={record.dataPreviewQrImageDataUrl} alt={t("compliance.invoicePanel.dataPreviewTitle")} width={280} height={280} style={{ maxWidth: "100%", height: "auto", imageRendering: "pixelated" }} />
+            <figcaption>{t("compliance.invoicePanel.dataPreviewFields")}</figcaption>
+            <a href={record.dataPreviewQrImageDataUrl} download={`${record.invoiceNumber}-data-preview-qr.png`} className="erp-button-link">{t("compliance.invoicePanel.downloadQr")}</a>
+          </figure> : <p className="erp-field__hint">{t("compliance.invoicePanel.qrUnavailable")}</p>}
+          <p className="erp-field__hint">{t("compliance.invoicePanel.scanHint")}</p>
+          <div className="erp-row-actions">
+            {record.hasSignedXml ? <Button label={t("compliance.invoicePanel.downloadSigned")} icon="pi pi-file" outlined disabled={downloading} onClick={() => void downloadXml("signed")} /> : null}
+            {record.hasClearedXml ? <Button label={t("compliance.invoicePanel.downloadCleared")} icon="pi pi-verified" outlined disabled={downloading} onClick={() => void downloadXml("cleared")} /> : null}
+          </div>
+          <details style={{ marginBlock: "1rem" }}>
+            <summary>{t("compliance.invoicePanel.history")}</summary>
+            {record.history.length === 0 ? <p>{t("compliance.invoicePanel.noHistory")}</p> : <ol>
+              {record.history.map((attempt) => <li key={attempt.id} style={{ marginBlock: "1rem" }}>
+                <p>{date(attempt.startedAt)} — {t(`compliance.attemptStage.${attempt.stage}`)} — <ZatcaStatusBadge status={attempt.status} /></p>
+                <p>{t("compliance.invoicePanel.completedAt")}: {date(attempt.completedAt)}{attempt.httpStatus ? ` (HTTP ${attempt.httpStatus})` : ""}</p>
+                {[...attempt.warnings, ...attempt.errors].map((message, index) => <p key={index}>{message}</p>)}
+              </li>)}
+            </ol>}
+          </details>
+        </>
+      )}
+      {retryEnabled ? <PermissionButton allowed={can("compliance:manage")} label={t("compliance.invoicePanel.resubmit")} icon="pi pi-refresh" loading={resubmit.isPending} onClick={() => resubmit.mutate(salesInvoiceId)} /> : null}
+      {resubmit.isError || downloadError ? <p role="alert" className="erp-auth-card__error">{t(downloadError ? "compliance.invoicePanel.downloadError" : "compliance.invoicePanel.resubmitError")}</p> : null}
     </section>
   );
 }
 
-// Compact badge for a list row (sales invoice list, once wired there) — not yet used, kept
-// alongside the panel since the data hook (useInvoiceStatuses) already supports batching it.
-export function ZatcaStatusBadge({ status }: { readonly status: InvoiceRecordView["status"] | undefined }): React.JSX.Element | null {
+export function ZatcaStatusBadge({ status }: { readonly status: string | undefined }): React.JSX.Element | null {
   const { t } = useTranslation();
-  if (!status) return null;
-  return <Tag value={t(`compliance.invoiceStatus.${status}`)} severity={statusSeverity(status)} />;
+  return status ? <Tag value={t(`compliance.invoiceStatus.${status}`)} severity={statusSeverity(status)} /> : null;
 }

@@ -34,7 +34,7 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { localizedCompanyName } from "../common/company-name.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -43,7 +43,7 @@ import { payslipToPdfHtml } from "./exports/payslip-export.js";
 
 @Controller("v1")
 export class HrController {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly employees: EmployeeService,
     private readonly allowanceTypes: AllowanceTypeService,
     private readonly hrPayments: HrPaymentService,
@@ -440,7 +440,7 @@ export class HrController {
       companyName: localizedCompanyName(company, language),
       logoDataUri,
     });
-    const pdf = await renderHtmlToPdf(html);
+    const pdf = await this.documents.render(actor.companyId, language, html);
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${run.number}-${line.employeeRef}.pdf"`);
     res.send(pdf);

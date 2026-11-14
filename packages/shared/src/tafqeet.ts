@@ -1,4 +1,5 @@
 import { Money } from "./money.js";
+import { amountInEnglishWords } from "./amount-in-words-en.js";
 
 // Spells a money amount out in Arabic words (تفقيط) for printed and on-screen documents —
 // e.g. "فقط مائة وخمسة وعشرون ريالاً وخمسون هللة لا غير". Display only: the amount is
@@ -159,7 +160,8 @@ function spellAmount(n: number, words: TafqeetUnitWords): string {
  * accepts the same raw amount string/number a caller would pass to formatMoney — it never
  * assumes the input is already rounded to the currency's minor unit.
  */
-export function tafqeetAmount(amount: string | number, currency: string): string {
+export function tafqeetAmount(amount: string | number, currency: string, language = "ar"): string {
+  if (language.toLowerCase().startsWith("en")) return amountInEnglishWords(amount, currency);
   const words = TAFQEET_CURRENCY_WORDS[currency] ?? TAFQEET_CURRENCY_WORDS.SAR!;
   const normalized = Money.of(amount, currency).round().toDecimalString();
   const [wholeStr, fracStr = ""] = normalized.replace("-", "").split(".");

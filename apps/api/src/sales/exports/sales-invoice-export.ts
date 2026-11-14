@@ -6,7 +6,7 @@ import { escapeHtml } from "../../common/html-escape.js";
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18n/server-i18n.js";
 
 // A printable invoice, credit note or debit note, in Arabic (RTL) or English (LTR). It shows the figures as posted.
-// It is NOT a ZATCA e-invoice: no UUID, hash, QR or signature — those come from the compliance pack (M7).
+// Compliance presentation is supplied by the API composition layer; this remains a visual PDF, not PDF/A-3.
 export async function salesInvoiceToPdfHtml(params: {
   readonly invoice: SalesInvoiceDetail;
   readonly language: SupportedDocumentLanguage;
@@ -18,9 +18,12 @@ export async function salesInvoiceToPdfHtml(params: {
   readonly sellerCrNumber?: string | null;
   readonly sellerAddress?: string | null;
   readonly sellerPhone?: string | null;
+  readonly compliance?: { readonly environment: string; readonly status: string; readonly qrImageDataUrl: string | null; readonly dataPreviewQrImageDataUrl?: string | null } | null;
 }): Promise<string> {
   const t = await getDocumentTranslator(params.language);
   const { invoice } = params;
+  const isDataPreview = !params.compliance?.qrImageDataUrl && params.compliance?.environment === "sandbox" && !!params.compliance.dataPreviewQrImageDataUrl;
+  const qrImage = params.compliance?.qrImageDataUrl ?? (isDataPreview ? params.compliance?.dataPreviewQrImageDataUrl : null);
   const cur = invoice.currency;
   const money = (v: string): string => escapeHtml(`${Money.of(v, cur).toDecimalString()} ${cur}`);
   const customer = params.language === "ar" && invoice.customerNameAr ? invoice.customerNameAr : invoice.customerName;
@@ -40,7 +43,7 @@ export async function salesInvoiceToPdfHtml(params: {
     (p): p is string => Boolean(p?.trim()),
   );
   const buildingPart = [invoice.customerBuildingNumber, invoice.customerAdditionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
-  const fullAddress = [buildingPart, ...addressParts].filter(Boolean).join(sep).trim();
+  const fullAddress = [buildingPart, ...addressParts, invoice.customerCountryCode].filter(Boolean).join(sep).trim();
 
   // Seller identity shown under the company name in the shared header shell.
   const sellerDetailLines = [
@@ -62,10 +65,15 @@ export async function salesInvoiceToPdfHtml(params: {
     `<span class="bill-to-name">${escapeHtml(customer)}</span>`,
     ...(invoice.customerVatNumber ? [`<span>${escapeHtml(t("salesInvoice.customerVatNumber"))}: ${escapeHtml(invoice.customerVatNumber)}</span>`] : []),
     ...(invoice.customerCommercialRegistration ? [`<span>${escapeHtml(t("salesInvoice.customerCr"))}: ${escapeHtml(invoice.customerCommercialRegistration)}</span>`] : []),
-    ...(fullAddress ? [`<span>${escapeHtml(fullAddress)}</span>`] : []),
-  ].join("<br/>");
+    ...(fullAddress ? [`<span><bdi dir="auto">${escapeHtml(fullAddress)}</bdi></span>`] : []),
+    ...(invoice.customerPhone ? [`<span>${escapeHtml(t("seller.phone"))}: <bdi dir="ltr">${escapeHtml(invoice.customerPhone)}</bdi></span>`] : []),
+    ...(invoice.customerEmail ? [`<span><bdi dir="ltr">${escapeHtml(invoice.customerEmail)}</bdi></span>`] : []),
+  ].join("");
 
   const extraCss = `
+  .compliance-notice { border: 2pt solid #92400e; padding: 8pt; color: #78350f; background: #fffbeb; font-weight: 700; margin-block-end: 12pt; }
+  .invoice-compliance { display: flex; align-items: center; gap: 16pt; margin-block-start: 16pt; break-inside: avoid; font-size: 9pt; }
+  .invoice-qr { width: 140pt; height: 140pt; object-fit: contain; image-rendering: pixelated; }
   .inv-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16pt; margin-block-end: 18pt; }
   .bill-to-block { flex: 1 1 auto; }
   .bill-to-label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-block-end: 4pt; font-weight: 600; }
@@ -98,6 +106,7 @@ export async function salesInvoiceToPdfHtml(params: {
     subtitle: "",
     extraCss,
     bodyHtml: `
+${params.compliance && params.compliance.environment !== "production" ? `<div class="compliance-notice">${escapeHtml(t("compliance.testNotice"))} — ${escapeHtml(t(`compliance.environment.${params.compliance.environment}`))}</div>` : ""}
 <div class="inv-header">
   <div class="bill-to-block">
     <p class="bill-to-label">${escapeHtml(t("salesInvoice.billTo"))}</p>
@@ -116,8 +125,14 @@ export async function salesInvoiceToPdfHtml(params: {
     <tr class="grand-total"><th>${escapeHtml(t("salesInvoice.total"))}</th><td class="amount">${money(invoice.totalGross)}</td></tr>
   </table>
 </div>
-<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
-${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
+<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur, params.language))}</p>
+${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
+${params.compliance ? `<div class="invoice-compliance">
+${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : ""}
+<div><p>${escapeHtml(t("compliance.status"))}: ${escapeHtml(t(`compliance.statuses.${params.compliance.status}`))}</p>
+${isDataPreview ? `<p><strong>${escapeHtml(t("compliance.dataPreviewNotice"))}</strong></p>` : ""}
+${!qrImage ? `<p>${escapeHtml(t("compliance.qrUnavailable"))}</p>` : ""}
+<p>${escapeHtml(t("compliance.xmlNotice"))}</p></div></div>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("salesInvoice.computerGenerated") }),
   });
 }

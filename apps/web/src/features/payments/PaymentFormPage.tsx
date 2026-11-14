@@ -114,7 +114,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
               rows: [
                 { label: t("payments.date"), value: toDateOnlyIsoString(date), ltr: true },
                 { label: t("created.amount"), value: formatMoney(amount, currency), ltr: true },
-                { label: t("created.inWords"), value: tafqeetAmount(amount, currency) },
+                { label: t("created.inWords"), value: tafqeetAmount(amount, currency, i18n.language) },
                 { label: t("created.method"), value: t(`payments.methods.${method}`) },
                 { label: t("payments.bankAccount"), value: account ? `${account.code} — ${localizedName(account, i18n.language)}` : "" },
                 { label: t("payments.allocated"), value: formatMoney(allocated.toDecimalString(4), currency), ltr: true },
@@ -149,6 +149,7 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
             <label htmlFor="payParty">{t(`payments.${kind}.party`)}</label>
             <PartyPicker
               excludeEmployees
+              kind={direction === "RECEIPT" ? "CUSTOMER" : "SUPPLIER"}
               inputId="payParty"
               value={partyId || null}
               onChange={(party) =>

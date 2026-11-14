@@ -93,6 +93,17 @@ describeIfDb("Ageing and party statements — real database", () => {
     await prisma.$disconnect();
   });
 
+  it("includes the whole cutoff date for sales invoices and credit notes", async () => {
+    const before = await statements.statement(companyId, customerId, "SALES", on(1, 1), on(3, 19));
+    const issued = await statements.statement(companyId, customerId, "SALES", on(1, 1), on(3, 20));
+    const credited = await statements.statement(companyId, customerId, "SALES", on(1, 1), on(3, 25));
+    expect(before.closingBalance).toBe("600.0000");
+    expect(issued.closingBalance).toBe("1100.0000");
+    expect(credited.closingBalance).toBe("1050.0000");
+    expect((await aging.report(companyId, "SALES", on(3, 20))).totals.total).toBe(issued.closingBalance);
+    expect((await aging.report(companyId, "SALES", on(3, 25))).totals.total).toBe(credited.closingBalance);
+  });
+
   it("ages receivables as of a date and ties to the ledger", async () => {
     const report = await aging.report(companyId, "SALES", on(3, 31));
     const row = report.parties[0]!;

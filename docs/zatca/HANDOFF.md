@@ -1,5 +1,8 @@
 # ZATCA Phase 2 — handoff to the next agent
 
+**2026-11-14 update:** read the current delivery status at the top of `PRODUCTION_GO_LIVE.md` first.
+Sales/returns/debit-note submission, invoice management, QR display/printing, retry history and Simulation environment selection are implemented on `feat/zatca-invoice-wiring`. Sandbox is ACTIVE; real Simulation/production validation needs a taxpayer account (the owner currently has none). The instructions and missing-feature lists below describe an earlier branch and must not be treated as current checkout/deployment instructions.
+
 Written mid-work because the previous session was about to run out of budget. Everything below is true as of the last
 commit on `feat/compliance-zatca`. Nothing here was invented to look finished: where something is unverified, it says so.
 

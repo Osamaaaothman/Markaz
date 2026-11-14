@@ -3,6 +3,7 @@ import { newId } from "@erp/shared";
 import type { TransactionClient } from "../contracts.js";
 import { PrismaAuditLogger } from "../audit/audit-logger.js";
 import { allocateRef } from "../reference.js";
+import { partyAccountRoles, provisionPartyAccount } from "../parties/party-accounts.js";
 
 export type ImportKind = "items" | "parties";
 export interface ImportRow {
@@ -84,7 +85,7 @@ export function validateImportRows(
     )
       result.errors.push({ field: "reorderPoint", code: "INVALID_DECIMAL" });
     if (kind === "parties") {
-      if (result.values.kind && !["COMPANY", "PERSON", "OTHER"].includes(result.values.kind))
+      if (result.values.kind && !["CUSTOMER", "SUPPLIER", "CUSTOMER_SUPPLIER", "COMPANY", "PERSON", "OTHER"].includes(result.values.kind))
         result.errors.push({ field: "kind", code: "INVALID_KIND" });
       if (result.values.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.values.email))
         result.errors.push({ field: "email", code: "INVALID_EMAIL" });
@@ -195,6 +196,9 @@ export class MasterDataImportService {
                 updatedBy: actor.id,
               },
             });
+            for (const role of partyAccountRoles(v.kind!)) {
+              await provisionPartyAccount(tx, actor.companyId, actor.id, id, v.name!, v.nameAr ?? null, role);
+            }
           }
           await audit.log({
             actorId: actor.id,

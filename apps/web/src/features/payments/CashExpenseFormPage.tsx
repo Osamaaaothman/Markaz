@@ -14,13 +14,44 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
+import { LineField } from "../../shared/ui/LineField";
 import { useCreateCashExpense } from "./use-cash-expenses";
 
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
-const KNOWN_ERRORS = new Set(["CASH_ACCOUNT_NOT_FOUND", "CASH_ACCOUNT_INVALID", "EXPENSE_ACCOUNT_NOT_FOUND", "EXPENSE_ACCOUNT_INVALID", "NO_OPEN_PERIOD"]);
+const KNOWN_ERRORS = new Set([
+  "CASH_ACCOUNT_NOT_FOUND",
+  "CASH_ACCOUNT_INVALID",
+  "EXPENSE_ACCOUNT_NOT_FOUND",
+  "EXPENSE_ACCOUNT_INVALID",
+  "NO_OPEN_PERIOD",
+  "LINES_EMPTY",
+]);
+
+// One expense line being filled in: which expense account, how much, and where it belongs (cost center).
+interface CashExpenseLineDraft {
+  id: string;
+  expenseAccountId: string;
+  amount: string;
+  costCenterRef: string;
+  description: string;
+}
+
+const emptyLine = (): CashExpenseLineDraft => ({
+  id: crypto.randomUUID(),
+  expenseAccountId: "",
+  amount: "",
+  costCenterRef: "",
+  description: "",
+});
+
+const lineHasInput = (line: CashExpenseLineDraft): boolean =>
+  line.expenseAccountId !== "" || line.amount !== "" || line.costCenterRef !== "" || line.description !== "";
+
+const lineValid = (line: CashExpenseLineDraft): boolean =>
+  line.expenseAccountId !== "" && DECIMAL.test(line.amount) && /[1-9]/.test(line.amount);
 
 // A small cash outlay straight to an expense: no supplier, no invoice. Pick where the money came
-// from (petty cash or a bank account) and what it was spent on.
+// from (petty cash or a bank account) and split it over one or more expense lines, each with its own cost center.
 export function CashExpenseFormPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -31,23 +62,55 @@ export function CashExpenseFormPage(): React.JSX.Element {
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
   const [date, setDate] = useState<Date>(new Date());
-  const [amount, setAmount] = useState("");
   const [cashAccountId, setCashAccountId] = useState("");
-  const [expenseAccountId, setExpenseAccountId] = useState("");
+  const [lines, setLines] = useState<CashExpenseLineDraft[]>([emptyLine()]);
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
-  const draft = useDocumentDraft("cash_expense", { date, amount, cashAccountId, expenseAccountId, description, reference }, (saved) => { setDate(saved.date); setAmount(saved.amount); setCashAccountId(saved.cashAccountId); setExpenseAccountId(saved.expenseAccountId); setDescription(saved.description); setReference(saved.reference); }, amount !== "" || description !== "" || cashAccountId !== "");
+  const draft = useDocumentDraft(
+    "cash_expense",
+    { date, cashAccountId, lines, description, reference },
+    (saved) => {
+      setDate(saved.date);
+      setCashAccountId(saved.cashAccountId);
+      setLines(saved.lines?.length ? saved.lines : [emptyLine()]);
+      setDescription(saved.description);
+      setReference(saved.reference);
+    },
+    cashAccountId !== "" || description !== "" || lines.some(lineHasInput),
+  );
   const create = useCreateCashExpense(draft.id);
 
   const cashAccounts = useMemo(() => (accounts ?? []).filter((a) => a.isPostable && a.type === "ASSET"), [accounts]);
   const expenseAccounts = useMemo(() => (accounts ?? []).filter((a) => a.isPostable && a.type === "EXPENSE"), [accounts]);
 
-  const amountValid = DECIMAL.test(amount) && /[1-9]/.test(amount);
-  const valid = amountValid && cashAccountId !== "" && expenseAccountId !== "";
+  const expenseOptions = useMemo(
+    () => expenseAccounts.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id })),
+    [expenseAccounts, i18n.language],
+  );
+
+  const total = lines.reduce((sum, l) => {
+    const n = parseFloat(l.amount);
+    return sum + (isNaN(n) ? 0 : n);
+  }, 0);
+  const showTotal = lines.some((l) => l.amount !== "" && DECIMAL.test(l.amount) && /[1-9]/.test(l.amount));
+
+  const valid = cashAccountId !== "" && lines.length > 0 && lines.every(lineValid);
 
   const edit = (change: () => void): void => {
     change();
     create.reset();
+  };
+
+  const replaceLine = (next: CashExpenseLineDraft): void => {
+    edit(() => setLines((previous) => previous.map((l) => (l.id === next.id ? next : l))));
+  };
+
+  const removeLine = (id: string): void => {
+    edit(() => setLines((previous) => previous.filter((l) => l.id !== id)));
+  };
+
+  const addLine = (): void => {
+    edit(() => setLines((previous) => [...previous, emptyLine()]));
   };
 
   const submit = async (): Promise<void> => {
@@ -55,9 +118,13 @@ export function CashExpenseFormPage(): React.JSX.Element {
     create.mutate(
       {
         expenseDate: toDateOnlyIsoString(date),
-        amount,
         cashAccountId,
-        expenseAccountId,
+        lines: lines.map((l) => ({
+          expenseAccountId: l.expenseAccountId,
+          amount: l.amount,
+          ...(l.costCenterRef.trim() ? { costCenterRef: l.costCenterRef.trim() } : {}),
+          ...(l.description.trim() ? { description: l.description.trim() } : {}),
+        })),
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(reference.trim() ? { reference: reference.trim() } : {}),
       },
@@ -65,18 +132,16 @@ export function CashExpenseFormPage(): React.JSX.Element {
         onSuccess: (saved) => {
           void draft.complete();
           const cash = accounts?.find((a) => a.id === cashAccountId);
-          const expense = accounts?.find((a) => a.id === expenseAccountId);
           setCreated({
             onOpen: () => void navigate("/payments/cash-expenses"),
             title: t("cashExpenses.title"),
             headline: saved.number,
             rows: [
               { label: t("cashExpenses.date"), value: toDateOnlyIsoString(date), ltr: true },
-              { label: t("created.amount"), value: formatMoney(amount, currency), ltr: true },
-              { label: t("created.inWords"), value: tafqeetAmount(amount, currency) },
+              { label: t("created.amount"), value: formatMoney(total.toFixed(4), currency), ltr: true },
+              { label: t("created.inWords"), value: tafqeetAmount(total.toFixed(4), currency, i18n.language) },
               { label: t("cashExpenses.cashAccount"), value: cash ? `${cash.code} — ${localizedName(cash, i18n.language)}` : "" },
-              { label: t("cashExpenses.expenseAccount"), value: expense ? `${expense.code} — ${localizedName(expense, i18n.language)}` : "" },
-              { label: t("created.reference"), value: reference.trim() },
+              { label: t("cashExpenses.lines"), value: String(lines.length) },
             ],
           });
         },
@@ -105,10 +170,6 @@ export function CashExpenseFormPage(): React.JSX.Element {
             <Calendar inputId="cexDate" value={date} onChange={(e) => e.value && edit(() => setDate(e.value as Date))} dateFormat="yy-mm-dd" />
           </div>
           <div className="erp-field">
-            <label htmlFor="cexAmount">{t("payments.amount")}</label>
-            <InputText id="cexAmount" dir="ltr" value={amount} onChange={(e) => edit(() => setAmount(e.target.value))} className={amount !== "" && !amountValid ? "p-invalid" : ""} />
-          </div>
-          <div className="erp-field">
             <label htmlFor="cexRef">{t("payments.reference")}</label>
             <InputText id="cexRef" value={reference} onChange={(e) => setReference(e.target.value)} />
           </div>
@@ -125,22 +186,70 @@ export function CashExpenseFormPage(): React.JSX.Element {
               placeholder={t("payments.pickBank")}
             />
           </div>
-          <div className="erp-field">
-            <label htmlFor="cexExpense">{t("cashExpenses.expenseAccount")}</label>
-            <Dropdown
-              inputId="cexExpense"
-              value={expenseAccountId || null}
-              onChange={(e) => edit(() => setExpenseAccountId((e.value as string | null) ?? ""))}
-              options={expenseAccounts.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id }))}
-              filter
-              placeholder={t("cashExpenses.pickExpenseAccount")}
-            />
-          </div>
         </div>
         <div className="erp-field">
           <label htmlFor="cexDesc">{t("cashExpenses.description")}</label>
           <InputText id="cexDesc" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
+
+        <h3 className="erp-form__section-title">{t("cashExpenses.lines")}</h3>
+        <div className="erp-lines">
+          {lines.map((line) => (
+            <div key={line.id} className="erp-lines__row">
+              <LineField label={t("cashExpenses.expenseAccount")}>
+                <Dropdown
+                  value={line.expenseAccountId || null}
+                  onChange={(e) => replaceLine({ ...line, expenseAccountId: (e.value as string | null) ?? "" })}
+                  options={expenseOptions}
+                  filter
+                  placeholder={t("cashExpenses.pickExpenseAccount")}
+                  className="erp-lines__account"
+                />
+              </LineField>
+              <LineField label={t("payments.amount")}>
+                <InputText
+                  dir="ltr"
+                  value={line.amount}
+                  onChange={(e) => replaceLine({ ...line, amount: e.target.value })}
+                  className={line.amount !== "" && !DECIMAL.test(line.amount) ? "erp-lines__amount p-invalid" : "erp-lines__amount"}
+                />
+              </LineField>
+              <LineField label={t("cashExpenses.costCenter")}>
+                <InputText
+                  value={line.costCenterRef}
+                  onChange={(e) => replaceLine({ ...line, costCenterRef: e.target.value })}
+                  placeholder={t("cashExpenses.costCenterPlaceholder")}
+                />
+              </LineField>
+              <LineField label={t("cashExpenses.description")}>
+                <InputText
+                  value={line.description}
+                  onChange={(e) => replaceLine({ ...line, description: e.target.value })}
+                  placeholder={t("cashExpenses.lineDescriptionPlaceholder")}
+                  className="erp-lines__description"
+                />
+              </LineField>
+              <Button
+                type="button"
+                icon="pi pi-trash"
+                text
+                severity="danger"
+                aria-label={t("actions.removeLine")}
+                onClick={() => removeLine(line.id)}
+                disabled={lines.length === 1}
+              />
+            </div>
+          ))}
+        </div>
+        <Button type="button" label={t("cashExpenses.addLine")} icon="pi pi-plus" text onClick={addLine} />
+
+        {showTotal ? (
+          <div className="erp-lines__totals">
+            <span>
+              {t("cashExpenses.total")}: <strong>{formatMoney(total.toFixed(4), currency)}</strong>
+            </span>
+          </div>
+        ) : null}
 
         {errKey ? <p className="erp-auth-card__error">{t(errKey)}</p> : null}
         <div className="erp-form__actions">

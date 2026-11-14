@@ -105,7 +105,7 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
         </div>
         <div>
           <dt>{t("created.inWords")}</dt>
-          <dd><strong>{tafqeetAmount(invoice.totalGross, invoice.currency)}</strong></dd>
+          <dd><strong>{tafqeetAmount(invoice.totalGross, invoice.currency, i18n.language)}</strong></dd>
         </div>
         {invoice.outstanding !== null ? (
           <div>

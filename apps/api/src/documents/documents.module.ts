@@ -1,4 +1,6 @@
-import { Module } from "@nestjs/common";
+import { Global, Module } from "@nestjs/common";
+import { AttachmentsModule } from "../attachments/attachments.module.js";
+import { CompanyDocumentService } from "./company-document.service.js";
 import {
   DocumentDraftService,
   DocumentTrailService,
@@ -10,9 +12,12 @@ import { PERMISSION_SERVICE, AUDIT_LOGGER } from "../identity/identity.tokens.js
 import { DocumentDraftsController } from "./document-drafts.controller.js";
 import { DocumentTrailController } from "./document-trail.controller.js";
 
+@Global()
 @Module({
+  imports: [AttachmentsModule],
   controllers: [DocumentDraftsController, DocumentTrailController],
   providers: [
+    CompanyDocumentService,
     {
       provide: DocumentDraftService,
       useFactory: (prisma: PrismaService, permissions: IPermissionService, audit: IAuditLogger) =>
@@ -26,5 +31,6 @@ import { DocumentTrailController } from "./document-trail.controller.js";
       inject: [PrismaService, PERMISSION_SERVICE],
     },
   ],
+  exports: [CompanyDocumentService],
 })
 export class DocumentsModule {}

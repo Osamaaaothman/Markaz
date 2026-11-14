@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { StockLevelService, StockMovementService, StockMovementExportLimitError, type StockMovementQuery, type StockLevelQuery } from "@erp/core";
 import type { ExportedFile } from "../accounting/accounting-export.service.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import type { SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { stockLevelsToCsv, stockLevelsToPdfHtml } from "./exports/stock-levels-export.js";
@@ -10,7 +10,7 @@ import { stockMovementsToCsv, stockMovementsToPdfHtml } from "./exports/stock-mo
 
 @Injectable()
 export class InventoryExportService {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly prisma: PrismaService,
     private readonly stockLevels: StockLevelService,
     private readonly movements: StockMovementService,
@@ -27,7 +27,7 @@ export class InventoryExportService {
     const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true, nameAr: true, defaultCurrency: true } });
     const html = await stockMovementsToPdfHtml({ entries, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency,
       from: query.from?.toISOString().slice(0, 10), to: query.to?.toISOString().slice(0, 10) });
-    return { content: await renderHtmlToPdf(html, { landscape: true }), contentType: "application/pdf", filename: "stock-movements.pdf" };
+    return { content: await this.documents.render(companyId, lang, html, { landscape: true }), contentType: "application/pdf", filename: "stock-movements.pdf" };
   }
 
   async exportStockLevels(
@@ -56,6 +56,6 @@ export class InventoryExportService {
       companyName: localizedCompanyName(company, lang),
       currency: company.defaultCurrency,
     });
-    return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "stock-levels.pdf" };
+    return { content: await this.documents.render(companyId, lang, html), contentType: "application/pdf", filename: "stock-levels.pdf" };
   }
 }

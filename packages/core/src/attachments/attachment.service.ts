@@ -308,7 +308,7 @@ export class AttachmentService {
     if (!row) throw new AttachmentError("NOT_FOUND", "Attachment not found");
     const storage = this.storages.get(row.storageProvider);
     if (!storage) throw new AttachmentError("NOT_FOUND", "The storage that holds this file is not configured");
-    const bytes = await storage.get(row.storageKey, row.visibility as AttachmentVisibility);
+    const bytes = await storage.get(row.storageKey, row.visibility as AttachmentVisibility, row.contentType);
     if (createHash("sha256").update(bytes).digest("hex") !== row.sha256) {
       throw new AttachmentError("INTEGRITY_FAILED", "The stored file does not match its recorded checksum");
     }

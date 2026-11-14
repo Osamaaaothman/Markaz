@@ -1,4 +1,19 @@
-import { buildQrBase64, buildQrTlv } from "./qr.js";
+import { buildQrBase64, buildQrTlv, buildSandboxDataQrBase64, parseQrTlv } from "./qr.js";
+
+describe("Sandbox data-reading QR", () => {
+  const fields = { sellerName: "شركة اختبار", vatNumber: "399999999900003", timestamp: "2026-11-14T00:00:00Z", invoiceTotalWithVat: "115.00", vatTotal: "15.00" };
+  it("encodes exactly the five data fields with no signature or certificate", () => {
+    const tags = parseQrTlv(buildSandboxDataQrBase64("sandbox", fields)!);
+    expect([...tags.keys()]).toEqual([1, 2, 3, 4, 5]);
+    expect([...tags.values()].map((value) => value.toString("utf8"))).toEqual(Object.values(fields));
+  });
+  it("never substitutes a preview in Simulation or production, or truncates missing/oversized data", () => {
+    expect(buildSandboxDataQrBase64("simulation", fields)).toBeNull();
+    expect(buildSandboxDataQrBase64("production", fields)).toBeNull();
+    expect(buildSandboxDataQrBase64("sandbox", { ...fields, vatNumber: "" })).toBeNull();
+    expect(buildSandboxDataQrBase64("sandbox", { ...fields, sellerName: "ش".repeat(128) })).toBeNull();
+  });
+});
 
 // Field values and the expected result below were decoded byte-for-byte from the official SDK's
 // own signed samples (docs/vendor/zatca/sdk/Data/Samples) — ground truth, not invented. This is

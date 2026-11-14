@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 
-export const PARTY_KINDS = ["COMPANY", "PERSON", "EMPLOYEE", "OTHER"] as const;
+export const PARTY_KINDS = ["SUPPLIER", "CUSTOMER", "CUSTOMER_SUPPLIER", "COMPANY", "PERSON", "EMPLOYEE", "OTHER"] as const;
 export type PartyKind = (typeof PARTY_KINDS)[number];
 
 export interface PartySummary {
@@ -105,15 +105,15 @@ export function useParties(filter: PartyFilter) {
 }
 
 // Filter before pagination so employee rows cannot crowd out customer/supplier matches.
-export function usePartySearch(q: string, excludeEmployees = false) {
+export function usePartySearch(q: string, excludeEmployees = false, kind?: PartyKind) {
   const { can } = usePermissions();
   return useQuery({
-    queryKey: ["parties", "search", q.trim(), excludeEmployees],
+    queryKey: ["parties", "search", q.trim(), excludeEmployees, kind],
     queryFn: async () =>
       (
         await apiClient.get<PartyListPage>("/v1/parties", {
           params: {
-            ...listParams({ q, kind: null, includeInactive: false }),
+            ...listParams({ q, kind: kind ?? null, includeInactive: false }),
             ...(excludeEmployees ? { excludeEmployees: "true" } : {}),
           },
         })
@@ -125,6 +125,7 @@ export function usePartySearch(q: string, excludeEmployees = false) {
 
 export interface CreatePartyResult extends PartySummary {
   readonly accountCode: string | null;
+  readonly accountCodes?: readonly string[];
 }
 
 export function useCreateParty() {

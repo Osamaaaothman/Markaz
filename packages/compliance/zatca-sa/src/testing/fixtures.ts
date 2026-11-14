@@ -39,8 +39,8 @@ export function describeIfSdk(name: string, body: () => void): void {
 }
 
 export interface TestCertificate {
-  // Raw base64 of the DER certificate, no armor -- the same shape ZATCA's `binarySecurityToken` and
-  // the SDK's own `cert.pem` use.
+  // Raw base64 DER, no armor -- the SDK's cert.pem shape. An API binarySecurityToken
+  // can wrap this text in an additional base64 transport layer.
   readonly certificateBase64: string;
   readonly certificatePem: string;
   // Armored SEC1 "EC PRIVATE KEY".
@@ -67,7 +67,8 @@ export function generateTestCertificate(): TestCertificate {
     const certificateBase64 = certificatePem
       .split("\n")
       .filter((line) => line.length > 0 && !line.startsWith("-----"))
-      .join("");
+      .join("")
+      .replace(/\s/g, "");
     cached = { certificateBase64, certificatePem, privateKeyPem: readFileSync(keyPath, "utf8") };
     return cached;
   } finally {

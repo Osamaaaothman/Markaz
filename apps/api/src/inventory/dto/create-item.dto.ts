@@ -23,6 +23,11 @@ export class CreateItemDto {
   unit!: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  unitCode?: string;
+
+  @IsOptional()
   @IsDecimalString()
   reorderPoint?: string;
 }

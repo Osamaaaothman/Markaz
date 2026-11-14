@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { ArrayMaxSize, IsArray, IsDateString, IsIn, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsIn, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
 import { PAYMENT_METHODS, type PaymentDirection, type PaymentMethod } from "@erp/core";
 import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
@@ -78,18 +78,36 @@ export class PartyBalanceQueryDto {
   direction!: PaymentDirection;
 }
 
-export class CreateCashExpenseDto {
-  @IsDateString()
-  expenseDate!: string;
+export class CreateCashExpenseLineDto {
+  @IsString()
+  expenseAccountId!: string;
 
   @IsDecimalString({ positive: true })
   amount!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  costCenterRef?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+}
+
+export class CreateCashExpenseDto {
+  @IsDateString()
+  expenseDate!: string;
+
   @IsString()
   cashAccountId!: string;
 
-  @IsString()
-  expenseAccountId!: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateCashExpenseLineDto)
+  lines!: CreateCashExpenseLineDto[];
 
   @IsOptional()
   @IsString()

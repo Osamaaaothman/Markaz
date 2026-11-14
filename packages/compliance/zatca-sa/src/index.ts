@@ -10,6 +10,8 @@ export * from "./xml/invoice-xml-builder.js";
 export * from "./xml/canonicalize.js";
 export * from "./xml/invoice-hash.js";
 export * from "./xml/qr.js";
+export * from "./xml/invoice-artifacts.js";
+export * from "./submission/validation-messages.js";
 export * from "./xml/signing.js";
 export * from "./xml/xades-signature.js";
 export * from "./http/zatca-http-transport.js";

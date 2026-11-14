@@ -210,6 +210,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
             <label htmlFor="siSupplier">{t("purchasing.supplier")}</label>
             <PartyPicker
               excludeEmployees
+              kind="SUPPLIER"
               inputId="siSupplier"
               value={supplierId || null}
               onChange={(party) =>
@@ -388,7 +389,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                           { label: t("created.net"), value: formatMoney(result.totalNet, currency), ltr: true },
                           { label: t("created.tax"), value: formatMoney(result.totalTax, currency), ltr: true },
                           { label: t("created.gross"), value: formatMoney(saved.totalGross, currency), ltr: true },
-                          { label: t("created.inWords"), value: tafqeetAmount(saved.totalGross, currency) },
+                          { label: t("created.inWords"), value: tafqeetAmount(saved.totalGross, currency, i18n.language) },
                           { label: t("created.lines"), value: String(lines.length) },
                         ],
                       }); },

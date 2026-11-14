@@ -10,6 +10,8 @@ export interface ItemSummary {
   readonly name: string;
   readonly nameAr: string | null;
   readonly unit: string;
+  // UN/ECE Recommendation 20 code used by ZATCA (e.g. "PCE", "KGM"). Null = not set.
+  readonly unitCode: string | null;
   readonly reorderPoint: string;
   readonly isActive: boolean;
   // The id of the item's current picture (an attachment), or null. It changes whenever the picture is replaced, so
@@ -34,6 +36,7 @@ export interface CreateItemInput {
   readonly name: string;
   readonly nameAr?: string | null | undefined;
   readonly unit: string;
+  readonly unitCode?: string | null | undefined;
   readonly reorderPoint?: string | undefined;
 }
 
@@ -41,6 +44,7 @@ export interface UpdateItemInput {
   readonly name?: string | undefined;
   readonly nameAr?: string | null | undefined;
   readonly unit?: string | undefined;
+  readonly unitCode?: string | null | undefined;
   readonly reorderPoint?: string | undefined;
   readonly isActive?: boolean | undefined;
 }
@@ -67,6 +71,7 @@ const ITEM_SELECT = {
   name: true,
   nameAr: true,
   unit: true,
+  unitCode: true,
   reorderPoint: true,
   isActive: true,
 } as const;
@@ -151,6 +156,7 @@ export class ItemService {
           name: input.name,
           nameAr: blankToNull(input.nameAr),
           unit: input.unit,
+          unitCode: input.unitCode?.trim() || null,
           reorderPoint: input.reorderPoint ?? "0",
           createdBy: actor.id,
           updatedBy: actor.id,
@@ -174,6 +180,7 @@ export class ItemService {
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.nameAr !== undefined ? { nameAr: blankToNull(input.nameAr) } : {}),
         ...(input.unit !== undefined ? { unit: input.unit.trim() } : {}),
+        ...(input.unitCode !== undefined ? { unitCode: input.unitCode?.trim() || null } : {}),
         ...(input.reorderPoint !== undefined ? { reorderPoint: input.reorderPoint } : {}),
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         updatedBy: actor.id,

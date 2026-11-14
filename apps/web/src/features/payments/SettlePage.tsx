@@ -91,6 +91,7 @@ function SettleForm({ direction }: { direction: PaymentDirection }): React.JSX.E
           <label htmlFor="setParty">{t(`payments.${kind}.party`)}</label>
           <PartyPicker
             excludeEmployees
+            kind={direction === "RECEIPT" ? "CUSTOMER" : "SUPPLIER"}
             inputId="setParty"
             value={partyId || null}
             onChange={(party) =>

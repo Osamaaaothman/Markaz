@@ -220,6 +220,18 @@ export interface SalesInvoiceSummary {
 
 export interface SalesInvoiceDetail extends SalesInvoiceSummary {
   readonly notes: string | null;
+  readonly customerVatNumber: string | null;
+  readonly customerCommercialRegistration: string | null;
+  readonly customerPhone?: string | null;
+  readonly customerEmail?: string | null;
+  readonly customerCountryCode?: string | null;
+  readonly customerStreetName: string | null;
+  readonly customerAdditionalStreetName: string | null;
+  readonly customerBuildingNumber: string | null;
+  readonly customerAdditionalNumber: string | null;
+  readonly customerDistrict: string | null;
+  readonly customerCity: string | null;
+  readonly customerPostalCode: string | null;
   readonly lines: readonly {
     readonly id: string;
     readonly taxCodeId: string;

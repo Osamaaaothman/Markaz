@@ -1,4 +1,5 @@
 import { issuedFooter } from "../../documents/document-issued-footer.js";
+import { renderPartyDocumentDetails, type PartyDocumentDetails } from "../../documents/party-document-details.js";
 import type { SupplierInvoiceDetail } from "@erp/core";
 import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -7,6 +8,7 @@ import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18
 
 export async function supplierInvoiceToPdfHtml(params: {
   readonly invoice: SupplierInvoiceDetail;
+  readonly supplierDetails?: PartyDocumentDetails | null;
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
   readonly logoDataUri?: string | undefined;
@@ -92,6 +94,7 @@ export async function supplierInvoiceToPdfHtml(params: {
   <div class="bill-from-block">
     <p class="bill-from-label">${escapeHtml(t("supplierInvoice.billFrom"))}</p>
     <span class="bill-from-name">${escapeHtml(supplier)}</span>
+    ${await renderPartyDocumentDetails(params.supplierDetails, params.language)}
   </div>
   <table class="sinv-meta">${metaRows}</table>
 </div>
@@ -113,7 +116,7 @@ export async function supplierInvoiceToPdfHtml(params: {
     <tr class="grand-total"><th>${escapeHtml(t("supplierInvoice.grandTotal"))}</th><td class="amount">${money(invoice.totalGross)}</td></tr>
   </table>
 </div>
-<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
+<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur, params.language))}</p>
 ${invoice.notes ? `<p class="sinv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("supplierInvoice.computerGenerated") }),
   });

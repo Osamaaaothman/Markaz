@@ -18,8 +18,8 @@
 // match SHA-256 of its own embedded ds:X509Certificate (a sample-data inconsistency, not
 // something this code can resolve) — see docs/01-OPEN-DECISIONS.md section T. This module
 // computes CertDigest the spec-correct way (the hash of the actual certificate bytes).
-import { X509Certificate } from "node:crypto";
 import { canonicalizeElementByLocalName } from "./canonicalize.js";
+import { parseCertificate, type CertInfo } from "./cert-parser.js";
 import { hashCanonicalBytes, hashInvoiceXml, zatcaHashOf, type InvoiceHash } from "./invoice-hash.js";
 import { buildQrBase64, type QrFields } from "./qr.js";
 import { extractCertificateSignatureDer, extractPublicKeyDer, signData, toPem } from "./signing.js";
@@ -43,18 +43,18 @@ export interface SignedInvoice {
 }
 
 // The certificate's issuer, in the "CN=..., DC=..., DC=..." form ds:X509IssuerName needs — the
-// reverse of, and comma-joined rather than newline-joined, what X509Certificate.issuer returns.
+// reverse of, and comma-joined rather than newline-joined, what parseCertificate().issuer returns.
 // Verified against the official sample certificate's own IssuerSerial.
-function issuerDistinguishedName(cert: X509Certificate): string {
+function issuerDistinguishedName(cert: CertInfo): string {
   return cert.issuer.split("\n").reverse().join(", ");
 }
 
-function serialNumberDecimal(cert: X509Certificate): string {
+function serialNumberDecimal(cert: CertInfo): string {
   return BigInt(`0x${cert.serialNumber}`).toString(10);
 }
 
-function buildSignedProperties(cert: X509Certificate, signingTime: string): string {
-  const certDigest = zatcaHashOf(cert.raw);
+function buildSignedProperties(cert: CertInfo, signingTime: string): string {
+  const certDigest = zatcaHashOf(Buffer.from(cert.raw));
   return (
     `<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:ds="${DS_NS}" Id="xadesSignedProperties">` +
     `<xades:SignedSignatureProperties>` +
@@ -93,7 +93,7 @@ function buildSignedInfo(invoiceDigestBase64: string, signedPropertiesDigestZatc
 
 // Builds the complete ext:UBLExtensions block + the ds:Signature it wraps, and signs it. Returns
 // the extension XML plus the signature value (reused verbatim as the QR code's tag 7).
-function buildSignatureExtension(invoiceHash: InvoiceHash, cert: X509Certificate, certificateBase64: string, privateKeyPem: string, signingTime: string): { extensionXml: string; signatureBase64: string } {
+function buildSignatureExtension(invoiceHash: InvoiceHash, cert: CertInfo, certificateBase64: string, privateKeyPem: string, signingTime: string): { extensionXml: string; signatureBase64: string } {
   const signedPropertiesXml = buildSignedProperties(cert, signingTime);
   const signedPropertiesDigest = hashCanonicalBytes(canonicalizeElementByLocalName(signedPropertiesXml, "http://uri.etsi.org/01903/v1.3.2#", "SignedProperties")).zatcaHash;
 
@@ -137,11 +137,9 @@ const SIGNATURE_PLACEHOLDER =
 // official samples use.
 export function signInvoiceXml(bareXml: string, context: SigningContext): SignedInvoice {
   const certificatePem = toPem(context.certificatePem, "CERTIFICATE");
-  const certificateBase64 = certificatePem
-    .split("\n")
-    .filter((line) => !line.startsWith("-----"))
-    .join("");
-  const cert = new X509Certificate(certificatePem);
+  const cert = parseCertificate(certificatePem);
+  // Embed the actual DER certificate, never the API token's extra base64 layer.
+  const certificateBase64 = cert.raw.toString("base64");
 
   const invoiceHash = hashInvoiceXml(bareXml);
   const { extensionXml, signatureBase64 } = buildSignatureExtension(invoiceHash, cert, certificateBase64, toPem(context.privateKeyPem, "EC PRIVATE KEY"), context.signingTime);
@@ -151,7 +149,7 @@ export function signInvoiceXml(bareXml: string, context: SigningContext): Signed
     invoiceHashBase64: invoiceHash.xmldsigBase64,
     signatureBase64,
     publicKeyDer: extractPublicKeyDer(certificatePem),
-    certificateSignatureDer: context.isSimplified ? extractCertificateSignatureDer(cert.raw) : undefined,
+    certificateSignatureDer: context.isSimplified ? extractCertificateSignatureDer(Buffer.from(cert.raw)) : undefined,
   });
 
   const qrReference = `<cac:AdditionalDocumentReference><cbc:ID>QR</cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">${qrBase64}</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference>`;

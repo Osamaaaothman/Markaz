@@ -11,7 +11,7 @@ import {
 } from "@erp/core";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { agingToCsv, agingToPdfHtml, statementToCsv, statementToPdfHtml } from "./exports/receivables-exports.js";
@@ -65,7 +65,7 @@ interface ExportedFile {
 
 @Injectable()
 export class ReceivablesExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly documents: CompanyDocumentService, private readonly prisma: PrismaService) {}
 
   private company(companyId: string) {
     return this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true, nameAr: true, defaultCurrency: true } });
@@ -76,7 +76,7 @@ export class ReceivablesExportService {
     if (format === "csv") return { content: agingToCsv(report, lang), contentType: "text/csv; charset=utf-8", filename: `${base}.csv` };
     const company = await this.company(companyId);
     const html = await agingToPdfHtml({ report, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
-    return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: `${base}.pdf` };
+    return { content: await this.documents.render(companyId, lang, html), contentType: "application/pdf", filename: `${base}.pdf` };
   }
 
   async statement(companyId: string, statement: PartyStatement, format: "csv" | "pdf", lang: SupportedDocumentLanguage): Promise<ExportedFile> {
@@ -84,7 +84,7 @@ export class ReceivablesExportService {
     if (format === "csv") return { content: statementToCsv(statement, lang), contentType: "text/csv; charset=utf-8", filename: `${base}.csv` };
     const company = await this.company(companyId);
     const html = await statementToPdfHtml({ statement, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
-    return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: `${base}.pdf` };
+    return { content: await this.documents.render(companyId, lang, html), contentType: "application/pdf", filename: `${base}.pdf` };
   }
 }
 

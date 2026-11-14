@@ -59,7 +59,7 @@ import { StockMovementsExportQueryDto } from "./dto/stock-movements-export-query
 import { UpdateItemDto } from "./dto/update-item.dto.js";
 import { UpdateWarehouseDto } from "./dto/update-warehouse.dto.js";
 import { WarehousesQueryDto } from "./dto/warehouses-query.dto.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { goodsReceiptToPdfHtml } from "./exports/goods-receipt-export.js";
@@ -69,7 +69,7 @@ import { localizedCompanyName } from "../common/company-name.js";
 
 @Controller("v1")
 export class InventoryController {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly replenishment: ReplenishmentService,
     private readonly warehouses: WarehouseService,
     private readonly items: ItemService,
@@ -461,7 +461,7 @@ export class InventoryController {
     const { company, logoDataUri, sellerAddress } = await this.pdfCompanyContext(actor.companyId, language);
     const raw = await this.prisma.goodsReceipt.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null);
     const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
-    const pdf = await renderHtmlToPdf(await goodsReceiptToPdfHtml({ receipt, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    const pdf = await this.documents.render(actor.companyId, language, await goodsReceiptToPdfHtml({ receipt, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${receipt.number}.pdf"`);
     res.send(pdf);
@@ -481,7 +481,7 @@ export class InventoryController {
     const { company, logoDataUri, sellerAddress } = await this.pdfCompanyContext(actor.companyId, language);
     const raw = await this.prisma.stockIssue.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null);
     const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
-    const pdf = await renderHtmlToPdf(await stockIssueToPdfHtml({ issue, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    const pdf = await this.documents.render(actor.companyId, language, await stockIssueToPdfHtml({ issue, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${issue.number}.pdf"`);
     res.send(pdf);
@@ -501,7 +501,7 @@ export class InventoryController {
     const { company, logoDataUri, sellerAddress } = await this.pdfCompanyContext(actor.companyId, language);
     const raw = await this.prisma.stockCount.findUnique({ where: { id }, select: { actorId: true, createdAt: true } }).catch(() => null);
     const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
-    const pdf = await renderHtmlToPdf(await stockCountToPdfHtml({ count, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    const pdf = await this.documents.render(actor.companyId, language, await stockCountToPdfHtml({ count, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${count.number}.pdf"`);
     res.send(pdf);

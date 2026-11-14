@@ -7,7 +7,13 @@ import { allocateDocumentNumber } from "../reference.js";
 
 export class CashExpenseError extends Error {
   constructor(
-    readonly code: "CASH_ACCOUNT_NOT_FOUND" | "CASH_ACCOUNT_INVALID" | "EXPENSE_ACCOUNT_NOT_FOUND" | "EXPENSE_ACCOUNT_INVALID" | "NO_OPEN_PERIOD",
+    readonly code:
+      | "CASH_ACCOUNT_NOT_FOUND"
+      | "CASH_ACCOUNT_INVALID"
+      | "EXPENSE_ACCOUNT_NOT_FOUND"
+      | "EXPENSE_ACCOUNT_INVALID"
+      | "NO_OPEN_PERIOD"
+      | "LINES_EMPTY",
     message: string,
   ) {
     super(message);
@@ -15,11 +21,17 @@ export class CashExpenseError extends Error {
   }
 }
 
+export interface CashExpenseLineInput {
+  readonly expenseAccountId: string;
+  readonly amount: string;
+  readonly costCenterRef?: string | undefined;
+  readonly description?: string | undefined;
+}
+
 export interface CreateCashExpenseInput {
   readonly expenseDate: Date;
-  readonly amount: string;
   readonly cashAccountId: string;
-  readonly expenseAccountId: string;
+  readonly lines: readonly CashExpenseLineInput[];
   readonly description?: string | undefined;
   readonly reference?: string | undefined;
 }
@@ -44,9 +56,7 @@ export interface CashExpenseSummary {
   readonly cashAccountCode: string;
   readonly cashAccountName: string;
   readonly cashAccountNameAr: string | null;
-  readonly expenseAccountCode: string;
-  readonly expenseAccountName: string;
-  readonly expenseAccountNameAr: string | null;
+  readonly lineCount: number;
   readonly description: string | null;
   readonly reference: string | null;
 }
@@ -73,7 +83,7 @@ function toSummary(row: {
   description: string | null;
   reference: string | null;
   cashAccount: { code: string; name: string; nameAr: string | null };
-  expenseAccount: { code: string; name: string; nameAr: string | null };
+  _count: { lines: number };
 }): CashExpenseSummary {
   return {
     id: row.id,
@@ -84,9 +94,7 @@ function toSummary(row: {
     cashAccountCode: row.cashAccount.code,
     cashAccountName: row.cashAccount.name,
     cashAccountNameAr: row.cashAccount.nameAr,
-    expenseAccountCode: row.expenseAccount.code,
-    expenseAccountName: row.expenseAccount.name,
-    expenseAccountNameAr: row.expenseAccount.nameAr,
+    lineCount: row._count.lines,
     description: row.description,
     reference: row.reference,
   };
@@ -104,23 +112,38 @@ export class CashExpenseService {
 
   async create(input: CreateCashExpenseInput, actor: CashExpenseActor, correlationId: string, idempotencyKey: string): Promise<CashExpenseResult> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const amount = new Prisma.Decimal(input.amount);
-
       const cash = await tx.account.findFirst({ where: { id: input.cashAccountId, companyId: actor.companyId } });
       if (!cash) throw new CashExpenseError("CASH_ACCOUNT_NOT_FOUND", "The cash or bank account was not found");
       if (!cash.isPostable || cash.type !== "ASSET") throw new CashExpenseError("CASH_ACCOUNT_INVALID", "Choose a postable asset account for the cash or bank");
 
-      const expense = await tx.account.findFirst({ where: { id: input.expenseAccountId, companyId: actor.companyId } });
-      if (!expense) throw new CashExpenseError("EXPENSE_ACCOUNT_NOT_FOUND", "The expense account was not found");
-      if (!expense.isPostable || expense.type !== "EXPENSE") throw new CashExpenseError("EXPENSE_ACCOUNT_INVALID", "Choose a postable expense account");
+      if (input.lines.length < 1) throw new CashExpenseError("LINES_EMPTY", "Add at least one expense line");
+
+      const lines: { expenseAccountId: string; amount: Prisma.Decimal; costCenterRef: string | null; description: string | null }[] = [];
+      for (const line of input.lines) {
+        const expense = await tx.account.findFirst({ where: { id: line.expenseAccountId, companyId: actor.companyId } });
+        if (!expense) throw new CashExpenseError("EXPENSE_ACCOUNT_NOT_FOUND", "The expense account was not found");
+        if (!expense.isPostable || expense.type !== "EXPENSE") throw new CashExpenseError("EXPENSE_ACCOUNT_INVALID", "Choose a postable expense account");
+        lines.push({
+          expenseAccountId: expense.id,
+          amount: new Prisma.Decimal(line.amount),
+          costCenterRef: blankToNull(line.costCenterRef),
+          description: blankToNull(line.description),
+        });
+      }
+
+      const total = lines.reduce((sum, line) => sum.add(line.amount), new Prisma.Decimal(0));
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.expenseDate);
       if (!period) throw new CashExpenseError("NO_OPEN_PERIOD", "No open fiscal period covers the expense date");
       const currency = await companyCurrency(tx, actor.companyId);
 
       const journalLines: JournalLineInput[] = [
-        { accountId: expense.id, debit: amount.toFixed(4), description: "Cash expense" },
-        { accountId: cash.id, credit: amount.toFixed(4), description: "Cash expense" },
+        ...lines.map((line) => ({
+          accountId: line.expenseAccountId,
+          debit: line.amount.toFixed(4),
+          description: line.description ?? "Cash expense",
+        })),
+        { accountId: cash.id, credit: total.toFixed(4), description: "Cash expense" },
       ];
 
       const expenseId = newId();
@@ -151,16 +174,29 @@ export class CashExpenseService {
           companyId: actor.companyId,
           number,
           expenseDate: input.expenseDate,
-          amount,
+          amount: total,
           currency,
           cashAccountId: cash.id,
-          expenseAccountId: expense.id,
+          expenseAccountId: lines.every((line) => line.expenseAccountId === lines[0]!.expenseAccountId)
+            ? lines[0]!.expenseAccountId
+            : null,
           description: blankToNull(input.description),
           reference: blankToNull(input.reference),
           journalEntryId: posting.journalEntryId,
           actorId: actor.id,
           correlationId,
         },
+      });
+
+      await tx.cashExpenseLine.createMany({
+        data: lines.map((line) => ({
+          id: newId(),
+          cashExpenseId: expenseId,
+          expenseAccountId: line.expenseAccountId,
+          amount: line.amount,
+          costCenterRef: line.costCenterRef,
+          description: line.description,
+        })),
       });
 
       return { id: expenseId, number, journalEntryId: posting.journalEntryId };
@@ -174,7 +210,7 @@ export class CashExpenseService {
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 100);
     const rows = await this.prisma.cashExpense.findMany({
       where: { companyId },
-      include: { cashAccount: { select: { code: true, name: true, nameAr: true } }, expenseAccount: { select: { code: true, name: true, nameAr: true } } },
+      include: { cashAccount: { select: { code: true, name: true, nameAr: true } }, _count: { select: { lines: true } } },
       orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(query.cursor !== undefined ? { cursor: { id: query.cursor }, skip: 1 } : {}),

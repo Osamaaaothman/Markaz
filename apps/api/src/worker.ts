@@ -9,6 +9,7 @@
 import { PrismaClient } from "@erp/db";
 import { SystemClock } from "@erp/shared";
 import { ActivationServiceClient, LicenseCheckinService, DEFAULT_CHECKIN_INTERVAL_MS } from "@erp/core";
+import { InvoiceSubmissionService, loadEncryptionKey } from "@erp/compliance-zatca-sa";
 import { createRedisConnection } from "./jobs/redis-connection.js";
 import { createMonitoredWorker, createQueue } from "./jobs/create-monitored-worker.js";
 import { DEFAULT_JOB_OPTIONS, type JobData } from "./jobs/job-conventions.js";
@@ -16,6 +17,12 @@ import { relayOutboxOnce, type OutboxJobData } from "./jobs/outbox-relay.js";
 import { workerLogger } from "./jobs/worker-logger.js";
 import { createEmailTransportFromEnv } from "./notifications/email-transport.js";
 import { createNotificationProcessor, NOTIFICATIONS_QUEUE } from "./notifications/notification.job.js";
+import { ZatcaInvoiceMapper } from "./compliance/zatca-invoice-mapper.js";
+import {
+  createZatcaSubmissionProcessor,
+  zatcaSubmissionQueueName,
+  type ZatcaSubmissionJobData,
+} from "./compliance/zatca-submission.job.js";
 
 // docs/04-DATA-MODEL-RULES.md §3: see the matching comment in main.ts — same
 // UTC-consistency fallback for the worker process.
@@ -63,6 +70,52 @@ const { close: closeNotificationsWorker } = createMonitoredWorker<OutboxJobData>
   createNotificationProcessor(emailTransport),
 );
 
+// ── ZATCA submission (docs/06-COMPLIANCE-PACK-RULES.md §4) ──────────────────────
+// One worker per active EGS unit on that unit's own queue, each with concurrency 1. This is the
+// serialization InvoiceSubmissionService relies on: its chain row lock is only held while it
+// reserves the next ICV/previous hash, never across the ZATCA HTTP call.
+//
+// The mapper needs the envelope-encryption key. A deployment with no ZATCA key configured must
+// still boot every other worker (docs/12-OPS-AND-DEPLOYMENT.md §5 — a missing optional
+// integration is a warning, not a dead process), so a KeyEncryptionError here only skips ZATCA.
+const closeZatcaWorkers = new Map<string, () => Promise<void>>();
+let registration: Promise<void> | undefined;
+
+async function registerZatcaSubmissionWorkers(): Promise<void> {
+  let encryptionKey: Buffer;
+  try {
+    encryptionKey = loadEncryptionKey();
+  } catch (error) {
+    workerLogger.warn(
+      { err: error instanceof Error ? error.message : String(error) },
+      "zatca.workers_skipped_no_encryption_key",
+    );
+    return;
+  }
+
+  const submissionService = new InvoiceSubmissionService(prisma);
+  const mapper = new ZatcaInvoiceMapper(prisma, encryptionKey);
+  const units = await prisma.egsUnit.findMany({ where: { isActive: true, status: "ACTIVE" }, select: { id: true, environment: true } });
+  const activeIds = new Set(units.map((unit) => unit.id));
+  for (const [id, close] of closeZatcaWorkers) {
+    if (!activeIds.has(id)) { await close(); closeZatcaWorkers.delete(id); }
+  }
+  for (const unit of units) {
+    if (closeZatcaWorkers.has(unit.id)) continue;
+    const queueName = zatcaSubmissionQueueName(unit.id);
+    const queue = createQueue<ZatcaSubmissionJobData>(queueName, connection);
+    try { await queue.setGlobalConcurrency(1); } finally { await queue.close(); }
+    const { close } = createMonitoredWorker<ZatcaSubmissionJobData>(
+      queueName,
+      connection,
+      createZatcaSubmissionProcessor(submissionService, mapper),
+      { concurrency: 1 },
+    );
+    closeZatcaWorkers.set(unit.id, close);
+    workerLogger.info({ queue: queueName, environment: unit.environment }, "zatca.worker_registered");
+  }
+}
+
 // BullMQ v6 Job Schedulers (docs.bullmq.io/guide/job-schedulers) — the current,
 // non-deprecated replacement for the old `repeat` job option. `upsertJobScheduler`
 // is idempotent on the scheduler id, so calling this on every worker restart never
@@ -84,12 +137,29 @@ async function scheduleRepeatableJobs(): Promise<void> {
 
 workerLogger.info("worker started");
 void scheduleRepeatableJobs();
+function refreshZatcaWorkers(): void {
+  if (registration) return;
+  registration = registerZatcaSubmissionWorkers().catch((error: unknown) => {
+  // The rest of the worker's queues are already running; a ZATCA lookup failure must not take
+  // them down, so it is logged rather than left as an unhandled rejection.
+  workerLogger.error(
+    { err: error instanceof Error ? error.message : String(error) },
+    "zatca.worker_registration_failed",
+  );
+  }).finally(() => { registration = undefined; });
+}
+refreshZatcaWorkers();
+// Newly onboarded units start processing without requiring an operator to restart the worker.
+const zatcaRefreshTimer = setInterval(refreshZatcaWorkers, 30_000);
 
 async function shutdown(): Promise<void> {
+  clearInterval(zatcaRefreshTimer);
+  await registration;
   workerLogger.info("worker shutting down");
   await closeLicenseCheckinWorker();
   await closeOutboxRelayWorker();
   await closeNotificationsWorker();
+  await Promise.all([...closeZatcaWorkers.values()].map((close) => close()));
   await licenseCheckinQueue.close();
   await outboxRelayQueue.close();
   await connection.quit();

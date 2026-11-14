@@ -12,7 +12,7 @@ import {
   type OnboardingStepResult,
   type SellerProfileView,
 } from "./compliance-admin.service.js";
-import { CreateEgsUnitDto, OnboardingOtpDto, UpdateSellerProfileDto } from "./compliance.dto.js";
+import { ComplianceInvoicesQueryDto, CreateEgsUnitDto, OnboardingOtpDto, UpdateSellerProfileDto } from "./compliance.dto.js";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
@@ -96,6 +96,12 @@ export class ComplianceController {
 
   // ── invoices ────────────────────────────────────────────────────────────────────────────────
 
+  @Get("invoices")
+  @RequirePermission("compliance", "read")
+  invoices(@Query() query: ComplianceInvoicesQueryDto, @CurrentUser() actor: CurrentUserPayload) {
+    return mapErrors(this.admin.invoices(actor.companyId, query));
+  }
+
   @Get("invoices/statuses")
   @RequirePermission("compliance", "read")
   async invoiceStatuses(@Query("ids") ids: string | undefined, @CurrentUser() actor: CurrentUserPayload) {
@@ -128,7 +134,7 @@ export class ComplianceController {
 
   @Post("invoices/:salesInvoiceId/resubmit")
   @RequirePermission("compliance", "manage")
-  resubmit(@Param("salesInvoiceId") salesInvoiceId: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<InvoiceRecordView> {
+  resubmit(@Param("salesInvoiceId") salesInvoiceId: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<InvoiceRecordView | null> {
     return mapErrors(this.admin.resubmit(actor.companyId, salesInvoiceId, actor, correlationId));
   }
 }

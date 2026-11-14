@@ -112,6 +112,11 @@ export class CreateSalesInvoiceDto {
   @IsOptional()
   @IsString()
   egsUnitId?: string;
+
+  // UNCL4461 payment means code for the ZATCA XML (10=cash, 42=bank transfer, 48=card).
+  @IsOptional()
+  @IsString()
+  paymentMeansCode?: string;
 }
 
 export class CreditNoteLineDto {
@@ -163,6 +168,11 @@ export class CreateCreditNoteDto {
   @IsOptional()
   @IsString()
   egsUnitId?: string;
+
+  // UNCL4461 payment means code for the ZATCA XML (10=cash, 42=bank transfer, 48=card).
+  @IsOptional()
+  @IsString()
+  paymentMeansCode?: string;
 }
 
 export class DebitNoteLineDto {
@@ -204,6 +214,11 @@ export class CreateDebitNoteDto {
   @IsOptional()
   @IsString()
   egsUnitId?: string;
+
+  // UNCL4461 payment means code for the ZATCA XML (10=cash, 42=bank transfer, 48=card).
+  @IsOptional()
+  @IsString()
+  paymentMeansCode?: string;
 }
 
 export class QuotationsQueryDto {

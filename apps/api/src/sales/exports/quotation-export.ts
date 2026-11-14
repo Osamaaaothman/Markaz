@@ -1,4 +1,5 @@
 import { issuedFooter } from "../../documents/document-issued-footer.js";
+import { renderPartyDocumentDetails, type PartyDocumentDetails } from "../../documents/party-document-details.js";
 import type { QuotationDetail } from "@erp/core";
 import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
@@ -9,6 +10,7 @@ import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18
 // never reaches the compliance pack, only an eventual sales invoice does.
 export async function quotationToPdfHtml(params: {
   readonly quotation: QuotationDetail;
+  readonly customerDetails?: PartyDocumentDetails | null;
   readonly language: SupportedDocumentLanguage;
   readonly companyName: string;
   readonly issuedBy?: string | null;
@@ -84,6 +86,7 @@ export async function quotationToPdfHtml(params: {
   <div class="bill-to-block">
     <p class="bill-to-label">${escapeHtml(t("quotation.to"))}</p>
     <span class="bill-to-name">${escapeHtml(customer)}</span>
+    ${await renderPartyDocumentDetails(params.customerDetails, params.language)}
   </div>
   <table class="inv-meta">${metaRows}</table>
 </div>
@@ -98,7 +101,7 @@ export async function quotationToPdfHtml(params: {
     <tr class="grand-total"><th>${escapeHtml(t("quotation.total"))}</th><td class="amount">${money(quotation.totalGross)}</td></tr>
   </table>
 </div>
-<p class="amount-words">${escapeHtml(t("quotation.inWords"))}: ${escapeHtml(tafqeetAmount(quotation.totalGross, cur))}</p>
+<p class="amount-words">${escapeHtml(t("quotation.inWords"))}: ${escapeHtml(tafqeetAmount(quotation.totalGross, cur, params.language))}</p>
 ${quotation.notes ? `<p class="inv-notes">${escapeHtml(quotation.notes)}</p>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("quotation.computerGenerated") }),
   });

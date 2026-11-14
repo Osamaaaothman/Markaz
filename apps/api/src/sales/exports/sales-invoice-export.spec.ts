@@ -29,6 +29,16 @@ const invoice: SalesInvoiceDetail = {
 };
 
 describe("sales invoice PDF html", () => {
+  it("prints the buyer's complete identity and English amount words without inventing absent values", async () => {
+    const html = await salesInvoiceToPdfHtml({ invoice: { ...invoice,
+      customerVatNumber: "399999999900003", customerCommercialRegistration: "1010999999", customerPhone: "+966555555555",
+      customerEmail: "buyer@example.test", customerStreetName: "Buyer street", customerBuildingNumber: "1234",
+      customerDistrict: "Central", customerCity: "Riyadh", customerPostalCode: "12345", customerCountryCode: "SA",
+    }, language: "en", companyName: "Seller & Co" });
+    for (const value of ["399999999900003", "1010999999", "+966555555555", "buyer@example.test", "Buyer street", "1234", "Riyadh", "12345", "SA"]) expect(html).toContain(value);
+    expect(html).toContain("Three hundred and forty-five Saudi riyals only");
+    expect(html).toContain("Seller &amp; Co");
+  });
   it("renders RTL Arabic with the Arabic customer name and every total", async () => {
     const html = await salesInvoiceToPdfHtml({ invoice, language: "ar", companyName: "Co" });
     expect(html).toContain('dir="rtl"');
@@ -55,13 +65,14 @@ describe("sales invoice PDF html", () => {
       sellerAddress: "1234 - King St, Olaya, Riyadh, 12345",
       sellerPhone: "+966500000000",
     });
-    expect(html).toContain("VAT No.: 300000000000003");
-    expect(html).toContain("CR No.: 1010101010");
+    const text = html.replace(/<\/?bdi\b[^>]*>/g, "");
+    expect(text).toContain("VAT No.: 300000000000003");
+    expect(text).toContain("CR No.: 1010101010");
     expect(html).toContain("1234 - King St, Olaya, Riyadh, 12345");
-    expect(html).toContain("Phone: +966500000000");
+    expect(text).toContain("Phone: +966500000000");
 
     const arHtml = await salesInvoiceToPdfHtml({ invoice, language: "ar", companyName: "Co", sellerVatNumber: "300000000000003", sellerPhone: null });
-    expect(arHtml).toContain("الرقم الضريبي: 300000000000003");
+    expect(arHtml.replace(/<\/?bdi\b[^>]*>/g, "")).toContain("الرقم الضريبي: 300000000000003");
     expect(arHtml).not.toContain("VAT No.");
     expect(arHtml).not.toContain("CR No.");
     expect(arHtml).not.toContain("Phone:");

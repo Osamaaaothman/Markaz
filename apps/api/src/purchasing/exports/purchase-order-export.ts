@@ -1,6 +1,6 @@
 import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { PurchaseOrderDetail } from "@erp/core";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
 import { escapeHtml } from "../../common/html-escape.js";
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18n/server-i18n.js";
@@ -104,6 +104,7 @@ export async function purchaseOrderToPdfHtml(params: {
     <tr class="grand-total"><th>${escapeHtml(t("purchaseOrder.grandTotal"))}</th><td class="amount">${money(order.totalAmount)}</td></tr>
   </table>
 </div>
+<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(order.totalAmount, cur, params.language))}</p>
 ${order.notes ? `<p class="po-notes">${escapeHtml(order.notes)}</p>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("purchaseOrder.computerGenerated") }),
   });

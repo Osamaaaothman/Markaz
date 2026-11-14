@@ -25,10 +25,11 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
+import { ComplianceAdminService } from "../compliance/compliance-admin.service.js";
 import { quotationToPdfHtml } from "./exports/quotation-export.js";
 import { quotationEmailContent } from "./exports/quotation-email-template.js";
 import { localizedCompanyName } from "../common/company-name.js";
@@ -107,7 +108,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
 
 @Controller("v1")
 export class SalesController {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly quotationEmails: QuotationEmailService,
     private readonly quotations: QuotationService,
     private readonly orders: SalesOrderService,
@@ -115,6 +116,7 @@ export class SalesController {
     private readonly prisma: PrismaService,
     private readonly attachments: AttachmentService,
     @Inject(EMAIL_TRANSPORT) private readonly emailTransport: EmailTransport,
+    private readonly compliance: ComplianceAdminService,
   ) {}
 
   // Shared by the quotation PDF, preview and send endpoints: the company's own identity as it
@@ -199,7 +201,7 @@ export class SalesController {
     const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
     const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
     const seller = await this.loadSellerContext(actor.companyId, language);
-    const pdf = await renderHtmlToPdf(await quotationToPdfHtml({ quotation, language, ...seller }));
+    const pdf = await this.documents.render(actor.companyId, language, await quotationToPdfHtml({ customerDetails: await this.documents.party(actor.companyId, quotation.customerId), quotation, language, ...seller }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${quotation.number}.pdf"`);
     res.send(pdf);
@@ -247,7 +249,7 @@ export class SalesController {
       const quotation = await mapSalesErrors(this.quotations.get(actor.companyId, id));
       const seller = await this.loadSellerContext(actor.companyId, dto.language);
       const content = await quotationEmailContent({ quotation, language: dto.language, companyName: seller.companyName, logoDataUri: seller.logoDataUri, sellerPhone: seller.sellerPhone, sellerAddress: seller.sellerAddress });
-      const pdf = await renderHtmlToPdf(await quotationToPdfHtml({ quotation, language: dto.language, ...seller }));
+      const pdf = await this.documents.render(actor.companyId, dto.language, await quotationToPdfHtml({ customerDetails: await this.documents.party(actor.companyId, quotation.customerId), quotation, language: dto.language, ...seller }));
       return { ...content, to: dto.to, attachments: [{ filename: `${quotation.number}.pdf`, content: pdf, contentType: "application/pdf" }] };
     }));
   }
@@ -338,9 +340,10 @@ export class SalesController {
       (p): p is string => Boolean(p?.trim()),
     );
     const sellerAddress = [sellerBuildingPart, ...sellerAddressParts].filter(Boolean).join(addressSeparator).trim() || null;
-    const pdf = await renderHtmlToPdf(
+    const pdf = await this.documents.render(actor.companyId, language,
       await salesInvoiceToPdfHtml({
         invoice,
+        compliance: await this.compliance.invoicePrintData(actor.companyId, id),
         issuedBy: issuer?.email ?? null,
         issuedAt: issued.createdAt.toISOString(),
         language,
@@ -373,6 +376,7 @@ export class SalesController {
           ...(dto.dueDate !== undefined ? { dueDate: new Date(dto.dueDate) } : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
           ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
+          ...(dto.paymentMeansCode !== undefined ? { paymentMeansCode: dto.paymentMeansCode } : {}),
           lines: dto.lines,
         },
         actor,
@@ -398,6 +402,7 @@ export class SalesController {
           creditDate: new Date(dto.creditDate),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
           ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
+          ...(dto.paymentMeansCode !== undefined ? { paymentMeansCode: dto.paymentMeansCode } : {}),
           lines: dto.lines,
         },
         actor,
@@ -423,6 +428,7 @@ export class SalesController {
           debitDate: new Date(dto.debitDate),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
           ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),
+          ...(dto.paymentMeansCode !== undefined ? { paymentMeansCode: dto.paymentMeansCode } : {}),
           lines: dto.lines,
         },
         actor,

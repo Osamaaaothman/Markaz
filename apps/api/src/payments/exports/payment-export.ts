@@ -110,7 +110,7 @@ ${allocationsSection}
     <tr class="grand-total"><th>${escapeHtml(t("payment.total"))}</th><td class="amount">${money(payment.amount)}</td></tr>
   </table>
 </div>
-<p class="amount-words">${escapeHtml(t("payment.inWords"))}: ${escapeHtml(tafqeetAmount(payment.amount, cur))}</p>
+<p class="amount-words">${escapeHtml(t("payment.inWords"))}: ${escapeHtml(tafqeetAmount(payment.amount, cur, params.language))}</p>
 ${payment.notes ? `<p class="pmt-notes">${escapeHtml(payment.notes)}</p>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("payment.computerGenerated") }),
   });

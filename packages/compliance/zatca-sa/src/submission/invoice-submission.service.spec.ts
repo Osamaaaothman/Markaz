@@ -256,7 +256,7 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     await expect(service.submit(params)).rejects.toBeInstanceOf(AlreadySubmittedError);
   });
 
-  it("does NOT consume the ICV on a transient failure, and a retry reuses the same chain position", async () => {
+  it("continues generation after a transient failure and retries older invoices without rewinding the chain", async () => {
     const transport = new ScriptedTransport().queue(new ZatcaApiError("SERVER_ERROR", "ZATCA had a bad day", 503));
     const { service, ...params } = await makeParams({ transport });
 
@@ -266,27 +266,51 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     expect(recordAfterFailure.status).toBe("FAILED_RETRYABLE");
     expect(recordAfterFailure.icv).toBe(1n);
     const stateAfterFailure = await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } });
-    expect(stateAfterFailure.lastIcv).toBe(0n); // not advanced
+    expect(stateAfterFailure.lastIcv).toBe(1n);
+    const followingTransport = new ScriptedTransport().queue(CLEARED_RESPONSE);
+    const { service: followingService, ...followingParams } = await makeParams({ transport: followingTransport });
+    const following = await followingService.submit(followingParams);
+    const followingRecord = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: following.zatcaInvoiceRecordId } });
+    expect(followingRecord.icv).toBe(2n);
+    expect(followingRecord.previousInvoiceHash).toBe(recordAfterFailure.invoiceHash);
 
     // Retry: same salesInvoiceId, now the transport succeeds.
     transport.queue(CLEARED_RESPONSE);
-    const second = await service.submit(params);
+    const second = await service.submit({ ...params, isSimplified: true, signingTime: "2026-11-05T13:00:00", buildInvoiceInput: () => { throw new Error("A retry must not remap an invoice"); } });
     expect(second.zatcaInvoiceRecordId).toBe(first.zatcaInvoiceRecordId); // same record, resumed
     expect(second.outcome.complianceOutcome).toEqual({ kind: "CLEARED" });
     const recordAfterRetry = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: first.zatcaInvoiceRecordId } });
     expect(recordAfterRetry.icv).toBe(1n); // same ICV reused, not a new one
     expect(recordAfterRetry.attempts).toBe(2);
+    expect(transport.calls[1]!.body).toEqual(transport.calls[0]!.body);
+    expect(transport.calls[1]!.url).toEqual(transport.calls[0]!.url);
+    expect(recordAfterRetry.uuid).toBe(params.salesInvoiceId);
+    const history = await prisma.zatcaSubmissionAttempt.findMany({ where: { recordId: recordAfterRetry.id }, orderBy: { startedAt: "asc" } });
+    expect(history.map((attempt) => attempt.status)).toEqual(["FAILED_RETRYABLE", "CLEARED"]);
+    expect(history[0]!.httpStatus).toBe(503);
     const stateAfterRetry = await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } });
-    expect(stateAfterRetry.lastIcv).toBe(1n); // advanced only now
+    expect(stateAfterRetry.lastIcv).toBe(2n);
+    expect(stateAfterRetry.lastInvoiceHash).toBe(followingRecord.invoiceHash);
   });
 
-  it("treats an auth error as PACK_UNAVAILABLE, not a business rejection — the ICV is not consumed", async () => {
+  it("keeps generated chain evidence on an auth error and recovers a legacy unadvanced signed tail", async () => {
     const transport = new ScriptedTransport().queue(new ZatcaApiError("AUTH_ERROR", "bad credentials", 401));
     const { service, ...params } = await makeParams({ transport });
     const result = await service.submit(params);
     expect(result.outcome.complianceOutcome).toEqual({ kind: "PACK_UNAVAILABLE" });
     const state = await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } });
-    expect(state.lastIcv).toBe(0n);
+    expect(state.lastIcv).toBe(1n);
+    const original = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: result.zatcaInvoiceRecordId } });
+    // Simulate the pre-fix state: bytes persisted, HTTP 401, chain still at genesis.
+    await prisma.egsChainState.update({ where: { egsUnitId }, data: { lastIcv: 0n, lastInvoiceHash: null } });
+    const nextTransport = new ScriptedTransport().queue(CLEARED_RESPONSE);
+    const { service: nextService, ...nextParams } = await makeParams({ transport: nextTransport });
+    const nextResult = await nextService.submit(nextParams);
+    const next = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: nextResult.zatcaInvoiceRecordId } });
+    expect(next.icv).toBe(2n);
+    expect(next.previousInvoiceHash).toBe(original.invoiceHash);
+    const preserved = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: original.id } });
+    expect(preserved).toEqual(original);
   });
 
   it("assigns strictly sequential ICVs to successive invoices on the same EGS", async () => {

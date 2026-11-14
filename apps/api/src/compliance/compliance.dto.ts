@@ -1,4 +1,6 @@
-import { IsIn, IsOptional, IsString, Matches, MaxLength } from "class-validator";
+import { IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min, Max, IsUUID } from "class-validator";
+import { Type } from "class-transformer";
+import type { ZatcaEnvironment } from "@erp/compliance-zatca-sa";
 
 const CR_NUMBER_SCHEMES = ["CRN", "MOM", "MLS", "SAG", "OTH", "NAT", "GCC", "IQA", "PAS", "CCN", "CBI"] as const;
 
@@ -66,6 +68,9 @@ export class UpdateSellerProfileDto {
 }
 
 export class CreateEgsUnitDto {
+  @IsOptional()
+  @IsIn(["sandbox", "simulation", "production"])
+  environment?: ZatcaEnvironment;
   @IsString()
   @MaxLength(200)
   name!: string;
@@ -83,6 +88,15 @@ export class CreateEgsUnitDto {
   // (docs/01-OPEN-DECISIONS.md section S).
   @Matches(/^[01]{4}$/, { message: "invoiceTypes must be 4 characters, each 0 or 1" })
   invoiceTypes!: string;
+}
+
+export class ComplianceInvoicesQueryDto {
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
+  @IsOptional() @IsIn(["NOT_SUBMITTED", "PENDING", "SUBMITTING", "CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS", "REJECTED", "FAILED_RETRYABLE"]) status?: string;
+  @IsOptional() @IsIn(["sandbox", "simulation", "production"]) environment?: string;
+  @IsOptional() @IsIn(["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"]) documentType?: string;
+  @IsOptional() @IsUUID() cursor?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
 }
 
 // The OTP from the taxpayer's Fatoora portal. Digits only (the sandbox's own documented sample
