@@ -116,6 +116,7 @@ function PartiesTab({
                 <span className="coa-cell" style={{ paddingInlineStart: 0 }}>
                   <i className={`${partyKindIcon(row.kind)} coa-icon`} aria-hidden="true" />
                   <span className="coa-name">{localizedName(row, i18n.language)}</span>
+                  {row.kind === "CUSTOMER_SUPPLIER" ? <Tag value={t("parties.kinds.CUSTOMER_SUPPLIER")} severity="info" /> : null}
                 </span>
               )}
             />

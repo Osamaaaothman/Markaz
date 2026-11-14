@@ -11,6 +11,11 @@ const PARTY_KIND_MAP = {
 
 export type PartyKindWithAccount = keyof typeof PARTY_KIND_MAP;
 
+export function partyAccountRoles(kind: string): readonly PartyKindWithAccount[] {
+  if (kind === "CUSTOMER_SUPPLIER") return ["CUSTOMER", "SUPPLIER"];
+  return kind === "CUSTOMER" || kind === "SUPPLIER" ? [kind] : [];
+}
+
 export interface ProvisionedPartyAccount {
   readonly accountId: string;
   readonly accountCode: string;

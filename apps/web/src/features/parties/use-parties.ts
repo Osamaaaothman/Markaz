@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 
-export const PARTY_KINDS = ["SUPPLIER", "CUSTOMER", "COMPANY", "PERSON", "EMPLOYEE", "OTHER"] as const;
+export const PARTY_KINDS = ["SUPPLIER", "CUSTOMER", "CUSTOMER_SUPPLIER", "COMPANY", "PERSON", "EMPLOYEE", "OTHER"] as const;
 export type PartyKind = (typeof PARTY_KINDS)[number];
 
 export interface PartySummary {
@@ -125,6 +125,7 @@ export function usePartySearch(q: string, excludeEmployees = false, kind?: Party
 
 export interface CreatePartyResult extends PartySummary {
   readonly accountCode: string | null;
+  readonly accountCodes?: readonly string[];
 }
 
 export function useCreateParty() {

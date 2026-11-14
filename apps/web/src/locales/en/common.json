@@ -426,6 +426,7 @@
     "kinds": {
       "SUPPLIER": "Supplier",
       "CUSTOMER": "Customer",
+      "CUSTOMER_SUPPLIER": "Customer and supplier",
       "COMPANY": "Company",
       "PERSON": "Person",
       "EMPLOYEE": "Employee",
@@ -2382,7 +2383,7 @@
     "items": "items",
     "parties": "parties",
     "hint": "Upload XLSX (first worksheet) or CSV. Maximum 200 rows and 2 MB. Download the column template; preview does not save anything. Correct errors in your file and upload it again.",
-    "kindsHint": "Party kinds: COMPANY, PERSON, OTHER. Import employees through HR. Keep phone numbers and identifiers as text in Excel to preserve leading zeros.",
+    "kindsHint": "Party kinds: CUSTOMER, SUPPLIER, CUSTOMER_SUPPLIER (both), COMPANY, PERSON, OTHER. Import employees through HR. Keep phone numbers and identifiers as text in Excel to preserve leading zeros.",
     "template": "Download column template",
     "choose": "Choose file and preview",
     "row": "File row",

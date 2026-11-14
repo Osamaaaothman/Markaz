@@ -414,7 +414,7 @@ model Party {
   ref                    String
   name                   String
   nameAr                 String?  @map("name_ar")
-  kind                   String // COMPANY | PERSON | EMPLOYEE | OTHER
+  kind                   String // SUPPLIER | CUSTOMER | CUSTOMER_SUPPLIER | COMPANY | PERSON | EMPLOYEE | OTHER
   phone                  String?
   email                  String?
   // M7 ZATCA buyer fields, needed on a standard (B2B) invoice so the customer can deduct input VAT

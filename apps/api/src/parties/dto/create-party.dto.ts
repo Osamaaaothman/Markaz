@@ -1,6 +1,6 @@
 import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
 
-export const PARTY_KINDS = ["SUPPLIER", "CUSTOMER", "COMPANY", "PERSON", "EMPLOYEE", "OTHER"] as const;
+export const PARTY_KINDS = ["SUPPLIER", "CUSTOMER", "CUSTOMER_SUPPLIER", "COMPANY", "PERSON", "EMPLOYEE", "OTHER"] as const;
 export type PartyKind = (typeof PARTY_KINDS)[number];
 
 export class CreatePartyDto {

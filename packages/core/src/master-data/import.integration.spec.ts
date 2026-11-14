@@ -32,6 +32,12 @@ describe("Import validation", () => {
       expect.arrayContaining(["TEXT_REQUIRED", "UNKNOWN_COLUMN", "INVALID_DECIMAL"]),
     );
   });
+  it("accepts single and dual commercial roles", () => {
+    const rows = validateImportRows("parties", ["CUSTOMER", "SUPPLIER", "CUSTOMER_SUPPLIER"].map((kind, index) => ({
+      rowNumber: index + 2, values: { name: `Role ${kind}`, kind },
+    })));
+    expect(rows.map((row) => row.errors)).toEqual([[], [], []]);
+  });
 });
 
 (process.env.DATABASE_URL ? describe : describe.skip)("Master imports — real PostgreSQL", () => {

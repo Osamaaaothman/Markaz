@@ -160,7 +160,9 @@ export function PartyFormDialog({
                 { label: t("created.email"), value: saved.email ?? "", ltr: true },
                 { label: t("parties.vatNumber"), value: saved.vatNumber ?? "", ltr: true },
                 { label: t("parties.commercialRegistration"), value: saved.commercialRegistration ?? "", ltr: true },
-                ...(saved.accountCode ? [{ label: t("parties.ledgerAccount"), value: saved.accountCode, ltr: true }] : []),
+                ...(saved.accountCodes ?? (saved.accountCode ? [saved.accountCode] : [])).map((code) => ({
+                  label: t("parties.ledgerAccount"), value: code, ltr: true,
+                })),
               ],
             });
             onHide();
