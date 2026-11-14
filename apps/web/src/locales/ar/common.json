@@ -424,10 +424,17 @@
     "kind": "النوع",
     "allKinds": "كل الأنواع",
     "kinds": {
+      "SUPPLIER": "مورد",
+      "CUSTOMER": "عميل",
       "COMPANY": "شركة",
       "PERSON": "شخص",
       "EMPLOYEE": "موظف",
       "OTHER": "أخرى"
+    },
+    "tabs": {
+      "suppliers": "الموردون",
+      "customers": "العملاء",
+      "employees": "الموظفون"
     },
     "phone": "الهاتف",
     "email": "البريد الإلكتروني",

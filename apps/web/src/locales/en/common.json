@@ -424,10 +424,17 @@
     "kind": "Kind",
     "allKinds": "All kinds",
     "kinds": {
+      "SUPPLIER": "Supplier",
+      "CUSTOMER": "Customer",
       "COMPANY": "Company",
       "PERSON": "Person",
       "EMPLOYEE": "Employee",
       "OTHER": "Other"
+    },
+    "tabs": {
+      "suppliers": "Suppliers",
+      "customers": "Customers",
+      "employees": "Employees"
     },
     "phone": "Phone",
     "email": "Email",

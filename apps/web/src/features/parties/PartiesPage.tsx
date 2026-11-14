@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
-import { SelectButton } from "primereact/selectbutton";
+import { TabView, TabPanel } from "primereact/tabview";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
@@ -17,17 +17,26 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PartyFormDialog } from "./PartyFormDialog";
 import { partyKindIcon } from "./party-kind";
-import { PARTY_KINDS, useParties, type PartyKind, type PartySummary } from "./use-parties";
+import { useParties, type PartyKind, type PartySummary } from "./use-parties";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
-const ALL_KINDS = "ALL";
+const TABS: { kind: PartyKind; labelKey: string }[] = [
+  { kind: "SUPPLIER", labelKey: "parties.tabs.suppliers" },
+  { kind: "CUSTOMER", labelKey: "parties.tabs.customers" },
+  { kind: "EMPLOYEE", labelKey: "parties.tabs.employees" },
+];
 
-export function PartiesPage(): React.JSX.Element {
+function PartiesTab({
+  kind,
+  defaultKind,
+}: {
+  kind: PartyKind;
+  defaultKind: PartyKind;
+}): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const [query, setQuery] = useState("");
   const [created, setCreated] = useState<CreatedInfo | null>(null);
-  const [kind, setKind] = useState<PartyKind | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [dialogParty, setDialogParty] = useState<PartySummary | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -46,50 +55,32 @@ export function PartiesPage(): React.JSX.Element {
   };
 
   return (
-    <div className="erp-page">
-      <div className="erp-page__header">
-        <div>
-          <h1 className="erp-page__title">{t("parties.title")}</h1>
-          <p className="erp-page__subtitle">{t("parties.subtitle")}</p>
+    <div>
+      <div className="erp-page__header" style={{ marginBlockEnd: "1rem" }}>
+        <div className="coa-toolbar" style={{ flex: 1 }}>
+          <div className="coa-search">
+            <InputText
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("parties.searchPlaceholder")}
+              aria-label={t("parties.searchPlaceholder")}
+            />
+          </div>
+          <div className="coa-levels">
+            <label className="coa-levels" htmlFor={`partiesInactive-${kind}`}>
+              <InputSwitch inputId={`partiesInactive-${kind}`} checked={includeInactive} onChange={(e) => setIncludeInactive(Boolean(e.value))} />
+              <span className="coa-levels__label">{t("parties.showInactive")}</span>
+            </label>
+          </div>
         </div>
-        <div className="erp-page__header-actions">{can("party:create") ? <ImportButton kind="parties" /> : null}
-        <PermissionButton
-          allowed={can("party:create")}
-          label={t("parties.add")}
-          icon="pi pi-plus"
-          onClick={() => openDialog(null)}
-        /></div>
-      </div>
-
-      <div className="coa-toolbar">
-        <div className="coa-search">
-          <InputText
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("parties.searchPlaceholder")}
-            aria-label={t("parties.searchPlaceholder")}
+        <div className="erp-page__header-actions">
+          {can("party:create") ? <ImportButton kind="parties" /> : null}
+          <PermissionButton
+            allowed={can("party:create")}
+            label={t("parties.add")}
+            icon="pi pi-plus"
+            onClick={() => openDialog(null)}
           />
-        </div>
-        <div className="coa-levels">
-          <SelectButton
-            className="mk-segmented"
-            value={kind ?? ALL_KINDS}
-            // Clicking the selected segment again reports null; keep the current choice instead.
-            // "All kinds" is a sentinel string, not null.
-            onChange={(e) => {
-              if (e.value === null || e.value === undefined) return;
-              setKind(e.value === ALL_KINDS ? null : (e.value as PartyKind));
-            }}
-            options={[
-              { label: t("parties.allKinds"), value: ALL_KINDS },
-              ...PARTY_KINDS.map((k) => ({ label: t(`parties.kinds.${k}`), value: k })),
-            ]}
-            aria-label={t("parties.kind")}
-          />
-          <label className="coa-levels" htmlFor="partiesInactive">
-            <InputSwitch inputId="partiesInactive" checked={includeInactive} onChange={(e) => setIncludeInactive(Boolean(e.value))} />
-            <span className="coa-levels__label">{t("parties.showInactive")}</span>
-          </label>
         </div>
       </div>
 
@@ -121,11 +112,6 @@ export function PartiesPage(): React.JSX.Element {
                   <span className="coa-name">{localizedName(row, i18n.language)}</span>
                 </span>
               )}
-            />
-            <Column
-              header={t("parties.kind")}
-              style={{ width: "9rem" }}
-              body={(row: PartySummary) => <Tag value={t(`parties.kinds.${row.kind}`, row.kind)} severity="secondary" />}
             />
             <Column
               header={t("parties.id")}
@@ -183,8 +169,31 @@ export function PartiesPage(): React.JSX.Element {
         </>
       )}
 
-      <PartyFormDialog party={dialogParty} visible={dialogOpen} onHide={() => setDialogOpen(false)} onCreated={setCreated} />
+      <PartyFormDialog party={dialogParty} visible={dialogOpen} onHide={() => setDialogOpen(false)} onCreated={setCreated} defaultKind={defaultKind} />
       <CreatedDialog info={created} onHide={() => setCreated(null)} />
+    </div>
+  );
+}
+
+export function PartiesPage(): React.JSX.Element {
+  const { t } = useTranslation();
+
+  return (
+    <div className="erp-page">
+      <div className="erp-page__header">
+        <div>
+          <h1 className="erp-page__title">{t("parties.title")}</h1>
+          <p className="erp-page__subtitle">{t("parties.subtitle")}</p>
+        </div>
+      </div>
+
+      <TabView className="erp-tabs">
+        {TABS.map((tab) => (
+          <TabPanel key={tab.kind} header={t(tab.labelKey)} leftIcon={`${partyKindIcon(tab.kind)} me-2`}>
+            <PartiesTab kind={tab.kind} defaultKind={tab.kind} />
+          </TabPanel>
+        ))}
+      </TabView>
     </div>
   );
 }

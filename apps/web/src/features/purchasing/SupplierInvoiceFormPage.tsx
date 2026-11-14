@@ -210,6 +210,7 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
             <label htmlFor="siSupplier">{t("purchasing.supplier")}</label>
             <PartyPicker
               excludeEmployees
+              kind="SUPPLIER"
               inputId="siSupplier"
               value={supplierId || null}
               onChange={(party) =>

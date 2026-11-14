@@ -31,23 +31,25 @@ const partySchema = z.object({
 });
 type PartyFormValues = z.infer<typeof partySchema>;
 
-const EMPTY: PartyFormValues = {
-  name: "",
-  nameAr: "",
-  kind: "PERSON",
-  phone: "",
-  email: "",
-  vatNumber: "",
-  commercialRegistration: "",
-  streetName: "",
-  additionalStreetName: "",
-  buildingNumber: "",
-  additionalNumber: "",
-  district: "",
-  city: "",
-  postalCode: "",
-  isActive: true,
-};
+function emptyForm(defaultKind: PartyFormValues["kind"] = "CUSTOMER"): PartyFormValues {
+  return {
+    name: "",
+    nameAr: "",
+    kind: defaultKind,
+    phone: "",
+    email: "",
+    vatNumber: "",
+    commercialRegistration: "",
+    streetName: "",
+    additionalStreetName: "",
+    buildingNumber: "",
+    additionalNumber: "",
+    district: "",
+    city: "",
+    postalCode: "",
+    isActive: true,
+  };
+}
 
 // One dialog for both adding (party = null) and editing a party.
 export function PartyFormDialog({
@@ -55,11 +57,13 @@ export function PartyFormDialog({
   visible,
   onHide,
   onCreated,
+  defaultKind,
 }: {
   party: PartySummary | null;
   visible: boolean;
   onHide: () => void;
   onCreated?: (info: CreatedInfo) => void;
+  defaultKind?: PartyFormValues["kind"];
 }): React.JSX.Element {
   const { t } = useTranslation();
   const createParty = useCreateParty();
@@ -72,7 +76,7 @@ export function PartyFormDialog({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<PartyFormValues>({ resolver: zodResolver(partySchema), defaultValues: EMPTY });
+  } = useForm<PartyFormValues>({ resolver: zodResolver(partySchema), defaultValues: emptyForm(defaultKind) });
 
   // Load the party being edited (or a blank form) each time the dialog opens.
   useEffect(() => {
@@ -98,10 +102,10 @@ export function PartyFormDialog({
             postalCode: party.postalCode ?? "",
             isActive: party.isActive,
           }
-        : EMPTY,
+        : emptyForm(defaultKind),
     );
     // Reset only when the dialog opens (or for another party), not on every re-render.
-  }, [visible, party?.id]);
+  }, [visible, party?.id, defaultKind]);
 
   const onSubmit = handleSubmit((values) => {
     if (party) {
