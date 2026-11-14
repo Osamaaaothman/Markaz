@@ -859,7 +859,7 @@ export function AccountingSection(): React.JSX.Element {
             <Column field="code" header={t("code")} />
             <Column
               header={t("balanceValue")}
-              body={(node) => <Amount value={node.data.amount as number} />}
+              body={(node: { data: { amount: number } }) => <Amount value={node.data.amount} />}
             />
           </TreeTable>
           <B

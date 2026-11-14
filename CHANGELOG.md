@@ -5,6 +5,17 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Combined production release (2026-11-15)
+
+- Add company-scoped cost centers, projects and departments to expense lines and
+  journal details; preserve allocation links on reversals and legacy free text.
+- Add independent interface styles and palettes, responsive module navigation and
+  themed choice controls. Design-study pages remain outside the normal app build.
+- Integrate pending sales-price, provisional inventory-cost, voucher and ZATCA
+  validation/renewal branches. The release has four database migrations; follow
+  [the rollout runbook](docs/releases/2026-11-15.md) before deploying.
+
+
 ### Receipt/payment voucher selection and amounts (2026-11-15)
 
 - Filter cash and bank accounts by payment method using configurable account folders.

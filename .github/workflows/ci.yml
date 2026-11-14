@@ -82,6 +82,9 @@ jobs:
       - name: Test
         run: npm run test
 
+      - name: Cost center API validation and permissions
+        run: npm run test:cost-centers --workspace=@erp/api
+
       # docs/10-TESTING-RULES.md §2.6: "every key exists in both ar and en — CI
       # fails otherwise."
       - name: i18n locale key parity
