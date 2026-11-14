@@ -109,8 +109,6 @@ const INVOICE_SELECT = {
       credential: {
         select: {
           privateKeyCiphertext: true,
-          complianceCsidCiphertext: true,
-          complianceSecretCiphertext: true,
           productionCsidCiphertext: true,
           productionSecretCiphertext: true,
         },
@@ -195,11 +193,10 @@ export class ZatcaInvoiceMapper implements ZatcaSubmissionParamsLoader {
     const credential = egsUnit.credential;
     if (!credential) throw new Error("EGS credential ciphertext missing");
     const environment = egsUnit.environment as ZatcaEnvironment;
-    const isProduction = environment !== "sandbox";
-    // Onboarding stores the certificate itself (PEM) in the CSID column, encrypted — there is no
-    // plaintext certificate column and none is needed.
-    const csidCiphertext = isProduction ? credential.productionCsidCiphertext : credential.complianceCsidCiphertext;
-    const secretCiphertext = isProduction ? credential.productionSecretCiphertext : credential.complianceSecretCiphertext;
+    // Reporting and clearance require the Production CSID of the selected environment,
+    // including the test Production CSID in Sandbox. Compliance CSIDs are onboarding-only.
+    const csidCiphertext = credential.productionCsidCiphertext;
+    const secretCiphertext = credential.productionSecretCiphertext;
     if (!credential.privateKeyCiphertext || !csidCiphertext || !secretCiphertext) {
       throw new Error("EGS credential ciphertext missing");
     }

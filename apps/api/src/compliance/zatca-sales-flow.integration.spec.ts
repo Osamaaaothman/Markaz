@@ -68,8 +68,13 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
   });
   afterAll(async () => { await prisma.$disconnect(); });
 
-  it.each([false, true])("submits all three documents, scoped downloads and QR (simplified=%s)", async (simplified) => {
-    const egs = await admin.createEgsUnit({ name: `Test ${simplified}`, businessCategory: "Retail", invoiceTypes: "1100", environment: "simulation" }, actor, newId());
+  it.each([
+    { simplified: false, environment: "simulation" as const },
+    { simplified: true, environment: "simulation" as const },
+    { simplified: false, environment: "sandbox" as const },
+    { simplified: true, environment: "sandbox" as const },
+  ])("submits all three documents using the issuance CSID ($environment, simplified=$simplified)", async ({ simplified, environment }) => {
+    const egs = await admin.createEgsUnit({ name: `Test ${environment} ${simplified}`, businessCategory: "Retail", invoiceTypes: "1100", environment }, actor, newId());
     await prisma.egsUnit.update({ where: { id: egs.id }, data: { status: "ACTIVE" } });
     const encrypted = (value: string): Uint8Array<ArrayBuffer> => Uint8Array.from(encryptText(value, key));
     await prisma.egsCredential.create({ data: { id: newId(), companyId, egsUnitId: egs.id, status: "ACTIVE", privateKeyCiphertext: encrypted(privateKey), productionCsidCiphertext: encrypted(cert), productionSecretCiphertext: encrypted("synthetic-secret"), complianceCsidCiphertext: encrypted("not-a-production-certificate") } });
@@ -77,7 +82,7 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
     const line = { description: "خدمة اختبار", quantity: "1", unitPrice: "100", taxCodeId };
     const invoice = await sales.createInvoice({ customerId: customer.id, invoiceDate: now, egsUnitId: egs.id, lines: [line] }, actor, newId(), newId());
     expect((await admin.invoiceStatuses(companyId, [invoice.id]))[invoice.id]?.status).toBe("NOT_SUBMITTED");
-    expect((await admin.invoices(companyId, { status: "NOT_SUBMITTED", environment: "simulation" })).data.some((row) => row.salesInvoiceId === invoice.id)).toBe(true);
+    expect((await admin.invoices(companyId, { status: "NOT_SUBMITTED", environment })).data.some((row) => row.salesInvoiceId === invoice.id)).toBe(true);
     await admin.resubmit(companyId, invoice.id, actor, newId());
     expect(enqueued).toContain(invoice.id);
     const original = await sales.get(companyId, invoice.id);
@@ -117,8 +122,8 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
       }
     }
     expect(authority.calls).toHaveLength(3);
-    expect(authority.calls.every((call) => call.url.includes("simulation"))).toBe(true);
-    const firstPage = await admin.invoices(companyId, { limit: 1, environment: "simulation", documentType: "CREDIT_NOTE" });
+    expect(authority.calls.every((call) => call.url.includes(environment === "sandbox" ? "developer-portal" : "simulation"))).toBe(true);
+    const firstPage = await admin.invoices(companyId, { limit: 1, environment, documentType: "CREDIT_NOTE" });
     expect(firstPage.data[0]!.documentType).toBe("CREDIT_NOTE");
     expect((await admin.invoices(newId(), {})).data).toEqual([]);
   });
