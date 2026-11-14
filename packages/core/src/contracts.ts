@@ -11,6 +11,7 @@
 // this same engine once M4 (the first real caller) needs it, informed by a concrete
 // example instead of a guess.
 export interface JournalLineInput {
+  readonly costCenterId?: string;
   readonly accountId: string;
   readonly debit?: string; // decimal string; exactly one of debit/credit is set
   readonly credit?: string;

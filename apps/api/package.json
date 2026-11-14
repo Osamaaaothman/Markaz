@@ -9,7 +9,8 @@
     "start:worker": "node dist/worker.js",
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "test:cost-centers": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.cost-centers.config.cjs --runInBand"
   },
   "dependencies": {
     "@erp/compliance-zatca-sa": "*",

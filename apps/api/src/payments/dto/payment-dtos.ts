@@ -95,6 +95,12 @@ export class PartyBalanceQueryDto {
 }
 
 export class CreateCashExpenseLineDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  costCenterId?: string;
+
   @IsString()
   expenseAccountId!: string;
 

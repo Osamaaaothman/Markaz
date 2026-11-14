@@ -13,7 +13,8 @@ export class CashExpenseError extends Error {
       | "EXPENSE_ACCOUNT_NOT_FOUND"
       | "EXPENSE_ACCOUNT_INVALID"
       | "NO_OPEN_PERIOD"
-      | "LINES_EMPTY",
+      | "LINES_EMPTY"
+      | "COST_CENTER_INVALID",
     message: string,
   ) {
     super(message);
@@ -22,6 +23,7 @@ export class CashExpenseError extends Error {
 }
 
 export interface CashExpenseLineInput {
+  readonly costCenterId?: string | undefined;
   readonly expenseAccountId: string;
   readonly amount: string;
   readonly costCenterRef?: string | undefined;
@@ -118,15 +120,18 @@ export class CashExpenseService {
 
       if (input.lines.length < 1) throw new CashExpenseError("LINES_EMPTY", "Add at least one expense line");
 
-      const lines: { expenseAccountId: string; amount: Prisma.Decimal; costCenterRef: string | null; description: string | null }[] = [];
+      const lines: { expenseAccountId: string; amount: Prisma.Decimal; costCenterId: string | null; costCenterRef: string | null; description: string | null }[] = [];
       for (const line of input.lines) {
         const expense = await tx.account.findFirst({ where: { id: line.expenseAccountId, companyId: actor.companyId } });
         if (!expense) throw new CashExpenseError("EXPENSE_ACCOUNT_NOT_FOUND", "The expense account was not found");
         if (!expense.isPostable || expense.type !== "EXPENSE") throw new CashExpenseError("EXPENSE_ACCOUNT_INVALID", "Choose a postable expense account");
+        const center = line.costCenterId ? await tx.costCenter.findFirst({ where: { id: line.costCenterId, companyId: actor.companyId, isActive: true } }) : null;
+        if (line.costCenterId && !center) throw new CashExpenseError("COST_CENTER_INVALID", "Choose an active cost center in this company");
         lines.push({
           expenseAccountId: expense.id,
           amount: new Prisma.Decimal(line.amount),
-          costCenterRef: blankToNull(line.costCenterRef),
+          costCenterId: center?.id ?? null,
+          costCenterRef: center ? `${center.code} — ${center.name}` : blankToNull(line.costCenterRef),
           description: blankToNull(line.description),
         });
       }
@@ -141,6 +146,7 @@ export class CashExpenseService {
         ...lines.map((line) => ({
           accountId: line.expenseAccountId,
           debit: line.amount.toFixed(4),
+          ...(line.costCenterId ? { costCenterId: line.costCenterId } : {}),
           description: line.description ?? "Cash expense",
         })),
         { accountId: cash.id, credit: total.toFixed(4), description: "Cash expense" },
@@ -195,6 +201,7 @@ export class CashExpenseService {
           expenseAccountId: line.expenseAccountId,
           amount: line.amount,
           costCenterRef: line.costCenterRef,
+          costCenterId: line.costCenterId,
           description: line.description,
         })),
       });

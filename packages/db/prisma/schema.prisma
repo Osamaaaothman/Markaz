@@ -110,6 +110,7 @@ model Company {
   salesInvoices           SalesInvoice[]
   payments                Payment[]
   cashExpenses            CashExpense[]
+  costCenters             CostCenter[]
   attachments             Attachment[]
   employees               Employee[]
   hrPayments              HrPayment[]
@@ -552,6 +553,8 @@ model JournalEntry {
 // computed once at posting time from the entry's exchangeRate and stored — never
 // recomputed later (docs/04 §2).
 model JournalEntryLine {
+  costCenterId   String? @map("cost_center_id")
+  costCenter     CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   id             String  @id
   journalEntryId String  @map("journal_entry_id")
   accountId      String  @map("account_id")
@@ -1577,6 +1580,8 @@ model CashExpense {
 }
 
 model CashExpenseLine {
+  costCenterId    String? @map("cost_center_id")
+  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   id               String   @id
   cashExpenseId    String   @map("cash_expense_id")
   expenseAccountId String   @map("expense_account_id")
@@ -1589,6 +1594,23 @@ model CashExpenseLine {
 
   @@index([cashExpenseId])
   @@map("cash_expense_lines")
+}
+
+model CostCenter {
+  id        String @id
+  companyId String @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  code      String
+  name      String
+  nameAr    String? @map("name_ar")
+  kind      String
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  expenseLines CashExpenseLine[]
+  journalLines JournalEntryLine[]
+
+  @@unique([companyId, code])
+  @@map("cost_centers")
 }
 
 // Scanned bills, receipts and supporting documents linked to a business record. Insert-only for the runtime
