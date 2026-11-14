@@ -52,9 +52,9 @@ COPY --from=build /repo /repo
 # nothing needs moving/re-chowning afterward) — `npx playwright install --with-deps`
 # needs root for the apt-get half, so this still runs before USER app below.
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/app/.cache/ms-playwright
-RUN mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && chown -R app:app /home/app/.cache \
-  && npx playwright install --with-deps chromium \
-  && chown -R app:app /home/app/.cache
+# Chromium install skipped for now — PDF rendering (M3) is not required for ZATCA testing.
+# Re-enable when PDF generation is needed: npx playwright install --with-deps chromium
+RUN mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && chown -R app:app /home/app/.cache
 # Attached documents live here (a named volume in docker-compose.yml). Created and owned by the app user
 # before the volume is first mounted, so the volume inherits that ownership and the API can write to it.
 RUN mkdir -p /data/attachments && chown -R app:app /data

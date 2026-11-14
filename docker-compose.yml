@@ -87,6 +87,8 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-markaz}
+      ZATCA_ENVIRONMENT: ${ZATCA_ENVIRONMENT:-sandbox}
+      ZATCA_KEY_ENCRYPTION_KEY: ${ZATCA_KEY_ENCRYPTION_KEY:-}
     volumes:
       # Customer documents. Back this up together with erp_db_data (docs/12-OPS-AND-DEPLOYMENT.md).
       - attachments_data:/data/attachments
@@ -127,6 +129,8 @@ services:
       REDIS_URL: redis://redis:6379
       ACTIVATION_SERVICE_URL: ${ACTIVATION_SERVICE_URL:-}
       LICENSE_MASTER_KEY: ${LICENSE_MASTER_KEY:-}
+      ZATCA_ENVIRONMENT: ${ZATCA_ENVIRONMENT:-sandbox}
+      ZATCA_KEY_ENCRYPTION_KEY: ${ZATCA_KEY_ENCRYPTION_KEY:-}
     depends_on:
       db:
         condition: service_healthy
