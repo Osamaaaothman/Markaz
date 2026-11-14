@@ -9,6 +9,7 @@ export interface ItemSummary {
   readonly name: string;
   readonly nameAr: string | null;
   readonly unit: string;
+  readonly unitCode: string | null;
   readonly reorderPoint: string;
   readonly isActive: boolean;
   // Id of the current picture (changes when it is replaced), or null.
@@ -30,6 +31,7 @@ export interface CreateItemPayload {
   readonly name: string;
   readonly nameAr?: string;
   readonly unit: string;
+  readonly unitCode?: string;
   readonly reorderPoint?: string;
 }
 
@@ -37,6 +39,7 @@ export interface UpdateItemPayload {
   readonly name?: string;
   readonly nameAr?: string | null;
   readonly unit?: string;
+  readonly unitCode?: string | null;
   readonly reorderPoint?: string;
   readonly isActive?: boolean;
 }

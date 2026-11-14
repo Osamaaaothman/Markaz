@@ -20,6 +20,11 @@ export class UpdateItemDto {
   unit?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  unitCode?: string | null;
+
+  @IsOptional()
   @IsDecimalString()
   reorderPoint?: string;
 

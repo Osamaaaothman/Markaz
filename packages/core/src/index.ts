@@ -47,6 +47,7 @@ export * from "./sales/sales-lines.js";
 export * from "./sales/quotation.service.js";
 export * from "./sales/sales-order.service.js";
 export * from "./sales/sales-invoice.service.js";
+export * from "./sales/unit-codes.js";
 
 // Payments
 export * from "./payments/outstanding.js";

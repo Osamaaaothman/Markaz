@@ -708,6 +708,8 @@ model Item {
   name         String
   nameAr       String?  @map("name_ar")
   unit         String
+  // UN/ECE Recommendation 20 unit code for ZATCA (e.g. "PCE", "KGM"). Null = mapper uses "PCE".
+  unitCode     String?  @map("unit_code")
   // Below this on-hand quantity, the item shows on the reorder list (docs/14 M4). No
   // per-warehouse override in M4 — one point per item, company-wide.
   reorderPoint Decimal  @default(0) @map("reorder_point") @db.Decimal(19, 4)
@@ -1107,7 +1109,10 @@ model TaxCode {
   nameAr    String?  @map("name_ar")
   // Percentage, e.g. 15.0000 for 15%.
   rate      Decimal  @db.Decimal(7, 4)
-  treatment String // STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE
+  treatment            String  // STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE
+  // Required by ZATCA XML builder when treatment is ZERO_RATED or EXEMPT.
+  exemptionReasonCode  String?  @map("exemption_reason_code")
+  exemptionReason      String?  @map("exemption_reason")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1387,8 +1392,12 @@ model SalesInvoice {
   salesOrderId      String?   @map("sales_order_id")
   // CREDIT_NOTE / DEBIT_NOTE only: the invoice it reduces or bills against.
   originalInvoiceId String?   @map("original_invoice_id")
-  invoiceDate       DateTime  @map("invoice_date") @db.Date
+  // Full TIMESTAMPTZ: date portion = document date (user-selected); time portion = wall-clock
+  // issue time captured at posting — required by ZATCA XML issueTime without a separate column.
+  invoiceDate       DateTime  @map("invoice_date")
   dueDate           DateTime? @map("due_date") @db.Date
+  // UNCL4461: 10=cash, 42=bank transfer (default), 48=card.
+  paymentMeansCode  String    @default("42") @map("payment_means_code")
   currency          String
   totalNet          Decimal   @map("total_net") @db.Decimal(19, 4)
   totalTax          Decimal   @map("total_tax") @db.Decimal(19, 4)

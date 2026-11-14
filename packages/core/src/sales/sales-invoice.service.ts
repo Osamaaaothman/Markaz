@@ -8,9 +8,20 @@ import { AccountMappingService } from "../inventory/account-mapping.service.js";
 import { lockStockRow, saveStockRow } from "../inventory/stock-row.repo.js";
 import { InsufficientStockError, applyIssue } from "../inventory/weighted-average.util.js";
 import { returnShare } from "../inventory/return-amount.util.js";
+import { writeOutboxMessage } from "../outbox/outbox-writer.js";
 import { allocateDocumentNumber } from "../reference.js";
 import type { SalesActor } from "./quotation.service.js";
 import { SalesError, blankToNull, dateOnly, lockCustomer, resolveEgsUnitId, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
+
+// Keeps the user-chosen date (determines fiscal period / what appears on the document) but
+// replaces the time component with the current wall-clock time so ZATCA issueTime is non-zero
+// and matches the actual moment of posting.
+function withCurrentTime(date: Date): Date {
+  const now = new Date();
+  const result = new Date(date);
+  result.setUTCHours(now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds());
+  return result;
+}
 
 export interface SalesInvoiceLineInput extends SalesLineInput {
   // Required with an item: the warehouse the goods leave.
@@ -29,6 +40,9 @@ export interface CreateSalesInvoiceInput {
   // Required only when the company has more than one active ZATCA issuing unit (EgsUnit);
   // omit it otherwise (docs/01-OPEN-DECISIONS.md).
   readonly egsUnitId?: string | undefined;
+  // UNCL4461 payment means code ZATCA requires on every document (10=cash, 42=bank transfer,
+  // 48=card). Omitted = "42", the schema default.
+  readonly paymentMeansCode?: string | undefined;
 }
 
 export interface CreditNoteLineInput {
@@ -47,6 +61,7 @@ export interface CreateCreditNoteInput {
   readonly notes?: string | undefined;
   readonly lines: readonly CreditNoteLineInput[];
   readonly egsUnitId?: string | undefined;
+  readonly paymentMeansCode?: string | undefined;
 }
 
 // Free-typed lines against a revenue account, the AR mirror of the purchasing debit note (D8):
@@ -65,6 +80,7 @@ export interface CreateSalesDebitNoteInput {
   readonly notes?: string | undefined;
   readonly lines: readonly SalesDebitNoteLineInput[];
   readonly egsUnitId?: string | undefined;
+  readonly paymentMeansCode?: string | undefined;
 }
 
 export interface SalesInvoiceResult {
@@ -224,8 +240,16 @@ export class SalesInvoiceService {
         try {
           issued = applyIssue(stock.state, line.quantity);
         } catch (error) {
-          if (error instanceof InsufficientStockError) throw new SalesError("INSUFFICIENT_STOCK", error.message, line.lineNumber);
+          if (error instanceof InsufficientStockError) {
+            // Drop-ship / factory-direct: allow posting but record zero cost (no stock movement).
+            costByLine.set(line.lineNumber, { unitCost: new Prisma.Decimal(0), value: new Prisma.Decimal(0), warehouseId: warehouse.id });
+            continue;
+          }
           throw error;
+        }
+        // Block if selling below the weighted-average cost (protects margin; use a credit note to fix price).
+        if (line.unitPrice.lessThan(issued.unitCost)) {
+          throw new SalesError("BELOW_COST", `Unit price ${line.unitPrice.toFixed(4)} is below weighted-average cost ${issued.unitCost.toFixed(4)}`, line.lineNumber);
         }
         await saveStockRow(tx, stock.id, issued.state);
         costByLine.set(line.lineNumber, { unitCost: issued.unitCost, value: issued.value, warehouseId: warehouse.id });
@@ -287,7 +311,7 @@ export class SalesInvoiceService {
           number,
           customerId: input.customerId,
           salesOrderId: orderIds.length === 1 ? (orderIds[0] ?? null) : null,
-          invoiceDate: input.invoiceDate,
+          invoiceDate: withCurrentTime(input.invoiceDate),
           dueDate: input.dueDate ?? input.invoiceDate,
           currency,
           totalNet: totals.net,
@@ -297,6 +321,7 @@ export class SalesInvoiceService {
           journalEntryId: posting.journalEntryId,
           notes: blankToNull(input.notes),
           egsUnitId,
+          paymentMeansCode: input.paymentMeansCode ?? "42",
           actorId: actor.id,
           correlationId,
           lines: {
@@ -323,6 +348,18 @@ export class SalesInvoiceService {
           },
         },
       });
+
+      // docs/06 §4: the intent to submit is written in the same transaction as the document, so a
+      // rollback of the invoice also rolls the submission back. The worker (apps/api/src/worker.ts)
+      // consumes `zatca-submission-<egsUnitId>` for the EGS unit this document was issued by.
+      if (egsUnitId !== null) {
+        await writeOutboxMessage(tx, {
+          companyId: actor.companyId,
+          topic: `zatca-submission-${egsUnitId}`,
+          payload: { salesInvoiceId: invoiceId, egsUnitId },
+          correlationId,
+        });
+      }
 
       await tx.stockMovement.createMany({
         data: lines.flatMap((l) => {
@@ -491,7 +528,7 @@ export class SalesInvoiceService {
           number,
           customerId: original.customerId,
           originalInvoiceId: original.id,
-          invoiceDate: input.creditDate,
+          invoiceDate: withCurrentTime(input.creditDate),
           dueDate: null,
           currency,
           totalNet: totals.net,
@@ -500,6 +537,7 @@ export class SalesInvoiceService {
           journalEntryId: posting.journalEntryId,
           notes: blankToNull(input.notes),
           egsUnitId,
+          paymentMeansCode: input.paymentMeansCode ?? "42",
           actorId: actor.id,
           correlationId,
           lines: {
@@ -522,6 +560,14 @@ export class SalesInvoiceService {
           },
         },
       });
+      if (egsUnitId !== null) {
+        await writeOutboxMessage(tx, {
+          companyId: actor.companyId,
+          topic: `zatca-submission-${egsUnitId}`,
+          payload: { salesInvoiceId: noteId, egsUnitId },
+          correlationId,
+        });
+      }
       if (stockReturns.length) await tx.stockMovement.createMany({ data: stockReturns.map((entry) => {
         const { source, quantity, cost, warehouseId } = entry!;
         return { id: newId(), companyId: actor.companyId, itemId: source.itemId!, warehouseId: warehouseId!,
@@ -616,7 +662,7 @@ export class SalesInvoiceService {
           number,
           customerId: original.customerId,
           originalInvoiceId: original.id,
-          invoiceDate: input.debitDate,
+          invoiceDate: withCurrentTime(input.debitDate),
           dueDate: null,
           currency,
           totalNet: totals.net,
@@ -625,6 +671,7 @@ export class SalesInvoiceService {
           journalEntryId: posting.journalEntryId,
           notes: blankToNull(input.notes),
           egsUnitId,
+          paymentMeansCode: input.paymentMeansCode ?? "42",
           actorId: actor.id,
           correlationId,
           lines: {
@@ -643,6 +690,14 @@ export class SalesInvoiceService {
           },
         },
       });
+      if (egsUnitId !== null) {
+        await writeOutboxMessage(tx, {
+          companyId: actor.companyId,
+          topic: `zatca-submission-${egsUnitId}`,
+          payload: { salesInvoiceId: noteId, egsUnitId },
+          correlationId,
+        });
+      }
       return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
     });
 

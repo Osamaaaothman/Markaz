@@ -28,7 +28,8 @@ export class SalesError extends Error {
       | "NO_OPEN_PERIOD"
       | "ZERO_DOCUMENT"
       | "EGS_UNIT_NOT_FOUND"
-      | "EGS_UNIT_REQUIRED",
+      | "EGS_UNIT_REQUIRED"
+      | "BELOW_COST",
     message: string,
     readonly lineNumber?: number,
   ) {

@@ -5,23 +5,53 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
+import { Dropdown } from "primereact/dropdown";
 import { InputSwitch } from "primereact/inputswitch";
 import { InputText } from "primereact/inputtext";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { PictureField } from "../attachments/PictureField";
 import { useCreateItem, useUpdateItem, type ItemSummary } from "./use-items";
 
+// UN/ECE Recommendation 20 codes required by ZATCA XML (inline — web bundle does not import @erp/core)
+const UNIT_CODES = [
+  { code: "PCE", nameEn: "Piece", nameAr: "قطعة" },
+  { code: "SET", nameEn: "Set", nameAr: "مجموعة" },
+  { code: "BOX", nameEn: "Box", nameAr: "صندوق" },
+  { code: "CTN", nameEn: "Carton", nameAr: "كرتون" },
+  { code: "PAL", nameEn: "Pallet", nameAr: "منصة" },
+  { code: "BG",  nameEn: "Bag", nameAr: "كيس" },
+  { code: "ROL", nameEn: "Roll", nameAr: "لفة" },
+  { code: "KGM", nameEn: "Kilogram", nameAr: "كيلوغرام" },
+  { code: "GRM", nameEn: "Gram", nameAr: "غرام" },
+  { code: "TNE", nameEn: "Tonne", nameAr: "طن" },
+  { code: "LTR", nameEn: "Litre", nameAr: "لتر" },
+  { code: "MLT", nameEn: "Millilitre", nameAr: "ملليلتر" },
+  { code: "MTQ", nameEn: "Cubic Metre", nameAr: "متر مكعب" },
+  { code: "MTR", nameEn: "Metre", nameAr: "متر" },
+  { code: "CMT", nameEn: "Centimetre", nameAr: "سنتيمتر" },
+  { code: "MMT", nameEn: "Millimetre", nameAr: "ملليمتر" },
+  { code: "KMT", nameEn: "Kilometre", nameAr: "كيلومتر" },
+  { code: "MTK", nameEn: "Square Metre", nameAr: "متر مربع" },
+  { code: "HUR", nameEn: "Hour", nameAr: "ساعة" },
+  { code: "DAY", nameEn: "Day", nameAr: "يوم" },
+  { code: "MON", nameEn: "Month", nameAr: "شهر" },
+  { code: "ANN", nameEn: "Year", nameAr: "سنة" },
+  { code: "DZN", nameEn: "Dozen", nameAr: "دزينة" },
+  { code: "PR",  nameEn: "Pair", nameAr: "زوج" },
+];
+
 const itemSchema = z.object({
   code: z.string().trim().min(1, "required").max(20, "codeFormat"),
   name: z.string().trim().min(1, "required"),
   nameAr: z.string(),
   unit: z.string().trim().min(1, "required").max(20, "codeFormat"),
+  unitCode: z.string().optional(),
   reorderPoint: z.string(),
   isActive: z.boolean(),
 });
 type ItemFormValues = z.infer<typeof itemSchema>;
 
-const EMPTY: ItemFormValues = { code: "", name: "", nameAr: "", unit: "", reorderPoint: "0", isActive: true };
+const EMPTY: ItemFormValues = { code: "", name: "", nameAr: "", unit: "", unitCode: "", reorderPoint: "0", isActive: true };
 
 export function ItemFormDialog({
   item,
@@ -58,7 +88,7 @@ export function ItemFormDialog({
     updateItem.reset();
     reset(
       item
-        ? { code: item.code, name: item.name, nameAr: item.nameAr ?? "", unit: item.unit, reorderPoint: item.reorderPoint, isActive: item.isActive }
+        ? { code: item.code, name: item.name, nameAr: item.nameAr ?? "", unit: item.unit, unitCode: item.unitCode ?? "", reorderPoint: item.reorderPoint, isActive: item.isActive }
         : EMPTY,
     );
   }, [visible, item?.id]);
@@ -66,7 +96,7 @@ export function ItemFormDialog({
   const onSubmit = handleSubmit((values) => {
     if (current) {
       updateItem.mutate(
-        { name: values.name, nameAr: values.nameAr.trim() || null, unit: values.unit, reorderPoint: values.reorderPoint, isActive: values.isActive },
+        { name: values.name, nameAr: values.nameAr.trim() || null, unit: values.unit, unitCode: values.unitCode || null, reorderPoint: values.reorderPoint, isActive: values.isActive },
         { onSuccess: onHide },
       );
     } else {
@@ -76,6 +106,7 @@ export function ItemFormDialog({
           name: values.name,
           ...(values.nameAr.trim() ? { nameAr: values.nameAr.trim() } : {}),
           unit: values.unit,
+          ...(values.unitCode ? { unitCode: values.unitCode } : {}),
           reorderPoint: values.reorderPoint,
         },
         { onSuccess: (saved) => (canAddPicture ? setCreated(saved) : onHide()) },
@@ -117,6 +148,26 @@ export function ItemFormDialog({
             <label htmlFor="itemReorderPoint">{t("inventory.items.reorderPoint")}</label>
             <InputText id="itemReorderPoint" dir="ltr" {...register("reorderPoint")} />
           </div>
+        </div>
+
+        <div className="erp-field">
+          <label htmlFor="itemUnitCode">{t("inventory.items.unitCode")}</label>
+          <Controller
+            control={control}
+            name="unitCode"
+            render={({ field }) => (
+              <Dropdown
+                inputId="itemUnitCode"
+                value={field.value || null}
+                onChange={(e) => field.onChange((e.value as string | null) ?? "")}
+                options={UNIT_CODES}
+                optionLabel="nameEn"
+                optionValue="code"
+                showClear
+                placeholder={t("inventory.items.unitCodePlaceholder")}
+              />
+            )}
+          />
         </div>
 
         {created ? <p className="mk-picture__hint">{t("inventory.items.savedAddPicture")}</p> : null}
