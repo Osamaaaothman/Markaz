@@ -240,8 +240,16 @@ export class SalesInvoiceService {
         try {
           issued = applyIssue(stock.state, line.quantity);
         } catch (error) {
-          if (error instanceof InsufficientStockError) throw new SalesError("INSUFFICIENT_STOCK", error.message, line.lineNumber);
+          if (error instanceof InsufficientStockError) {
+            // Drop-ship / factory-direct: allow posting but record zero cost (no stock movement).
+            costByLine.set(line.lineNumber, { unitCost: new Prisma.Decimal(0), value: new Prisma.Decimal(0), warehouseId: warehouse.id });
+            continue;
+          }
           throw error;
+        }
+        // Block if selling below the weighted-average cost (protects margin; use a credit note to fix price).
+        if (line.unitPrice.lessThan(issued.unitCost)) {
+          throw new SalesError("BELOW_COST", `Unit price ${line.unitPrice.toFixed(4)} is below weighted-average cost ${issued.unitCost.toFixed(4)}`, line.lineNumber);
         }
         await saveStockRow(tx, stock.id, issued.state);
         costByLine.set(line.lineNumber, { unitCost: issued.unitCost, value: issued.value, warehouseId: warehouse.id });

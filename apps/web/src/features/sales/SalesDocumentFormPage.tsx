@@ -36,6 +36,7 @@ type Mode = "quotation" | "order" | "invoice";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 const KNOWN_ERRORS = new Set([
   "INSUFFICIENT_STOCK",
+  "BELOW_COST",
   "OVER_INVOICED",
   "CUSTOMER_MISMATCH",
   "WAREHOUSE_REQUIRED",
@@ -151,7 +152,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const isBlankLine = (l: LineState): boolean => l.salesOrderLineId === "" && l.itemId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
   const meaningfulLines = lines.filter((l) => !isBlankLine(l));
   const availability = stockAvailability(lines, stockLevels);
-  const stockBlocked = mode === "invoice" && lines.some((line, index) => line.itemId && (availability[index]?.onHand === null || availability[index]?.exceeded));
+  const stockWarning = mode === "invoice" && lines.some((line, index) => line.itemId && (availability[index]?.onHand === null || availability[index]?.exceeded));
 
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) &&
@@ -161,7 +162,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
     (l.itemId !== "" || l.description.trim() !== "") &&
     (mode !== "invoice" || l.itemId === "" || l.warehouseId !== "");
   const egsUnitChoiceNeeded = mode === "invoice" && activeEgsUnits.length > 1;
-  const valid = !stockBlocked && customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
+  const valid = customerId !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid) && (!egsUnitChoiceNeeded || egsUnitId !== "");
 
   const totals = meaningfulLines.reduce(
     (sum, l) => {
@@ -340,6 +341,10 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             {t("purchasing.invoices.gross")}: <strong>{formatMoney(totals.net.add(totals.tax).toDecimalString(4), currency)}</strong>
           </span>
         </div>
+
+        {stockWarning ? (
+          <p className="erp-auth-card__warning">{t("sales.errors.INSUFFICIENT_STOCK_WARN")}</p>
+        ) : null}
 
         {errKey ? (
           <p className="erp-auth-card__error">
