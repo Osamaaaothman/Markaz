@@ -136,7 +136,7 @@ function QuotationDialog({ id, onHide }: { id: string | null; onHide: () => void
               {t("purchasing.invoices.gross")}: <strong>{formatMoney(data.totalGross, data.currency)}</strong>
             </span>
             <span>
-              {t("created.inWords")}: <strong>{tafqeetAmount(data.totalGross, data.currency)}</strong>
+              {t("created.inWords")}: <strong>{tafqeetAmount(data.totalGross, data.currency, i18n.language)}</strong>
             </span>
           </div>
           {reject.isError || cancel.isError ? <p className="erp-auth-card__error">{t("sales.errors.generic")}</p> : null}

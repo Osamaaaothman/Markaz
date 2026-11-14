@@ -115,7 +115,7 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-field">
           <label>{t("created.inWords")}</label>
-          <strong>{tafqeetAmount(totalGross.toDecimalString(), order.currency)}</strong>
+          <strong>{tafqeetAmount(totalGross.toDecimalString(), order.currency, i18n.language)}</strong>
         </div>
       </div>
       {order.notes ? <p>{order.notes}</p> : null}

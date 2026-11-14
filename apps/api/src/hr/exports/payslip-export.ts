@@ -1,5 +1,5 @@
 import type { PayrollRunLine } from "@erp/core";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
 import { escapeHtml } from "../../common/html-escape.js";
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18n/server-i18n.js";
@@ -78,6 +78,6 @@ export async function payslipToPdfHtml(params: {
 </div>
 <table style="width:45%;margin-inline-start:auto;margin-block-start:10pt">
 <tr class="total-row"><th>${escapeHtml(t("payslip.net"))}</th><td class="amount">${money(line.net)}</td></tr>
-</table>`,
+</table><p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(line.net, currency, params.language))}</p>`,
   });
 }

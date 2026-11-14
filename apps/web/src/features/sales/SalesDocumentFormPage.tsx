@@ -206,7 +206,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             { label: t("created.net"), value: formatMoney(totals.net.toDecimalString(4), currency), ltr: true },
             { label: t("created.tax"), value: formatMoney(totals.tax.toDecimalString(4), currency), ltr: true },
             { label: t("created.gross"), value: formatMoney(gross.toDecimalString(4), currency), ltr: true },
-            { label: t("created.inWords"), value: tafqeetAmount(gross.toDecimalString(4), currency) },
+            { label: t("created.inWords"), value: tafqeetAmount(gross.toDecimalString(4), currency, i18n.language) },
             { label: t("created.lines"), value: String(meaningfulLines.length) },
           ].filter((row) => row.label !== ""),
         },

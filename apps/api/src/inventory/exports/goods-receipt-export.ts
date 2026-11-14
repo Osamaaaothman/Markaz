@@ -1,6 +1,6 @@
 import { issuedFooter } from "../../documents/document-issued-footer.js";
 import type { GoodsReceiptDetail } from "@erp/core";
-import { Money } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
 import { renderReportShell } from "../../accounting/exports/report-document.util.js";
 import { escapeHtml } from "../../common/html-escape.js";
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18n/server-i18n.js";
@@ -22,7 +22,7 @@ export async function goodsReceiptToPdfHtml(params: {
   const cur = receipt.currency;
   const money = (v: string): string => escapeHtml(`${Money.of(v, cur).toDecimalString()} ${cur}`);
   const supplier = receipt.partyId
-    ? escapeHtml(params.language === "ar" && receipt.partyNameAr ? receipt.partyNameAr : (receipt.partyName ?? ""))
+    ? (params.language === "ar" && receipt.partyNameAr ? receipt.partyNameAr : (receipt.partyName ?? ""))
     : "";
   const warehouse = params.language === "ar" && receipt.warehouseNameAr ? receipt.warehouseNameAr : receipt.warehouseName;
 
@@ -101,7 +101,8 @@ export async function goodsReceiptToPdfHtml(params: {
   <table class="rec-total">
     <tr><th>${escapeHtml(t("goodsReceipt.total"))}</th><td class="amount">${money(receipt.totalValue)}</td></tr>
   </table>
-</div>`,
+</div>
+<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(receipt.totalValue, cur, params.language))}</p>`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("goodsReceipt.computerGenerated") }),
   });
 }

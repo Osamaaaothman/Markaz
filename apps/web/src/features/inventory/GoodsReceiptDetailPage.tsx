@@ -76,7 +76,7 @@ export function GoodsReceiptDetailPage(): React.JSX.Element {
         </div>
         <div>
           <dt>{t("created.inWords")}</dt>
-          <dd><strong>{tafqeetAmount(receipt.totalValue, receipt.currency)}</strong></dd>
+          <dd><strong>{tafqeetAmount(receipt.totalValue, receipt.currency, i18n.language)}</strong></dd>
         </div>
       </dl>
 

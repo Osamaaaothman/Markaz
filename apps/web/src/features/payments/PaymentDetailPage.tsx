@@ -106,7 +106,7 @@ export function PaymentDetailPage(): React.JSX.Element {
         </div>
         <div>
           <dt>{t("created.inWords")}</dt>
-          <dd><strong>{tafqeetAmount(payment.amount, payment.currency)}</strong></dd>
+          <dd><strong>{tafqeetAmount(payment.amount, payment.currency, i18n.language)}</strong></dd>
         </div>
         <div>
           <dt>{t("payments.allocated")}</dt>

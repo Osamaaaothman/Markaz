@@ -139,7 +139,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
             rows: [
               { label: t("cashExpenses.date"), value: toDateOnlyIsoString(date), ltr: true },
               { label: t("created.amount"), value: formatMoney(total.toFixed(4), currency), ltr: true },
-              { label: t("created.inWords"), value: tafqeetAmount(total.toFixed(4), currency) },
+              { label: t("created.inWords"), value: tafqeetAmount(total.toFixed(4), currency, i18n.language) },
               { label: t("cashExpenses.cashAccount"), value: cash ? `${cash.code} — ${localizedName(cash, i18n.language)}` : "" },
               { label: t("cashExpenses.lines"), value: String(lines.length) },
             ],

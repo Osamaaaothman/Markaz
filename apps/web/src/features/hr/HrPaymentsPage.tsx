@@ -159,7 +159,7 @@ function PayDialog({
         { label: t("payments.date"), value: toDateOnlyIsoString(date), ltr: true },
         { label: t("payments.bankAccount"), value: bank ? localizedName(bank, i18n.language) : "" },
         { label: t("payments.amount"), value: paidAmount ? formatMoney(paidAmount, currency) : "", ltr: true },
-        { label: t("created.inWords"), value: paidAmount ? tafqeetAmount(paidAmount, currency) : "" },
+        { label: t("created.inWords"), value: paidAmount ? tafqeetAmount(paidAmount, currency, i18n.language) : "" },
       ],
     });
   };
