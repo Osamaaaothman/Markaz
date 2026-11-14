@@ -1,0 +1,12 @@
+ALTER TABLE stock_count_lines DROP CONSTRAINT stock_count_lines_system_quantity_check;
+ALTER TABLE goods_receipts ALTER COLUMN journal_entry_id DROP NOT NULL;
+ALTER TABLE goods_receipts ADD COLUMN submission_key TEXT;
+ALTER TABLE stock_issues ADD COLUMN submission_key TEXT;
+CREATE UNIQUE INDEX goods_receipts_company_id_submission_key_key ON goods_receipts(company_id,submission_key);
+CREATE UNIQUE INDEX stock_issues_company_id_submission_key_key ON stock_issues(company_id,submission_key);
+CREATE INDEX inventory_cost_settlements_shortfall_id_idx ON inventory_cost_settlements(shortfall_id);
+CREATE INDEX inventory_cost_settlements_company_id_idx ON inventory_cost_settlements(company_id);
+CREATE INDEX inventory_cost_settlements_journal_entry_id_idx ON inventory_cost_settlements(journal_entry_id);
+CREATE INDEX inventory_shortfalls_item_id_idx ON inventory_shortfalls(item_id);
+CREATE INDEX inventory_shortfalls_warehouse_id_idx ON inventory_shortfalls(warehouse_id);
+CREATE INDEX inventory_shortfalls_expense_account_id_idx ON inventory_shortfalls(expense_account_id);
