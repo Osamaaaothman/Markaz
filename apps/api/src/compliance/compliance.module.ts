@@ -48,6 +48,7 @@ class ZatcaQueueResubmitter implements Resubmitter {
 }
 
 @Module({
+  exports: [ComplianceAdminService],
   controllers: [ComplianceController],
   providers: [
     {

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { newId } from "@erp/shared";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
@@ -54,6 +55,12 @@ export interface OnboardingStepResult {
 }
 
 export interface InvoiceRecordView {
+  readonly invoiceNumber: string;
+  readonly documentType: string;
+  readonly egsName: string;
+  readonly qrImageDataUrl: string | null;
+  readonly qrSource: "SIGNED" | "CLEARED" | null;
+  readonly history: readonly { readonly id: string; readonly stage: string; readonly status: string; readonly startedAt: string; readonly completedAt: string; readonly warnings: readonly string[]; readonly errors: readonly string[]; readonly httpStatus: number | null }[];
   readonly salesInvoiceId: string;
   readonly status: string;
   readonly uuid: string;
@@ -72,6 +79,7 @@ export interface InvoiceRecordView {
 }
 
 export interface ComplianceOverview {
+  readonly allowedEnvironments: readonly ZatcaEnvironment[];
   readonly environment: ZatcaEnvironment;
   readonly seller: SellerProfileView;
   readonly egsUnits: readonly EgsUnitView[];
@@ -117,6 +125,7 @@ export function useUpdateSellerProfile() {
 }
 
 export interface CreateEgsUnitInput {
+  readonly environment?: ZatcaEnvironment;
   readonly name: string;
   readonly branchName?: string;
   readonly businessCategory: string;
@@ -150,9 +159,13 @@ export function useInvoiceRecord(salesInvoiceId: string | undefined) {
   const { can } = usePermissions();
   return useQuery({
     queryKey: ["compliance", "invoice", salesInvoiceId],
-    queryFn: async () => (await apiClient.get<InvoiceRecordView>(`/v1/compliance/invoices/${salesInvoiceId}`)).data,
+    queryFn: async () => {
+      try { return (await apiClient.get<InvoiceRecordView>(`/v1/compliance/invoices/${salesInvoiceId}`)).data; }
+      catch (error) { if (isAxiosError(error) && error.response?.status === 404) return null; throw error; }
+    },
     enabled: can("compliance:read") && salesInvoiceId !== undefined,
     retry: false, // a 404 (no ZATCA record yet) is a normal, expected state, not a transient failure
+    refetchInterval: (query) => query.state.error || ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS", "REJECTED"].includes(query.state.data?.status ?? "") ? false : 5_000,
   });
 }
 
@@ -160,8 +173,13 @@ export function useInvoiceStatuses(salesInvoiceIds: readonly string[]) {
   const { can } = usePermissions();
   return useQuery({
     queryKey: ["compliance", "invoiceStatuses", [...salesInvoiceIds].sort()],
-    queryFn: async () => (await apiClient.get<Record<string, { readonly status: string; readonly environment: ZatcaEnvironment }>>("/v1/compliance/invoices/statuses", { params: { ids: salesInvoiceIds.join(",") } })).data,
+    queryFn: async () => {
+      const chunks = Array.from({ length: Math.ceil(salesInvoiceIds.length / 100) }, (_, index) => salesInvoiceIds.slice(index * 100, (index + 1) * 100));
+      const responses = await Promise.all(chunks.map(async (ids) => (await apiClient.get<Record<string, { readonly status: string; readonly environment: ZatcaEnvironment }>>("/v1/compliance/invoices/statuses", { params: { ids: ids.join(",") } })).data));
+      return Object.assign({}, ...responses) as Record<string, { readonly status: string; readonly environment: ZatcaEnvironment }>;
+    },
     enabled: can("compliance:read") && salesInvoiceIds.length > 0,
+    refetchInterval: 5_000,
   });
 }
 
@@ -170,6 +188,23 @@ export function useResubmitInvoice() {
   return useMutation({
     meta: { successKey: "feedback.submitted" },
     mutationFn: async (salesInvoiceId: string) => (await apiClient.post<InvoiceRecordView>(`/v1/compliance/invoices/${salesInvoiceId}/resubmit`, {}, { headers: { "Idempotency-Key": newId() } })).data,
-    onSuccess: (_data, salesInvoiceId) => void qc.invalidateQueries({ queryKey: ["compliance", "invoice", salesInvoiceId] }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["compliance"] }),
+  });
+}
+
+export interface ComplianceInvoiceRow {
+  readonly salesInvoiceId: string; readonly number: string; readonly documentType: string;
+  readonly customerName: string; readonly invoiceDate: string; readonly totalGross: string; readonly currency: string;
+  readonly status: string; readonly environment: ZatcaEnvironment; readonly attempts: number;
+}
+
+export function useComplianceInvoices(filters: { q: string; status: string; environment: string; documentType: string; cursor: string | null }) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["compliance", "invoices", filters],
+    queryFn: async () => (await apiClient.get<{ data: ComplianceInvoiceRow[]; pageInfo: { hasMore: boolean; nextCursor: string | null } }>("/v1/compliance/invoices", {
+      params: { limit: 25, q: filters.q || undefined, status: filters.status || undefined, environment: filters.environment || undefined, documentType: filters.documentType || undefined, cursor: filters.cursor || undefined },
+    })).data,
+    enabled: can("compliance:read"), refetchInterval: 5_000,
   });
 }

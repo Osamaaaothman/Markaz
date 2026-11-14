@@ -9,13 +9,13 @@
 // create one Worker per EGS unit, each with `concurrency: 1` (createMonitoredWorker's new
 // `workerOptions` parameter), on the queue `zatcaSubmissionQueueName(egsUnitId)`.
 import { UnrecoverableError, type Job, type Processor } from "bullmq";
-import { InvoiceValidationError, type InvoiceSubmissionService, type SubmitInvoiceParams } from "@erp/compliance-zatca-sa";
+import { AlreadySubmittedError, InvoiceValidationError, type InvoiceSubmissionService, type SubmitInvoiceParams } from "@erp/compliance-zatca-sa";
 import type { JobData } from "../jobs/job-conventions.js";
 
-export interface ZatcaSubmissionJobData extends JobData {
-  readonly salesInvoiceId: string;
-  readonly egsUnitId: string;
-}
+export type ZatcaSubmissionJobData = JobData & (
+  | { readonly salesInvoiceId: string; readonly egsUnitId: string; readonly payload?: never }
+  | { readonly payload: unknown; readonly outboxMessageId: string; readonly salesInvoiceId?: never; readonly egsUnitId?: never }
+);
 
 export function zatcaSubmissionQueueName(egsUnitId: string): string {
   return `zatca-submission-${egsUnitId}`;
@@ -27,13 +27,7 @@ export function zatcaSubmissionQueueName(egsUnitId: string): string {
 // (docs/09-SECURITY-RULES.md §5: key material is never logged, and a BullMQ job payload is
 // stored in Redis, so it is not somewhere a decrypted secret belongs either).
 //
-// NOT IMPLEMENTED YET. Blocked on two things neither of which exists in this codebase yet:
-//   1. A real EgsCredential row to decrypt (Phase 2 onboarding — not built).
-//   2. A product decision this repo has not made: how a SalesInvoice determines which EGS/branch
-//      issued it (SalesInvoice has no such field today). Needs Osama's input, not a guess
-//      (CLAUDE.md §4) — a single-EGS company could default to "the company's only EgsUnit", but
-//      multi-branch needs a real field and a real decision.
-// Until both exist, this interface is the seam a real loader plugs into; nothing calls it yet.
+// ZatcaInvoiceMapper implements this seam; worker.ts registers it for each active issuing unit.
 export interface ZatcaSubmissionParamsLoader {
   load(data: ZatcaSubmissionJobData): Promise<SubmitInvoiceParams>;
 }
@@ -45,6 +39,8 @@ export function createZatcaSubmissionProcessor(service: InvoiceSubmissionService
     try {
       result = await service.submit(params);
     } catch (error) {
+      // At-least-once delivery or a double-click must not turn an accepted document into a failed job.
+      if (error instanceof AlreadySubmittedError) return;
       // Our own pre-flight checks failed: the same data fails the same way, so BullMQ's backoff/retry
       // would only burn attempts. The reasons are on the ZatcaInvoiceRecord for the UI; a fix + an
       // explicit resubmit is what moves it forward.

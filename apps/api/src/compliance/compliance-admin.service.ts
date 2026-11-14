@@ -9,7 +9,8 @@
 // What this class NEVER does: return, log or audit key material, a CSID, a secret, an OTP or a decrypted
 // anything (docs/09-SECURITY-RULES.md §5). The views below are built field by field, so a new column on
 // `egs_credentials` cannot leak into an API response by accident.
-import type { PrismaClient } from "@erp/db";
+import type { PrismaClient, Prisma } from "@erp/db";
+import QRCode from "qrcode";
 import { newId } from "@erp/shared";
 import type { IAuditLogger } from "@erp/core";
 import {
@@ -18,6 +19,8 @@ import {
   ZATCA_CSR_CERTIFICATE_TEMPLATE,
   ZatcaApiError,
   buildComplianceSamples,
+  invoiceQrArtifact,
+  validationMessages,
   type ComplianceSample,
   type OnboardingService,
   type ZatcaEnvironment,
@@ -114,6 +117,16 @@ export interface OnboardingStepResult {
 }
 
 export interface InvoiceRecordView {
+  readonly invoiceNumber: string;
+  readonly documentType: string;
+  readonly egsName: string;
+  readonly qrImageDataUrl: string | null;
+  readonly qrSource: "SIGNED" | "CLEARED" | null;
+  readonly history: readonly {
+    readonly id: string; readonly stage: string; readonly status: string;
+    readonly startedAt: string; readonly completedAt: string;
+    readonly warnings: readonly string[]; readonly errors: readonly string[]; readonly httpStatus: number | null;
+  }[];
   readonly salesInvoiceId: string;
   readonly status: string;
   readonly uuid: string;
@@ -140,14 +153,14 @@ export interface ComplianceAdminOptions {
   readonly defaultEnvironment: ZatcaEnvironment;
   readonly expiryWarningDays?: number;
   readonly now?: () => Date;
-  // Not provided today: nothing maps a SalesInvoice into a ZATCA submission yet (see docs/01 section Z).
+  // Optional so read-only installations can expose records without running a submission queue.
   readonly resubmitter?: Resubmitter | undefined;
 }
 
 const DEFAULT_EXPIRY_WARNING_DAYS = 30;
 
 function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+  return validationMessages(value);
 }
 
 // ZATCA's error bodies are { errorCode, errorCategory, errorMessage } -- small and safe to hand to the screen --
@@ -176,9 +189,10 @@ export class ComplianceAdminService {
 
   // ── overview ────────────────────────────────────────────────────────────────────────────────────────────
 
-  async overview(companyId: string): Promise<{ readonly environment: ZatcaEnvironment; readonly seller: SellerProfileView; readonly egsUnits: readonly EgsUnitView[]; readonly capabilities: { readonly resubmit: boolean } }> {
+  async overview(companyId: string) {
     return {
       environment: this.options.defaultEnvironment,
+      allowedEnvironments: this.allowedEnvironments(),
       seller: await this.sellerProfile(companyId),
       egsUnits: await this.listEgsUnits(companyId),
       capabilities: { resubmit: this.options.resubmitter !== undefined },
@@ -250,17 +264,19 @@ export class ComplianceAdminService {
   }
 
   async createEgsUnit(
-    input: { readonly name: string; readonly branchName?: string | undefined; readonly businessCategory: string; readonly invoiceTypes: string },
+    input: { readonly name: string; readonly branchName?: string | undefined; readonly businessCategory: string; readonly invoiceTypes: string; readonly environment?: ZatcaEnvironment | undefined },
     actor: Actor,
     correlationId: string,
   ): Promise<EgsUnitView> {
     const id = newId();
+    const environment = input.environment ?? this.options.defaultEnvironment;
+    if (!this.allowedEnvironments().includes(environment)) throw new ComplianceError("WRONG_STATUS", "This environment is not enabled for this installation");
     // ZATCA's serial format "1-<solution>|2-<model>|3-<unit serial>"; the unit serial is a fresh UUID so two
     // units can never collide.
     const serial = `1-Markaz|2-ERP-Lite|3-${id}`;
     await this.prisma.$transaction(async (tx) => {
       await tx.egsUnit.create({
-        data: { id, companyId: actor.companyId, name: input.name, serial, branchName: input.branchName ?? null, businessCategory: input.businessCategory, invoiceTypes: input.invoiceTypes, environment: this.options.defaultEnvironment, createdBy: actor.id },
+        data: { id, companyId: actor.companyId, name: input.name, serial, branchName: input.branchName ?? null, businessCategory: input.businessCategory, invoiceTypes: input.invoiceTypes, environment, createdBy: actor.id },
       });
       await this.chain.createFor(tx, actor.companyId, id);
     });
@@ -383,9 +399,23 @@ export class ComplianceAdminService {
   // ── invoices ────────────────────────────────────────────────────────────────────────────────────────────
 
   async invoiceRecord(companyId: string, salesInvoiceId: string): Promise<InvoiceRecordView | null> {
-    const row = await this.prisma.zatcaInvoiceRecord.findFirst({ where: { salesInvoiceId, companyId }, include: { egsUnit: true } });
+    const row = await this.prisma.zatcaInvoiceRecord.findFirst({ where: { salesInvoiceId, companyId }, include: {
+      egsUnit: { select: { name: true, environment: true } }, salesInvoice: { select: { number: true, documentType: true } },
+      history: { where: { companyId }, orderBy: { startedAt: "desc" } },
+    } });
     if (!row) return null;
+    const artifact = invoiceQrArtifact(row.signedXml, row.clearedXml);
     return {
+      invoiceNumber: row.salesInvoice.number,
+      documentType: row.salesInvoice.documentType,
+      egsName: row.egsUnit.name,
+      qrImageDataUrl: artifact ? await QRCode.toDataURL(artifact.qr, { errorCorrectionLevel: "M", width: 360, margin: 4 }) : null,
+      qrSource: artifact?.source ?? null,
+      history: row.history.map((attempt) => ({
+        id: attempt.id, stage: attempt.stage, status: attempt.status,
+        startedAt: attempt.startedAt.toISOString(), completedAt: attempt.completedAt.toISOString(),
+        warnings: asStringArray(attempt.warnings), errors: asStringArray(attempt.errors), httpStatus: attempt.httpStatus,
+      })),
       salesInvoiceId,
       status: row.status,
       uuid: row.uuid,
@@ -395,7 +425,7 @@ export class ComplianceAdminService {
       errors: asStringArray(row.validationErrors),
       hasSignedXml: row.signedXml !== null,
       hasClearedXml: row.clearedXml !== null,
-      qrCode: row.qrCode,
+      qrCode: artifact?.qr ?? null,
       environment: row.egsUnit.environment as ZatcaEnvironment,
       submittedAt: row.submittedAt?.toISOString() ?? null,
       clearedAt: row.clearedAt?.toISOString() ?? null,
@@ -407,8 +437,41 @@ export class ComplianceAdminService {
   // Just the status per invoice, for the badges on a list page (one query for the whole page).
   async invoiceStatuses(companyId: string, salesInvoiceIds: readonly string[]): Promise<Record<string, { readonly status: string; readonly environment: ZatcaEnvironment }>> {
     if (salesInvoiceIds.length === 0) return {};
-    const rows = await this.prisma.zatcaInvoiceRecord.findMany({ where: { companyId, salesInvoiceId: { in: [...salesInvoiceIds] } }, select: { salesInvoiceId: true, status: true, egsUnit: { select: { environment: true } } } });
-    return Object.fromEntries(rows.map((r) => [r.salesInvoiceId, { status: r.status, environment: r.egsUnit.environment as ZatcaEnvironment }]));
+    const rows = await this.prisma.salesInvoice.findMany({ where: { companyId, id: { in: [...salesInvoiceIds].slice(0, 100) }, egsUnitId: { not: null } }, select: { id: true, zatcaRecord: { select: { status: true } }, egsUnit: { select: { environment: true } } } });
+    return Object.fromEntries(rows.map((r) => [r.id, { status: r.zatcaRecord?.status ?? "NOT_SUBMITTED", environment: r.egsUnit!.environment as ZatcaEnvironment }]));
+  }
+
+  async invoices(companyId: string, query: { q?: string | undefined; status?: string | undefined; environment?: string | undefined; documentType?: string | undefined; cursor?: string | undefined; limit?: number | undefined }) {
+    const limit = Math.min(100, Math.max(1, query.limit ?? 25));
+    const where: Prisma.SalesInvoiceWhereInput = {
+      companyId, egsUnitId: { not: null },
+      ...(query.cursor ? { id: { lt: query.cursor } } : {}),
+      ...(query.documentType ? { documentType: query.documentType } : {}),
+      ...(query.environment ? { egsUnit: { environment: query.environment } } : {}),
+      ...(query.status ? { zatcaRecord: query.status === "NOT_SUBMITTED" ? { is: null } : { is: { status: query.status } } } : {}),
+      ...(query.q?.trim() ? { OR: [
+        { number: { contains: query.q.trim(), mode: "insensitive" } },
+        { customer: { name: { contains: query.q.trim(), mode: "insensitive" } } },
+        { customer: { nameAr: { contains: query.q.trim(), mode: "insensitive" } } },
+      ] } : {}),
+    };
+    const rows = await this.prisma.salesInvoice.findMany({ where, orderBy: { id: "desc" }, take: limit + 1, select: {
+      id: true, number: true, documentType: true, invoiceDate: true, totalGross: true, currency: true,
+      customer: { select: { name: true } }, egsUnit: { select: { environment: true } },
+      zatcaRecord: { select: { status: true, attempts: true } },
+    } });
+    const data = rows.slice(0, limit).map((row) => ({ salesInvoiceId: row.id, number: row.number, documentType: row.documentType,
+      customerName: row.customer.name, invoiceDate: row.invoiceDate.toISOString(), totalGross: row.totalGross.toFixed(2), currency: row.currency,
+      status: row.zatcaRecord?.status ?? "NOT_SUBMITTED", environment: row.egsUnit!.environment as ZatcaEnvironment, attempts: row.zatcaRecord?.attempts ?? 0,
+    }));
+    return { data, pageInfo: { hasMore: rows.length > limit, nextCursor: rows.length > limit ? data[data.length - 1]!.salesInvoiceId : null } };
+  }
+
+  async invoicePrintData(companyId: string, salesInvoiceId: string) {
+    const invoice = await this.prisma.salesInvoice.findFirst({ where: { id: salesInvoiceId, companyId }, select: { egsUnit: { select: { environment: true } } } });
+    if (!invoice?.egsUnit) return null;
+    const record = await this.invoiceRecord(companyId, salesInvoiceId);
+    return { environment: invoice.egsUnit.environment, status: record?.status ?? "NOT_SUBMITTED", qrImageDataUrl: record?.qrImageDataUrl ?? null };
   }
 
   // `cleared` is the version a standard (B2B) buyer must receive; `signed` is what we signed and sent.
@@ -419,18 +482,23 @@ export class ComplianceAdminService {
     return xml;
   }
 
-  async resubmit(companyId: string, salesInvoiceId: string, actor: Actor, correlationId: string): Promise<InvoiceRecordView> {
+  async resubmit(companyId: string, salesInvoiceId: string, actor: Actor, correlationId: string): Promise<InvoiceRecordView | null> {
     const record = await this.invoiceRecord(companyId, salesInvoiceId);
-    if (!record) throw new ComplianceError("INVOICE_RECORD_NOT_FOUND", "This invoice has no ZATCA record");
-    if (!record.canResubmit) throw new ComplianceError("WRONG_STATUS", `An invoice with status ${record.status} cannot be resubmitted; a correction is a new document`);
+    if (record && !record.canResubmit) throw new ComplianceError("WRONG_STATUS", `An invoice with status ${record.status} cannot be resubmitted; a correction is a new document`);
     if (!this.options.resubmitter) throw new ComplianceError("SUBMISSION_NOT_WIRED", "Submitting invoices to ZATCA is not enabled in this installation yet");
-    const row = await this.prisma.zatcaInvoiceRecord.findFirstOrThrow({ where: { salesInvoiceId, companyId }, select: { egsUnitId: true } });
+    const row = await this.prisma.salesInvoice.findFirst({ where: { id: salesInvoiceId, companyId }, select: { egsUnitId: true, egsUnit: { select: { status: true, isActive: true } } } });
+    if (!row?.egsUnitId) throw new ComplianceError("INVOICE_RECORD_NOT_FOUND", "This invoice is not linked to an EGS unit");
+    if (!row.egsUnit?.isActive || row.egsUnit.status !== "ACTIVE") throw new ComplianceError("WRONG_STATUS", "Complete EGS onboarding first");
     await this.options.resubmitter.enqueue(salesInvoiceId, row.egsUnitId);
     await this.audit.log({ actorId: actor.id, action: "compliance.invoice_resubmit_requested", entityType: "ZatcaInvoiceRecord", entityId: salesInvoiceId, correlationId });
     return record;
   }
 
   // ── internals ───────────────────────────────────────────────────────────────────────────────────────────
+
+  private allowedEnvironments(): ZatcaEnvironment[] {
+    return this.options.defaultEnvironment === "production" ? ["production"] : ["sandbox", "simulation"];
+  }
 
   private service(): OnboardingService {
     try {

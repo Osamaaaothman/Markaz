@@ -78,7 +78,8 @@ const { close: closeNotificationsWorker } = createMonitoredWorker<OutboxJobData>
 // The mapper needs the envelope-encryption key. A deployment with no ZATCA key configured must
 // still boot every other worker (docs/12-OPS-AND-DEPLOYMENT.md §5 — a missing optional
 // integration is a warning, not a dead process), so a KeyEncryptionError here only skips ZATCA.
-const closeZatcaWorkers: Array<() => Promise<void>> = [];
+const closeZatcaWorkers = new Map<string, () => Promise<void>>();
+let registration: Promise<void> | undefined;
 
 async function registerZatcaSubmissionWorkers(): Promise<void> {
   let encryptionKey: Buffer;
@@ -94,16 +95,23 @@ async function registerZatcaSubmissionWorkers(): Promise<void> {
 
   const submissionService = new InvoiceSubmissionService(prisma);
   const mapper = new ZatcaInvoiceMapper(prisma, encryptionKey);
-  const units = await prisma.egsUnit.findMany({ where: { isActive: true }, select: { id: true, environment: true } });
+  const units = await prisma.egsUnit.findMany({ where: { isActive: true, status: "ACTIVE" }, select: { id: true, environment: true } });
+  const activeIds = new Set(units.map((unit) => unit.id));
+  for (const [id, close] of closeZatcaWorkers) {
+    if (!activeIds.has(id)) { await close(); closeZatcaWorkers.delete(id); }
+  }
   for (const unit of units) {
+    if (closeZatcaWorkers.has(unit.id)) continue;
     const queueName = zatcaSubmissionQueueName(unit.id);
+    const queue = createQueue<ZatcaSubmissionJobData>(queueName, connection);
+    try { await queue.setGlobalConcurrency(1); } finally { await queue.close(); }
     const { close } = createMonitoredWorker<ZatcaSubmissionJobData>(
       queueName,
       connection,
       createZatcaSubmissionProcessor(submissionService, mapper),
       { concurrency: 1 },
     );
-    closeZatcaWorkers.push(close);
+    closeZatcaWorkers.set(unit.id, close);
     workerLogger.info({ queue: queueName, environment: unit.environment }, "zatca.worker_registered");
   }
 }
@@ -129,21 +137,29 @@ async function scheduleRepeatableJobs(): Promise<void> {
 
 workerLogger.info("worker started");
 void scheduleRepeatableJobs();
-void registerZatcaSubmissionWorkers().catch((error: unknown) => {
+function refreshZatcaWorkers(): void {
+  if (registration) return;
+  registration = registerZatcaSubmissionWorkers().catch((error: unknown) => {
   // The rest of the worker's queues are already running; a ZATCA lookup failure must not take
   // them down, so it is logged rather than left as an unhandled rejection.
   workerLogger.error(
     { err: error instanceof Error ? error.message : String(error) },
     "zatca.worker_registration_failed",
   );
-});
+  }).finally(() => { registration = undefined; });
+}
+refreshZatcaWorkers();
+// Newly onboarded units start processing without requiring an operator to restart the worker.
+const zatcaRefreshTimer = setInterval(refreshZatcaWorkers, 30_000);
 
 async function shutdown(): Promise<void> {
+  clearInterval(zatcaRefreshTimer);
+  await registration;
   workerLogger.info("worker shutting down");
   await closeLicenseCheckinWorker();
   await closeOutboxRelayWorker();
   await closeNotificationsWorker();
-  await Promise.all(closeZatcaWorkers.map((close) => close()));
+  await Promise.all([...closeZatcaWorkers.values()].map((close) => close()));
   await licenseCheckinQueue.close();
   await outboxRelayQueue.close();
   await connection.quit();

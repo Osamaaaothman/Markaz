@@ -25,7 +25,8 @@ import { useTaxCodes } from "../purchasing/use-invoicing";
 import { newId, tafqeetAmount } from "@erp/shared";
 import { useCreateCreditNote, useCreateDebitNote, useSalesInvoice, useSalesInvoices, type SalesInvoiceDetail, type SalesInvoiceSummary } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
-import { ZatcaInvoicePanel } from "../compliance/ZatcaInvoicePanel";
+import { ZatcaInvoicePanel, ZatcaStatusBadge } from "../compliance/ZatcaInvoicePanel";
+import { useInvoiceStatuses } from "../compliance/use-compliance";
 
 const ALL = "ALL";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
@@ -43,6 +44,7 @@ export function SalesInvoicesPage({ returnsOnly = false }: { returnsOnly?: boole
   const [type, setType] = useState<"INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | null>(null);
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSalesInvoices(returnsOnly ? "CREDIT_NOTE" : type);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
+  const statuses = useInvoiceStatuses(rows.map((row) => row.id));
 
   return (
     <div className="erp-page erp-page--wide">
@@ -85,6 +87,10 @@ export function SalesInvoicesPage({ returnsOnly = false }: { returnsOnly?: boole
             <Column field="number" filter header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesInvoiceSummary) => <span className="coa-code">{r.number}</span>} />
             <Column field="documentType" filter filterMatchMode="equals" filterElement={selectFilter((["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"] as const).map((v) => ({ label: t(`sales.invoices.types.${v}`), value: v })), t("table.filterPlaceholder"))} header={t("sales.invoices.documentType")} style={{ width: "10rem" }} body={(r: SalesInvoiceSummary) => <Tag value={t(`sales.invoices.types.${r.documentType}`)} severity={documentTypeSeverity(r.documentType)} />} />
             <Column header={t("sales.customer")} body={(r: SalesInvoiceSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
+            {can("compliance:read") ? <Column header={t("compliance.invoicePanel.title")} body={(row: SalesInvoiceSummary) => {
+              const state = statuses.data?.[row.id];
+              return state ? <div className="erp-row-actions"><ZatcaStatusBadge status={state.status} /><Tag value={t(`compliance.environment.${state.environment}`)} severity={state.environment === "production" ? "success" : "warning"} /></div> : "—";
+            }} /> : null}
             <Column header={t("purchasing.invoices.invoiceDate")} style={{ width: "9rem" }} body={(r: SalesInvoiceSummary) => formatCalendarDate(r.invoiceDate, i18n.language)} />
             <Column header={t("purchasing.invoices.dueDate")} style={{ width: "9rem" }} body={(r: SalesInvoiceSummary) => (r.dueDate ? formatCalendarDate(r.dueDate, i18n.language) : "")} />
             <Column header={t("purchasing.invoices.net")} align="right" body={(r: SalesInvoiceSummary) => formatMoney(r.totalNet, r.currency)} />
@@ -174,7 +180,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           {t("created.inWords")}: <strong>{tafqeetAmount(invoice.totalGross, invoice.currency)}</strong>
         </span>
       </div>
-      <ZatcaInvoicePanel salesInvoiceId={invoice.id} resubmitEnabled={false} />
+      <ZatcaInvoicePanel salesInvoiceId={invoice.id} />
 
       <div className="erp-form__actions">
         <Button type="button" label={t("sales.orders.back")} text onClick={() => void navigate("/sales/invoices")} />

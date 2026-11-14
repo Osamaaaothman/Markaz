@@ -29,6 +29,7 @@ import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
+import { ComplianceAdminService } from "../compliance/compliance-admin.service.js";
 import { quotationToPdfHtml } from "./exports/quotation-export.js";
 import { quotationEmailContent } from "./exports/quotation-email-template.js";
 import { localizedCompanyName } from "../common/company-name.js";
@@ -115,6 +116,7 @@ export class SalesController {
     private readonly prisma: PrismaService,
     private readonly attachments: AttachmentService,
     @Inject(EMAIL_TRANSPORT) private readonly emailTransport: EmailTransport,
+    private readonly compliance: ComplianceAdminService,
   ) {}
 
   // Shared by the quotation PDF, preview and send endpoints: the company's own identity as it
@@ -341,6 +343,7 @@ export class SalesController {
     const pdf = await renderHtmlToPdf(
       await salesInvoiceToPdfHtml({
         invoice,
+        compliance: await this.compliance.invoicePrintData(actor.companyId, id),
         issuedBy: issuer?.email ?? null,
         issuedAt: issued.createdAt.toISOString(),
         language,

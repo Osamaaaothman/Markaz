@@ -141,7 +141,7 @@ function sellerParty(company: InvoiceForZatca["company"]): ZatcaParty {
       countryCode: company.countryCode ?? "SA",
     },
     vatNumber: company.vatNumber ?? undefined,
-    registrationName: company.name,
+    registrationName: company.nameAr || company.name,
   };
 }
 
@@ -160,7 +160,7 @@ function buyerParty(customer: PartyRow): ZatcaParty {
       countryCode: customer.countryCode ?? "SA",
     },
     vatNumber: customer.vatNumber ?? undefined,
-    registrationName: customer.name,
+    registrationName: customer.nameAr || customer.name,
   };
 }
 
@@ -195,7 +195,7 @@ export class ZatcaInvoiceMapper implements ZatcaSubmissionParamsLoader {
     const credential = egsUnit.credential;
     if (!credential) throw new Error("EGS credential ciphertext missing");
     const environment = egsUnit.environment as ZatcaEnvironment;
-    const isProduction = environment === "production";
+    const isProduction = environment !== "sandbox";
     // Onboarding stores the certificate itself (PEM) in the CSID column, encrypted — there is no
     // plaintext certificate column and none is needed.
     const csidCiphertext = isProduction ? credential.productionCsidCiphertext : credential.complianceCsidCiphertext;
@@ -221,6 +221,8 @@ export class ZatcaInvoiceMapper implements ZatcaSubmissionParamsLoader {
     const customer = subtype === "STANDARD" ? buyerParty(invoice.customer) : undefined;
     const lines = invoice.lines.map(toLine);
     const paymentMeansCode = invoice.paymentMeansCode || DEFAULT_PAYMENT_MEANS_CODE;
+    // XML and QR must carry the same UTC instant, to whole seconds.
+    const issueTimestamp = invoice.invoiceDate.toISOString().replace(/\.\d{3}Z$/, "Z");
 
     // A credit/debit note must name the invoice it corrects and carry a reason (the XML builder
     // rejects one without an InstructionNote), so an invoice with no notes falls back to the
@@ -242,12 +244,12 @@ export class ZatcaInvoiceMapper implements ZatcaSubmissionParamsLoader {
       certificatePem,
       privateKeyPem,
       isSimplified: subtype === "SIMPLIFIED",
-      signingTime: invoice.invoiceDate.toISOString(),
+      signingTime: issueTimestamp,
       acceptLanguage: "ar",
       qr: {
-        sellerName: invoice.company.name,
+        sellerName: seller.registrationName,
         vatNumber: invoice.company.vatNumber ?? "",
-        timestamp: invoice.invoiceDate.toISOString(),
+        timestamp: issueTimestamp,
         invoiceTotalWithVat: invoice.totalGross.toFixed(2),
         vatTotal: invoice.totalTax.toFixed(2),
       },
@@ -258,8 +260,8 @@ export class ZatcaInvoiceMapper implements ZatcaSubmissionParamsLoader {
         // Our SalesInvoice id is itself a UUID and, unlike a freshly generated one, is stable across
         // a retry of the same submission (the hash chain must not move under a retry).
         uuid: invoice.id,
-        issueDate: invoice.invoiceDate.toISOString().slice(0, 10),
-        issueTime: invoice.invoiceDate.toISOString().slice(11, 19),
+        issueDate: issueTimestamp.slice(0, 10),
+        issueTime: issueTimestamp.slice(11),
         currency: invoice.currency,
         icv: chain.icv.toString(),
         previousInvoiceHash: chain.previousInvoiceHash,

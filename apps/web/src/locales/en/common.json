@@ -2143,7 +2143,28 @@
       "downloadSigned": "Download signed XML",
       "downloadCleared": "Download cleared XML",
       "resubmit": "Resubmit",
-      "resubmitError": "Could not request a resubmission."
+      "resubmitError": "Could not request a resubmission.",
+      "egs": "Issuing unit",
+      "uuid": "Invoice UUID",
+      "icv": "Invoice counter (ICV)",
+      "attempts": "Submission attempts",
+      "submittedAt": "Last submitted",
+      "clearedAt": "Cleared at",
+      "reportedAt": "Reported at",
+      "completedAt": "Completed at",
+      "history": "Attempt history",
+      "noHistory": "No detailed attempts have been recorded. History is retained for submissions made after this update.",
+      "qr": "Invoice QR code",
+      "qrSource": {
+        "SIGNED": "QR from the signed simplified invoice",
+        "CLEARED": "QR returned with the cleared invoice"
+      },
+      "downloadQr": "Download QR (PNG)",
+      "qrUnavailable": "No usable QR is available yet. Standard invoices need a matching QR from the clearance response.",
+      "scanHint": "Use a ZATCA-compatible reader. Reading a QR is separate from checking acceptance; the QR has no explicit Sandbox label.",
+      "awaiting": "This invoice is linked to an EGS unit and is awaiting processing. If it remains here, check the unit and retry.",
+      "notLinked": "This invoice is not linked to an issuing unit. No ZATCA submission is available.",
+      "downloadError": "The XML download failed. Please retry."
     },
     "invoiceStatus": {
       "PENDING": "Pending",
@@ -2153,7 +2174,32 @@
       "WARNING": "Cleared with warnings",
       "REJECTED": "Rejected",
       "FAILED": "Failed",
-      "FAILED_RETRYABLE": "Failed, will retry"
+      "FAILED_RETRYABLE": "Needs retry / review",
+      "NOT_SUBMITTED": "Awaiting processing",
+      "ACCEPTED_WITH_WARNINGS": "Accepted with warnings"
+    },
+    "testNotice": "TEST DOCUMENT — not a production tax invoice.",
+    "environmentHint": {
+      "sandbox": "Sandbox uses sample API responses. A successful response or readable QR does not prove acceptance by ZATCA.",
+      "simulation": "Simulation validates test documents before production. Onboarding requires a taxpayer Fatoora account and a Simulation OTP.",
+      "production": "Production sends actual fiscal documents to ZATCA. Use the production account and OTP."
+    },
+    "invoices": {
+      "title": "Invoice submissions",
+      "hint": "Track sales invoices, credit notes and debit notes issued by this system. Open a document to download its XML and QR. This list does not import historical invoices from ZATCA.",
+      "search": "Search number or customer",
+      "all": "All",
+      "status": "Status",
+      "environment": "Environment",
+      "documentType": "Document type",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "attemptStage": {
+      "BEFORE_SIGNING": "Validation before signing",
+      "AFTER_SIGNING": "Validation after signing",
+      "CLEARANCE": "Clearance",
+      "REPORTING": "Reporting"
     }
   },
   "setup": {

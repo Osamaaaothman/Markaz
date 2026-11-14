@@ -260,7 +260,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                 inputId="sdEgsUnit"
                 value={egsUnitId || null}
                 onChange={(e) => setEgsUnitId((e.value as string | null) ?? "")}
-                options={activeEgsUnits.map((u) => ({ label: u.branchName ? `${u.name} — ${u.branchName}` : u.name, value: u.id }))}
+                options={activeEgsUnits.map((u) => ({ label: `${u.name}${u.branchName ? ` — ${u.branchName}` : ""} (${t(`compliance.environment.${u.environment}`)})`, value: u.id }))}
                 placeholder={t("sales.invoices.egsUnitPlaceholder")}
                 className={egsUnitId === "" ? "p-invalid" : ""}
               />

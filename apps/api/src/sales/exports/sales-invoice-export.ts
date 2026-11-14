@@ -6,7 +6,7 @@ import { escapeHtml } from "../../common/html-escape.js";
 import { getDocumentTranslator, type SupportedDocumentLanguage } from "../../i18n/server-i18n.js";
 
 // A printable invoice, credit note or debit note, in Arabic (RTL) or English (LTR). It shows the figures as posted.
-// It is NOT a ZATCA e-invoice: no UUID, hash, QR or signature — those come from the compliance pack (M7).
+// Compliance presentation is supplied by the API composition layer; this remains a visual PDF, not PDF/A-3.
 export async function salesInvoiceToPdfHtml(params: {
   readonly invoice: SalesInvoiceDetail;
   readonly language: SupportedDocumentLanguage;
@@ -18,6 +18,7 @@ export async function salesInvoiceToPdfHtml(params: {
   readonly sellerCrNumber?: string | null;
   readonly sellerAddress?: string | null;
   readonly sellerPhone?: string | null;
+  readonly compliance?: { readonly environment: string; readonly status: string; readonly qrImageDataUrl: string | null } | null;
 }): Promise<string> {
   const t = await getDocumentTranslator(params.language);
   const { invoice } = params;
@@ -66,6 +67,9 @@ export async function salesInvoiceToPdfHtml(params: {
   ].join("<br/>");
 
   const extraCss = `
+  .compliance-notice { border: 2pt solid #92400e; padding: 8pt; color: #78350f; background: #fffbeb; font-weight: 700; margin-block-end: 12pt; }
+  .invoice-compliance { display: flex; align-items: center; gap: 16pt; margin-block-start: 16pt; break-inside: avoid; font-size: 9pt; }
+  .invoice-qr { width: 140pt; height: 140pt; object-fit: contain; image-rendering: pixelated; }
   .inv-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16pt; margin-block-end: 18pt; }
   .bill-to-block { flex: 1 1 auto; }
   .bill-to-label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-block-end: 4pt; font-weight: 600; }
@@ -98,6 +102,7 @@ export async function salesInvoiceToPdfHtml(params: {
     subtitle: "",
     extraCss,
     bodyHtml: `
+${params.compliance && params.compliance.environment !== "production" ? `<div class="compliance-notice">${escapeHtml(t("compliance.testNotice"))} — ${escapeHtml(t(`compliance.environment.${params.compliance.environment}`))}</div>` : ""}
 <div class="inv-header">
   <div class="bill-to-block">
     <p class="bill-to-label">${escapeHtml(t("salesInvoice.billTo"))}</p>
@@ -117,7 +122,12 @@ export async function salesInvoiceToPdfHtml(params: {
   </table>
 </div>
 <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
-${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
+${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
+${params.compliance ? `<div class="invoice-compliance">
+${params.compliance.qrImageDataUrl?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(params.compliance.qrImageDataUrl)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : ""}
+<div><p>${escapeHtml(t("compliance.status"))}: ${escapeHtml(t(`compliance.statuses.${params.compliance.status}`))}</p>
+${!params.compliance.qrImageDataUrl ? `<p>${escapeHtml(t("compliance.qrUnavailable"))}</p>` : ""}
+<p>${escapeHtml(t("compliance.xmlNotice"))}</p></div></div>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("salesInvoice.computerGenerated") }),
   });
 }
