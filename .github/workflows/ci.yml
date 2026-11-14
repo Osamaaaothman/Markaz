@@ -44,7 +44,8 @@ jobs:
         shell: bash
         run: |
           export ZATCA_SDK_DIR="$RUNNER_TEMP/zatca/zatca-einvoicing-sdk-Java-238-R3.4.8"
-          curl --fail --location --retry 3 --max-time 180 'https://sadzit.sharepoint.com/:u:/s/EXTERNALZATCA/IQCVzjXNpLTOTZbrYhs_w7aIAb7pPg1wfwl6wACeu1xCPAQ?e=pn3riq&download=1' --output "$RUNNER_TEMP/zatca-sdk.zip"
+          # SharePoint's public download redirect needs its anonymous session cookie.
+          curl --fail --silent --show-error --location --retry 3 --max-time 180 --cookie-jar "$RUNNER_TEMP/zatca-sdk.cookies" --cookie "$RUNNER_TEMP/zatca-sdk.cookies" 'https://sadzit.sharepoint.com/:u:/s/EXTERNALZATCA/IQCVzjXNpLTOTZbrYhs_w7aIAb7pPg1wfwl6wACeu1xCPAQ?e=pn3riq&download=1' --output "$RUNNER_TEMP/zatca-sdk.zip"
           echo "91d079b4a6c21c8ed7fb6ec434227409537119cae8b74de34dc150f91793d1f6  $RUNNER_TEMP/zatca-sdk.zip" | sha256sum --check --strict
           unzip -q "$RUNNER_TEMP/zatca-sdk.zip" -d "$RUNNER_TEMP/zatca"
           node scripts/prepare-zatca-sdk.mjs
