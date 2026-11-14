@@ -43,8 +43,8 @@ export function PartyPicker({
   const { data: results } = usePartySearch(query, excludeEmployees, kind);
 
   const parties = useMemo(
-    () => partyPickerOptions<PartyLike>(results, current, excludeEmployees),
-    [results, current, excludeEmployees],
+    () => partyPickerOptions<PartyLike>(results, current, excludeEmployees, kind),
+    [results, current, excludeEmployees, kind],
   );
 
   if (!can("party:read")) return null;

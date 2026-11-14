@@ -4,6 +4,7 @@ import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 
 export type PaymentDirection = "RECEIPT" | "PAYMENT";
+export type PaymentCounterpartyKind = "CUSTOMER" | "SUPPLIER" | "EMPLOYEE" | "ACCOUNT";
 export type PaymentMethod = "CASH" | "BANK_TRANSFER" | "CHEQUE" | "CARD" | "OTHER";
 export const PAYMENT_METHODS: readonly PaymentMethod[] = ["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "OTHER"];
 
@@ -11,7 +12,8 @@ export interface PaymentSummary {
   readonly id: string;
   readonly direction: PaymentDirection;
   readonly number: string;
-  readonly partyId: string;
+  readonly partyId: string | null;
+  readonly counterpartyKind: PaymentCounterpartyKind;
   readonly partyName: string;
   readonly partyNameAr: string | null;
   readonly paymentDate: string;
@@ -30,6 +32,10 @@ export interface PaymentAllocationView {
 }
 
 export interface PaymentDetail extends PaymentSummary {
+  readonly counterAccountId: string | null;
+  readonly counterAccountCode: string | null;
+  readonly counterAccountName: string | null;
+  readonly counterAccountNameAr: string | null;
   readonly cashAccountCode: string;
   readonly cashAccountName: string;
   readonly cashAccountNameAr: string | null;
@@ -88,6 +94,16 @@ export function useOpenInvoices(partyId: string, direction: PaymentDirection) {
   });
 }
 
+export function usePaymentCashAccounts(method: PaymentMethod) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["payments", "cashAccounts", method],
+    queryFn: async () => (await apiClient.get<{ id: string; code: string; name: string; nameAr: string | null }[]>("/v1/payments/cash-accounts", { params: { method } })).data,
+    enabled: can("account:read"),
+    staleTime: 0,
+  });
+}
+
 export interface UnallocatedPayment {
   readonly id: string;
   readonly number: string;
@@ -131,7 +147,9 @@ export function useSettle() {
 }
 
 export interface CreatePaymentPayload {
-  readonly partyId: string;
+  readonly partyId?: string;
+  readonly counterpartyKind: PaymentCounterpartyKind;
+  readonly counterAccountId?: string;
   readonly paymentDate: string;
   readonly amount: string;
   readonly cashAccountId: string;

@@ -21,7 +21,7 @@ own backend), hosted on the customer's own hardware or on a cloud account they o
 | **Inventory** | Warehouses, items with pictures, stock movements and history, weighted-average valuation |
 | **Purchasing** | Requests, orders, receiving, supplier invoices with three-way matching, tax codes |
 | **Sales** | Quotations, orders, invoices, credit notes, invoice PDF |
-| **Payments** | Customer receipts and supplier payments with allocation to invoices |
+| **Payments** | Receipt/payment vouchers for customers, suppliers, employees and accounts; cash/bank filtering and invoice allocation ([details](docs/PAYMENT-VOUCHERS.md)) |
 | **Reports** | Receivables and payables ageing, customer and supplier statements, dashboard |
 | **Platform** | Users, roles and permissions, audit log, approvals, attached documents, bilingual email and PDF |
 

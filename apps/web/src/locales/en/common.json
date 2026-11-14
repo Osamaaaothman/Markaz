@@ -58,8 +58,8 @@
     "salesOrders": "Sales orders",
     "salesInvoices": "Sales invoices",
     "payments": "Payments",
-    "receipts": "Customer Receipts",
-    "supplierPayments": "Supplier Payments",
+    "receipts": "Receipt vouchers",
+    "supplierPayments": "Payment vouchers",
     "cashExpenses": "Cash Expenses",
     "aging": "Ageing",
     "partyStatement": "Customer / supplier statement",
@@ -696,7 +696,9 @@
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "Employee salaries payable folder",
         "EMPLOYEE_EOSB_PARENT": "Employee dues folder",
         "CUSTOMER_LEDGER_PARENT": "Customer accounts folder",
-        "SUPPLIER_LEDGER_PARENT": "Supplier accounts folder"
+        "SUPPLIER_LEDGER_PARENT": "Supplier accounts folder",
+        "CASH_ACCOUNTS_PARENT": "Cash accounts folder",
+        "BANK_ACCOUNTS_PARENT": "Bank accounts folder"
       },
       "keyHints": {
         "CUSTOMER_LEDGER_PARENT": "An asset folder, not a postable account. Individual customer accounts are created under it.",
@@ -722,7 +724,9 @@
         "EOSB_PAYABLE": "Credited with the end-of-service amount owed until paid.",
         "EMPLOYEE_ADVANCES_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
-        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries) for each employee's dues: what is owed to them besides salary (end-of-service now, leave or bonuses later). In the standard chart, \"Employees Other Dues\" (2111102) fits. Set all three employee folders, or none to keep using the company-wide accounts above."
+        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries) for each employee's dues: what is owed to them besides salary (end-of-service now, leave or bonuses later). In the standard chart, \"Employees Other Dues\" (2111102) fits. Set all three employee folders, or none to keep using the company-wide accounts above.",
+        "CASH_ACCOUNTS_PARENT": "An asset folder. Its active postable accounts appear for the matching payment method.",
+        "BANK_ACCOUNTS_PARENT": "An asset folder. Its active postable accounts appear for the matching payment method."
       }
     },
     "movements": {
@@ -1082,11 +1086,11 @@
   },
   "payments": {
     "title": "Payments",
-    "subtitle": "Money received from customers and paid to suppliers, and the invoices each settles.",
-    "receiptsTitle": "Customer Receipts",
-    "receiptsSubtitle": "Money received from customers and the invoices settled.",
-    "paymentsTitle": "Supplier Payments",
-    "paymentsSubtitle": "Money paid to suppliers and the invoices settled.",
+    "subtitle": "Receipt and payment vouchers and invoice settlements.",
+    "receiptsTitle": "Receipt vouchers",
+    "receiptsSubtitle": "Money received and its parties and accounts.",
+    "paymentsTitle": "Payment vouchers",
+    "paymentsSubtitle": "Money paid and its parties and accounts.",
     "newReceipt": "New receipt",
     "newPayment": "New payment",
     "recordPayment": "Record payment",
@@ -1096,7 +1100,7 @@
       "RECEIPT": "Received",
       "PAYMENT": "Paid"
     },
-    "party": "Customer / supplier",
+    "party": "Party / account",
     "date": "Date",
     "amount": "Amount",
     "method": "Method",
@@ -1109,7 +1113,7 @@
     },
     "reference": "Reference",
     "bankAccount": "Bank / cash account",
-    "pickBank": "Choose the account",
+    "pickBank": "Choose a bank account",
     "settle": "Invoices to settle",
     "fillOldest": "Fill oldest first",
     "noOpenInvoices": "Nothing is owed on any invoice. The amount will stay on account.",
@@ -1118,27 +1122,32 @@
     "allocated": "Allocated to invoices",
     "onAccount": "On account",
     "receipt": {
-      "title": "Customer receipt",
-      "subtitle": "Record money received from a customer.",
+      "title": "Receipt voucher",
+      "subtitle": "Record money received and choose the party or account.",
       "party": "Customer",
-      "submit": "Post receipt"
+      "submit": "Post receipt",
+      "counterpartyType": "Received from"
     },
     "payment": {
-      "title": "Supplier payment",
-      "subtitle": "Record money paid to a supplier.",
+      "title": "Payment voucher",
+      "subtitle": "Record money paid and choose the party or account.",
       "party": "Supplier",
-      "submit": "Post payment"
+      "submit": "Post payment",
+      "counterpartyType": "Paid to"
     },
     "errors": {
       "generic": "Could not post this payment.",
       "badRequest": "Check that Settings > Account mapping has the receivable and payable accounts set.",
       "OVER_ALLOCATED": "More than an invoice still owes.",
       "ALLOCATION_EXCEEDS_PAYMENT": "The allocations add up to more than the payment.",
-      "CASH_ACCOUNT_INVALID": "Choose a postable asset account for the bank or cash.",
+      "CASH_ACCOUNT_INVALID": "Choose an active cash account for cash, or an active bank account for other methods.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
       "INVOICE_NOT_FOUND": "An invoice to settle was not found for this party.",
       "DUPLICATE_ALLOCATION": "An invoice appears twice.",
-      "ALREADY_VOIDED": "This payment has already been reversed."
+      "ALREADY_VOIDED": "This payment has already been reversed.",
+      "PARTY_KIND_INVALID": "The party does not match the selected type. Select it again.",
+      "COUNTER_ACCOUNT_INVALID": "Choose an active account for the party, different from the bank or cash account.",
+      "ALLOCATION_NOT_ALLOWED": "This voucher type cannot allocate amounts to invoices."
     },
     "voided": "Voided",
     "reverse": "Reverse",
@@ -1159,6 +1168,20 @@
       "errors": {
         "INSUFFICIENT_BALANCE": "Not enough balance on account to cover that."
       }
+    },
+    "employeeAccount": "Employee account",
+    "employeeAccountHint": "Choose the linked employee account for this voucher.",
+    "pickCounterAccount": "Choose an account",
+    "cashAccount": "Cash account",
+    "bankOnly": "Bank account",
+    "pickCash": "Choose a cash account",
+    "noCashAccounts": "No accounts available. Check the bank or cash folder in Settings > Account mapping and its active accounts.",
+    "amountFromAllocations": "Enter Settle now amounts directly; the voucher total is calculated from them when left blank.",
+    "counterpartyKinds": {
+      "CUSTOMER": "Customer",
+      "SUPPLIER": "Supplier",
+      "EMPLOYEE": "Employee",
+      "ACCOUNT": "Account"
     }
   },
   "cashExpenses": {

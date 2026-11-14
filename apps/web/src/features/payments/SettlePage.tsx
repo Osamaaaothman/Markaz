@@ -11,6 +11,7 @@ import { formatCalendarDate } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
 import { PartyPicker } from "../accounting/PartyPicker";
 import { usePartyBalance, useSettle, type OpenInvoice, type PaymentDirection, type UnallocatedPayment } from "./use-payments";
+import { normalizePaymentAmount } from "./payment-amount";
 
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 
@@ -126,7 +127,8 @@ function SettleForm({ direction }: { direction: PaymentDirection }): React.JSX.E
               <h3 className="erp-form__section-title">{t("payments.settle")}</h3>
               <Button type="button" label={t("payments.fillOldest")} icon="pi pi-sort-amount-down" text disabled={!totalUnallocated.isPositive() || balance.openInvoices.length === 0} onClick={fillOldestFirst} />
             </div>
-            <DataTable value={[...balance.openInvoices]} className="erp-table" size="small" showGridlines emptyMessage={t("payments.noOpenInvoices")}>
+            {/* Allocation values are external state, so edits must invalidate the input cells. */}
+            <DataTable value={[...balance.openInvoices]} dataKey="id" cellMemo={false} className="erp-table" size="small" showGridlines emptyMessage={t("payments.noOpenInvoices")}>
               <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(i: OpenInvoice) => <span className="coa-code">{i.number}</span>} />
               <Column header={t("purchasing.invoices.invoiceDate")} style={{ width: "9rem" }} body={(i: OpenInvoice) => formatCalendarDate(i.invoiceDate, i18n.language)} />
               <Column header={t("purchasing.invoices.gross")} align="right" body={(i: OpenInvoice) => formatMoney(i.gross, i.currency)} />
@@ -137,8 +139,14 @@ function SettleForm({ direction }: { direction: PaymentDirection }): React.JSX.E
                 body={(i: OpenInvoice) => (
                   <InputText
                     dir="ltr"
+                    inputMode="decimal"
+                    aria-label={`${t("payments.settleNow")} ${i.number}`}
+                    placeholder="0.00"
                     value={allocationValue(i.id)}
-                    onChange={(e) => edit(() => setAllocations((prev) => ({ ...prev, [i.id]: e.target.value })))}
+                    onChange={(e) => {
+                      const value = normalizePaymentAmount(e.target.value);
+                      edit(() => setAllocations((prev) => ({ ...prev, [i.id]: value })));
+                    }}
                     className={allocationOk(i) ? "" : "p-invalid"}
                   />
                 )}

@@ -5,6 +5,18 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Receipt/payment voucher selection and amounts (2026-11-15)
+
+- Filter cash and bank accounts by payment method using configurable account folders.
+- Add customer, supplier, employee and account counterparties to both voucher forms,
+  with matching server validation, stored counter-accounts and correct report classification.
+- Fix stale memoized input cells in “Settle now”; support Arabic digits and a total
+  calculated from entered allocations when the voucher amount is blank.
+- Add `20261115100000_payment_counterparties`. It preserves legacy rows and configures
+  standard cash/bank folders; custom charts can choose folders in account-mapping settings.
+- Reverse the original accounts and retain allocation history. See
+  [payment vouchers](docs/PAYMENT-VOUCHERS.md) for rollout and validation details.
+
 ### Invoice, compliance and document release (2026-11-14)
 - Wire sales invoices and credit/debit notes to the compliance pack, with submission
   evidence, retry history, XML downloads and printable QR status. Sandbox data-only

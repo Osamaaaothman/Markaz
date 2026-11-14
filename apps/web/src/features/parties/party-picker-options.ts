@@ -8,9 +8,13 @@ export function partyPickerOptions<T extends PickerParty>(
   results: readonly T[] = [],
   current?: T | null,
   excludeEmployees = false,
+  kind?: string,
 ): T[] {
   const byId = new Map<string, T>();
   if (current) byId.set(current.id, current);
   for (const party of results) byId.set(party.id, party);
-  return [...byId.values()].filter((party) => !excludeEmployees || party.kind !== "EMPLOYEE");
+  return [...byId.values()].filter((party) =>
+    (!excludeEmployees || party.kind !== "EMPLOYEE") &&
+    (!kind || party.kind === kind || (party.kind === "CUSTOMER_SUPPLIER" && (kind === "CUSTOMER" || kind === "SUPPLIER"))),
+  );
 }

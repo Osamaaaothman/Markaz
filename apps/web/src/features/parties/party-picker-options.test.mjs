@@ -5,6 +5,13 @@ import { partyPickerOptions } from "./party-picker-options.ts";
 const employee = { id: "employee", kind: "EMPLOYEE", name: "موظف / Employee" };
 const customers = ["COMPANY", "PERSON", "OTHER"].map((kind) => ({ id: kind, kind }));
 
+test("explicit party types exclude every other type, including a stale current selection", () => {
+  const kinds = ["CUSTOMER", "SUPPLIER", "EMPLOYEE", "CUSTOMER_SUPPLIER"].map((kind) => ({ id: kind, kind }));
+  assert.deepEqual(partyPickerOptions(kinds, employee, false, "CUSTOMER").map((p) => p.kind), ["CUSTOMER", "CUSTOMER_SUPPLIER"]);
+  assert.deepEqual(partyPickerOptions(kinds, employee, false, "SUPPLIER").map((p) => p.kind), ["SUPPLIER", "CUSTOMER_SUPPLIER"]);
+  assert.deepEqual(partyPickerOptions(kinds, kinds[0], false, "EMPLOYEE").map((p) => p.kind), ["EMPLOYEE"]);
+});
+
 test("customer/supplier options exclude employees but retain every other entity kind", () => {
   assert.deepEqual(partyPickerOptions([employee, ...customers], null, true), customers);
 });
