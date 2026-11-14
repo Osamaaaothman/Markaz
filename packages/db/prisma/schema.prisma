@@ -1392,7 +1392,9 @@ model SalesInvoice {
   salesOrderId      String?   @map("sales_order_id")
   // CREDIT_NOTE / DEBIT_NOTE only: the invoice it reduces or bills against.
   originalInvoiceId String?   @map("original_invoice_id")
-  invoiceDate       DateTime  @map("invoice_date") @db.Date
+  // Full TIMESTAMPTZ: date portion = document date (user-selected); time portion = wall-clock
+  // issue time captured at posting — required by ZATCA XML issueTime without a separate column.
+  invoiceDate       DateTime  @map("invoice_date")
   dueDate           DateTime? @map("due_date") @db.Date
   // UNCL4461: 10=cash, 42=bank transfer (default), 48=card.
   paymentMeansCode  String    @default("42") @map("payment_means_code")

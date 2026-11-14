@@ -13,6 +13,16 @@ import { allocateDocumentNumber } from "../reference.js";
 import type { SalesActor } from "./quotation.service.js";
 import { SalesError, blankToNull, dateOnly, lockCustomer, resolveEgsUnitId, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
 
+// Keeps the user-chosen date (determines fiscal period / what appears on the document) but
+// replaces the time component with the current wall-clock time so ZATCA issueTime is non-zero
+// and matches the actual moment of posting.
+function withCurrentTime(date: Date): Date {
+  const now = new Date();
+  const result = new Date(date);
+  result.setUTCHours(now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds());
+  return result;
+}
+
 export interface SalesInvoiceLineInput extends SalesLineInput {
   // Required with an item: the warehouse the goods leave.
   readonly warehouseId?: string | undefined;
@@ -293,7 +303,7 @@ export class SalesInvoiceService {
           number,
           customerId: input.customerId,
           salesOrderId: orderIds.length === 1 ? (orderIds[0] ?? null) : null,
-          invoiceDate: input.invoiceDate,
+          invoiceDate: withCurrentTime(input.invoiceDate),
           dueDate: input.dueDate ?? input.invoiceDate,
           currency,
           totalNet: totals.net,
@@ -510,7 +520,7 @@ export class SalesInvoiceService {
           number,
           customerId: original.customerId,
           originalInvoiceId: original.id,
-          invoiceDate: input.creditDate,
+          invoiceDate: withCurrentTime(input.creditDate),
           dueDate: null,
           currency,
           totalNet: totals.net,
@@ -644,7 +654,7 @@ export class SalesInvoiceService {
           number,
           customerId: original.customerId,
           originalInvoiceId: original.id,
-          invoiceDate: input.debitDate,
+          invoiceDate: withCurrentTime(input.debitDate),
           dueDate: null,
           currency,
           totalNet: totals.net,
