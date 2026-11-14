@@ -63,7 +63,6 @@ export function StockIssuePage(): React.JSX.Element {
   const stockQuery = useStockLevels({ warehouseId: selectedWarehouseId, belowReorderOnly: false });
   const stockLevels = stockQuery.isError ? undefined : stockQuery.data;
   const availability = stockAvailability(watch("lines").map((l) => ({ ...l, warehouseId: selectedWarehouseId ?? "" })), stockLevels);
-  const stockBlocked = availability.some((s) => s.exceeded) || !stockLevels;
 
   // A line the auto-new-line-on-Enter feature added but the user never touched — dropped silently
   // right before validation runs, instead of blocking the save button or forcing a manual delete.
@@ -76,7 +75,6 @@ export function StockIssuePage(): React.JSX.Element {
 
   const onSubmit = handleSubmit(async (values) => {
     if (!draft.ready || !await draft.save()) return;
-    if (stockBlocked) return;
     createIssue.mutate(
       { warehouseId: values.warehouseId, costCenterRef: values.costCenterRef.trim(), documentDate: toDateOnlyIsoString(values.documentDate), lines: values.lines },
       {
@@ -195,7 +193,7 @@ export function StockIssuePage(): React.JSX.Element {
         {createIssue.isSuccess ? <p className="erp-field__hint">{t("inventory.stockIssue.postedSuccess", { number: createIssue.data?.number })}</p> : null}
 
         <div className="erp-form__actions">
-          <Button type="submit" label={t("inventory.stockIssue.submit")} disabled={stockBlocked || !draft.ready || draft.status === "completed"} loading={createIssue.isPending} />
+          <Button type="submit" label={t("inventory.stockIssue.submit")} disabled={!draft.ready || draft.status === "completed"} loading={createIssue.isPending} />
         </div>
       </form>
       <CreatedDialog info={created} onHide={() => void navigate("/inventory/stock-issues")} />

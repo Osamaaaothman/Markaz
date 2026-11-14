@@ -58,8 +58,8 @@
     "salesOrders": "Sales orders",
     "salesInvoices": "Sales invoices",
     "payments": "Payments",
-    "receipts": "Customer Receipts",
-    "supplierPayments": "Supplier Payments",
+    "receipts": "Receipt vouchers",
+    "supplierPayments": "Payment vouchers",
     "cashExpenses": "Cash Expenses",
     "aging": "Ageing",
     "partyStatement": "Customer / supplier statement",
@@ -606,9 +606,13 @@
       "reorderPoint": "Reorder point",
       "belowReorder": "Below reorder point",
       "onHand": "On hand",
-      "unavailable": "Stock cannot be verified; wait or reload the page.",
+      "unavailable": "Stock cannot be verified. You can continue or reload to check it.",
       "availableQuantity": "Available in warehouse: {{quantity}}",
-      "exceeded": "Total requested quantity for this item exceeds available stock"
+      "availableCompanyQuantity": "Available across warehouses: {{quantity}}",
+      "offerWarning": "Stock is insufficient or could not be verified. You can save this document; quotations and orders do not issue stock.",
+      "exceeded": "Total requested quantity for this item exceeds available stock",
+      "provisionalCost": "Cost is provisional until the shortage is received.",
+      "pendingCost": "No previous cost is known; cost remains pending until receipt."
     },
     "goodsReceipt": {
       "title": "Goods receipt",
@@ -692,7 +696,9 @@
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "Employee salaries payable folder",
         "EMPLOYEE_EOSB_PARENT": "Employee dues folder",
         "CUSTOMER_LEDGER_PARENT": "Customer accounts folder",
-        "SUPPLIER_LEDGER_PARENT": "Supplier accounts folder"
+        "SUPPLIER_LEDGER_PARENT": "Supplier accounts folder",
+        "CASH_ACCOUNTS_PARENT": "Cash accounts folder",
+        "BANK_ACCOUNTS_PARENT": "Bank accounts folder"
       },
       "keyHints": {
         "CUSTOMER_LEDGER_PARENT": "An asset folder, not a postable account. Individual customer accounts are created under it.",
@@ -718,7 +724,9 @@
         "EOSB_PAYABLE": "Credited with the end-of-service amount owed until paid.",
         "EMPLOYEE_ADVANCES_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
-        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries) for each employee's dues: what is owed to them besides salary (end-of-service now, leave or bonuses later). In the standard chart, \"Employees Other Dues\" (2111102) fits. Set all three employee folders, or none to keep using the company-wide accounts above."
+        "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries) for each employee's dues: what is owed to them besides salary (end-of-service now, leave or bonuses later). In the standard chart, \"Employees Other Dues\" (2111102) fits. Set all three employee folders, or none to keep using the company-wide accounts above.",
+        "CASH_ACCOUNTS_PARENT": "An asset folder. Its active postable accounts appear for the matching payment method.",
+        "BANK_ACCOUNTS_PARENT": "An asset folder. Its active postable accounts appear for the matching payment method."
       }
     },
     "movements": {
@@ -737,7 +745,8 @@
         "RECEIPT": "Receipt",
         "ISSUE": "Issue",
         "COUNT_ADJUSTMENT": "Count adjustment",
-        "RETURN": "Return to supplier"
+        "RETURN": "Return to supplier",
+        "COST_ADJUSTMENT": "Cost adjustment"
       },
       "sources": {
         "goods_receipt": "Goods receipt",
@@ -962,8 +971,8 @@
       "generic": "Could not save this document.",
       "badRequest": "Check that Settings > Account mapping has the receivable, revenue, VAT and cost-of-goods accounts set, and that the date is in an open period.",
       "INSUFFICIENT_STOCK": "Not enough stock in that warehouse for this line.",
-      "INSUFFICIENT_STOCK_WARN": "One or more lines may have insufficient stock. Replenish the selected warehouse or reduce the quantity before invoicing.",
-      "BELOW_COST": "Unit price is below the weighted-average cost. Raise the price or use a credit note to adjust.",
+      "INSUFFICIENT_STOCK_WARN": "Quantity exceeds available stock or availability could not be checked. You can continue; shortages use provisional costs settled on receipt.",
+      "BELOW_COST": "Selling price is below the known average cost. Increase it before saving.",
       "OVER_INVOICED": "More than the quantity still to invoice on the order.",
       "CUSTOMER_MISMATCH": "An order line belongs to a different customer.",
       "WAREHOUSE_REQUIRED": "A line with an item needs a warehouse.",
@@ -975,7 +984,8 @@
       "CREDIT_EXCEEDS_INVOICE": "The credit notes would be worth more than the invoice.",
       "DEBIT_EXCEEDS_INVOICE": "The debit notes would be worth more than the invoice.",
       "EGS_UNIT_REQUIRED": "This company has more than one active ZATCA issuing unit. Choose which one issues this document.",
-      "EGS_UNIT_NOT_FOUND": "The chosen ZATCA issuing unit was not found or is not active."
+      "EGS_UNIT_NOT_FOUND": "The chosen ZATCA issuing unit was not found or is not active.",
+      "ORDER_LINE_MISMATCH": "Item, price and tax code must match the linked sales order."
     },
     "quotations": {
       "title": "Quotations",
@@ -1071,15 +1081,16 @@
       "customerDetails": "Buyer details",
       "customerAddress": "Buyer address"
     },
-    "item": "Item (or service)"
+    "item": "Item (or service)",
+    "priceLocked": "Price is fixed by the linked sales order."
   },
   "payments": {
     "title": "Payments",
-    "subtitle": "Money received from customers and paid to suppliers, and the invoices each settles.",
-    "receiptsTitle": "Customer Receipts",
-    "receiptsSubtitle": "Money received from customers and the invoices settled.",
-    "paymentsTitle": "Supplier Payments",
-    "paymentsSubtitle": "Money paid to suppliers and the invoices settled.",
+    "subtitle": "Receipt and payment vouchers and invoice settlements.",
+    "receiptsTitle": "Receipt vouchers",
+    "receiptsSubtitle": "Money received and its parties and accounts.",
+    "paymentsTitle": "Payment vouchers",
+    "paymentsSubtitle": "Money paid and its parties and accounts.",
     "newReceipt": "New receipt",
     "newPayment": "New payment",
     "recordPayment": "Record payment",
@@ -1089,7 +1100,7 @@
       "RECEIPT": "Received",
       "PAYMENT": "Paid"
     },
-    "party": "Customer / supplier",
+    "party": "Party / account",
     "date": "Date",
     "amount": "Amount",
     "method": "Method",
@@ -1102,7 +1113,7 @@
     },
     "reference": "Reference",
     "bankAccount": "Bank / cash account",
-    "pickBank": "Choose the account",
+    "pickBank": "Choose a bank account",
     "settle": "Invoices to settle",
     "fillOldest": "Fill oldest first",
     "noOpenInvoices": "Nothing is owed on any invoice. The amount will stay on account.",
@@ -1111,27 +1122,32 @@
     "allocated": "Allocated to invoices",
     "onAccount": "On account",
     "receipt": {
-      "title": "Customer receipt",
-      "subtitle": "Record money received from a customer.",
+      "title": "Receipt voucher",
+      "subtitle": "Record money received and choose the party or account.",
       "party": "Customer",
-      "submit": "Post receipt"
+      "submit": "Post receipt",
+      "counterpartyType": "Received from"
     },
     "payment": {
-      "title": "Supplier payment",
-      "subtitle": "Record money paid to a supplier.",
+      "title": "Payment voucher",
+      "subtitle": "Record money paid and choose the party or account.",
       "party": "Supplier",
-      "submit": "Post payment"
+      "submit": "Post payment",
+      "counterpartyType": "Paid to"
     },
     "errors": {
       "generic": "Could not post this payment.",
       "badRequest": "Check that Settings > Account mapping has the receivable and payable accounts set.",
       "OVER_ALLOCATED": "More than an invoice still owes.",
       "ALLOCATION_EXCEEDS_PAYMENT": "The allocations add up to more than the payment.",
-      "CASH_ACCOUNT_INVALID": "Choose a postable asset account for the bank or cash.",
+      "CASH_ACCOUNT_INVALID": "Choose an active cash account for cash, or an active bank account for other methods.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
       "INVOICE_NOT_FOUND": "An invoice to settle was not found for this party.",
       "DUPLICATE_ALLOCATION": "An invoice appears twice.",
-      "ALREADY_VOIDED": "This payment has already been reversed."
+      "ALREADY_VOIDED": "This payment has already been reversed.",
+      "PARTY_KIND_INVALID": "The party does not match the selected type. Select it again.",
+      "COUNTER_ACCOUNT_INVALID": "Choose an active account for the party, different from the bank or cash account.",
+      "ALLOCATION_NOT_ALLOWED": "This voucher type cannot allocate amounts to invoices."
     },
     "voided": "Voided",
     "reverse": "Reverse",
@@ -1152,7 +1168,37 @@
       "errors": {
         "INSUFFICIENT_BALANCE": "Not enough balance on account to cover that."
       }
+    },
+    "employeeAccount": "Employee account",
+    "employeeAccountHint": "Choose the linked employee account for this voucher.",
+    "pickCounterAccount": "Choose an account",
+    "cashAccount": "Cash account",
+    "bankOnly": "Bank account",
+    "pickCash": "Choose a cash account",
+    "noCashAccounts": "No accounts available. Check the bank or cash folder in Settings > Account mapping and its active accounts.",
+    "amountFromAllocations": "Enter Settle now amounts directly; the voucher total is calculated from them when left blank.",
+    "counterpartyKinds": {
+      "CUSTOMER": "Customer",
+      "SUPPLIER": "Supplier",
+      "EMPLOYEE": "Employee",
+      "ACCOUNT": "Account"
     }
+  },
+  "costCenters": {
+    "title": "Cost center directory",
+    "new": "Add cost center",
+    "edit": "Edit cost center",
+    "code": "Code",
+    "name": "Name",
+    "nameAr": "Arabic name",
+    "kind": "Type",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pick": "Choose cost center / project / department",
+    "empty": "No cost centers; add them in the directory",
+    "legacy": "Previous reference",
+    "duplicate": "This code is already in use",
+    "kinds": { "COST_CENTER": "Cost center", "PROJECT": "Project", "DEPARTMENT": "Department" }
   },
   "cashExpenses": {
     "title": "Cash Expenses",
@@ -1161,13 +1207,13 @@
     "newTitle": "New cash expense",
     "newSubtitle": "Pick where the money came from and what it was spent on.",
     "date": "Date",
-    "cashAccount": "Cash / bank account",
+    "cashAccount": "Cash box account",
     "expenseAccount": "Expense account",
     "pickExpenseAccount": "Choose the expense account",
     "lines": "Lines",
     "addLine": "Add line",
     "total": "Total",
-    "costCenter": "Cost center",
+    "costCenter": "Cost center / project / department",
     "costCenterPlaceholder": "Project / dept / cost center",
     "lineDescriptionPlaceholder": "Line description (optional)",
     "description": "Description",
@@ -1178,6 +1224,7 @@
       "EXPENSE_ACCOUNT_INVALID": "Choose a postable expense account.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
       "LINES_EMPTY": "Add at least one expense line.",
+      "COST_CENTER_INVALID": "Choose an active cost center belonging to this company.",
       "generic": "Something went wrong. Please try again."
     }
   },
@@ -1430,6 +1477,18 @@
     "yearFailed": "Could not create the year. Check that it does not overlap an existing year."
   },
   "interfaceSettings": {
+    "direction": "Design style",
+    "directionHint": "Three complete styles for navigation, cards, fields, tables and dialogs. Switch instantly without leaving your work. Your choice is remembered in this browser.",
+    "directionRestore": "Style controls shape and layout. Choose colours separately below; changing one keeps the other. The existing style is also available in the topbar.",
+    "directionPalette": "Use this style’s original colours",
+    "originalLook": "Existing style",
+    "recommended": "Recommended",
+    "moduleNavigation": "Workspace sections",
+    "directions": {
+      "balance": { "name": "Balance", "description": "Anchored navigation, gently squared controls and connected metrics. Clear and practical for everyday work." },
+      "canvas": { "name": "Canvas", "description": "Floating navigation, rounded cards and generous space. A calm, spacious workspace." },
+      "precision": { "name": "Precision", "description": "An icon rail, section shortcuts, square edges and dense tables. Built for frequent users." }
+    },
     "title": "Interface",
     "subtitle": "Personal display preferences, kept on this device only.",
     "sidebarOrder": "Sidebar section order",
@@ -1438,7 +1497,7 @@
     "moveDown": "Move {{section}} down",
     "resetOrder": "Reset to default order",
     "theme": "Colour theme",
-    "themeHint": "Pick the look you like. It applies instantly and is remembered on this device only.",
+    "themeHint": "Apply any palette to your selected style. The original Balance, Canvas and Precision colours are included in light and dark versions. Both choices are saved in this browser.",
     "modeLight": "Light",
     "modeDark": "Dark",
     "themes": {
@@ -1450,7 +1509,13 @@
       "night": "Night",
       "graphite": "Graphite",
       "prime": "PrimeReact",
-      "primedark": "PrimeReact Dark"
+      "primedark": "PrimeReact Dark",
+      "balance": "Balance green",
+      "balancedark": "Balance green",
+      "canvas": "Canvas gold",
+      "canvasdark": "Canvas gold",
+      "precision": "Precision blue",
+      "precisiondark": "Precision blue"
     }
   },
   "created": {
@@ -1859,6 +1924,7 @@
       "posted": "Posted",
       "renamed": "Renamed",
       "certificate_renewed": "Certificate renewed",
+      "renewal_checks_required": "Renewal requires compliance checks",
       "egs_created": "Egs created",
       "invoice_resubmit_requested": "Invoice resubmit requested",
       "onboarding_csid_issued": "Onboarding csid issued",
@@ -2119,6 +2185,7 @@
       "step2": "2. Run compliance checks",
       "step3": "3. Request production certificate",
       "renew": "Renew certificate",
+      "renewalChecksRequired": "ZATCA requires compliance checks to complete renewal. Run the checks, then request the issuance certificate. Invoice submission for this unit is paused until both steps are complete.",
       "active": "This device is active and issuing invoices.",
       "hint": {
         "NEW": "Enter the OTP from the Fatoora developer portal to request a compliance certificate.",
@@ -2171,7 +2238,9 @@
       "scanHint": "Use a ZATCA-compatible reader. Reading a QR is separate from checking acceptance; the QR has no explicit Sandbox label.",
       "awaiting": "This invoice is linked to an EGS unit and is awaiting processing. If it remains here, check the unit and retry.",
       "notLinked": "This invoice is not linked to an issuing unit. No ZATCA submission is available.",
-      "downloadError": "The XML download failed. Please retry."
+      "downloadError": "The XML download failed. Please retry.",
+      "sandboxSignatureInvalid": "Local signature verification failed. Sandbox may return a fixed certificate that does not match the device key. This is neither acceptance nor rejection by ZATCA. Verify the key/certificate pair and test in Simulation with a device-bound certificate.",
+      "signatureInvalid": "The electronic signature is invalid. Verify the key, certificate and XML before resubmitting; this invoice is not accepted."
     },
     "invoiceStatus": {
       "PENDING": "Pending",
@@ -2390,6 +2459,13 @@
     "parties": "parties",
     "hint": "Upload XLSX (first worksheet) or CSV. Maximum 200 rows and 2 MB. Download the column template; preview does not save anything. Correct errors in your file and upload it again.",
     "kindsHint": "Party kinds: CUSTOMER, SUPPLIER, CUSTOMER_SUPPLIER (both), COMPANY, PERSON, OTHER. Import employees through HR. Keep phone numbers and identifiers as text in Excel to preserve leading zeros.",
+    "prepare": "Prepare your file, then review the data",
+    "fileLimits": "XLSX (first worksheet) or CSV · Up to 200 rows · 2 MB",
+    "kindTitle": "Available values for column",
+    "partyTemplateHint": "The template includes one row per kind. Complete the rows you need and delete unused rows. You can repeat a kind for multiple parties.",
+    "employeeHint": "Add employees through Human Resources.",
+    "textHint": "Format phone numbers and identifiers as text in Excel to preserve leading zeros.",
+    "previewHint": "Preview does not save data. Review the results, correct errors in your file and upload it again before confirming the import.",
     "template": "Download column template",
     "choose": "Choose file and preview",
     "row": "File row",
@@ -2427,7 +2503,7 @@
       "TOO_LONG": "Value is too long",
       "REQUIRED": "Required",
       "INVALID_DECIMAL": "Use a non-negative decimal with at most four decimal places",
-      "INVALID_KIND": "Use COMPANY, PERSON or OTHER",
+      "INVALID_KIND": "Use CUSTOMER, SUPPLIER, CUSTOMER_SUPPLIER, COMPANY, PERSON or OTHER",
       "INVALID_EMAIL": "Invalid email address",
       "INVALID_COUNTRY": "Use a two-letter country code",
       "DUPLICATE_FILE": "Repeated in this file",

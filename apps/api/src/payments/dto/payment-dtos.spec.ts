@@ -11,6 +11,14 @@ async function fieldsWithErrors<T extends object>(cls: new () => T, plain: objec
 const base = { partyId: "p1", paymentDate: "2026-01-01", amount: "600", cashAccountId: "a1", method: "BANK_TRANSFER", allocations: [{ invoiceId: "i1", amount: "600" }] };
 
 describe("payment DTO", () => {
+  it("requires a party for party vouchers and an account for employee/account vouchers", async () => {
+    const withoutParty = { ...base, partyId: undefined };
+    expect(await fieldsWithErrors(CreatePaymentDto, { ...withoutParty, counterpartyKind: "ACCOUNT", counterAccountId: "account", allocations: [] })).toEqual([]);
+    expect(await fieldsWithErrors(CreatePaymentDto, { ...withoutParty, counterpartyKind: "CUSTOMER" })).toEqual(["partyId"]);
+    expect(await fieldsWithErrors(CreatePaymentDto, { ...base, counterpartyKind: "EMPLOYEE" })).toEqual(["counterAccountId"]);
+    expect(await fieldsWithErrors(CreatePaymentDto, { ...base, counterpartyKind: "EMPLOYEE", counterAccountId: "account" })).toEqual([]);
+    expect(await fieldsWithErrors(CreatePaymentDto, { ...base, counterpartyKind: "UNKNOWN" })).toEqual(["counterpartyKind"]);
+  });
   it("accepts a payment with allocations, or none (all on account)", async () => {
     expect(await fieldsWithErrors(CreatePaymentDto, base)).toEqual([]);
     expect(await fieldsWithErrors(CreatePaymentDto, { ...base, allocations: [] })).toEqual([]);

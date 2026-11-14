@@ -41,7 +41,7 @@ export function GoodsReceiptDetailPage(): React.JSX.Element {
           <p className="erp-page__subtitle">{localizedName({ name: receipt.warehouseName, nameAr: receipt.warehouseNameAr }, i18n.language)}</p>
         </div>
         <div className="erp-page__header-actions">
-          <JournalEntryLinkButton entryId={receipt.journalEntryId} />
+          {receipt.journalEntryId ? <JournalEntryLinkButton entryId={receipt.journalEntryId} /> : null}
           <Button label={t("actions.exportPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/goods-receipts/${receipt.id}/pdf`, { lang: i18n.language }, receipt.number, "pdf")} />
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/goods-receipts/${receipt.id}/pdf`, { lang: i18n.language }, receipt.number, "print")} />
         </div>

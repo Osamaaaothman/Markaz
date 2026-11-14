@@ -234,7 +234,7 @@ export class ChartOfAccountsService {
       db.accountMapping.count({ where: { accountId: id } }),
       db.supplierInvoiceLine.count({ where: { accountId: id } }),
       db.salesInvoiceLine.count({ where: { revenueAccountId: id } }),
-      db.payment.count({ where: { cashAccountId: id } }),
+      db.payment.count({ where: { OR: [{ cashAccountId: id }, { counterAccountId: id }] } }),
       db.salaryAdvance.count({ where: { cashAccountId: id } }),
       db.salaryAdvanceRepayment.count({ where: { cashAccountId: id } }),
       db.employee.count({ where: { OR: [{ advanceAccountId: id }, { salaryPayableAccountId: id }, { eosbAccountId: id }] } }),

@@ -18,6 +18,7 @@ export class SalesError extends Error {
       | "WAREHOUSE_NOT_FOUND"
       | "INSUFFICIENT_STOCK"
       | "ORDER_LINE_NOT_FOUND"
+      | "ORDER_LINE_MISMATCH"
       | "OVER_INVOICED"
       | "CUSTOMER_MISMATCH"
       | "ACCOUNT_NOT_FOUND"
@@ -35,6 +36,31 @@ export class SalesError extends Error {
   ) {
     super(message);
     this.name = "SalesError";
+  }
+}
+
+// Quotes/orders have no dispatch warehouse yet: use the company's positive stock pool.
+// A missing cost is unknown, not a reason to prevent an offer or invent a selling price.
+export async function assertSellingPrices(
+  tx: TransactionClient, companyId: string, lines: readonly ResolvedSalesLine[],
+): Promise<void> {
+  const itemIds = [...new Set(lines.flatMap((line) => line.itemId ? [line.itemId] : []))];
+  const stocks = await tx.itemWarehouseStock.groupBy({
+    by: ["itemId"], where: { companyId, itemId: { in: itemIds }, quantity: { gt: 0 } },
+    _sum: { quantity: true, value: true },
+  });
+  const byItem = new Map(stocks.map((stock) => [stock.itemId, stock._sum]));
+  const historical = await tx.itemWarehouseStock.findMany({
+    where: { companyId, itemId: { in: itemIds }, lastUnitCost: { not: null } },
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }], select: { itemId: true, lastUnitCost: true },
+  });
+  for (const line of lines) {
+    const stock = line.itemId ? byItem.get(line.itemId) : undefined;
+    const referenceCost = stock?.quantity?.greaterThan(0) && stock.value ? stock.value.div(stock.quantity)
+      : historical.find((row) => row.itemId === line.itemId)?.lastUnitCost;
+    if (referenceCost && line.unitPrice.lessThan(referenceCost)) {
+      throw new SalesError("BELOW_COST", "Selling price is below the current weighted-average cost", line.lineNumber);
+    }
   }
 }
 

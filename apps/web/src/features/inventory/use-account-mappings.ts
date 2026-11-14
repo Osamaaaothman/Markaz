@@ -27,6 +27,8 @@ export const ACCOUNT_MAPPING_KEYS = [
   "EMPLOYEE_EOSB_PARENT",
   "CUSTOMER_LEDGER_PARENT",
   "SUPPLIER_LEDGER_PARENT",
+  "CASH_ACCOUNTS_PARENT",
+  "BANK_ACCOUNTS_PARENT",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
 
@@ -37,6 +39,8 @@ export const GROUP_MAPPING_KEYS: Readonly<Partial<Record<AccountMappingKey, "ASS
   EMPLOYEE_EOSB_PARENT: "LIABILITY",
   CUSTOMER_LEDGER_PARENT: "ASSET",
   SUPPLIER_LEDGER_PARENT: "LIABILITY",
+  CASH_ACCOUNTS_PARENT: "ASSET",
+  BANK_ACCOUNTS_PARENT: "ASSET",
 };
 
 export interface AccountMappingEntry {
@@ -61,6 +65,9 @@ export function useSetAccountMapping() {
   return useMutation({
     mutationFn: async ({ key, accountId }: { key: AccountMappingKey; accountId: string }) =>
       (await apiClient.put<AccountMappingEntry>(`/v1/account-mappings/${key}`, { accountId })).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["accountMappings"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["accountMappings"] });
+      void qc.invalidateQueries({ queryKey: ["payments", "cashAccounts"] });
+    },
   });
 }

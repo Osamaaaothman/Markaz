@@ -219,6 +219,7 @@ export interface SalesInvoiceSummary {
 }
 
 export interface SalesInvoiceDetail extends SalesInvoiceSummary {
+  readonly stockCostStatus?: "FINAL" | "PROVISIONAL" | "PENDING";
   readonly notes: string | null;
   readonly customerVatNumber: string | null;
   readonly customerCommercialRegistration: string | null;

@@ -56,7 +56,8 @@ export async function loadOutstanding(
                  si.total_gross::text AS gross,
                  (si.total_gross
                    - COALESCE((SELECT SUM(a.amount) FROM payment_allocations a JOIN payments p ON p.id = a.payment_id
-                               WHERE a.sales_invoice_id = si.id AND p.payment_date <= ${asOf}::date), 0)
+                               WHERE a.sales_invoice_id = si.id AND p.payment_date <= ${asOf}::date
+                                 AND (p.voided_at IS NULL OR p.voided_at::date > ${asOf}::date)), 0)
                    - COALESCE((SELECT SUM(cn.total_gross) FROM sales_invoices cn
                                WHERE cn.original_invoice_id = si.id AND cn.document_type = 'CREDIT_NOTE' AND cn.invoice_date < ${salesBefore}), 0)
                    + COALESCE((SELECT SUM(dn.total_gross) FROM sales_invoices dn
@@ -72,7 +73,8 @@ export async function loadOutstanding(
                  si.total_gross::text AS gross,
                  (si.total_gross
                    - COALESCE((SELECT SUM(a.amount) FROM payment_allocations a JOIN payments p ON p.id = a.payment_id
-                               WHERE a.supplier_invoice_id = si.id AND p.payment_date <= ${asOf}::date), 0)
+                               WHERE a.supplier_invoice_id = si.id AND p.payment_date <= ${asOf}::date
+                                 AND (p.voided_at IS NULL OR p.voided_at::date > ${asOf}::date)), 0)
                    - COALESCE((SELECT SUM(dn.total_gross) FROM supplier_invoices dn
                                WHERE dn.original_invoice_id = si.id AND dn.invoice_date <= ${asOf}::date), 0))::text AS outstanding
           FROM supplier_invoices si

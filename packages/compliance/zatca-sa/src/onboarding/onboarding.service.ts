@@ -10,6 +10,7 @@
 // knows how to sign and submit what it's given, same separation of concerns as
 // InvoiceSubmissionService.buildInvoiceInput in ../submission/).
 import { newId } from "@erp/shared";
+import { createPrivateKey } from "node:crypto";
 import { validationMessages } from "../submission/validation-messages.js";
 import type { PrismaClient } from "@erp/db";
 import { encryptText, decryptText } from "../key-encryption.js";
@@ -26,7 +27,7 @@ import { ZatcaOnboardingApiClient, type ComplianceCheckResponseBody } from "./on
 
 export class OnboardingError extends Error {
   constructor(
-    readonly code: "NOT_FOUND" | "WRONG_STATUS" | "COMPLIANCE_CHECK_FAILED",
+    readonly code: "NOT_FOUND" | "WRONG_STATUS" | "COMPLIANCE_CHECK_FAILED" | "INVALID_CERTIFICATE" | "CREDENTIAL_CHANGED",
     message: string,
   ) {
     super(message);
@@ -156,6 +157,8 @@ export class OnboardingService {
     const client = this.apiClientFactory(environment);
     const response = await client.requestProductionCsid(complianceCredentials, credential.complianceRequestId, acceptLanguage);
     const certificatePem = toPem(response.binarySecurityToken, "CERTIFICATE");
+    const isRenewal = credential.productionCsidCiphertext !== null;
+    if (isRenewal) assertRenewalCertificate(certificatePem, decryptText(credential.privateKeyCiphertext!, this.encryptionKey));
     await this.prisma.egsCredential.update({
       where: { egsUnitId },
       data: {
@@ -163,6 +166,7 @@ export class OnboardingService {
         productionSecretCiphertext: toBytesColumn(encryptText(response.secret, this.encryptionKey)),
         status: "ACTIVE",
         certificateExpiresAt: certificateNotAfter(certificatePem),
+        ...(isRenewal ? { lastRenewalAt: new Date() } : {}),
       },
     });
   }
@@ -171,9 +175,9 @@ export class OnboardingService {
   // renewal/revocation must be designed from day one, not what KEY policy a renewal uses; reusing
   // the key is the simpler of the two defensible choices and is what csr.ts's `generateCsr`
   // already supports) plus a new OTP.
-  async renewProductionCsid(egsUnitId: string, environment: ZatcaEnvironment, otp: string, csrInput: StartOnboardingParams["csr"] & { certificateTemplateName: string }, acceptLanguage: "ar" | "en" = "en"): Promise<void> {
+  async renewProductionCsid(egsUnitId: string, environment: ZatcaEnvironment, otp: string, csrInput: StartOnboardingParams["csr"] & { certificateTemplateName: string }, acceptLanguage: "ar" | "en" = "en"): Promise<"ACTIVE" | "COMPLIANCE_CSID_ISSUED"> {
     const credential = await this.loadCredential(egsUnitId);
-    if (!credential.productionCsidCiphertext || !credential.productionSecretCiphertext || !credential.privateKeyCiphertext) {
+    if (credential.status !== "ACTIVE" || !credential.productionCsidCiphertext || !credential.productionSecretCiphertext || !credential.privateKeyCiphertext) {
       throw new OnboardingError("WRONG_STATUS", `EGS ${egsUnitId} has no production CSID to renew.`);
     }
     const privateKeyPem = decryptText(credential.privateKeyCiphertext, this.encryptionKey);
@@ -185,22 +189,48 @@ export class OnboardingService {
     const client = this.apiClientFactory(environment);
     const response = await client.renewProductionCsid(productionCredentials, otp, Buffer.from(csrPem, "utf8").toString("base64"), acceptLanguage);
     const certificatePem = toPem(response.binarySecurityToken, "CERTIFICATE");
-    await this.prisma.egsCredential.update({
-      where: { egsUnitId },
-      data: {
-        csr: csrPem,
-        productionCsidCiphertext: toBytesColumn(encryptText(certificatePem, this.encryptionKey)),
-        productionSecretCiphertext: toBytesColumn(encryptText(response.secret, this.encryptionKey)),
-        certificateExpiresAt: certificateNotAfter(certificatePem),
-        lastRenewalAt: new Date(),
-      },
+    assertRenewalCertificate(certificatePem, privateKeyPem);
+    const status = response.requiresComplianceChecks ? "COMPLIANCE_CSID_ISSUED" : "ACTIVE";
+    await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.egsCredential.updateMany({
+        where: { id: credential.id, companyId: credential.companyId, status: "ACTIVE", updatedAt: credential.updatedAt },
+        data: {
+          csr: csrPem, status,
+          ...(response.requiresComplianceChecks ? {
+            complianceRequestId: response.requestID,
+            complianceCsidCiphertext: toBytesColumn(encryptText(certificatePem, this.encryptionKey)),
+            complianceSecretCiphertext: toBytesColumn(encryptText(response.secret, this.encryptionKey)),
+          } : {
+            productionCsidCiphertext: toBytesColumn(encryptText(certificatePem, this.encryptionKey)),
+            productionSecretCiphertext: toBytesColumn(encryptText(response.secret, this.encryptionKey)),
+            certificateExpiresAt: certificateNotAfter(certificatePem),
+            lastRenewalAt: new Date(),
+          }),
+        },
+      });
+      if (updated.count !== 1) throw new OnboardingError("CREDENTIAL_CHANGED", "The EGS credentials changed during renewal; reload the unit before continuing.");
+      // Pause new submissions while compliance is required. Never reset the ICV/PIH chain.
+      await tx.egsUnit.updateMany({ where: { id: egsUnitId, companyId: credential.companyId }, data: { status, version: { increment: 1 } } });
     });
+    return status;
   }
 
   private async loadCredential(egsUnitId: string) {
     const credential = await this.prisma.egsCredential.findUnique({ where: { egsUnitId } });
     if (!credential) throw new OnboardingError("NOT_FOUND", `No EgsCredential for EGS unit ${egsUnitId} — call startOnboarding first.`);
     return credential;
+  }
+}
+
+function assertRenewalCertificate(certificatePem: string, privateKeyPem: string): void {
+  try {
+    const cert = parseCertificate(certificatePem);
+    const now = Date.now();
+    if (!cert.checkPrivateKey(createPrivateKey(privateKeyPem)) || cert.validFromDate.getTime() > now || cert.validToDate.getTime() <= now) {
+      throw new Error("Invalid renewal certificate");
+    }
+  } catch {
+    throw new OnboardingError("INVALID_CERTIFICATE", "The renewed certificate is malformed, outside its validity period, or does not match this EGS private key. Existing credentials were preserved.");
   }
 }
 

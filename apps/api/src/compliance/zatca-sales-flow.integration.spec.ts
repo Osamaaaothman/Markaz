@@ -1,9 +1,9 @@
 import { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import { AccountMappingService, PrismaAccountingEngine, PrismaAuditLogger, PrismaNumberingService, SalesInvoiceService, TaxCodeService } from "@erp/core";
-import { EgsChainService, InvoiceSubmissionService, OnboardingService, ZatcaApiClient, encryptText, invoiceQrArtifact, parseQrTlv, readInvoiceArtifacts, type ClearanceRequestBody, type HttpResponse, type HttpTransport } from "@erp/compliance-zatca-sa";
+import { EgsChainService, InvoiceSubmissionService, OnboardingService, ZatcaApiClient, encryptText, invoiceQrArtifact, parseQrTlv, readInvoiceArtifacts, findSdkJar, runSdkValidation, type ClearanceRequestBody, type HttpResponse, type HttpTransport } from "@erp/compliance-zatca-sa";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ZatcaInvoiceMapper } from "./zatca-invoice-mapper.js";
@@ -13,6 +13,13 @@ import { salesInvoiceToPdfHtml } from "../sales/exports/sales-invoice-export.js"
 const describeWithDb = process.env.DATABASE_URL ? describe : describe.skip;
 jest.setTimeout(30_000);
 const key = Buffer.alloc(32, 23);
+const sdkRoot = process.env.ZATCA_SDK_DIR ?? join(__dirname, "../../../../docs/vendor/zatca/sdk");
+const sdkCert = join(sdkRoot, "Data/Certificates/cert.pem");
+const sdkKey = join(sdkRoot, "Data/Certificates/ec-secp256k1-priv-key.pem");
+const sdkAvailable = Boolean(findSdkJar(sdkRoot)) && existsSync(sdkCert) && existsSync(sdkKey);
+if (process.env.ZATCA_REQUIRE_SDK === "1" && (!sdkAvailable || !process.env.DATABASE_URL)) {
+  throw new Error("ZATCA release gate requires both DATABASE_URL and the official SDK; sales-flow validation cannot be skipped.");
+}
 
 /** A deliberately synthetic authority response; no network or real credentials in this test. */
 class EchoAuthority implements HttpTransport {
@@ -95,11 +102,20 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
     { simplified: true, environment: "simulation" as const },
     { simplified: false, environment: "sandbox" as const },
     { simplified: true, environment: "sandbox" as const },
-  ])("submits all three documents using the issuance CSID ($environment, simplified=$simplified)", async ({ simplified, environment }) => {
+  ])("submits all three documents using the issuance CSID ($environment, simplified=$simplified)", async (scenario) => runSalesFlow(scenario));
+
+  (sdkAvailable ? it : it.skip).each([false, true])(
+    "official SDK accepts posted invoice, credit and debit XML from the sales mapper (simplified=%s)",
+    async (simplified) => runSalesFlow({ simplified, environment: "simulation", validateWithSdk: true }),
+    180_000,
+  );
+
+  async function runSalesFlow({ simplified, environment, validateWithSdk = false }: { simplified: boolean; environment: "sandbox" | "simulation"; validateWithSdk?: boolean }): Promise<void> {
     const egs = await admin.createEgsUnit({ name: `Test ${environment} ${simplified}`, businessCategory: "Retail", invoiceTypes: "1100", environment }, actor, newId());
     await prisma.egsUnit.update({ where: { id: egs.id }, data: { status: "ACTIVE" } });
     const encrypted = (value: string): Uint8Array<ArrayBuffer> => Uint8Array.from(encryptText(value, key));
-    await prisma.egsCredential.create({ data: { id: newId(), companyId, egsUnitId: egs.id, status: "ACTIVE", privateKeyCiphertext: encrypted(privateKey), productionCsidCiphertext: encrypted(cert), productionSecretCiphertext: encrypted("synthetic-secret"), complianceCsidCiphertext: encrypted("not-a-production-certificate") } });
+    // Public SDK fixtures are used only in this isolated test company, never in an application EGS.
+    await prisma.egsCredential.create({ data: { id: newId(), companyId, egsUnitId: egs.id, status: "ACTIVE", privateKeyCiphertext: encrypted(validateWithSdk ? readFileSync(sdkKey, "utf8") : privateKey), productionCsidCiphertext: encrypted(validateWithSdk ? readFileSync(sdkCert, "utf8") : cert), productionSecretCiphertext: encrypted("synthetic-secret"), complianceCsidCiphertext: encrypted("not-a-production-certificate") } });
     const customer = await prisma.party.create({ data: { id: newId(), ref: newId(), companyId, name: "Test customer", nameAr: "عميل تجريبي", kind: "COMPANY", ...(simplified ? {} : { vatNumber: "399999999800003", streetName: "King Road", buildingNumber: "1234", district: "Olaya", city: "Riyadh", postalCode: "12345", countryCode: "SA" }) } });
     const line = { description: "خدمة اختبار", quantity: "1", unitPrice: "100", taxCodeId };
     const invoice = await sales.createInvoice({ customerId: customer.id, invoiceDate: now, egsUnitId: egs.id, lines: [line] }, actor, newId(), newId());
@@ -120,6 +136,19 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
       expect(mapped.credentials.secret).toBe("synthetic-secret");
       await submitter.submit(mapped);
       const stored = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { salesInvoiceId: document.id } });
+      if (validateWithSdk) {
+        const documentType = ["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"][index]!;
+        const dir = mkdtempSync(join(tmpdir(), "zatca-sales-sdk-"));
+        try {
+          const path = join(dir, `${simplified ? "simplified" : "standard"}-${documentType}.xml`);
+          expect(stored.signedXml).not.toBeNull();
+          writeFileSync(path, stored.signedXml!, "utf8");
+          // Validate the actual persisted XML before the synthetic authority response changes it.
+          const result = await runSdkValidation({ sdkDir: sdkRoot, xmlPath: path, previousInvoiceHash: stored.previousInvoiceHash });
+          expect({ document: documentType, verdict: result.verdict, exitCode: result.exitCode, output: result.verdict === "PASSED" && result.exitCode === 0 ? "" : result.output })
+            .toEqual({ document: documentType, verdict: "PASSED", exitCode: 0, output: "" });
+        } finally { rmSync(dir, { recursive: true, force: true }); }
+      }
       expect(stored.icv).toBe(BigInt(index + 1));
       if (previousHash) expect(stored.previousInvoiceHash).toBe(previousHash);
       previousHash = stored.invoiceHash;
@@ -148,5 +177,5 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
     const firstPage = await admin.invoices(companyId, { limit: 1, environment, documentType: "CREDIT_NOTE" });
     expect(firstPage.data[0]!.documentType).toBe("CREDIT_NOTE");
     expect((await admin.invoices(newId(), {})).data).toEqual([]);
-  });
+  }
 });

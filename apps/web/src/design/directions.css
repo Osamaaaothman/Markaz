@@ -1,0 +1,434 @@
+/* Complete design directions. Original colour themes remain available unchanged.
+   html attributes also style overlays portalled outside the application shell. */
+html[data-design="balance"] {
+  --mk-radius-xs: 4px;
+  --mk-radius-sm: 6px;
+  --mk-radius: 8px;
+  --mk-radius-lg: 8px;
+  --mk-radius-xl: 12px;
+  --mk-sidebar-w: 256px;
+  --mk-sidebar-w-collapsed: 76px;
+  --mk-control-h: 2.5rem;
+}
+
+html[data-design="canvas"] {
+  --mk-radius-xs: 8px;
+  --mk-radius-sm: 12px;
+  --mk-radius: 16px;
+  --mk-radius-lg: 18px;
+  --mk-radius-xl: 24px;
+  --mk-sidebar-w: 280px;
+  --mk-sidebar-w-collapsed: 92px;
+  --mk-control-h: 2.75rem;
+  --mk-row-pad-y: 0.85rem;
+  --mk-row-pad-x: 1rem;
+}
+
+html[data-design="precision"] {
+  --mk-radius-xs: 2px;
+  --mk-radius-sm: 2px;
+  --mk-radius: 2px;
+  --mk-radius-lg: 2px;
+  --mk-radius-xl: 2px;
+  --mk-sidebar-w: 248px;
+  --mk-sidebar-w-collapsed: 76px;
+  --mk-control-h: 2.25rem;
+  --mk-row-pad-y: 0.5rem;
+  --mk-row-pad-x: 0.75rem;
+}
+
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"]) {
+  --mk-shadow-xs: 0 1px 2px rgb(16 24 40 / 0.04);
+  --mk-dur-fast: 120ms;
+  --mk-dur: 180ms;
+  --mk-dur-slow: 220ms;
+  --mk-ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Balance: one anchored navigation column and a shared metrics strip. */
+html:is([data-design="balance"], [data-design="precision"]) .erp-shell__desktop-sidebar {
+  padding: 0;
+}
+html:is([data-design="balance"], [data-design="precision"]) .erp-sidebar {
+  border-radius: 0;
+  box-shadow: none;
+  border-block: 0;
+  border-inline-start: 0;
+}
+html:is([data-design="balance"], [data-design="precision"]) .erp-topbar {
+  margin: 0;
+  top: 0;
+  border-radius: 0;
+  border-block-start: 0;
+  border-inline: 0;
+  box-shadow: none;
+}
+html:is([data-design="balance"], [data-design="precision"]) .erp-sidebar__icon {
+  inline-size: 2rem;
+  block-size: 2rem;
+  font-size: 1rem;
+  background: transparent;
+}
+html:is([data-design="balance"], [data-design="precision"]) .erp-sidebar__link {
+  margin-inline-start: 0.5rem;
+  font-size: 0.875rem;
+  gap: 0.5rem;
+}
+html:is([data-design="balance"], [data-design="precision"])
+  .erp-sidebar--collapsed
+  .erp-sidebar__link {
+  margin-inline-start: 0;
+}
+html:is([data-design="balance"], [data-design="precision"]) .erp-sidebar__link--active {
+  box-shadow: none;
+}
+html[data-design="balance"] .erp-kpis {
+  gap: 1px;
+  padding: 1px;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-lg);
+  background: var(--mk-border);
+  overflow: hidden;
+}
+html[data-design="balance"] .erp-kpi {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Canvas: airy cards, pill actions and separated tabs. */
+html[data-design="canvas"] .erp-card {
+  padding: var(--mk-space-6);
+}
+html[data-design="canvas"] .erp-kpis {
+  gap: var(--mk-space-5);
+}
+html[data-design="canvas"] .erp-kpi {
+  padding: var(--mk-space-6);
+}
+html[data-design="canvas"] .erp-form {
+  gap: var(--mk-space-6);
+}
+html[data-design="canvas"] body .p-button:not(.p-button-icon-only) {
+  border-radius: 999px;
+}
+html[data-design="canvas"] body .p-tag {
+  border-radius: 999px;
+}
+html[data-design="canvas"] body .p-dialog .p-dialog-header,
+html[data-design="canvas"] body .p-dialog .p-dialog-content {
+  padding: var(--mk-space-6);
+}
+html[data-design="canvas"] body .p-tabview .p-tabview-nav {
+  gap: var(--mk-space-2);
+  border: 0;
+  padding: var(--mk-space-2);
+  background: var(--mk-surface-2);
+  border-radius: var(--mk-radius);
+}
+html[data-design="canvas"] body .p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  border: 0;
+  border-radius: 999px;
+  margin: 0;
+  background: transparent;
+}
+html[data-design="canvas"] body .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow-xs);
+}
+
+/* Precision: icon rail, module shortcuts and compact, ruled records. */
+html[data-design="precision"] .erp-shell__content {
+  max-width: none;
+  padding: var(--mk-space-5);
+}
+html[data-design="precision"] .erp-card {
+  box-shadow: none;
+  padding: var(--mk-space-4);
+}
+html[data-design="precision"] .erp-page {
+  gap: var(--mk-space-4);
+}
+html[data-design="precision"] .erp-kpi {
+  box-shadow: none;
+  border-block-start: 3px solid var(--mk-primary);
+}
+html[data-design="precision"] .erp-form {
+  gap: var(--mk-space-3);
+}
+html[data-design="precision"] body .p-button.p-button-rounded:not(.p-button-icon-only),
+html[data-design="precision"] body .p-tag {
+  border-radius: var(--mk-radius-sm);
+}
+html[data-design="precision"]
+  body
+  .p-datatable
+  .p-datatable-tbody
+  > tr:not(.p-highlight):nth-child(even) {
+  background: var(--mk-surface-2);
+}
+html[data-design="precision"] body .p-datatable .p-datatable-tbody > tr > td,
+html[data-design="precision"] body .p-treetable .p-treetable-tbody > tr > td {
+  border-inline-end: 1px solid var(--mk-border);
+}
+html[data-design="precision"] body .p-dialog .p-dialog-header {
+  background: var(--mk-surface-2);
+  padding: var(--mk-space-3) var(--mk-space-5);
+}
+html[data-design="precision"] body .p-dialog .p-dialog-content {
+  padding: var(--mk-space-5);
+}
+html[data-design="precision"] body .p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  border-inline-end: 1px solid var(--mk-border);
+  border-radius: 0;
+}
+.mk-module-nav {
+  display: flex;
+  gap: var(--mk-space-1);
+  min-width: 0;
+  overflow-x: auto;
+  padding-inline: var(--mk-space-5);
+  background: var(--mk-surface);
+  border-block-end: 1px solid var(--mk-border);
+}
+.mk-module-nav a {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--mk-space-2);
+  padding: var(--mk-space-3);
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-sm);
+  text-decoration: none;
+  border-block-end: 2px solid transparent;
+}
+.mk-module-nav a[aria-current],
+.mk-module-nav a:hover {
+  color: var(--mk-primary);
+  background: var(--mk-primary-soft);
+  border-block-end-color: var(--mk-primary);
+}
+
+/* Productive motion: colour/focus feedback, short entrances, no ornamental loops. */
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"]) .erp-page > *,
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"]) .erp-form > * {
+  animation-duration: var(--mk-dur);
+  animation-delay: 0ms;
+}
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"])
+  body
+  .p-button:enabled:hover,
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"]) .erp-kpi:hover,
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"])
+  .erp-kpi:hover
+  .erp-kpi__icon,
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"])
+  .erp-sidebar__link:hover
+  .erp-sidebar__icon {
+  transform: none;
+}
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"]) .mk-logo--loop,
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"])
+  .mk-logo--loop
+  *,
+html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"]) .mk-auth__orb {
+  animation: none;
+}
+
+/* Direction chooser: real radio controls support keyboard and screen readers. */
+.mk-direction-select {
+  display: flex;
+  align-items: center;
+  gap: var(--mk-space-2);
+  flex: 0 0 auto;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-sm);
+  padding-inline: var(--mk-space-2);
+  background: var(--mk-surface-2);
+  color: var(--mk-text-muted);
+}
+html body .mk-direction-select .p-dropdown {
+  min-height: 2.25rem;
+  inline-size: 8.4rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+html body .mk-direction-select .p-dropdown .p-dropdown-label {
+  min-height: 2.25rem;
+  padding: var(--mk-space-1);
+  display: flex;
+  align-items: center;
+  font-size: var(--mk-text-sm);
+  color: var(--mk-text);
+}
+html body .mk-direction-select .p-dropdown-trigger {
+  width: 1.5rem;
+}
+.mk-direction-select:focus-within {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: 2px;
+}
+.mk-direction-hint {
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-sm);
+  margin-block: var(--mk-space-3);
+  line-height: 1.8;
+}
+.mk-directions {
+  margin: var(--mk-space-5) 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--mk-space-4);
+  min-inline-size: 0;
+}
+.mk-direction-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-3);
+  padding: var(--mk-space-4);
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius);
+  cursor: pointer;
+  background: var(--mk-surface);
+}
+.mk-direction-card:has(input:checked) {
+  border-color: var(--mk-primary);
+  box-shadow: 0 0 0 1px var(--mk-primary);
+  background: var(--mk-primary-soft);
+}
+.mk-direction-card:has(input:focus-visible) {
+  outline: 3px solid var(--mk-primary-ring);
+  outline-offset: 3px;
+}
+.mk-direction-card > input {
+  accent-color: var(--mk-primary);
+  margin: 0;
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+.mk-direction-card__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--mk-space-2);
+  flex-wrap: wrap;
+}
+.mk-direction-card__heading small {
+  font-size: var(--mk-text-xs);
+  color: var(--mk-primary);
+}
+.mk-direction-card__description {
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-sm);
+  line-height: 1.8;
+}
+.mk-direction-card__drawing {
+  --drawing-bg: #edf3ef;
+  --drawing-side: #153c33;
+  --drawing-line: #b8cbbf;
+  --drawing-radius: 3px;
+  display: flex;
+  gap: 6px;
+  height: 100px;
+  padding: 7px;
+  background: var(--drawing-bg);
+  border-radius: var(--drawing-radius);
+}
+.mk-direction-card__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 22%;
+  background: var(--drawing-side);
+  padding: 7px;
+  border-radius: var(--drawing-radius);
+}
+.mk-direction-card__rail i {
+  height: 3px;
+  background: var(--drawing-line);
+}
+.mk-direction-card__workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.mk-direction-card__workspace > b {
+  height: 9px;
+  width: 70%;
+  background: var(--drawing-line);
+  margin-block-end: 3px;
+}
+.mk-direction-card__workspace > span {
+  display: flex;
+  gap: 1px;
+}
+.mk-direction-card__workspace i {
+  height: 20px;
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--drawing-line);
+  border-radius: var(--drawing-radius);
+}
+.mk-direction-card__workspace em {
+  height: 5px;
+  background: #fff;
+  border-block-end: 1px solid var(--drawing-line);
+}
+.mk-direction-card--canvas .mk-direction-card__drawing {
+  --drawing-bg: #eee7da;
+  --drawing-side: #fffdf8;
+  --drawing-line: #b6a27c;
+  --drawing-radius: 9px;
+}
+.mk-direction-card--canvas .mk-direction-card__workspace > span {
+  gap: 5px;
+}
+.mk-direction-card--precision .mk-direction-card__drawing {
+  --drawing-bg: #eaf0f8;
+  --drawing-side: #15243b;
+  --drawing-line: #9eb3d0;
+  --drawing-radius: 0;
+}
+.mk-direction-card--precision .mk-direction-card__rail {
+  width: 12%;
+  padding-inline: 3px;
+}
+.mk-sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .mk-directions {
+    grid-template-columns: 1fr;
+  }
+  .mk-direction-card__drawing {
+    height: 90px;
+  }
+  .erp-topbar {
+    padding-inline: var(--mk-space-2);
+    gap: var(--mk-space-1);
+  }
+  .erp-topbar > .erp-breadcrumb {
+    display: none;
+  }
+  html body .mk-direction-select .p-dropdown {
+    inline-size: 7.5rem;
+  }
+  .mk-module-nav {
+    padding-inline: var(--mk-space-2);
+  }
+  html[data-design="precision"] .erp-shell__content {
+    padding: var(--mk-space-4) var(--mk-space-3);
+  }
+}

@@ -4,8 +4,8 @@
 //   1. the invoice hash: strip the three elements that are not covered (ext:UBLExtensions,
 //      cac:Signature, the QR reference), canonicalize, SHA-256 -- must equal the signature's
 //      ds:Reference DigestValue;
-//   2. the signature: the canonicalized ds:SignedInfo must verify, with the embedded certificate's
-//      public key, against ds:SignatureValue;
+//   2. the ZATCA SDK signature profile: SHA256withECDSA over the invoice digest bytes must
+//      verify against ds:SignatureValue and the embedded certificate's public key;
 //   3. the signed properties digest and the certificate digest (xades:CertDigest);
 //   4. the QR code: parses as TLV, carries the tags its subtype requires, and every value in it
 //      equals the same fact in the XML (seller, VAT number, timestamp, totals, hash, signature,
@@ -16,7 +16,7 @@
 // chain (ICV/PIH) position are checked by ZATCA, not here. See invoice-consistency.ts for the
 // same caveat.
 import { X509Certificate } from "node:crypto";
-import { canonicalizeElementByLocalName } from "../xml/canonicalize.js";
+import { XMLSerializer } from "@xmldom/xmldom";
 import { hashCanonicalBytes, hashInvoiceXml, zatcaHashOf } from "../xml/invoice-hash.js";
 import { parseQrTlv } from "../xml/qr.js";
 import { extractCertificateSignatureDer, extractPublicKeyDer, toPem, verifyData } from "../xml/signing.js";
@@ -32,6 +32,17 @@ export function stripSignatureElements(xml: string): string {
     .replace(/<ext:UBLExtensions>[\s\S]*?<\/ext:UBLExtensions>/, "")
     .replace(/<cac:Signature>[\s\S]*?<\/cac:Signature>/, "")
     .replace(/<cac:AdditionalDocumentReference>\s*<cbc:ID>QR<\/cbc:ID>[\s\S]*?<\/cac:AdditionalDocumentReference>/, "");
+}
+
+// SDK 3.4.8 uses dom4j Node.asXML, which writes namespace declarations before ordinary
+// attributes. xmldom adds inherited namespace declarations after attributes; normalize their
+// placement while preserving whitespace, empty tags and attribute order (this is not C14N).
+function serializedSignedProperties(node: Element): string {
+  return new XMLSerializer().serializeToString(node).replace(/<([\w:.-]+)([^<>]*?)(\/?)>/g, (_tag, name: string, attributes: string, closing: string) => {
+    const declarations = attributes.match(/\s+xmlns(?::[\w.-]+)?="[^"]*"/g) ?? [];
+    const ordinary = attributes.replace(/\s+xmlns(?::[\w.-]+)?="[^"]*"/g, "");
+    return `<${name}${declarations.join("")}${ordinary}${closing}>`;
+  });
 }
 
 export function verifySignedInvoice(signedXml: string): ValidationReport {
@@ -76,10 +87,9 @@ export function verifySignedInvoice(signedXml: string): ValidationReport {
   const recomputed = hashInvoiceXml(stripSignatureElements(signedXml));
   if (invoiceDigest && recomputed.xmldsigBase64 !== invoiceDigest) c.error("INVOICE_HASH_MISMATCH", "The invoice content does not match the digest the signature covers (the document was changed after signing, or was hashed differently)");
 
-  // 2. signature over the canonicalized SignedInfo
+  // 2. ZATCA SDK profile: SHA256withECDSA over the invoice digest bytes.
   try {
-    const canonicalSignedInfo = canonicalizeElementByLocalName(signedXml, NS.ds, "SignedInfo");
-    if (!verifyData(Buffer.from(canonicalSignedInfo, "utf8"), Buffer.from(signatureValue, "base64"), cert.publicKey)) {
+    if (!verifyData(recomputed.digest, Buffer.from(signatureValue, "base64"), cert.publicKey)) {
       c.error("SIGNATURE_INVALID", "ds:SignatureValue does not verify against the embedded certificate's public key");
     }
   } catch (e) {
@@ -90,11 +100,11 @@ export function verifySignedInvoice(signedXml: string): ValidationReport {
   const signedProps = firstDescendant(signature, "xades", "SignedProperties");
   if (!signedProps) c.error("SIGNED_PROPERTIES_MISSING", "xades:SignedProperties is missing");
   else {
-    const expected = hashCanonicalBytes(canonicalizeElementByLocalName(signedXml, NS.xades, "SignedProperties")).zatcaHash;
+    const expected = hashCanonicalBytes(serializedSignedProperties(signedProps)).zatcaHash;
     if (!propsDigest) c.error("SIGNED_PROPERTIES_REFERENCE_MISSING", "SignedInfo has no Reference to #xadesSignedProperties");
     else if (propsDigest !== expected) c.error("SIGNED_PROPERTIES_DIGEST_MISMATCH", "The SignedProperties digest in SignedInfo does not match the SignedProperties element");
     const certDigest = textOf(firstDescendant(signedProps, "ds", "DigestValue"));
-    if (certDigest !== zatcaHashOf(cert.raw)) c.error("CERT_DIGEST_MISMATCH", "xades:CertDigest is not the digest of the embedded certificate");
+    if (certDigest !== zatcaHashOf(Buffer.from(certBase64, "utf8"))) c.error("CERT_DIGEST_MISMATCH", "xades:CertDigest is not the digest of the embedded certificate text");
   }
 
   // 4. QR code

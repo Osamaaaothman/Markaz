@@ -5,6 +5,7 @@ import { Dialog } from "primereact/dialog";
 import { Tag } from "primereact/tag";
 import { formatCalendarDate } from "../../shared/lib/format-date";
 import { formatMoney } from "../../shared/lib/money";
+import { localizedName } from "../../shared/lib/localized-name";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { useAccountLabel, useAccountLabelKey } from "./use-account-label";
 import { useJournalEntry, type JournalEntryLineDetail } from "./use-journal-entries";
@@ -81,6 +82,7 @@ export function JournalEntryDetailDialog({
               body={(row: JournalEntryLineDetail) => `${row.accountCode} — ${accountLabel(row.accountId, row.accountName)}`}
             />
             <Column header={t("accounting.journalEntries.description")} field="description" />
+            {entry.lines.some((line) => line.costCenter) ? <Column header={t("cashExpenses.costCenter")} body={(row: JournalEntryLineDetail) => row.costCenter ? `${row.costCenter.code} — ${localizedName(row.costCenter, i18n.language)}` : ""} /> : null}
             <Column
               header={t("accounting.journalEntries.debit")}
               align="right"

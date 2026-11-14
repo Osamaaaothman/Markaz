@@ -23,6 +23,7 @@ export interface JournalEntriesFilter {
 }
 
 export interface JournalEntryLineDetail {
+  readonly costCenter?: { readonly code: string; readonly name: string; readonly nameAr: string | null } | null;
   readonly id: string;
   readonly accountId: string;
   readonly accountCode: string;

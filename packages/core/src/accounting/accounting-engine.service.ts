@@ -74,6 +74,11 @@ export class PrismaAccountingEngine implements IAccountingEngine {
       }
     }
 
+    const centerIds = [...new Set(command.lines.flatMap((line) => line.costCenterId ? [line.costCenterId] : []))];
+    if (centerIds.length) {
+      const centers = await tx.costCenter.findMany({ where: { id: { in: centerIds }, companyId: command.companyId, isActive: true } });
+      if (centers.length !== centerIds.length) throw new InvalidPostingCommandError("Cost center is inactive or not in this company");
+    }
     const rate = command.exchangeRate ? new Prisma.Decimal(command.exchangeRate) : new Prisma.Decimal(1);
 
     const number = await this.numbering.next(
@@ -115,6 +120,7 @@ export class PrismaAccountingEngine implements IAccountingEngine {
           baseDebit: debit.times(rate),
           baseCredit: credit.times(rate),
           description: line.description ?? null,
+          costCenterId: line.costCenterId ?? null,
           lineNumber: index + 1,
         };
       }),
@@ -186,6 +192,7 @@ export class PrismaAccountingEngine implements IAccountingEngine {
           journalEntryId: reversalId,
           accountId: line.accountId,
           debit: line.credit,
+          costCenterId: line.costCenterId,
           credit: line.debit,
           baseDebit: line.baseCredit,
           baseCredit: line.baseDebit,

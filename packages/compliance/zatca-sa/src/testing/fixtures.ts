@@ -5,14 +5,14 @@
 //
 //  1. The official ZATCA SDK's own files (sample XML, certificate and key). They are public but we
 //     do not redistribute them (docs/adr/0004-zatca-direct-integration.md), so `docs/vendor/` is
-//     git-ignored and a cloud checkout or CI runner does not have them. Tests that compare our
+//     git-ignored. CI downloads the pinned official release; local tests that compare our
 //     output against them are the strongest proof we have, so they run whenever the SDK is
 //     present (`ZATCA_SDK_DIR` overrides the default location) and are reported as SKIPPED -- by
-//     name, with the missing path -- when it is not. They are never silently dropped.
+//     name, with the missing path -- when it is not. ZATCA_REQUIRE_SDK=1 makes absence fatal in CI.
 //
 //  2. A throw-away secp256k1 key and self-signed certificate made with the `openssl` CLI at test
 //     time. These let every pipeline test (signing, submission, onboarding) run anywhere, so the
-//     orchestration is covered by CI even though the byte-for-byte SDK comparisons are not.
+//     orchestration can also be checked locally without vendor fixtures.
 //     A generated certificate is NOT issued by ZATCA and proves nothing about ZATCA acceptance.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -22,7 +22,16 @@ import { join } from "node:path";
 export const SDK_ROOT: string = process.env.ZATCA_SDK_DIR ?? join(__dirname, "..", "..", "..", "..", "..", "docs", "vendor", "zatca", "sdk");
 export const SDK_CERTS: string = join(SDK_ROOT, "Data", "Certificates");
 export const SDK_SAMPLES: string = join(SDK_ROOT, "Data", "Samples");
-export const SDK_AVAILABLE: boolean = existsSync(SDK_CERTS) && existsSync(SDK_SAMPLES);
+export const SDK_AVAILABLE: boolean = [
+  join(SDK_CERTS, "cert.pem"), join(SDK_CERTS, "ec-secp256k1-priv-key.pem"),
+  join(SDK_SAMPLES, "Standard", "Invoice", "Standard_Invoice.xml"),
+  join(SDK_ROOT, "Apps", "zatca-einvoicing-sdk-238-R3.4.8.jar"),
+  join(SDK_ROOT, "Configuration", "config.json"),
+].every((path) => existsSync(path));
+
+if (process.env.ZATCA_REQUIRE_SDK === "1" && !SDK_AVAILABLE) {
+  throw new Error(`ZATCA_REQUIRE_SDK=1: official SDK 3.4.8 is missing or incomplete at ${SDK_ROOT}`);
+}
 
 // Like `describe`, but when the official SDK is not on this machine the body is NOT executed (a
 // plain `describe.skip` still runs the callback to collect tests, which is what made suites that

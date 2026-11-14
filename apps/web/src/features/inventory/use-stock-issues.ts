@@ -65,8 +65,9 @@ export interface StockIssueLineDetail {
 }
 
 export interface StockIssueDetail extends StockIssueSummary {
+  readonly stockCostStatus?: "FINAL" | "PROVISIONAL" | "PENDING";
   readonly currency: string;
-  readonly journalEntryId: string;
+  readonly journalEntryId: string | null;
   readonly lines: readonly StockIssueLineDetail[];
 }
 

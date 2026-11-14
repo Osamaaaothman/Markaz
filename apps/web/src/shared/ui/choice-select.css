@@ -1,0 +1,10 @@
+/* A logical gap keeps the selection mark clear of the label in Arabic and English. */
+html body .mk-choice-panel .p-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+html body .mk-choice-panel .p-dropdown-check-icon {
+  margin: 0;
+  flex-shrink: 0;
+}

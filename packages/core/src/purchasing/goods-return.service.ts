@@ -4,8 +4,7 @@ import type { IAccountingEngine, IAuditLogger } from "../contracts.js";
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
-import { lockStockRow, saveStockRow } from "../inventory/stock-row.repo.js";
-import { InsufficientStockError, applyIssue } from "../inventory/weighted-average.util.js";
+import { issueStock } from "../inventory/provisional-cost.repo.js";
 
 export class GoodsReturnError extends Error {
   constructor(
@@ -214,6 +213,7 @@ export class GoodsReturnService {
         return itemA < itemB ? -1 : itemA > itemB ? 1 : 0;
       });
       let totalValue = new Prisma.Decimal(0);
+      const returnId = newId();
       let totalOrderValue = new Prisma.Decimal(0);
       const lineRecords: {
         itemId: string;
@@ -225,15 +225,8 @@ export class GoodsReturnService {
       }[] = [];
       for (const [lineId, quantity] of ordered) {
         const orderLine = byId.get(lineId)!;
-        const stock = await lockStockRow(tx, actor.companyId, orderLine.itemId, input.warehouseId);
-        let issued;
-        try {
-          issued = applyIssue(stock.state, quantity);
-        } catch (error) {
-          if (error instanceof InsufficientStockError) throw new GoodsReturnError("INSUFFICIENT_STOCK", error.message);
-          throw error;
-        }
-        await saveStockRow(tx, stock.id, issued.state);
+        const issued = await issueStock(tx, { companyId: actor.companyId, itemId: orderLine.itemId, warehouseId: input.warehouseId }, quantity,
+          { type: "goods_return", id: returnId, lineNumber: lineRecords.length + 1 }, () => this.accountMappings.resolve(tx, actor.companyId, "PURCHASE_PRICE_VARIANCE"));
 
         const orderValue = quantity.times(orderLine.unitPrice).toDecimalPlaces(4);
         totalValue = totalValue.plus(issued.value);
@@ -269,7 +262,6 @@ export class GoodsReturnService {
         );
       }
 
-      const returnId = newId();
       const posting = await this.engine.postEntry(
         {
           companyId: actor.companyId,

@@ -35,6 +35,7 @@ export async function stockIssueToPdfHtml(params: {
     [t("stockIssue.date"), issue.documentDate],
     [t("stockIssue.warehouse"), warehouse],
     [t("stockIssue.costCenter"), issue.costCenterRef],
+    ...(issue.stockCostStatus && issue.stockCostStatus !== "FINAL" ? [[t("stockLevels.averageCost"), t(`stockLevels.costStatus.${issue.stockCostStatus}`)]] : []),
   ]
     .map(([k, v]) => `<tr><th>${escapeHtml(k ?? "")}</th><td>${escapeHtml(v ?? "")}</td></tr>`)
     .join("");

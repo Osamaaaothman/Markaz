@@ -10,6 +10,8 @@ import { Tag } from "primereact/tag";
 import { apiClient } from "../../api/client";
 import { downloadBlob } from "../../lib/download-file";
 
+const PARTY_KINDS = ["CUSTOMER", "SUPPLIER", "CUSTOMER_SUPPLIER", "COMPANY", "PERSON", "OTHER"];
+
 interface Row {
   rowNumber: number;
   values: Record<string, string>;
@@ -52,6 +54,7 @@ export default function ImportDialog({
   const [skipInvalid, setSkipInvalid] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<number | null>(null);
+  const [fileName, setFileName] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const fields =
     kind === "items"
@@ -71,6 +74,7 @@ export default function ImportDialog({
         ];
   const valid = rows.filter((row) => !row.errors.length);
   const upload = async (file: File) => {
+    setFileName(file.name);
     setBusy(true);
     setError("");
     setDone(null);
@@ -130,19 +134,55 @@ export default function ImportDialog({
       }}
       closable={!busy}
       closeOnEscape={!busy}
-      className="erp-dialog"
+      className="erp-dialog erp-dialog--wide erp-import"
       modal
     >
-      <p>{t("imports.hint")}</p>
-      <p className="erp-field__hint">{t("imports.kindsHint")}</p>
-      <div className="erp-page__header-actions">
+      <div className="erp-import__intro">
+        <i className="pi pi-file-excel" aria-hidden="true" />
+        <div>
+          <strong>{t("imports.prepare")}</strong>
+          <p>{t("imports.fileLimits")}</p>
+        </div>
+      </div>
+      {kind === "parties" ? (
+        <section className="erp-import__kinds" aria-label={t("imports.kindTitle")}>
+          <h3>
+            {t("imports.kindTitle")} <code dir="ltr">kind</code>
+          </h3>
+          <div className="erp-import__kind-grid">
+            {PARTY_KINDS.map((value) => (
+              <div className="erp-import__kind" key={value}>
+                <span>{t(`parties.kinds.${value}`)}</span>
+                <code dir="ltr">{value}</code>
+              </div>
+            ))}
+          </div>
+          <p className="erp-field__hint">{t("imports.partyTemplateHint")}</p>
+          <p className="erp-field__hint">{t("imports.employeeHint")}</p>
+        </section>
+      ) : null}
+      <p className="erp-field__hint">{t("imports.textHint")}</p>
+      <div className="erp-import__upload">
         <Button
           type="button"
           label={t("imports.template")}
+          icon="pi pi-download"
           outlined
           onClick={() =>
             downloadBlob(
-              new Blob(["\uFEFF" + fields.join(",") + "\r\n"], { type: "text/csv;charset=utf-8" }),
+              new Blob(
+                [
+                  "\uFEFF" +
+                    fields.join(",") +
+                    "\r\n" +
+                    (kind === "parties"
+                      ? PARTY_KINDS.map((value) =>
+                          fields.map((field) => (field === "kind" ? value : "")).join(","),
+                        ).join("\r\n") + "\r\n"
+                      : ""),
+                ],
+                { type: "text/csv;charset=utf-8" },
+              ),
               `${kind}-template.csv`,
             )
           }
@@ -150,9 +190,16 @@ export default function ImportDialog({
         <Button
           type="button"
           label={t("imports.choose")}
+          icon="pi pi-upload"
+          disabled={busy}
           loading={busy}
           onClick={() => input.current?.click()}
         />
+        {fileName ? (
+          <span className="erp-import__filename" dir="auto">
+            {fileName}
+          </span>
+        ) : null}
         <input
           ref={input}
           type="file"
@@ -165,6 +212,10 @@ export default function ImportDialog({
           }}
         />
       </div>
+      <p className="erp-import__notice">
+        <i className="pi pi-info-circle" aria-hidden="true" />
+        {t("imports.previewHint")}
+      </p>
       {error ? (
         <p role="alert" className="erp-page__error">
           {t(`imports.errors.${error}`)}
@@ -183,8 +234,21 @@ export default function ImportDialog({
               .map((field) => (
                 <Column
                   key={field}
-                  header={t(`imports.fields.${field}`)}
-                  body={(row: Row) => row.values[field] ?? ""}
+                  header={
+                    field === "kind"
+                      ? `${t("imports.fields.kind")} (kind)`
+                      : t(`imports.fields.${field}`)
+                  }
+                  body={(row: Row) =>
+                    field === "kind" && PARTY_KINDS.includes(row.values[field] ?? "") ? (
+                      <span className="erp-import__preview-kind">
+                        <span>{t(`parties.kinds.${row.values[field]}`)}</span>
+                        <code dir="ltr">{row.values[field]}</code>
+                      </span>
+                    ) : (
+                      (row.values[field] ?? "")
+                    )
+                  }
                 />
               ))}
             <Column

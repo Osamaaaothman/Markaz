@@ -35,3 +35,6 @@ docs/vendor/
 # Scratch files an agent session may drop in the repo root — never project content
 .tmp-shim/
 .deploy-keys/
+
+# Local release evidence, backups, screenshots, and generated previews
+output/

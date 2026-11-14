@@ -763,6 +763,12 @@ html body .erp-table .p-datatable-emptymessage > td {
   font-size: 0.8rem;
 }
 
+.erp-field__warning {
+  color: var(--mk-warning, #b45309);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .erp-field__error {
   color: var(--mk-danger);
   font-size: 0.78rem;
@@ -932,6 +938,92 @@ html[dir="rtl"] .erp-lines__header {
 
 .erp-dialog--wide {
   max-width: 960px;
+}
+
+.erp-import__intro {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-block-end: 1.25rem;
+}
+
+.erp-import__intro > i {
+  padding: 1rem;
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+  font-size: 1.5rem;
+}
+
+.erp-import__intro p {
+  margin: 0.35rem 0 0;
+  color: var(--mk-text-muted);
+}
+
+.erp-import__kinds {
+  padding: 1rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface-3);
+}
+
+.erp-import__kinds h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+.erp-import__kind-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 0.5rem;
+}
+
+.erp-import__kind {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.65rem 0.8rem;
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-sm);
+}
+
+.erp-import code {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.erp-import__upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px dashed var(--mk-border-strong);
+  border-radius: var(--mk-radius-sm);
+}
+
+.erp-import__filename {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+  color: var(--mk-text-muted);
+}
+
+.erp-import__notice {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--mk-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.erp-import__preview-kind {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  white-space: nowrap;
 }
 
 /* a row of buttons or inputs inside a table cell or a field */

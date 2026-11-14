@@ -342,6 +342,7 @@ export class AccountingController {
             credit: true,
             description: true,
             account: { select: { id: true, code: true, name: true } },
+            costCenter: { select: { code: true, name: true, nameAr: true } },
           },
           orderBy: { lineNumber: "asc" },
         },
@@ -379,6 +380,7 @@ export class AccountingController {
         debit: Money.of(line.debit.toString(), entry.currency).toDecimalString(),
         credit: Money.of(line.credit.toString(), entry.currency).toDecimalString(),
         description: line.description,
+        costCenter: line.costCenter,
       })),
     };
   }

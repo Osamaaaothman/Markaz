@@ -68,8 +68,10 @@ rounded average; issuing the full remaining quantity takes the full remaining va
 equal to the sum of stock values (docs/05-ACCOUNTING-INTEGRITY-RULES.md §7), proven by a
 300-iteration property test and a real-database integration test.
 
-Posting rules (goods receipt, stock issue to a project, stock count gain/loss) and the "no
-negative stock" rule were confirmed with Osama in chat; `GoodsReceiptService`,
+Posting rules (goods receipt, stock issue to a project, stock count gain/loss) were confirmed
+with Osama. The former no-negative-stock rule is superseded by the owner's 2026-11-14
+decision: advisory stock warnings, last-known provisional costs, and settlement on receipt
+([ADR 0005](adr/0005-sales-prices-and-provisional-stock-costs.md)); `GoodsReceiptService`,
 `StockIssueService`, `StockCountService` in the same folder. Still open: the two stock-count
 gain/loss accounts (`COUNT_GAIN`/`COUNT_LOSS` in `account_mappings`) need the accountant's
 account codes before a real company can post a count — the keys exist, nothing is mapped to
@@ -998,3 +1000,24 @@ closing the symmetry Osama already approved on both ledger sides.
 ## Invoice returns — November 12, 2026
 
 The request to complete purchase and sales returns supersedes the earlier scope limits in D9 and E2 for invoice-linked returns. Linked supplier debit notes now remove stock at weighted-average cost and reverse original input VAT, with the net/cost difference in purchase price variance. Linked sales credit notes restore stock at historical cost and reverse original revenue and output VAT. Unlinked financial notes retain their existing behavior. The follow-up request restricts new purchase returns to posted supplier invoices: the pre-invoice creation action and API endpoint are removed, while historical documents remain readable. Sales stock returns now let the user select any active receiving warehouse in the same company. Details, API compatibility, deployment and known limits: [INVOICE-RETURNS.md](INVOICE-RETURNS.md).
+
+## ZATCA development gate and renewal correction — 2026-11-15
+
+Official SDK 238-R3.4.8 now validates all six XML document types generated through the real
+sales services, committed outbox, mapper and submission pipeline in an isolated test database.
+CI downloads the pinned official SDK and requires these tests; missing SDK/database cannot skip
+the release gate. Java 11 and explicit UTF-8 are necessary for correct Arabic XML validation.
+
+This supersedes earlier findings in sections T/U/Y that attributed signature/certificate/
+SignedProperties mismatches to inconsistent official samples. Those mismatches were in our
+profile: SDK signing uses SHA256withECDSA over the invoice digest bytes, hashes base64
+certificate text, and hashes serialized SignedProperties rather than canonical SignedInfo.
+All official samples now pass our verifier without waived crypto errors. New generated
+standard/simplified invoices, credit notes and debit notes pass the independent SDK.
+
+Renewal headers/authentication and HTTP 428 NOT_COMPLIANT were checked against ZATCA's
+published support guidance. Pending renewal now requires compliance checks and issuance,
+without replacing the key or resetting ICV/PIH. Contract/integration tests cover success,
+failures and tenant/secret isolation. Live Simulation renewal and real acceptance remain
+unverified until an authorized portal account/OTP is available. See
+[development validation](zatca/DEVELOPMENT-VALIDATION.md) for source links and reproduction.

@@ -1,0 +1,150 @@
+/* Colour only: these palettes can be combined with any design direction. */
+html[data-theme="balance"] {
+  --mk-bg: #f5f7f6;
+  --mk-surface: #fff;
+  --mk-surface-2: #f0f4f2;
+  --mk-surface-3: #e9f0ed;
+  --mk-text: #1b2e29;
+  --mk-text-muted: #60746a;
+  --mk-border: #dde5e1;
+  --mk-border-strong: #bbc9c2;
+  --mk-primary: #17664f;
+  --mk-primary-hover: #10523e;
+  --mk-side-bg: #153c33;
+  --mk-side-border: #2d574a;
+  --mk-side-text: #d2e3da;
+  --mk-side-text-strong: #fff;
+  --mk-side-muted: #a3bdb2;
+  --mk-side-hover: #234a3e;
+  --mk-side-tile: #234a3e;
+  --mk-side-active-bg: #2d574a;
+  --mk-side-active-text: #fff;
+  --mk-side-card: #234a3e;
+  --mk-side-group: #a3bdb2;
+}
+
+html[data-theme="canvas"] {
+  --mk-bg: #f6f3ed;
+  --mk-surface: #fffefa;
+  --mk-surface-2: #f3efe6;
+  --mk-surface-3: #ece6da;
+  --mk-text: #363329;
+  --mk-text-muted: #716958;
+  --mk-border: #e7e0d4;
+  --mk-border-strong: #cbbfac;
+  --mk-primary: #87632d;
+  --mk-primary-hover: #6d4c1d;
+}
+
+html[data-theme="precision"] {
+  --mk-bg: #f2f4f7;
+  --mk-surface: #fff;
+  --mk-surface-2: #edf0f5;
+  --mk-surface-3: #e5eaf2;
+  --mk-text: #202e43;
+  --mk-text-muted: #64738b;
+  --mk-border: #d7dfeb;
+  --mk-border-strong: #b6c4d8;
+  --mk-primary: #315fbd;
+  --mk-primary-hover: #234c9e;
+  --mk-side-bg: #15243b;
+  --mk-side-border: #2c446a;
+  --mk-side-text: #d1def1;
+  --mk-side-text-strong: #fff;
+  --mk-side-muted: #9baec9;
+  --mk-side-hover: #223858;
+  --mk-side-tile: #223858;
+  --mk-side-active-bg: #2c446a;
+  --mk-side-active-text: #fff;
+  --mk-side-card: #223858;
+  --mk-side-group: #9baec9;
+}
+
+html[data-theme="balancedark"] {
+  --mk-side-border: #2d574a;
+  --mk-side-text: #d2e3da;
+  --mk-side-text-strong: #fff;
+  --mk-side-muted: #a3bdb2;
+  --mk-side-hover: #234a3e;
+  --mk-side-tile: #234a3e;
+  --mk-side-active-bg: #2d574a;
+  --mk-side-active-text: #fff;
+  --mk-side-card: #234a3e;
+  --mk-side-group: #a3bdb2;
+  --mk-bg: #141b19;
+  --mk-surface: #1d2723;
+  --mk-surface-2: #27332d;
+  --mk-surface-3: #304137;
+  --mk-text: #edf4ef;
+  --mk-text-muted: #a6b8ad;
+  --mk-border: #35483d;
+  --mk-border-strong: #61796a;
+  --mk-primary: #8ed2ae;
+  --mk-primary-hover: #b0e4c7;
+  --mk-on-primary: #122c1f;
+  --mk-side-bg: #101b16;
+}
+
+html[data-theme="canvasdark"] {
+  --mk-bg: #201e19;
+  --mk-surface: #2a2720;
+  --mk-surface-2: #353126;
+  --mk-surface-3: #413b2c;
+  --mk-text: #f4eee1;
+  --mk-text-muted: #bcb29f;
+  --mk-border: #494337;
+  --mk-border-strong: #736855;
+  --mk-primary: #dec187;
+  --mk-primary-hover: #f1d7a7;
+  --mk-on-primary: #30240f;
+}
+
+html[data-theme="precisiondark"] {
+  --mk-side-border: #2c446a;
+  --mk-side-text: #d1def1;
+  --mk-side-text-strong: #fff;
+  --mk-side-muted: #9baec9;
+  --mk-side-hover: #223858;
+  --mk-side-tile: #223858;
+  --mk-side-active-bg: #2c446a;
+  --mk-side-active-text: #fff;
+  --mk-side-card: #223858;
+  --mk-side-group: #9baec9;
+  --mk-bg: #131c2a;
+  --mk-surface: #1b283c;
+  --mk-surface-2: #23344b;
+  --mk-surface-3: #2c405d;
+  --mk-text: #e8effa;
+  --mk-text-muted: #a4b5ce;
+  --mk-border: #344862;
+  --mk-border-strong: #536e91;
+  --mk-primary: #a6c4ff;
+  --mk-primary-hover: #c6d9ff;
+  --mk-on-primary: #13294d;
+  --mk-side-bg: #0e1828;
+}
+
+html:is(
+  [data-theme="balance"],
+  [data-theme="balancedark"],
+  [data-theme="canvas"],
+  [data-theme="canvasdark"],
+  [data-theme="precision"],
+  [data-theme="precisiondark"]
+) {
+  --mk-bg-accent: var(--mk-surface-2);
+  --mk-text-subtle: var(--mk-text-muted);
+  --mk-brand-50: color-mix(in srgb, var(--mk-primary) 6%, var(--mk-surface));
+  --mk-brand-100: color-mix(in srgb, var(--mk-primary) 12%, var(--mk-surface));
+  --mk-brand-200: color-mix(in srgb, var(--mk-primary) 26%, var(--mk-surface));
+  --mk-brand-300: color-mix(in srgb, var(--mk-primary) 55%, var(--mk-surface));
+  --mk-brand-400: var(--mk-primary);
+  --mk-brand-500: var(--mk-primary);
+  --mk-brand-600: var(--mk-primary);
+  --mk-brand-700: var(--mk-primary);
+  --mk-brand-800: var(--mk-primary-hover);
+  --primary-900: var(--mk-primary-hover);
+  --mk-primary-soft: color-mix(in srgb, var(--mk-primary) 11%, var(--mk-surface));
+  --mk-primary-ring: color-mix(in srgb, var(--mk-primary) 35%, transparent);
+  --highlight-text-color: var(--mk-primary);
+}

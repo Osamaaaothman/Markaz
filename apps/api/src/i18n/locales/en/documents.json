@@ -69,7 +69,11 @@
     "quantity": "Quantity",
     "averageCost": "Average cost",
     "value": "Value",
-    "totalValue": "Total stock value"
+    "totalValue": "Total stock value",
+    "costStatus": {
+      "PENDING": "Cost pending",
+      "PROVISIONAL": "Provisional cost"
+    }
   },
   "aging": {
     "receivablesTitle": "Receivables Ageing",
@@ -347,7 +351,8 @@
       "RECEIPT": "Receipt",
       "ISSUE": "Issue",
       "COUNT_ADJUSTMENT": "Count adjustment",
-      "RETURN": "Return to supplier"
+      "RETURN": "Return to supplier",
+      "COST_ADJUSTMENT": "Cost adjustment"
     },
     "sources": {
       "goods_receipt": "Goods receipt",

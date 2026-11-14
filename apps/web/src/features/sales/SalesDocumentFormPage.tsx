@@ -37,6 +37,7 @@ const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 const KNOWN_ERRORS = new Set([
   "INSUFFICIENT_STOCK",
   "BELOW_COST",
+  "ORDER_LINE_MISMATCH",
   "OVER_INVOICED",
   "CUSTOMER_MISMATCH",
   "WAREHOUSE_REQUIRED",
@@ -151,13 +152,21 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   // button or forcing a manual delete; a line the user DID start filling in still needs to be complete.
   const isBlankLine = (l: LineState): boolean => l.salesOrderLineId === "" && l.itemId === "" && l.description.trim() === "" && l.unitPrice.trim() === "";
   const meaningfulLines = lines.filter((l) => !isBlankLine(l));
-  const availability = stockAvailability(lines, stockLevels);
-  const stockWarning = mode === "invoice" && lines.some((line, index) => line.itemId && (availability[index]?.onHand === null || availability[index]?.exceeded));
+  const availability = stockAvailability(lines, stockLevels, mode === "invoice" ? "warehouse" : "company");
+  const stockWarning = lines.some((line, index) => line.itemId && (availability[index]?.onHand === null || availability[index]?.exceeded));
+  const belowCost = (line: LineState): boolean => {
+    if (!line.itemId || line.salesOrderLineId || !DECIMAL.test(line.unitPrice)) return false;
+    const pool = (stockLevels ?? []).filter((stock) => stock.itemId === line.itemId && (mode !== "invoice" || stock.warehouseId === line.warehouseId) && Money.of(stock.quantity, currency).isPositive());
+    const quantity = pool.reduce((sum, stock) => sum.add(Money.of(stock.quantity, currency)), Money.zero(currency));
+    const value = pool.reduce((sum, stock) => sum.add(Money.of(stock.value, currency)), Money.zero(currency));
+    return quantity.isPositive() && Money.of(line.unitPrice, currency).multiply(quantity.toDecimalString(4)).compareTo(value) < 0;
+  };
 
   const lineValid = (l: LineState): boolean =>
     DECIMAL.test(l.quantity) &&
     /[1-9]/.test(l.quantity) &&
     DECIMAL.test(l.unitPrice) &&
+    !belowCost(l) &&
     l.taxCodeId !== "" &&
     (l.itemId !== "" || l.description.trim() !== "") &&
     (mode !== "invoice" || l.itemId === "" || l.warehouseId !== "");
@@ -288,11 +297,12 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
               {l.itemId === "" ? (
                 <LineField label={t("sales.description")}><InputText placeholder={t("sales.description")} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={l.salesOrderLineId !== ""} /></LineField>
               ) : null}
-              <LineField label={t("purchasing.quantity")} hint={mode === "invoice" && l.itemId ? <StockHint {...stock} /> : undefined}><InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} /></LineField>
-              <LineField label={t("purchasing.unitPrice")}><InputText
+              <LineField label={t("purchasing.quantity")} hint={l.itemId ? <StockHint {...stock} scope={mode === "invoice" ? "warehouse" : "company"} /> : undefined}><InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} /></LineField>
+              <LineField label={t("purchasing.unitPrice")} hint={l.salesOrderLineId ? t("sales.priceLocked") : belowCost(l) ? <span className="erp-field__error">{t("sales.errors.BELOW_COST")}</span> : undefined}><InputText
                 dir="ltr"
                 placeholder={t("purchasing.unitPrice")}
                 value={l.unitPrice}
+                disabled={l.salesOrderLineId !== ""}
                 onChange={(e) => setLine(l.key, { unitPrice: e.target.value })}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !orderId && index === lines.length - 1) {
@@ -304,6 +314,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
               /></LineField>
               <LineField label={t("purchasing.invoices.taxCode")}><Dropdown
                 value={l.taxCodeId || null}
+                disabled={l.salesOrderLineId !== ""}
                 onChange={(e) => setLine(l.key, { taxCodeId: (e.value as string | null) ?? "" })}
                 options={(taxCodes ?? []).map((c) => ({ label: c.code, value: c.id }))}
                 placeholder={t("purchasing.invoices.taxCode")}
@@ -343,7 +354,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
         </div>
 
         {stockWarning ? (
-          <p className="erp-auth-card__warning">{t("sales.errors.INSUFFICIENT_STOCK_WARN")}</p>
+          <p className="erp-auth-card__warning">{t(mode === "invoice" ? "sales.errors.INSUFFICIENT_STOCK_WARN" : "inventory.stockLevels.offerWarning")}</p>
         ) : null}
 
         {errKey ? (

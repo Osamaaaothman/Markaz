@@ -216,24 +216,8 @@ function listXml(dir: string): string[] {
 
 // Run only where the official SDK is present. The sample documents are real signed invoices that
 // ZATCA's own tooling produced and accepted, so our validators must AGREE with them: any error
-// outside the documented allowance below is either a bug in a validator or a finding about the
-// samples, and either way is worth reading. NOT run in the cloud session that wrote this (the SDK
-// is not there) -- if it fails on a machine that has the SDK, read the failure, do not loosen it.
+// is a bug or a finding to investigate. No signature/digest failures are waived.
 describeIfSdk("agrees with the official SDK sample documents", () => {
-  // docs/01-OPEN-DECISIONS.md section U: the samples' own xades:CertDigest does not match their
-  // own embedded certificate (sample-data inconsistency).
-  //
-  // SIGNATURE_INVALID / SIGNED_PROPERTIES_DIGEST_MISMATCH (2026-11-10, extending that same section
-  // U finding): every one of these published samples' own stated SignedProperties digest does not
-  // match SHA-256 of its own embedded SignedProperties content, and its ds:SignatureValue does not
-  // verify against its own embedded certificate -- proven NOT to be our code by hand-reconstructing
-  // the canonical SignedInfo and SignedProperties byte-for-byte outside the canonicalizer library
-  // and getting identical bytes to what it produces, for the exact digest that still doesn't match
-  // what the sample itself claims. This is the same class of self-inconsistency as CERT_DIGEST_MISMATCH,
-  // uniform across every signed sample in this directory (not one outlier), consistent with these
-  // published files having had their certificate/signature swapped for anonymized public release
-  // rather than being a live, independently verifiable signed set.
-  const ALLOWED_SAMPLE_DEVIATIONS = new Set(["CERT_DIGEST_MISMATCH", "SIGNATURE_INVALID", "SIGNED_PROPERTIES_DIGEST_MISMATCH"]);
   const samples = listXml(SDK_SAMPLES);
 
   it("finds the samples", () => {
@@ -244,7 +228,7 @@ describeIfSdk("agrees with the official SDK sample documents", () => {
     const xml = readFileSync(path, "utf8");
     const consistency = codes(checkInvoiceConsistency(xml));
     expect(consistency).toEqual([]);
-    const crypto = codes(verifySignedInvoice(xml)).filter((c) => !ALLOWED_SAMPLE_DEVIATIONS.has(c));
+    const crypto = codes(verifySignedInvoice(xml));
     expect(crypto).toEqual([]);
   });
 });

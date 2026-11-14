@@ -64,7 +64,7 @@ export function PaymentDetailPage(): React.JSX.Element {
             <Tag value={t(`payments.directions.${payment.direction}`)} severity={payment.direction === "RECEIPT" ? "success" : "info"} />
           )}
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/payments/${payment.id}/pdf`, { lang: i18n.language }, payment.number, "print")} />
-          {!isVoided ? (
+          {!isVoided && !payment.reversesPaymentId ? (
             <Button label={t("payments.reverse")} icon="pi pi-undo" severity="danger" outlined onClick={() => setConfirmOpen(true)} />
           ) : null}
           <AttachmentsButton ownerType="PAYMENT" ownerId={payment.id} label={payment.number} />
@@ -82,6 +82,14 @@ export function PaymentDetailPage(): React.JSX.Element {
       ) : null}
 
       <dl className="mk-facts">
+        <div>
+          <dt>{t(`payments.${payment.direction === "RECEIPT" ? "receipt" : "payment"}.counterpartyType`)}</dt>
+          <dd>{t(`payments.counterpartyKinds.${payment.counterpartyKind}`)}</dd>
+        </div>
+        {payment.counterAccountCode ? <div>
+          <dt>{t("payments.counterpartyKinds.ACCOUNT")}</dt>
+          <dd><span className="coa-code" dir="ltr">{payment.counterAccountCode}</span> {localizedName({ name: payment.counterAccountName ?? "", nameAr: payment.counterAccountNameAr }, i18n.language)}</dd>
+        </div> : null}
         <div>
           <dt>{t("payments.date")}</dt>
           <dd>{formatCalendarDate(payment.paymentDate, i18n.language)}</dd>

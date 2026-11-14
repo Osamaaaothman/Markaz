@@ -6,7 +6,7 @@ import { companyCurrency } from "../accounting/company-currency.util.js";
 import { fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { allocateDocumentNumber } from "../reference.js";
 import { lockOpenQuotation, type SalesActor, type SalesLineView } from "./quotation.service.js";
-import { SalesError, blankToNull, dateOnly, lockCustomer, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
+import { SalesError, assertSellingPrices, blankToNull, dateOnly, lockCustomer, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
 
 export type SalesOrderStatus = "OPEN" | "PARTIALLY_INVOICED" | "INVOICED" | "CANCELLED";
 
@@ -90,6 +90,7 @@ export class SalesOrderService {
       }
       await lockCustomer(tx, actor.companyId, input.customerId);
       const lines = await resolveSalesLines(tx, actor.companyId, input.lines);
+      await assertSellingPrices(tx, actor.companyId, lines);
       return this.insert(tx, actor, correlationId, input.customerId, input.orderDate, blankToNull(input.notes), lines, submissionKey);
     });
     if (!replay) await this.audit.log({ actorId: actor.id, action: "sales_order.created", entityType: "SalesOrder", entityId: created.id, after: { ...created }, correlationId });

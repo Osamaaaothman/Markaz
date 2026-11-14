@@ -32,3 +32,20 @@ test("unloaded stock is unknown, absent stock after loading is zero; service lin
     [true, false],
   );
 });
+
+test("quotations aggregate stock across warehouses, including negative balances and duplicate lines", () => {
+  const lines = [
+    { itemId: "a", warehouseId: "", quantity: "2" },
+    { itemId: "a", warehouseId: "", quantity: "3" },
+  ];
+  const balances = [
+    { itemId: "a", warehouseId: "one", quantity: "8" },
+    { itemId: "a", warehouseId: "two", quantity: "-4" },
+    { itemId: "b", warehouseId: "one", quantity: "999" },
+  ];
+  assert.deepEqual(stockAvailability(lines, balances, "company"), [
+    { onHand: "4.0000", remaining: "-1.0000", exceeded: true },
+    { onHand: "4.0000", remaining: "-1.0000", exceeded: true },
+  ]);
+  assert.equal(stockAvailability(lines, undefined, "company")[0].onHand, null);
+});

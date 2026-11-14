@@ -4,8 +4,10 @@ import type { IAccountingEngine, IAuditLogger, TransactionClient } from "../cont
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "./account-mapping.service.js";
-import { lockStockRow, saveStockRow } from "./stock-row.repo.js";
-import { applyReceipt } from "./weighted-average.util.js";
+import { receiveStock, recordSettlements, settlementJournalLines, type CostSettlement } from "./provisional-cost.repo.js";
+import { lockSubmission } from "../documents/submission-lock.js";
+import { allocateDocumentNumber } from "../reference.js";
+import { fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 
 export class GoodsReceiptError extends Error {
   constructor(
@@ -73,7 +75,7 @@ export interface GoodsReceiptLineDetail {
 
 export interface GoodsReceiptDetail extends GoodsReceiptSummary {
   readonly currency: string;
-  readonly journalEntryId: string;
+  readonly journalEntryId: string | null;
   readonly lines: readonly GoodsReceiptLineDetail[];
 }
 
@@ -91,7 +93,7 @@ export interface GoodsReceiptListPage {
 export interface GoodsReceiptResult {
   readonly id: string;
   readonly number: string;
-  readonly journalEntryId: string;
+  readonly journalEntryId: string | null;
 }
 
 const RECEIPT_INCLUDE = {
@@ -124,11 +126,7 @@ function toReceiptSummary(r: ReceiptRow): GoodsReceiptSummary {
 
 // A receipt not yet matched to a supplier invoice: Inventory increases, GRN-Payables (goods
 // received, not yet invoiced) increases by the same amount — docs/14-MILESTONES.md M4 decision.
-// Known gap: unlike journal entries, a retried call with the same Idempotency-Key is not
-// replayed at the document level — it is protected from double-POSTING (the engine's own
-// idempotencyKey still guards the ledger), but a retry errors on the receipt number's unique
-// constraint instead of returning the original receipt. Acceptable for M4; revisit if this
-// becomes a real operational papercut.
+// The submission key protects physical quantities and cost settlements as well as the ledger.
 export class GoodsReceiptService {
   constructor(
     private readonly prisma: PrismaClient,
@@ -194,6 +192,9 @@ export class GoodsReceiptService {
     correlationId: string,
     idempotencyKey: string,
   ): Promise<GoodsReceiptResult> {
+    await lockSubmission(tx, actor.companyId, "goods_receipt", idempotencyKey);
+    const previous = await tx.goodsReceipt.findFirst({ where: { companyId: actor.companyId, submissionKey: idempotencyKey } });
+    if (previous) return { id: previous.id, number: previous.number, journalEntryId: previous.journalEntryId };
     if (input.lines.length === 0) {
       throw new GoodsReceiptError("EMPTY_RECEIPT", "A goods receipt needs at least one line");
     }
@@ -221,6 +222,7 @@ export class GoodsReceiptService {
     // Apply every line's receipt to its stock row before posting anything, so a problem in
     // line 3 rolls back lines 1-2 as well — one document, one unit of work.
     let totalValue = new Prisma.Decimal(0);
+    const costSettlements: CostSettlement[] = [];
     const lineRecords: {
       itemId: string;
       quantity: Prisma.Decimal;
@@ -231,27 +233,31 @@ export class GoodsReceiptService {
     for (const line of input.lines) {
       const quantity = new Prisma.Decimal(line.quantity);
       const unitCost = new Prisma.Decimal(line.unitCost);
-      const stock = await lockStockRow(tx, actor.companyId, line.itemId, input.warehouseId);
-      const newState = applyReceipt(stock.state, quantity, unitCost);
-      await saveStockRow(tx, stock.id, newState);
-
       const value = quantity.times(unitCost).toDecimalPlaces(4);
+      costSettlements.push(...await receiveStock(tx, { companyId: actor.companyId, itemId: line.itemId, warehouseId: input.warehouseId }, quantity, value));
       totalValue = totalValue.plus(value);
       lineRecords.push({ itemId: line.itemId, quantity, unitCost, value, purchaseOrderLineId: line.purchaseOrderLineId ?? null });
     }
 
     const receiptId = newId();
-    const posting = await this.engine.postEntry(
+    const journalLines = [
+      ...(totalValue.isZero() ? [] : [
+        { accountId: inventoryAccountId, debit: totalValue.toFixed(4), description: "Goods receipt" },
+        { accountId: grniAccountId, credit: totalValue.toFixed(4), description: "Goods receipt" },
+      ]),
+      ...settlementJournalLines(costSettlements, inventoryAccountId),
+    ];
+    const posting = journalLines.length === 0 ? {
+      journalEntryId: null,
+      number: await allocateDocumentNumber(tx, actor.companyId, "goods_receipt", "GRN", await fiscalYearKeyFor(tx, actor.companyId, input.documentDate)),
+    } : await this.engine.postEntry(
       {
         companyId: actor.companyId,
         fiscalPeriodId: period.id,
         entryDate: input.documentDate,
         postingDate: input.documentDate,
         currency,
-        lines: [
-          { accountId: inventoryAccountId, debit: totalValue.toFixed(4), description: "Goods receipt" },
-          { accountId: grniAccountId, credit: totalValue.toFixed(4), description: "Goods receipt" },
-        ],
+        lines: journalLines,
         sourceModule: "inventory",
         sourceDocumentType: "goods_receipt",
         sourceDocumentId: receiptId,
@@ -263,9 +269,11 @@ export class GoodsReceiptService {
     );
 
     const number = posting.number;
+    await recordSettlements(tx, costSettlements, { type: "goods_receipt", id: receiptId }, posting.journalEntryId, actor.id, correlationId);
     await tx.goodsReceipt.create({
       data: {
         id: receiptId,
+        submissionKey: idempotencyKey,
         companyId: actor.companyId,
         number,
         warehouseId: input.warehouseId,

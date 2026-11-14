@@ -59,6 +59,9 @@ describeIfDb("Ageing and party statements — real database", () => {
       vatIn: await make("1300", "Input VAT", "ASSET", "DEBIT"),
       rent: await make("5200", "Rent", "EXPENSE", "DEBIT"),
     };
+    const bankFolder = await prisma.account.create({ data: { id: newId(), ref: "BANKS-" + companyId, companyId, code: "BANKS", name: "Banks", type: "ASSET", normalBalance: "DEBIT", isPostable: false } });
+    await prisma.account.update({ where: { id: acc.bank! }, data: { parentId: bankFolder.id } });
+    await mappings.set("BANK_ACCOUNTS_PARENT", bankFolder.id, actor, cid());
     await mappings.set("ACCOUNTS_RECEIVABLE", acc.ar!, actor, cid());
     await mappings.set("ACCOUNTS_PAYABLE", acc.ap!, actor, cid());
     await mappings.set("SALES_REVENUE", acc.revenue!, actor, cid());
@@ -74,8 +77,8 @@ describeIfDb("Ageing and party statements — real database", () => {
     const b = await sales.createInvoice({ customerId, invoiceDate: on(3, 20), dueDate: on(4, 19), lines: [service("500")] }, actor, cid(), newId());
     invoiceBId = b.id;
     await sales.createInvoice({ customerId, invoiceDate: on(12, 10), dueDate: on(12, 31), lines: [service("200")] }, actor, cid(), newId());
-    await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: on(3, 1), amount: "300", cashAccountId: acc.bank!, method: "CASH", allocations: [{ invoiceId: a.id, amount: "300" }] }, actor, cid(), newId());
-    await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: on(3, 15), amount: "100", cashAccountId: acc.bank!, method: "CASH", allocations: [] }, actor, cid(), newId());
+    await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: on(3, 1), amount: "300", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [{ invoiceId: a.id, amount: "300" }] }, actor, cid(), newId());
+    await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: on(3, 15), amount: "100", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [] }, actor, cid(), newId());
     await sales.createCreditNote({ originalInvoiceId: b.id, creditDate: on(3, 25), lines: [{ description: "Discount", quantity: "1", unitPrice: "50", taxCodeId: vat0 }] }, actor, cid(), newId());
 
     // Supplier: 400 (Feb 1, due Mar 3), 150 paid on Mar 10.

@@ -74,10 +74,9 @@ national address) and `parties` (buyer VAT number and national address, for a B2
 - `onboarding/onboarding-api-client.ts` — `ZatcaOnboardingApiClient`: `requestComplianceCsid`,
   `submitComplianceInvoice`, `requestProductionCsid`, `renewProductionCsid`. Shares
   `http/zatca-http-transport.ts`'s pluggable transport and error classification with the
-  submission client. `// REVIEW:` the renewal call's exact auth (current production CSID Basic
-  auth + a new OTP header, both at once) is this task's best corroborated guess, not confirmed
-  against ZATCA's own swagger or a reference implementation specific to renewal — see
-  docs/01-OPEN-DECISIONS.md section W.
+  submission client. Renewal authentication and the 428 compliance flow are confirmed by
+  ZATCA's published support guidance and covered by offline contract/integration tests;
+  live Simulation renewal remains unverified. See `docs/zatca/DEVELOPMENT-VALIDATION.md`.
 - `onboarding/onboarding.service.ts` — `OnboardingService`: `startOnboarding` (generate
   key/CSR, request the compliance CSID, store everything encrypted), `runComplianceCheck` (sign
   and submit one sample document, throwing `OnboardingError("COMPLIANCE_CHECK_FAILED")` on any
@@ -134,8 +133,8 @@ national address) and `parties` (buyer VAT number and national address, for a B2
 - `validation/signed-invoice-verifier.ts` -- `verifySignedInvoice`: hash, signature, SignedProperties/CertDigest and
   QR-vs-XML checks on a signed document. `InvoiceSubmissionService` runs both before anything is sent and throws
   `InvoiceValidationError` (nothing sent, ICV not consumed) on a failure.
-- `validation/sdk-validator.ts` -- `runSdkValidation`: runs the official SDK's `-validate` (dev/test only; flags and verdict
-  line unconfirmed, see docs/01 section Y).
+- `validation/sdk-validator.ts` -- `runSdkValidation`: runs official SDK 3.4.8 `-validate`
+  with UTF-8 and isolated PIH context. Required by CI; development use only.
 - `testing/fixtures.ts` -- test-only: `describeIfSdk` (SDK-dependent suites are skipped *by name* without the SDK) and
   `generateTestCertificate` (an `openssl`-made key/self-signed certificate so pipeline tests run anywhere).
 
@@ -152,67 +151,23 @@ not a default). Used only for its C14N canonicalizer; ECDSA signing uses `node:c
 `xadesjs`/`xmldsigjs` were considered and rejected — the only dedicated XAdES library available,
 but archived by its own maintainer in Aug 2025.
 
-## Known gaps (Phases 1, 2, 3, 4, and 5 only)
+## Development validation and remaining limits
 
-- **Sandbox onboarding verified through ACTIVE on 2026-11-14:** all six compliance
-  samples passed and `requestProductionCsid` succeeded after correcting token decoding.
-  This was the developer sandbox, not the production environment. Renewal and actual
-  production invoice submission remain unverified against their live environments.
-- No API endpoints or UI anywhere yet (Phase 7) — nothing creates an `EgsUnit` or triggers
-  onboarding through a real use case; every test creates one directly via Prisma and drives
-  `OnboardingService` directly. The OTP (from the FATOORA portal, or the fixed sandbox value) is
-  passed in by whatever calls `startOnboarding`/`renewProductionCsid` — nothing captures it from
-  a user yet.
-- **The real integration point is still missing**: nothing maps an actual `SalesInvoice` onto
-  `ZatcaInvoiceInput`, or decides which `EgsUnit` an invoice belongs to.
-  `InvoiceSubmissionService` and the BullMQ wrapper
-  (`apps/api/src/compliance/zatca-submission.job.ts`) are both built and tested against a
-  scripted transport, but nothing calls either from a real sales flow yet. Phase 2 now provides
-  a real `EgsCredential` to decrypt; what's left is a product decision this repo has not made —
-  see `zatca-submission.job.ts`'s own `ZatcaSubmissionParamsLoader` doc comment.
-- Onboarding's HTTP client (`onboarding-api-client.ts`) is `// REVIEW:` on the same basis as the
-  submission client below — corroborated from this task's brief and one third-party reference
-  implementation, not ZATCA's own swagger. The CSID renewal call's exact auth combination
-  (current production CSID + a new OTP, both at once) has no reference implementation at all —
-  the least-confirmed call in this package. Confirm both before a real sandbox call.
-- Nothing yet tracks *which* of the required compliance-check sample documents (the 6 document
-  type/subtype combinations Tier 1 needs) have actually been run — `markComplianceChecksPassed`
-  is caller-driven; a caller could call it having only run one. No enforcement here that all
-  required samples passed before requesting the production CSID.
-- CSR field sourcing: the CN is free text (confirmed from the Security Standard PDF's own RDN
-  table, not a fixed format); the SAN's `SN` attribute carries the EGS serial using OpenSSL's
-  built-in "surname" (2.5.4.4) shortname by established real-world convention, not literal X.520
-  semantics (there is no "serialNumber" shortname built into OpenSSL's default config) — see
-  docs/01-OPEN-DECISIONS.md section W.
-- The submission HTTP client's exact endpoints/headers/JSON shape (`zatca-api-client.ts`) are
-  `// REVIEW:` — built from this task's brief plus consistent third-party write-ups, not ZATCA's
-  own swagger (still not reachable by this tool). Confirm before a real sandbox call.
-- `apps/api`'s per-EGS, concurrency-1 worker wiring (`createMonitoredWorker`'s new
-  `workerOptions` parameter) is ready but not registered in `worker.ts` — there is no list of
-  real `EgsUnit`s to enumerate yet (Phase 2).
-- `xades:CertDigest` could not be cross-checked: the official sample's own value does not match
-  SHA-256 of its own embedded certificate (a sample-data inconsistency). This package computes it
-  the spec-correct way; confirm against a real sandbox response once reachable.
-- Inclusive C14N **1.0** stands in for the spec's declared C14N **1.1** — argued and empirically
-  verified to be byte-identical for every document this package produces (neither uses
-  `xml:base`/`xml:lang`/`xml:space`, the only things the two versions disagree on), but worth
-  re-confirming if either of those attributes is ever introduced.
-- The XML builder has no document-level discount/charge model (Tier 1's `SalesInvoice` has none
-  either — docs/01-OPEN-DECISIONS.md section E6) — it always emits the zero-amount
-  `AllowanceCharge` placeholder every official sample carries, never a real one.
-- Only 2dp currency amounts are supported (hard-coded, not looked up per currency) — fine for
-  SAR, would need revisiting for a 3dp currency (KWD/BHD) if ZATCA e-invoicing is ever needed
-  outside SAR.
-- Self-billing, export, summary, nominal-supply, and advance-payment invoice scenarios are not
-  modelled (the `InvoiceTypeCode` "name" attribute's other 6 digits) — out of Tier 1 scope.
-- `FIRST_INVOICE_PREVIOUS_HASH` is now verified against the official SDK's `Data/PIH/pih.txt`
-  and pinned with a golden-value test — see `docs/01-OPEN-DECISIONS.md` section S for what the
-  original (wrong) assumption was and the open question it raised about other hash encodings.
-- The curve for key generation (secp256k1) is now confirmed from three independent sources,
-  including the SDK's own sample key file — settled, see docs/01 section S.
-- No per-EGS address override — every EGS at one company currently shares the company's
-  national address (docs/01 section S explains the trade-off).
-- **Resolved in Phase 4** (was open after Phase 1): the PIH's hex-then-base64 double-encoding is
-  specific to the PIH (and to `xades:SignedProperties`/`CertDigest`) — the XAdES signature's own
-  `ds:Reference/DigestValue` and the QR code's tag 6 both use plain `base64(raw digest)` instead,
-  confirmed by decoding a real signed sample's QR byte-for-byte. See docs/01 section U.
+The API/UI onboarding, sales mapper, per-EGS worker, invoice status/history, XML export
+and printed QR integration are implemented. CI requires official SDK 3.4.8 validation
+of all six document types generated through the real sales services and mapper.
+See [the development validation runbook](../../../docs/zatca/DEVELOPMENT-VALIDATION.md)
+for setup, verified signature conventions, renewal behavior and authoritative references.
+
+- Developer Sandbox onboarding reached ACTIVE on 2026-11-14. Its static certificates
+  do not prove a valid device-key pairing or real invoice acceptance. Keep test labels.
+- Live Simulation onboarding, clearance/reporting and renewal still require an authorized
+  account/OTP and a certificate bound to the EGS key. Production remains unverified.
+- Renewal 428/NOT_COMPLIANT is supported: repeat all required checks and request issuance.
+  Invalid or mismatched renewed certificates preserve the previous credentials and chain.
+- Inclusive C14N 1.0 remains byte-compatible with our supported XML subset; re-evaluate
+  if xml:base, xml:lang or xml:space are introduced.
+- Only 2dp currencies and the current invoice line model are supported. Document-level
+  discount/charge, self-billing, export, summary, nominal-supply and advance-payment
+  scenarios are outside the current product scope.
+- EGS units share their company's national address; there is no per-EGS address override.

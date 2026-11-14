@@ -1,11 +1,17 @@
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
-import { DEFAULT_GROUP_ICON, GROUP_ICONS, SIDEBAR_GROUPS, sortGroups } from "../../app/layout/NavConfig";
+import {
+  DEFAULT_GROUP_ICON,
+  GROUP_ICONS,
+  SIDEBAR_GROUPS,
+  sortGroups,
+} from "../../app/layout/NavConfig";
 import { useLayoutStore } from "../../app/layout/layout-store";
 import { THEMES, useThemeStore, type ThemeId } from "../../shared/theme/theme-store";
+import { DirectionSettings } from "../../shared/theme/DirectionPicker";
 
 // Preview colours mirror design/themes.css so a card can show its theme without applying it.
-const SWATCHES: Readonly<Record<ThemeId, { bg: string; surface: string; brand: string; accent: string }>> = {
+const SWATCHES = {
   forest: { bg: "#f6f5f2", surface: "#ffffff", brand: "#1d583f", accent: "#b08a2e" },
   classic: { bg: "#f6f5f2", surface: "#1b1a17", brand: "#1d583f", accent: "#b08a2e" },
   ocean: { bg: "#f2f6fb", surface: "#ffffff", brand: "#1c449f", accent: "#0e8fa8" },
@@ -15,7 +21,16 @@ const SWATCHES: Readonly<Record<ThemeId, { bg: string; surface: string; brand: s
   graphite: { bg: "#0f1116", surface: "#181b24", brand: "#7c85f5", accent: "#5cc8d8" },
   prime: { bg: "#f8f9fa", surface: "#ffffff", brand: "#6366f1", accent: "#14b8a6" },
   primedark: { bg: "#111827", surface: "#1f2937", brand: "#818cf8", accent: "#2dd4bf" },
-};
+  balance: { bg: "#f5f7f6", surface: "#153c33", brand: "#17664f", accent: "#caac6f" },
+  balancedark: { bg: "#141b19", surface: "#1d2723", brand: "#8ed2ae", accent: "#caac6f" },
+  canvas: { bg: "#f6f3ed", surface: "#fffefa", brand: "#87632d", accent: "#b08a2e" },
+  canvasdark: { bg: "#201e19", surface: "#2a2720", brand: "#dec187", accent: "#c9aa5c" },
+  precision: { bg: "#f2f4f7", surface: "#15243b", brand: "#315fbd", accent: "#caac6f" },
+  precisiondark: { bg: "#131c2a", surface: "#1b283c", brand: "#a6c4ff", accent: "#c9aa5c" },
+} as const satisfies Record<
+  ThemeId,
+  { bg: string; surface: string; brand: string; accent: string }
+>;
 
 // Personal interface preferences: the order of the sidebar's sections, and other display settings.
 // All of it lives in this browser's localStorage (layout-store.ts) — nothing here is sent to the
@@ -28,6 +43,7 @@ export function InterfaceSettingsPage(): React.JSX.Element {
   const orderedGroups = sortGroups(SIDEBAR_GROUPS, groupOrder);
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
+  const useDirectionPalette = useThemeStore((state) => state.useDirectionPalette);
 
   function move(index: number, direction: -1 | 1): void {
     const target = index + direction;
@@ -47,6 +63,8 @@ export function InterfaceSettingsPage(): React.JSX.Element {
         </div>
       </div>
 
+      <DirectionSettings />
+
       <section className="erp-card">
         <h2 className="erp-card__title">{t("interfaceSettings.theme")}</h2>
         <p className="erp-card__empty" style={{ textAlign: "start" }}>
@@ -64,7 +82,11 @@ export function InterfaceSettingsPage(): React.JSX.Element {
                 className={`mk-theme-card${theme === id ? " mk-theme-card--active" : ""}`}
                 onClick={() => setTheme(id)}
               >
-                <span className="mk-theme-card__preview" style={{ background: swatch.bg }} aria-hidden="true">
+                <span
+                  className="mk-theme-card__preview"
+                  style={{ background: swatch.bg }}
+                  aria-hidden="true"
+                >
                   <span className="mk-theme-card__side" style={{ background: swatch.surface }} />
                   <span className="mk-theme-card__body">
                     <span className="mk-theme-card__bar" style={{ background: swatch.surface }} />
@@ -75,11 +97,22 @@ export function InterfaceSettingsPage(): React.JSX.Element {
                   </span>
                 </span>
                 <span className="mk-theme-card__name">{t(`interfaceSettings.themes.${id}`)}</span>
-                <span className="mk-theme-card__mode">{t(mode === "dark" ? "interfaceSettings.modeDark" : "interfaceSettings.modeLight")}</span>
+                <span className="mk-theme-card__mode">
+                  {t(
+                    mode === "dark" ? "interfaceSettings.modeDark" : "interfaceSettings.modeLight",
+                  )}
+                </span>
               </button>
             );
           })}
         </div>
+        <Button
+          type="button"
+          label={t("interfaceSettings.directionPalette")}
+          icon="pi pi-palette"
+          text
+          onClick={useDirectionPalette}
+        />
       </section>
 
       <section className="erp-card">
@@ -90,7 +123,10 @@ export function InterfaceSettingsPage(): React.JSX.Element {
         <ul className="mk-reorder-list">
           {orderedGroups.map((groupKey, index) => (
             <li key={groupKey} className="mk-reorder-list__item">
-              <i className={`${GROUP_ICONS[groupKey] ?? DEFAULT_GROUP_ICON} mk-reorder-list__icon`} aria-hidden="true" />
+              <i
+                className={`${GROUP_ICONS[groupKey] ?? DEFAULT_GROUP_ICON} mk-reorder-list__icon`}
+                aria-hidden="true"
+              />
               <span className="mk-reorder-list__label">{t(groupKey)}</span>
               <span className="mk-reorder-list__actions">
                 <Button
@@ -115,7 +151,14 @@ export function InterfaceSettingsPage(): React.JSX.Element {
             </li>
           ))}
         </ul>
-        <Button type="button" label={t("interfaceSettings.resetOrder")} icon="pi pi-replay" text onClick={resetGroupOrder} disabled={groupOrder.length === 0} />
+        <Button
+          type="button"
+          label={t("interfaceSettings.resetOrder")}
+          icon="pi pi-replay"
+          text
+          onClick={resetGroupOrder}
+          disabled={groupOrder.length === 0}
+        />
       </section>
     </div>
   );

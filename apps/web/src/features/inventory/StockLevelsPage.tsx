@@ -92,7 +92,7 @@ export function StockLevelsPage(): React.JSX.Element {
           <Column header={t("inventory.items.displayName")} body={(row: StockLevelEntry) => <span className="coa-name">{localizedName({ name: row.itemName, nameAr: row.itemNameAr }, i18n.language)}</span>} />
           <Column header={t("inventory.stockLevels.warehouse")} body={(row: StockLevelEntry) => localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language)} />
           <Column header={t("inventory.stockLevels.quantity")} align="right" body={(row: StockLevelEntry) => <span className="coa-amount">{row.quantity}</span>} />
-          <Column header={t("inventory.stockLevels.averageUnitCost")} align="right" body={(row: StockLevelEntry) => <span className="coa-amount">{formatMoney(row.averageUnitCost, currency)}</span>} />
+          <Column header={t("inventory.stockLevels.averageUnitCost")} align="right" body={(row: StockLevelEntry) => <div><span className="coa-amount">{formatMoney(row.averageUnitCost, currency)}</span>{row.costStatus !== "FINAL" ? <p className="erp-field__warning">{t(row.costStatus === "PENDING" ? "inventory.stockLevels.pendingCost" : "inventory.stockLevels.provisionalCost")}</p> : null}</div>} />
           <Column header={t("inventory.stockLevels.value")} align="right" body={(row: StockLevelEntry) => <span className="coa-amount">{formatMoney(row.value, currency)}</span>} />
           <Column
             header={t("inventory.stockLevels.reorderPoint")}

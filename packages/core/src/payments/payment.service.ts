@@ -1,20 +1,26 @@
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
-import type { IAccountingEngine, IAuditLogger, JournalLineInput } from "../contracts.js";
+import type { IAccountingEngine, IAuditLogger, JournalLineInput, TransactionClient } from "../contracts.js";
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
 import { allocateDocumentNumber } from "../reference.js";
 import { loadOutstanding, type InvoiceSide, type OutstandingInvoice } from "./outstanding.js";
+import { paymentCashAccounts } from "./payment-accounts.js";
 
 export const PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "CHEQUE", "CARD", "OTHER"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export type PaymentDirection = "RECEIPT" | "PAYMENT";
+export const PAYMENT_COUNTERPARTY_KINDS = ["CUSTOMER", "SUPPLIER", "EMPLOYEE", "ACCOUNT"] as const;
+export type PaymentCounterpartyKind = (typeof PAYMENT_COUNTERPARTY_KINDS)[number];
 
 export class PaymentError extends Error {
   constructor(
     readonly code:
       | "PARTY_NOT_FOUND"
+      | "PARTY_KIND_INVALID"
+      | "COUNTER_ACCOUNT_INVALID"
+      | "ALLOCATION_NOT_ALLOWED"
       | "CASH_ACCOUNT_NOT_FOUND"
       | "CASH_ACCOUNT_INVALID"
       | "INVOICE_NOT_FOUND"
@@ -39,7 +45,9 @@ export interface PaymentAllocationInput {
 
 export interface CreatePaymentInput {
   readonly direction: PaymentDirection;
-  readonly partyId: string;
+  readonly partyId?: string | undefined;
+  readonly counterpartyKind?: PaymentCounterpartyKind | undefined;
+  readonly counterAccountId?: string | undefined;
   readonly paymentDate: Date;
   readonly amount: string;
   readonly cashAccountId: string;
@@ -65,7 +73,8 @@ export interface PaymentSummary {
   readonly id: string;
   readonly direction: PaymentDirection;
   readonly number: string;
-  readonly partyId: string;
+  readonly partyId: string | null;
+  readonly counterpartyKind: PaymentCounterpartyKind;
   readonly partyName: string;
   readonly partyNameAr: string | null;
   readonly paymentDate: string;
@@ -86,6 +95,10 @@ export interface PaymentAllocationView {
 }
 
 export interface PaymentDetail extends PaymentSummary {
+  readonly counterAccountId: string | null;
+  readonly counterAccountCode: string | null;
+  readonly counterAccountName: string | null;
+  readonly counterAccountNameAr: string | null;
   readonly cashAccountCode: string;
   readonly cashAccountName: string;
   readonly cashAccountNameAr: string | null;
@@ -167,9 +180,9 @@ const dateOnly = (d: Date): string => d.toISOString().slice(0, 10);
 const blankToNull = (v: string | null | undefined): string | null => (v?.trim() ? v.trim() : null);
 const sideOf = (direction: PaymentDirection): InvoiceSide => (direction === "RECEIPT" ? "SALES" : "SUPPLIER");
 
-// A customer receipt or a supplier payment.
-//   RECEIPT : Dr bank/cash, Cr accounts receivable        (the full amount)
-//   PAYMENT : Dr accounts payable, Cr bank/cash           (the full amount)
+// Receipts debit bank/cash and credit the counter-account; payments do the reverse.
+// Customer/supplier roles use the same control accounts as their invoices. Employee/account
+// vouchers use the selected postable account and cannot allocate invoices.
 // The allocations name the invoices it settles and may total less than the amount: the rest stays
 // on account for the party. An invoice can never be allocated more than it still owes. Posted
 // documents are insert-only, so the party's row (which the runtime role may update) is locked to
@@ -182,23 +195,53 @@ export class PaymentService {
     private readonly audit: IAuditLogger,
   ) {}
 
+  cashAccounts(companyId: string, method: PaymentMethod) {
+    return paymentCashAccounts(this.prisma, companyId, method);
+  }
+
   async create(input: CreatePaymentInput, actor: PaymentActor, correlationId: string, idempotencyKey: string): Promise<PaymentResult> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT id FROM parties WHERE id = ${input.partyId} AND company_id = ${actor.companyId} AND is_active = true FOR UPDATE
-      `;
-      if (locked.length === 0) throw new PaymentError("PARTY_NOT_FOUND", "Party not found");
+      const counterpartyKind = input.counterpartyKind ?? (input.direction === "RECEIPT" ? "CUSTOMER" : "SUPPLIER");
+      if (counterpartyKind === "ACCOUNT") {
+        if (input.partyId) throw new PaymentError("PARTY_KIND_INVALID", "Choose an account without a party");
+      } else {
+        const locked = await tx.$queryRaw<{ id: string; kind: string }[]>`
+          SELECT id, kind FROM parties WHERE id = ${input.partyId ?? ""} AND company_id = ${actor.companyId} AND is_active = true FOR UPDATE
+        `;
+        const party = locked[0];
+        if (!party) throw new PaymentError("PARTY_NOT_FOUND", "Party not found");
+        const dual = party.kind === "CUSTOMER_SUPPLIER" && (counterpartyKind === "CUSTOMER" || counterpartyKind === "SUPPLIER");
+        // Old API clients may still use historical COMPANY/PERSON parties. Explicit role selections are strict.
+        const legacyParty = !input.counterpartyKind && ["COMPANY", "PERSON", "OTHER"].includes(party.kind);
+        if (party.kind !== counterpartyKind && !dual && !legacyParty) throw new PaymentError("PARTY_KIND_INVALID", "The party does not match the selected type");
+      }
 
       const amount = new Prisma.Decimal(input.amount);
       const cash = await tx.account.findFirst({ where: { id: input.cashAccountId, companyId: actor.companyId } });
       if (!cash) throw new PaymentError("CASH_ACCOUNT_NOT_FOUND", "The bank or cash account was not found");
-      if (!cash.isPostable || cash.type !== "ASSET") throw new PaymentError("CASH_ACCOUNT_INVALID", "Choose a postable asset account for the bank or cash");
+      if (!(await paymentCashAccounts(tx, actor.companyId, input.method)).some((a) => a.id === cash.id)) {
+        throw new PaymentError("CASH_ACCOUNT_INVALID", "Choose an active cash account for cash, or a bank account for other methods");
+      }
+
+      const canAllocate = (counterpartyKind === "CUSTOMER" && input.direction === "RECEIPT") || (counterpartyKind === "SUPPLIER" && input.direction === "PAYMENT");
+      if (!canAllocate && input.allocations.length > 0) throw new PaymentError("ALLOCATION_NOT_ALLOWED", "This voucher type cannot settle invoices");
+      let controlId: string;
+      if (counterpartyKind === "CUSTOMER" || counterpartyKind === "SUPPLIER") {
+        // Match the control account used by invoices; direction determines debit/credit, not the party's role.
+        controlId = await this.accountMappings.resolve(tx, actor.companyId, counterpartyKind === "CUSTOMER" ? "ACCOUNTS_RECEIVABLE" : "ACCOUNTS_PAYABLE");
+        if (input.counterAccountId && input.counterAccountId !== controlId) throw new PaymentError("COUNTER_ACCOUNT_INVALID", "The party control account cannot be overridden");
+      } else {
+        const counter = await tx.account.findFirst({ where: { id: input.counterAccountId ?? "", companyId: actor.companyId, isActive: true, isPostable: true } });
+        if (!counter || (counterpartyKind === "EMPLOYEE" && counter.partyId !== input.partyId)) throw new PaymentError("COUNTER_ACCOUNT_INVALID", "Choose an active postable account for the selected party");
+        controlId = counter.id;
+      }
+      if (controlId === cash.id) throw new PaymentError("COUNTER_ACCOUNT_INVALID", "The two accounts must be different");
 
       // ── allocations: each invoice is the party's, and owes at least what is allocated to it ──
       const ids = input.allocations.map((a) => a.invoiceId);
       if (new Set(ids).size !== ids.length) throw new PaymentError("DUPLICATE_ALLOCATION", "An invoice appears twice in the allocations");
       const side = sideOf(input.direction);
-      const open = new Map((await loadOutstanding(tx, actor.companyId, side, { ids, partyId: input.partyId })).map((o) => [o.id, o]));
+      const open = new Map((input.partyId && ids.length ? await loadOutstanding(tx, actor.companyId, side, { ids, partyId: input.partyId }) : []).map((o) => [o.id, o]));
       let allocated = new Prisma.Decimal(0);
       for (const allocation of input.allocations) {
         const invoice = open.get(allocation.invoiceId);
@@ -213,17 +256,15 @@ export class PaymentService {
       if (!period) throw new PaymentError("NO_OPEN_PERIOD", "No open fiscal period covers the payment date");
       const currency = await companyCurrency(tx, actor.companyId);
 
-      const controlKey = input.direction === "RECEIPT" ? "ACCOUNTS_RECEIVABLE" : "ACCOUNTS_PAYABLE";
-      const controlId = await this.accountMappings.resolve(tx, actor.companyId, controlKey);
       const journalLines: JournalLineInput[] =
         input.direction === "RECEIPT"
           ? [
-              { accountId: cash.id, debit: amount.toFixed(4), description: "Customer receipt" },
-              { accountId: controlId, credit: amount.toFixed(4), description: "Customer receipt" },
+              { accountId: cash.id, debit: amount.toFixed(4), description: "Receipt voucher" },
+              { accountId: controlId, credit: amount.toFixed(4), description: "Receipt voucher" },
             ]
           : [
-              { accountId: controlId, debit: amount.toFixed(4), description: "Supplier payment" },
-              { accountId: cash.id, credit: amount.toFixed(4), description: "Supplier payment" },
+              { accountId: controlId, debit: amount.toFixed(4), description: "Payment voucher" },
+              { accountId: cash.id, credit: amount.toFixed(4), description: "Payment voucher" },
             ];
 
       const paymentId = newId();
@@ -257,7 +298,9 @@ export class PaymentService {
           companyId: actor.companyId,
           direction: input.direction,
           number,
-          partyId: input.partyId,
+          partyId: input.partyId ?? null,
+          counterpartyKind,
+          counterAccountId: controlId,
           paymentDate: input.paymentDate,
           amount,
           currency,
@@ -291,6 +334,7 @@ export class PaymentService {
       where: { id, companyId },
       include: {
         party: true,
+        counterAccount: { select: { code: true, name: true, nameAr: true } },
         cashAccount: { select: { code: true, name: true, nameAr: true } },
         allocations: { include: { salesInvoice: { select: { id: true, number: true } }, supplierInvoice: { select: { id: true, number: true } } } },
       },
@@ -302,8 +346,13 @@ export class PaymentService {
       direction: p.direction as PaymentDirection,
       number: p.number,
       partyId: p.partyId,
-      partyName: p.party.name,
-      partyNameAr: p.party.nameAr,
+      counterpartyKind: (p.counterpartyKind ?? (p.direction === "RECEIPT" ? "CUSTOMER" : "SUPPLIER")) as PaymentCounterpartyKind,
+      partyName: p.party?.name ?? p.counterAccount?.name ?? "",
+      partyNameAr: p.party ? p.party.nameAr : p.counterAccount?.nameAr ?? null,
+      counterAccountId: p.counterAccountId,
+      counterAccountCode: p.counterAccount?.code ?? null,
+      counterAccountName: p.counterAccount?.name ?? null,
+      counterAccountNameAr: p.counterAccount?.nameAr ?? null,
       paymentDate: dateOnly(p.paymentDate),
       amount: p.amount.toFixed(4),
       allocated: allocated.toFixed(4),
@@ -330,29 +379,23 @@ export class PaymentService {
   // invoice outstanding), mark the original voided, and create a new reversal payment record.
   async reverse(input: ReversePaymentInput, actor: PaymentActor, correlationId: string, idempotencyKey: string): Promise<ReversePaymentResult> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const original = await tx.payment.findFirst({ where: { id: input.paymentId, companyId: actor.companyId }, include: { allocations: true } });
+      await tx.$queryRaw`SELECT id FROM payments WHERE id = ${input.paymentId} AND company_id = ${actor.companyId} FOR UPDATE`;
+      const original = await tx.payment.findFirst({ where: { id: input.paymentId, companyId: actor.companyId }, include: { allocations: true, journalEntry: { include: { lines: true } } } });
       if (!original) throw new PaymentError("NOT_FOUND", "Payment not found");
-      if (original.voidedAt !== null) throw new PaymentError("ALREADY_VOIDED", "This payment has already been reversed");
+      if (original.voidedAt !== null || original.reversesPaymentId !== null) throw new PaymentError("ALREADY_VOIDED", "This payment has already been reversed");
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.reversalDate);
       if (!period) throw new PaymentError("NO_OPEN_PERIOD", "No open fiscal period covers the reversal date");
       const currency = await companyCurrency(tx, actor.companyId);
 
-      const controlKey = original.direction === "RECEIPT" ? "ACCOUNTS_RECEIVABLE" : "ACCOUNTS_PAYABLE";
-      const controlId = await this.accountMappings.resolve(tx, actor.companyId, controlKey);
       const amount = original.amount;
 
       // Counter-entry: flip the original journal lines
-      const journalLines: JournalLineInput[] =
-        original.direction === "RECEIPT"
-          ? [
-              { accountId: controlId, debit: amount.toFixed(4), description: "Receipt reversal" },
-              { accountId: original.cashAccountId, credit: amount.toFixed(4), description: "Receipt reversal" },
-            ]
-          : [
-              { accountId: original.cashAccountId, debit: amount.toFixed(4), description: "Payment reversal" },
-              { accountId: controlId, credit: amount.toFixed(4), description: "Payment reversal" },
-            ];
+      const journalLines: JournalLineInput[] = original.journalEntry.lines.map((line) => ({
+        accountId: line.accountId,
+        ...(line.credit.greaterThan(0) ? { debit: line.credit.toFixed(4) } : { credit: line.debit.toFixed(4) }),
+        description: "Payment reversal",
+      }));
 
       const reversalId = newId();
       const posting = await this.engine.postEntry(
@@ -379,11 +422,7 @@ export class PaymentService {
           ? await allocateDocumentNumber(tx, actor.companyId, "payment_receipt_no", "RCT", fiscalYear)
           : await allocateDocumentNumber(tx, actor.companyId, "payment_out_no", "PAY", fiscalYear);
 
-      // Remove allocations from the original so the invoices go back to open
-      await tx.paymentAllocation.deleteMany({ where: { paymentId: original.id } });
-
-      // Mark original voided
-      await tx.payment.update({ where: { id: original.id }, data: { voidedAt: input.reversalDate, reversedByPaymentId: reversalId } });
+      // Keep the original allocations for history. Outstanding queries ignore them after voiding.
 
       // Create the reversal payment (zero allocations — amount fully on account to cancel out)
       await tx.payment.create({
@@ -393,6 +432,8 @@ export class PaymentService {
           direction: original.direction,
           number,
           partyId: original.partyId,
+          counterpartyKind: original.counterpartyKind,
+          counterAccountId: original.counterAccountId,
           paymentDate: input.reversalDate,
           amount,
           currency: original.currency,
@@ -406,6 +447,9 @@ export class PaymentService {
         },
       });
 
+      // The referenced reversal must exist before linking the original to it.
+      await tx.payment.update({ where: { id: original.id }, data: { voidedAt: input.reversalDate, reversedByPaymentId: reversalId } });
+
       return { id: reversalId, number, journalEntryId: posting.journalEntryId };
     });
 
@@ -417,7 +461,7 @@ export class PaymentService {
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 100);
     const rows = await this.prisma.payment.findMany({
       where: { companyId, ...(query.direction ? { direction: query.direction } : {}), ...(query.partyId ? { partyId: query.partyId } : {}) },
-      include: { party: true, allocations: { select: { amount: true } } },
+      include: { party: true, counterAccount: true, allocations: { select: { amount: true } } },
       orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(query.cursor !== undefined ? { cursor: { id: query.cursor }, skip: 1 } : {}),
@@ -430,8 +474,9 @@ export class PaymentService {
         direction: p.direction as PaymentDirection,
         number: p.number,
         partyId: p.partyId,
-        partyName: p.party.name,
-        partyNameAr: p.party.nameAr,
+        counterpartyKind: (p.counterpartyKind ?? (p.direction === "RECEIPT" ? "CUSTOMER" : "SUPPLIER")) as PaymentCounterpartyKind,
+        partyName: p.party?.name ?? p.counterAccount?.name ?? "",
+        partyNameAr: p.party ? p.party.nameAr : p.counterAccount?.nameAr ?? null,
         paymentDate: dateOnly(p.paymentDate),
         amount: p.amount.toFixed(4),
         allocated: p.allocations.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0)).toFixed(4),
@@ -463,16 +508,27 @@ export class PaymentService {
   // tied to an invoice (an overpayment, or a deliberate on-account receipt), and invoices still
   // owing. Settling draws on the pool below oldest-payment-first — it never re-opens a question of
   // WHICH invoice an old receipt "belongs to", because at the ledger level it never belonged to one.
-  async partyBalance(companyId: string, partyId: string, direction: PaymentDirection): Promise<PartyBalanceView> {
-    const payments = await this.prisma.payment.findMany({
-      where: { companyId, partyId, direction, voidedAt: null },
+  private async availablePayments(db: TransactionClient, companyId: string, partyId: string, direction: PaymentDirection) {
+    const payments = await db.payment.findMany({
+      where: { companyId, partyId, voidedAt: null, reversesPaymentId: null, OR: [{ counterpartyKind: null, direction }, { counterpartyKind: direction === "RECEIPT" ? "CUSTOMER" : "SUPPLIER" }] },
       include: { allocations: { select: { amount: true } } },
       orderBy: [{ paymentDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     });
-    const unallocatedPayments = payments
+    // Refunds consume on-account money before it can be allocated again.
+    let refunded = payments.filter((p) => p.direction !== direction).reduce((sum, p) => sum.plus(p.amount), new Prisma.Decimal(0));
+    return payments.filter((p) => p.direction === direction)
       .map((p) => ({ p, unallocated: p.amount.minus(p.allocations.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0))) }))
+      .map(({ p, unallocated }) => {
+        const take = Prisma.Decimal.min(Prisma.Decimal.max(unallocated, 0), refunded);
+        refunded = refunded.minus(take);
+        return { p, unallocated: unallocated.minus(take) };
+      })
       .filter((x) => x.unallocated.greaterThan(0))
       .map((x) => ({ id: x.p.id, number: x.p.number, paymentDate: dateOnly(x.p.paymentDate), method: x.p.method as PaymentMethod, unallocated: x.unallocated.toFixed(4) }));
+  }
+
+  async partyBalance(companyId: string, partyId: string, direction: PaymentDirection): Promise<PartyBalanceView> {
+    const unallocatedPayments = await this.availablePayments(this.prisma, companyId, partyId, direction);
     const totalUnallocated = unallocatedPayments.reduce((sum, p) => sum.plus(p.unallocated), new Prisma.Decimal(0));
     return { totalUnallocated: totalUnallocated.toFixed(4), unallocatedPayments, openInvoices: await this.openInvoices(companyId, partyId, direction) };
   }
@@ -493,14 +549,8 @@ export class PaymentService {
       const side = sideOf(input.direction);
       const open = new Map((await loadOutstanding(tx, actor.companyId, side, { ids, partyId: input.partyId })).map((o) => [o.id, o]));
 
-      const payments = await tx.payment.findMany({
-        where: { companyId: actor.companyId, partyId: input.partyId, direction: input.direction, voidedAt: null },
-        include: { allocations: { select: { amount: true } } },
-        orderBy: [{ paymentDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-      });
-      const pool = payments
-        .map((p) => ({ id: p.id, remaining: p.amount.minus(p.allocations.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0))) }))
-        .filter((p) => p.remaining.greaterThan(0));
+      const pool = (await this.availablePayments(tx, actor.companyId, input.partyId, input.direction))
+        .map((p) => ({ id: p.id, remaining: new Prisma.Decimal(p.unallocated) }));
 
       let totalAllocated = new Prisma.Decimal(0);
       const newAllocations: { id: string; paymentId: string; amount: Prisma.Decimal; invoiceId: string }[] = [];

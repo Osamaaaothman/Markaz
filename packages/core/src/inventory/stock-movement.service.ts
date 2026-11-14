@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@erp/db";
 
-export type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT" | "RETURN";
+export type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT" | "RETURN" | "COST_ADJUSTMENT";
 
 export interface StockMovementEntry {
   readonly id: string;
@@ -21,7 +21,7 @@ export interface StockMovementEntry {
   readonly partyName: string | null;
   readonly partyNameAr: string | null;
   // The ledger entry the movement was posted with; for the stock documents its number is the document number.
-  readonly journalEntryId: string;
+  readonly journalEntryId: string | null;
   readonly entryNumber: string;
 }
 
@@ -70,7 +70,7 @@ function toEntry(row: Row, party?: MovementParty): StockMovementEntry {
     partyName: party?.name ?? null,
     partyNameAr: party?.nameAr ?? null,
     journalEntryId: row.journalEntryId,
-    entryNumber: row.journalEntry.number,
+    entryNumber: row.journalEntry?.number ?? "—",
   };
 }
 

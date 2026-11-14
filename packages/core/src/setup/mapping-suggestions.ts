@@ -21,6 +21,8 @@ interface Rule {
 }
 
 const RULES: Readonly<Partial<Record<AccountMappingKey, Rule>>> = {
+  CASH_ACCOUNTS_PARENT: { action: "MAP_FOLDER", code: "11101" },
+  BANK_ACCOUNTS_PARENT: { action: "MAP_FOLDER", code: "11102" },
   INVENTORY: { action: "CREATE_UNDER", code: "1110801", name: "Inventory", nameAr: "مخزون البضاعة" },
   GRNI: { action: "MAP_EXISTING", code: "2110602" },
   ACCOUNTS_PAYABLE: { action: "CREATE_UNDER", code: "2110601", name: "Accounts payable", nameAr: "الموردون" },

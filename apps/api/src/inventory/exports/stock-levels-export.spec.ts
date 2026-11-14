@@ -13,6 +13,7 @@ const entry = (over: Partial<StockLevelEntry>): StockLevelEntry => ({
   quantity: "10.0000",
   value: "100.1000",
   averageUnitCost: "10.0100",
+  costStatus: "FINAL",
   reorderPoint: "5.0000",
   belowReorderPoint: false,
   ...over,

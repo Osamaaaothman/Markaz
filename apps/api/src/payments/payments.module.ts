@@ -3,6 +3,7 @@ import {
   AccountMappingService,
   AgingService,
   CashExpenseService,
+  CostCenterService,
   PartyStatementService,
   PaymentService,
   PrismaAccountingEngine,
@@ -14,6 +15,7 @@ import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { PaymentsController } from "./payments.controller.js";
 import { CashExpensesController } from "./cash-expenses.controller.js";
+import { CostCentersController } from "./cost-centers.controller.js";
 import { ReceivablesExportService, ReceivablesReportsController } from "./receivables-reports.controller.js";
 import { AttachmentsModule } from "../attachments/attachments.module.js";
 
@@ -23,8 +25,9 @@ const PAYMENTS_ENGINE = Symbol("IAccountingEngine (payments)");
 // Same shape as the other document modules: a module-local engine over PrismaService.
 @Module({
   imports: [AttachmentsModule],
-  controllers: [PaymentsController, CashExpensesController, ReceivablesReportsController],
+  controllers: [PaymentsController, CashExpensesController, CostCentersController, ReceivablesReportsController],
   providers: [
+    { provide: CostCenterService, useFactory: (prisma: PrismaService) => new CostCenterService(prisma), inject: [PrismaService] },
     { provide: PAYMENTS_NUMBERING, useFactory: () => new PrismaNumberingService() },
     {
       provide: PAYMENTS_ENGINE,

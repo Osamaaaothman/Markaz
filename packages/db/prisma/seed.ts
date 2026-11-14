@@ -319,6 +319,14 @@ async function main(): Promise<void> {
 
   await seedPresetRoles(company.id);
   await seedChartOfAccounts(company.id);
+  for (const [key, code] of [["CASH_ACCOUNTS_PARENT", "11101"], ["BANK_ACCOUNTS_PARENT", "11102"]] as const) {
+    const folder = await prisma.account.findFirst({ where: { companyId: company.id, code, type: "ASSET", isPostable: false, isActive: true } });
+    if (folder) await prisma.accountMapping.upsert({
+      where: { companyId_key: { companyId: company.id, key } },
+      create: { id: uuidv7(), companyId: company.id, key, accountId: folder.id },
+      update: {},
+    });
+  }
   await seedCurrentFiscalYear(company.id);
 
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });

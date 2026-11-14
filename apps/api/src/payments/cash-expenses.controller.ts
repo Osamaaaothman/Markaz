@@ -50,6 +50,7 @@ export class CashExpensesController {
           lines: dto.lines.map((l) => ({
             expenseAccountId: l.expenseAccountId,
             amount: l.amount,
+            ...(l.costCenterId !== undefined ? { costCenterId: l.costCenterId } : {}),
             ...(l.costCenterRef !== undefined ? { costCenterRef: l.costCenterRef } : {}),
             ...(l.description !== undefined ? { description: l.description } : {}),
           })),

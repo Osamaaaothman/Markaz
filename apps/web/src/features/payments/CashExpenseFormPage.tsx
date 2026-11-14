@@ -7,7 +7,10 @@ import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
-import { tafqeetAmount } from "@erp/shared";
+import { Money, tafqeetAmount } from "@erp/shared";
+import { useCostCenters } from "./use-cost-centers";
+import { CostCentersDialog } from "./CostCentersDialog";
+import { normalizePaymentAmount } from "./payment-amount";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -16,6 +19,7 @@ import { useChartOfAccounts } from "../accounting/use-chart-of-accounts";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { LineField } from "../../shared/ui/LineField";
 import { useCreateCashExpense } from "./use-cash-expenses";
+import { usePaymentCashAccounts } from "./use-payments";
 
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
 const KNOWN_ERRORS = new Set([
@@ -25,6 +29,7 @@ const KNOWN_ERRORS = new Set([
   "EXPENSE_ACCOUNT_INVALID",
   "NO_OPEN_PERIOD",
   "LINES_EMPTY",
+  "COST_CENTER_INVALID",
 ]);
 
 // One expense line being filled in: which expense account, how much, and where it belongs (cost center).
@@ -33,6 +38,7 @@ interface CashExpenseLineDraft {
   expenseAccountId: string;
   amount: string;
   costCenterRef: string;
+  costCenterId: string;
   description: string;
 }
 
@@ -41,23 +47,26 @@ const emptyLine = (): CashExpenseLineDraft => ({
   expenseAccountId: "",
   amount: "",
   costCenterRef: "",
+  costCenterId: "",
   description: "",
 });
 
 const lineHasInput = (line: CashExpenseLineDraft): boolean =>
-  line.expenseAccountId !== "" || line.amount !== "" || line.costCenterRef !== "" || line.description !== "";
+  line.expenseAccountId !== "" || line.amount !== "" || line.costCenterRef !== "" || line.costCenterId !== "" || line.description !== "";
 
 const lineValid = (line: CashExpenseLineDraft): boolean =>
   line.expenseAccountId !== "" && DECIMAL.test(line.amount) && /[1-9]/.test(line.amount);
 
 // A small cash outlay straight to an expense: no supplier, no invoice. Pick where the money came
-// from (petty cash or a bank account) and split it over one or more expense lines, each with its own cost center.
+// from (a cash box) and split it over one or more expense lines, each with its own cost center.
 export function CashExpenseFormPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: accounts } = useChartOfAccounts();
+  const centers = useCostCenters();
+  const [showCenters, setShowCenters] = useState(false);
 
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
@@ -72,7 +81,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
     (saved) => {
       setDate(saved.date);
       setCashAccountId(saved.cashAccountId);
-      setLines(saved.lines?.length ? saved.lines : [emptyLine()]);
+      setLines(saved.lines?.length ? saved.lines.map((line) => ({ ...line, costCenterId: line.costCenterId ?? "" })) : [emptyLine()]);
       setDescription(saved.description);
       setReference(saved.reference);
     },
@@ -80,7 +89,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
   );
   const create = useCreateCashExpense(draft.id);
 
-  const cashAccounts = useMemo(() => (accounts ?? []).filter((a) => a.isPostable && a.type === "ASSET"), [accounts]);
+  const { data: cashAccounts = [], isFetching: cashAccountsLoading, isError: cashAccountsError } = usePaymentCashAccounts("CASH");
   const expenseAccounts = useMemo(() => (accounts ?? []).filter((a) => a.isPostable && a.type === "EXPENSE"), [accounts]);
 
   const expenseOptions = useMemo(
@@ -88,13 +97,10 @@ export function CashExpenseFormPage(): React.JSX.Element {
     [expenseAccounts, i18n.language],
   );
 
-  const total = lines.reduce((sum, l) => {
-    const n = parseFloat(l.amount);
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
+  const total = lines.reduce((sum, line) => DECIMAL.test(line.amount) ? sum.add(Money.of(line.amount, currency)) : sum, Money.zero(currency)).toDecimalString(4);
   const showTotal = lines.some((l) => l.amount !== "" && DECIMAL.test(l.amount) && /[1-9]/.test(l.amount));
 
-  const valid = cashAccountId !== "" && lines.length > 0 && lines.every(lineValid);
+  const valid = !cashAccountsLoading && !cashAccountsError && cashAccounts.some((a) => a.id === cashAccountId) && lines.length > 0 && lines.every((line) => lineValid(line) && (!line.costCenterId || centers.data?.some((center) => center.id === line.costCenterId && center.isActive)));
 
   const edit = (change: () => void): void => {
     change();
@@ -122,7 +128,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
         lines: lines.map((l) => ({
           expenseAccountId: l.expenseAccountId,
           amount: l.amount,
-          ...(l.costCenterRef.trim() ? { costCenterRef: l.costCenterRef.trim() } : {}),
+          ...(l.costCenterId ? { costCenterId: l.costCenterId } : l.costCenterRef.trim() ? { costCenterRef: l.costCenterRef.trim() } : {}),
           ...(l.description.trim() ? { description: l.description.trim() } : {}),
         })),
         ...(description.trim() ? { description: description.trim() } : {}),
@@ -138,8 +144,8 @@ export function CashExpenseFormPage(): React.JSX.Element {
             headline: saved.number,
             rows: [
               { label: t("cashExpenses.date"), value: toDateOnlyIsoString(date), ltr: true },
-              { label: t("created.amount"), value: formatMoney(total.toFixed(4), currency), ltr: true },
-              { label: t("created.inWords"), value: tafqeetAmount(total.toFixed(4), currency, i18n.language) },
+              { label: t("created.amount"), value: formatMoney(total, currency), ltr: true },
+              { label: t("created.inWords"), value: tafqeetAmount(total, currency, i18n.language) },
               { label: t("cashExpenses.cashAccount"), value: cash ? `${cash.code} — ${localizedName(cash, i18n.language)}` : "" },
               { label: t("cashExpenses.lines"), value: String(lines.length) },
             ],
@@ -183,8 +189,11 @@ export function CashExpenseFormPage(): React.JSX.Element {
               onChange={(e) => edit(() => setCashAccountId((e.value as string | null) ?? ""))}
               options={cashAccounts.map((a) => ({ label: `${a.code} — ${localizedName(a, i18n.language)}`, value: a.id }))}
               filter
-              placeholder={t("payments.pickBank")}
+              placeholder={t("payments.pickCash")}
+              loading={cashAccountsLoading}
+              emptyMessage={t("payments.noCashAccounts")}
             />
+            {!cashAccountsLoading && (cashAccountsError || cashAccounts.length === 0) ? <small className="erp-field__hint">{t(cashAccountsError ? "status.error" : "payments.noCashAccounts")}</small> : null}
           </div>
         </div>
         <div className="erp-field">
@@ -193,6 +202,8 @@ export function CashExpenseFormPage(): React.JSX.Element {
         </div>
 
         <h3 className="erp-form__section-title">{t("cashExpenses.lines")}</h3>
+        <Button type="button" label={t("costCenters.title")} icon="pi pi-list" text onClick={() => setShowCenters(true)} />
+        {centers.isError ? <p role="alert">{t("status.error")} <Button type="button" label={t("actions.retry")} text onClick={() => void centers.refetch()} /></p> : null}
         <div className="erp-lines">
           {lines.map((line) => (
             <div key={line.id} className="erp-lines__row">
@@ -206,19 +217,24 @@ export function CashExpenseFormPage(): React.JSX.Element {
                   className="erp-lines__account"
                 />
               </LineField>
+              <LineField label={t("cashExpenses.costCenter")} hint={line.costCenterRef && !line.costCenterId ? `${t("costCenters.legacy")}: ${line.costCenterRef}` : undefined}>
+                <Dropdown
+                  value={line.costCenterId || null}
+                  onChange={(e) => replaceLine({ ...line, costCenterId: (e.value as string | null) ?? "", costCenterRef: "" })}
+                  options={(centers.data ?? []).filter((center) => center.isActive || center.id === line.costCenterId).map((center) => ({ value: center.id, label: `${center.code} — ${localizedName(center, i18n.language)} (${t(`costCenters.kinds.${center.kind}`)})`, disabled: !center.isActive }))}
+                  loading={centers.isPending}
+                  filter showClear
+                  placeholder={t("costCenters.pick")}
+                  emptyMessage={t("costCenters.empty")}
+                  className="erp-lines__account"
+                />
+              </LineField>
               <LineField label={t("payments.amount")}>
                 <InputText
                   dir="ltr"
                   value={line.amount}
-                  onChange={(e) => replaceLine({ ...line, amount: e.target.value })}
+                  onChange={(e) => replaceLine({ ...line, amount: normalizePaymentAmount(e.target.value) })}
                   className={line.amount !== "" && !DECIMAL.test(line.amount) ? "erp-lines__amount p-invalid" : "erp-lines__amount"}
-                />
-              </LineField>
-              <LineField label={t("cashExpenses.costCenter")}>
-                <InputText
-                  value={line.costCenterRef}
-                  onChange={(e) => replaceLine({ ...line, costCenterRef: e.target.value })}
-                  placeholder={t("cashExpenses.costCenterPlaceholder")}
                 />
               </LineField>
               <LineField label={t("cashExpenses.description")}>
@@ -246,7 +262,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
         {showTotal ? (
           <div className="erp-lines__totals">
             <span>
-              {t("cashExpenses.total")}: <strong>{formatMoney(total.toFixed(4), currency)}</strong>
+              {t("cashExpenses.total")}: <strong>{formatMoney(total, currency)}</strong>
             </span>
           </div>
         ) : null}
@@ -258,6 +274,7 @@ export function CashExpenseFormPage(): React.JSX.Element {
         </div>
       </div>
       <CreatedDialog info={created} onHide={() => void navigate("/payments/cash-expenses")} />
+      <CostCentersDialog visible={showCenters} onHide={() => setShowCenters(false)} />
     </div>
   );
 }

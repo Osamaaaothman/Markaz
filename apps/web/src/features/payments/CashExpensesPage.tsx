@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
+import { CostCentersDialog } from "./CostCentersDialog";
 import { useNavigate } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
@@ -14,6 +16,7 @@ import { useCashExpenses, type CashExpenseSummary } from "./use-cash-expenses";
 export function CashExpensesPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
+  const [showCenters, setShowCenters] = useState(false);
   const navigate = useNavigate();
   const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useCashExpenses();
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
@@ -26,6 +29,7 @@ export function CashExpensesPage(): React.JSX.Element {
           <p className="erp-page__subtitle">{t("cashExpenses.subtitle")}</p>
         </div>
         <div className="erp-page__header-actions">
+          <Button label={t("costCenters.title")} icon="pi pi-list" outlined onClick={() => setShowCenters(true)} />
           <PermissionButton allowed={can("cash_expense:create")} label={t("cashExpenses.new")} icon="pi pi-plus" onClick={() => void navigate("/payments/cash-expenses/new")} />
         </div>
       </div>
@@ -57,6 +61,7 @@ export function CashExpensesPage(): React.JSX.Element {
           ) : null}
         </>
       )}
+      <CostCentersDialog visible={showCenters} onHide={() => setShowCenters(false)} />
     </div>
   );
 }

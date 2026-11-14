@@ -74,7 +74,7 @@ export interface GoodsReceiptLineDetail {
 
 export interface GoodsReceiptDetail extends GoodsReceiptSummary {
   readonly currency: string;
-  readonly journalEntryId: string;
+  readonly journalEntryId: string | null;
   readonly lines: readonly GoodsReceiptLineDetail[];
 }
 

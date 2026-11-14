@@ -110,6 +110,7 @@ model Company {
   salesInvoices           SalesInvoice[]
   payments                Payment[]
   cashExpenses            CashExpense[]
+  costCenters             CostCenter[]
   attachments             Attachment[]
   employees               Employee[]
   hrPayments              HrPayment[]
@@ -123,6 +124,8 @@ model Company {
   egsUnits EgsUnit[]
 
   @@map("companies")
+  inventoryShortfalls InventoryShortfall[]
+  inventoryCostSettlements InventoryCostSettlement[]
 }
 
 model User {
@@ -384,7 +387,8 @@ model Account {
   accountMappings               AccountMapping[]
   supplierInvoiceLines          SupplierInvoiceLine[]
   salesInvoiceLines             SalesInvoiceLine[]
-  payments                      Payment[]
+  payments                      Payment[]                @relation("PaymentCash")
+  counterPayments               Payment[]                @relation("PaymentCounterAccount")
   salaryAdvances                SalaryAdvance[]
   salaryAdvanceRepayments       SalaryAdvanceRepayment[]
   employeeAdvanceAccounts       Employee[]               @relation("EmployeeAdvanceAccount")
@@ -404,6 +408,7 @@ model Account {
   @@index([companyId, parentId])
   @@index([companyId, partyId])
   @@map("accounts")
+  inventoryShortfalls InventoryShortfall[]
 }
 
 // A person, company or employee an account can be kept for (custodian, supplier, customer...).
@@ -539,6 +544,7 @@ model JournalEntry {
   @@index([companyId, entryDate])
   @@index([companyId, sourceModule, sourceDocumentType, sourceDocumentId])
   @@map("journal_entries")
+  inventoryCostSettlements InventoryCostSettlement[]
 }
 
 // docs/04-DATA-MODEL-RULES.md §9: exactly one of debit/credit populated, both
@@ -547,6 +553,8 @@ model JournalEntry {
 // computed once at posting time from the entry's exchangeRate and stored — never
 // recomputed later (docs/04 §2).
 model JournalEntryLine {
+  costCenterId   String? @map("cost_center_id")
+  costCenter     CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   id             String  @id
   journalEntryId String  @map("journal_entry_id")
   accountId      String  @map("account_id")
@@ -699,6 +707,7 @@ model Warehouse {
   @@unique([companyId, code])
   @@unique([companyId, ref])
   @@map("warehouses")
+  inventoryShortfalls InventoryShortfall[]
 }
 
 model Item {
@@ -738,6 +747,7 @@ model Item {
   @@unique([companyId, code])
   @@unique([companyId, ref])
   @@map("items")
+  inventoryShortfalls InventoryShortfall[]
 }
 
 // Current on-hand quantity and its total cost per item+warehouse — the weighted-average
@@ -745,8 +755,7 @@ model Item {
 // own rounded figure (packages/core/src/inventory/weighted-average.util.ts), so repeated
 // receipts and issues never drift from the control account by accumulated rounding.
 // Updated in place, inside the same transaction as the stock movement that causes the
-// change — the CHECKs below are the database's own backstop against a negative issue or a
-// negative balance, not just an application-level check (docs/05 §9 principle).
+// change. Signed book stock is allowed; quantity/value signs must agree (ADR 0005).
 model ItemWarehouseStock {
   id          String   @id
   companyId   String   @map("company_id")
@@ -754,6 +763,7 @@ model ItemWarehouseStock {
   warehouseId String   @map("warehouse_id")
   quantity    Decimal  @default(0) @db.Decimal(19, 4)
   value       Decimal  @default(0) @db.Decimal(19, 4)
+  lastUnitCost Decimal? @map("last_unit_cost") @db.Decimal(27,8)
   updatedAt   DateTime @updatedAt @map("updated_at")
   version     Int      @default(1)
 
@@ -768,9 +778,8 @@ model ItemWarehouseStock {
 
 // Append-only, like journal_entry_lines — a correction is a new movement, never an edit
 // (docs/05 §2 principle extended to stock). `quantity` is signed: positive for a receipt or
-// a count surplus, negative for an issue or a count shortage. `journalEntryId` is always set:
-// every movement in M4 has a financial effect and is posted in the same transaction that
-// writes this row (docs/02 §5).
+// a count surplus, negative for an issue or a count shortage. Valued movements require a
+// journal in the same transaction; unvalued movements may have no journal (ADR 0005).
 model StockMovement {
   id                 String   @id
   companyId          String   @map("company_id")
@@ -783,7 +792,7 @@ model StockMovement {
   value              Decimal  @db.Decimal(19, 4)
   sourceDocumentType String   @map("source_document_type")
   sourceDocumentId   String   @map("source_document_id")
-  journalEntryId     String   @map("journal_entry_id")
+  journalEntryId     String?   @map("journal_entry_id")
   actorId            String   @map("actor_id")
   correlationId      String   @map("correlation_id")
   createdAt          DateTime @default(now()) @map("created_at")
@@ -791,7 +800,7 @@ model StockMovement {
   company      Company      @relation(fields: [companyId], references: [id])
   item         Item         @relation(fields: [itemId], references: [id])
   warehouse    Warehouse    @relation(fields: [warehouseId], references: [id])
-  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+  journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id])
 
   @@index([companyId, itemId, warehouseId])
   @@index([companyId, sourceDocumentType, sourceDocumentId])
@@ -837,7 +846,7 @@ model GoodsReceipt {
   purchaseOrderId String?  @map("purchase_order_id")
   documentDate    DateTime @map("document_date") @db.Date
   reference       String?
-  journalEntryId  String   @map("journal_entry_id")
+  journalEntryId  String?   @map("journal_entry_id")
   actorId         String   @map("actor_id")
   correlationId   String   @map("correlation_id")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -845,12 +854,14 @@ model GoodsReceipt {
   company       Company            @relation(fields: [companyId], references: [id])
   warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
   party         Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  journalEntry  JournalEntry       @relation(fields: [journalEntryId], references: [id])
+  journalEntry  JournalEntry?       @relation(fields: [journalEntryId], references: [id])
   purchaseOrder PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
   lines         GoodsReceiptLine[]
 
   @@unique([companyId, number])
   @@map("goods_receipts")
+  submissionKey String? @map("submission_key")
+  @@unique([companyId,submissionKey])
 }
 
 model GoodsReceiptLine {
@@ -874,9 +885,8 @@ model GoodsReceiptLine {
 
 // An issue to a project debits direct costs at the item's current weighted-average cost
 // (docs/14 M4 decision). `costCenterRef` is free text in M4 — no formal project/cost-center
-// module exists yet; it becomes a real link once one does. No negative stock
-// (docs/01-OPEN-DECISIONS.md A3 decision): the service rejects a line whose quantity exceeds
-// the warehouse's on-hand quantity, and item_warehouse_stock's own CHECK backstops it.
+// module exists yet; it becomes a real link once one does. Shortages carry a provisional
+// or pending cost, settled by incoming stock (ADR 0005).
 model StockIssue {
   id             String   @id
   companyId      String   @map("company_id")
@@ -884,18 +894,20 @@ model StockIssue {
   warehouseId    String   @map("warehouse_id")
   costCenterRef  String   @map("cost_center_ref")
   documentDate   DateTime @map("document_date") @db.Date
-  journalEntryId String   @map("journal_entry_id")
+  journalEntryId String?   @map("journal_entry_id")
   actorId        String   @map("actor_id")
   correlationId  String   @map("correlation_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
   company      Company          @relation(fields: [companyId], references: [id])
   warehouse    Warehouse        @relation(fields: [warehouseId], references: [id])
-  journalEntry JournalEntry     @relation(fields: [journalEntryId], references: [id])
+  journalEntry JournalEntry?     @relation(fields: [journalEntryId], references: [id])
   lines        StockIssueLine[]
 
   @@unique([companyId, number])
   @@map("stock_issues")
+  submissionKey String? @map("submission_key")
+  @@unique([companyId,submissionKey])
 }
 
 model StockIssueLine {
@@ -1470,17 +1482,20 @@ model SalesInvoiceLine {
   @@index([originalLineId])
 }
 
-// ─── Payments (customer receipts and supplier payments) ─────────────────────────
-// A RECEIPT is money in from a customer (Dr cash/bank, Cr receivable); a PAYMENT is money out to a
-// supplier (Dr payable, Cr cash/bank). The whole amount posts to the control account; the allocations
-// say which invoices it settles. Whatever is not allocated stays "on account" for the party. A posted
-// payment is immutable — a mistake is corrected by a reversing entry, never an edit.
+// ─── Receipt and payment vouchers ───────────────────────────────────────────────
+// RECEIPT: Dr cash/bank, Cr counter-account. PAYMENT: the opposite.
+// Customer/supplier roles use their invoice control account. Employee/account vouchers explicitly
+// select a counter-account. Eligible invoice allocations may total less than the voucher amount.
+// Posted financial fields are immutable; mistakes are corrected by a reversing entry.
 model Payment {
   id             String   @id
   companyId      String   @map("company_id")
   direction      String // RECEIPT | PAYMENT
   number         String
-  partyId        String   @map("party_id")
+  partyId        String?  @map("party_id")
+  // Null on legacy vouchers; their role follows direction. New vouchers store the selected role.
+  counterpartyKind String? @map("counterparty_kind") // CUSTOMER | SUPPLIER | EMPLOYEE | ACCOUNT
+  counterAccountId String? @map("counter_account_id")
   paymentDate    DateTime @map("payment_date") @db.Date
   amount         Decimal  @db.Decimal(19, 4)
   currency       String
@@ -1501,8 +1516,9 @@ model Payment {
   reversedByPaymentId  String?   @map("reversed_by_payment_id")
 
   company      Company             @relation(fields: [companyId], references: [id])
-  party        Party               @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  cashAccount  Account             @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  party        Party?              @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  cashAccount  Account             @relation("PaymentCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  counterAccount Account?          @relation("PaymentCounterAccount", fields: [counterAccountId], references: [id], onDelete: Restrict)
   journalEntry JournalEntry        @relation(fields: [journalEntryId], references: [id])
   allocations  PaymentAllocation[]
 
@@ -1564,6 +1580,8 @@ model CashExpense {
 }
 
 model CashExpenseLine {
+  costCenterId    String? @map("cost_center_id")
+  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   id               String   @id
   cashExpenseId    String   @map("cash_expense_id")
   expenseAccountId String   @map("expense_account_id")
@@ -1576,6 +1594,23 @@ model CashExpenseLine {
 
   @@index([cashExpenseId])
   @@map("cash_expense_lines")
+}
+
+model CostCenter {
+  id        String @id
+  companyId String @map("company_id")
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  code      String
+  name      String
+  nameAr    String? @map("name_ar")
+  kind      String
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  expenseLines CashExpenseLine[]
+  journalLines JournalEntryLine[]
+
+  @@unique([companyId, code])
+  @@map("cost_centers")
 }
 
 // Scanned bills, receipts and supporting documents linked to a business record. Insert-only for the runtime
@@ -2136,4 +2171,54 @@ model QuotationEmailAttempt {
   @@index([companyId, quotationId, id])
   @@index([quotationId])
   @@map("quotation_email_attempts")
+}
+
+// Mutable outstanding quantities; original estimate and settlement history are retained.
+model InventoryShortfall {
+  id String @id
+  companyId String @map("company_id")
+  itemId String @map("item_id")
+  warehouseId String @map("warehouse_id")
+  sourceDocumentType String @map("source_document_type")
+  sourceDocumentId String @map("source_document_id")
+  lineNumber Int @map("line_number")
+  expenseAccountId String @map("expense_account_id")
+  quantity Decimal @db.Decimal(19,4)
+  estimatedValue Decimal @map("estimated_value") @db.Decimal(19,4)
+  costKnown Boolean @map("cost_known")
+  remainingQuantity Decimal @map("remaining_quantity") @db.Decimal(19,4)
+  remainingValue Decimal @map("remaining_value") @db.Decimal(19,4)
+  createdAt DateTime @default(now()) @map("created_at")
+  company Company @relation(fields:[companyId],references:[id])
+  item Item @relation(fields:[itemId],references:[id])
+  warehouse Warehouse @relation(fields:[warehouseId],references:[id])
+  expenseAccount Account @relation(fields:[expenseAccountId],references:[id])
+  settlements InventoryCostSettlement[]
+  @@index([companyId,itemId,warehouseId,createdAt,id], map:"inventory_shortfalls_pool")
+  @@index([companyId,sourceDocumentType,sourceDocumentId], map:"inventory_shortfalls_source")
+  @@map("inventory_shortfalls")
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([expenseAccountId])
+}
+
+// Append-only adjustments: a later receipt never rewrites a posted invoice or entry.
+model InventoryCostSettlement {
+  id String @id
+  shortfallId String @map("shortfall_id")
+  companyId String @map("company_id")
+  quantity Decimal @db.Decimal(19,4)
+  estimatedValue Decimal @map("estimated_value") @db.Decimal(19,4)
+  actualValue Decimal @map("actual_value") @db.Decimal(19,4)
+  sourceDocumentType String @map("source_document_type")
+  sourceDocumentId String @map("source_document_id")
+  journalEntryId String? @map("journal_entry_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  shortfall InventoryShortfall @relation(fields:[shortfallId],references:[id])
+  company Company @relation(fields:[companyId],references:[id])
+  journalEntry JournalEntry? @relation(fields:[journalEntryId],references:[id])
+  @@map("inventory_cost_settlements")
+  @@index([shortfallId])
+  @@index([companyId])
+  @@index([journalEntryId])
 }
