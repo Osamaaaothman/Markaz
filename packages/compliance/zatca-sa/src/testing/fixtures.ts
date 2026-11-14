@@ -67,7 +67,8 @@ export function generateTestCertificate(): TestCertificate {
     const certificateBase64 = certificatePem
       .split("\n")
       .filter((line) => line.length > 0 && !line.startsWith("-----"))
-      .join("");
+      .join("")
+      .replace(/\s/g, "");
     cached = { certificateBase64, certificatePem, privateKeyPem: readFileSync(keyPath, "utf8") };
     return cached;
   } finally {
