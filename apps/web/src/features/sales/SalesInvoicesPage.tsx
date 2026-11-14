@@ -158,6 +158,17 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           <span>{invoice.dueDate ? formatCalendarDate(invoice.dueDate, i18n.language) : "—"}</span>
         </div>
       </div>
+      <section className="erp-card" aria-label={t("sales.invoices.customerDetails")}>
+        <h2 className="erp-card__title">{t("sales.invoices.customerDetails")}</h2>
+        <div className="erp-form__row">
+          <div className="erp-field"><label>{t("sales.customer")}</label><strong>{localizedName({ name: invoice.customerName, nameAr: invoice.customerNameAr }, i18n.language)}</strong></div>
+          <div className="erp-field"><label>{t("parties.vatNumber")}</label><span dir="ltr">{invoice.customerVatNumber || "—"}</span></div>
+          <div className="erp-field"><label>{t("parties.commercialRegistration")}</label><span dir="ltr">{invoice.customerCommercialRegistration || "—"}</span></div>
+          {invoice.customerPhone ? <div className="erp-field"><label>{t("parties.phone")}</label><span dir="ltr">{invoice.customerPhone}</span></div> : null}
+          {invoice.customerEmail ? <div className="erp-field"><label>{t("parties.email")}</label><span dir="ltr">{invoice.customerEmail}</span></div> : null}
+          <div className="erp-field"><label>{t("sales.invoices.customerAddress")}</label><span>{[invoice.customerBuildingNumber, invoice.customerStreetName, invoice.customerAdditionalStreetName, invoice.customerDistrict, invoice.customerCity, invoice.customerPostalCode, invoice.customerAdditionalNumber, invoice.customerCountryCode].filter(Boolean).join(i18n.language === "ar" ? "، " : ", ") || "—"}</span></div>
+        </div>
+      </section>
       {invoice.notes ? <p>{invoice.notes}</p> : null}
       <DataGrid value={[...invoice.lines]} searchable={false} className="erp-table" stripedRows showGridlines size="small">
         <Column header={t("sales.description")} body={(l: (typeof invoice.lines)[number]) => l.description} />
@@ -177,7 +188,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           {t("purchasing.invoices.gross")}: <strong>{formatMoney(invoice.totalGross, invoice.currency)}</strong>
         </span>
         <span>
-          {t("created.inWords")}: <strong>{tafqeetAmount(invoice.totalGross, invoice.currency)}</strong>
+          {t("created.inWords")}: <strong>{tafqeetAmount(invoice.totalGross, invoice.currency, i18n.language)}</strong>
         </span>
       </div>
       <ZatcaInvoicePanel salesInvoiceId={invoice.id} />

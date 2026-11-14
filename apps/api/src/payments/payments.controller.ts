@@ -18,7 +18,7 @@ import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decor
 import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { paymentToPdfHtml } from "./exports/payment-export.js";
@@ -52,7 +52,7 @@ async function mapPaymentErrors<T>(work: Promise<T>): Promise<T> {
 // right worth granting more carefully than recording a customer's receipt.
 @Controller("v1")
 export class PaymentsController {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly payments: PaymentService,
     private readonly prisma: PrismaService,
     private readonly attachments: AttachmentService,
@@ -129,7 +129,7 @@ export class PaymentsController {
       (p): p is string => Boolean(p?.trim()),
     );
     const sellerAddress = [sellerBuildingPart, ...sellerAddressParts].filter(Boolean).join(addressSeparator).trim() || null;
-    const pdf = await renderHtmlToPdf(
+    const pdf = await this.documents.render(actor.companyId, language,
       await paymentToPdfHtml({
         payment,
         language,

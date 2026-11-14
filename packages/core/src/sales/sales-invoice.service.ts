@@ -111,6 +111,9 @@ export interface SalesInvoiceDetail extends SalesInvoiceSummary {
   // Printed on the PDF header, next to the customer's name (docs/08 — never required to
   // post an invoice; a customer without these on file simply shows nothing for them).
   readonly customerVatNumber: string | null;
+  readonly customerPhone?: string | null;
+  readonly customerEmail?: string | null;
+  readonly customerCountryCode?: string | null;
   readonly customerCommercialRegistration: string | null;
   readonly customerStreetName: string | null;
   readonly customerAdditionalStreetName: string | null;
@@ -735,6 +738,9 @@ export class SalesInvoiceService {
       ...toSummary(row),
       notes: row.notes,
       customerVatNumber: row.customer.vatNumber,
+      customerPhone: row.customer.phone,
+      customerEmail: row.customer.email,
+      customerCountryCode: row.customer.countryCode,
       customerCommercialRegistration: row.customer.commercialRegistration,
       customerStreetName: row.customer.streetName,
       customerAdditionalStreetName: row.customer.additionalStreetName,

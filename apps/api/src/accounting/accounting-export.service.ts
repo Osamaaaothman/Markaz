@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BalanceSheetService, IncomeStatementService, TrialBalanceService } from "@erp/core";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import type { SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import type { ExportFormat } from "./dto/export-query.dto.js";
 import { balanceSheetToCsv, balanceSheetToPdfHtml } from "./exports/balance-sheet-export.js";
@@ -21,7 +21,7 @@ export interface ExportedFile {
 // report-service call, company lookup, and CSV/PDF branching actually live.
 @Injectable()
 export class AccountingExportService {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly prisma: PrismaService,
     private readonly trialBalanceService: TrialBalanceService,
     private readonly balanceSheetService: BalanceSheetService,
@@ -45,7 +45,7 @@ export class AccountingExportService {
       return { content: trialBalanceToCsv(result), contentType: "text/csv; charset=utf-8", filename: "trial-balance.csv" };
     }
     const html = await trialBalanceToPdfHtml({ result, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
-    return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "trial-balance.pdf" };
+    return { content: await this.documents.render(companyId, lang, html), contentType: "application/pdf", filename: "trial-balance.pdf" };
   }
 
   async exportBalanceSheet(
@@ -63,7 +63,7 @@ export class AccountingExportService {
       return { content: balanceSheetToCsv(result), contentType: "text/csv; charset=utf-8", filename: "balance-sheet.csv" };
     }
     const html = await balanceSheetToPdfHtml({ result, language: lang, companyName: localizedCompanyName(company, lang), currency: company.defaultCurrency });
-    return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "balance-sheet.pdf" };
+    return { content: await this.documents.render(companyId, lang, html), contentType: "application/pdf", filename: "balance-sheet.pdf" };
   }
 
   async exportIncomeStatement(
@@ -92,7 +92,7 @@ export class AccountingExportService {
       companyName: localizedCompanyName(company, lang),
       currency: company.defaultCurrency,
     });
-    return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: "income-statement.pdf" };
+    return { content: await this.documents.render(companyId, lang, html), contentType: "application/pdf", filename: "income-statement.pdf" };
   }
 
   // Arabic exports show each account's Arabic name where it has one (English otherwise).

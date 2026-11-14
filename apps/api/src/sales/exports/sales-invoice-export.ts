@@ -43,7 +43,7 @@ export async function salesInvoiceToPdfHtml(params: {
     (p): p is string => Boolean(p?.trim()),
   );
   const buildingPart = [invoice.customerBuildingNumber, invoice.customerAdditionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
-  const fullAddress = [buildingPart, ...addressParts].filter(Boolean).join(sep).trim();
+  const fullAddress = [buildingPart, ...addressParts, invoice.customerCountryCode].filter(Boolean).join(sep).trim();
 
   // Seller identity shown under the company name in the shared header shell.
   const sellerDetailLines = [
@@ -65,8 +65,10 @@ export async function salesInvoiceToPdfHtml(params: {
     `<span class="bill-to-name">${escapeHtml(customer)}</span>`,
     ...(invoice.customerVatNumber ? [`<span>${escapeHtml(t("salesInvoice.customerVatNumber"))}: ${escapeHtml(invoice.customerVatNumber)}</span>`] : []),
     ...(invoice.customerCommercialRegistration ? [`<span>${escapeHtml(t("salesInvoice.customerCr"))}: ${escapeHtml(invoice.customerCommercialRegistration)}</span>`] : []),
-    ...(fullAddress ? [`<span>${escapeHtml(fullAddress)}</span>`] : []),
-  ].join("<br/>");
+    ...(fullAddress ? [`<span><bdi dir="auto">${escapeHtml(fullAddress)}</bdi></span>`] : []),
+    ...(invoice.customerPhone ? [`<span>${escapeHtml(t("seller.phone"))}: <bdi dir="ltr">${escapeHtml(invoice.customerPhone)}</bdi></span>`] : []),
+    ...(invoice.customerEmail ? [`<span><bdi dir="ltr">${escapeHtml(invoice.customerEmail)}</bdi></span>`] : []),
+  ].join("");
 
   const extraCss = `
   .compliance-notice { border: 2pt solid #92400e; padding: 8pt; color: #78350f; background: #fffbeb; font-weight: 700; margin-block-end: 12pt; }
@@ -123,7 +125,7 @@ ${params.compliance && params.compliance.environment !== "production" ? `<div cl
     <tr class="grand-total"><th>${escapeHtml(t("salesInvoice.total"))}</th><td class="amount">${money(invoice.totalGross)}</td></tr>
   </table>
 </div>
-<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
+<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur, params.language))}</p>
 ${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
 ${params.compliance ? `<div class="invoice-compliance">
 ${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : ""}

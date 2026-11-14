@@ -37,7 +37,7 @@ import { IdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { AuthenticatedOnly } from "../identity/authenticated-only.decorator.js";
 import { PERMISSION_SERVICE } from "../identity/identity.tokens.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { purchaseOrderToPdfHtml } from "./exports/purchase-order-export.js";
@@ -57,7 +57,7 @@ import {
 
 @Controller("v1")
 export class PurchasingController {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly requests: PurchaseRequestService,
     private readonly orders: PurchaseOrderService,
     private readonly receiving: PurchaseReceiptService,
@@ -378,7 +378,7 @@ export class PurchasingController {
     const sep = language === "ar" ? "، " : ", ";
     const building = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
     const sellerAddress = [building, company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(Boolean).join(sep).trim() || null;
-    const pdf = await renderHtmlToPdf(await purchaseOrderToPdfHtml({ order, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: order.createdAt }));
+    const pdf = await this.documents.render(actor.companyId, language, await purchaseOrderToPdfHtml({ order, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: order.createdAt }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${order.number}.pdf"`);
     res.send(pdf);
@@ -405,7 +405,7 @@ export class PurchasingController {
     const building = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
     const sellerAddress = [building, company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(Boolean).join(sep).trim() || null;
     const issuer = raw?.actorId ? await this.prisma.user.findUnique({ where: { id: raw.actorId }, select: { email: true } }).catch(() => null) : null;
-    const pdf = await renderHtmlToPdf(await goodsReturnToPdfHtml({ gr, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
+    const pdf = await this.documents.render(actor.companyId, language, await goodsReturnToPdfHtml({ gr, language, companyName: localizedCompanyName(company, language), logoDataUri, sellerVatNumber: company.vatNumber, sellerCrNumber: company.crNumber, sellerAddress, sellerPhone: company.phone, issuedBy: issuer?.email ?? null, issuedAt: raw?.createdAt.toISOString() ?? null }));
     res.header("Content-Type", "application/pdf");
     res.header("Content-Disposition", `attachment; filename="${gr.number}.pdf"`);
     res.send(pdf);

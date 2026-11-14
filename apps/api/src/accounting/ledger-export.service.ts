@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { GeneralLedgerService, type LedgerStatement } from "@erp/core";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { renderHtmlToPdf } from "../documents/pdf-renderer.js";
+import { CompanyDocumentService } from "../documents/company-document.service.js";
 import type { SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import type { ExportedFile } from "./accounting-export.service.js";
 import { generalLedgerToCsv, generalLedgerToPdfHtml } from "./exports/general-ledger-export.js";
@@ -9,7 +9,7 @@ import { localizedCompanyName } from "../common/company-name.js";
 
 @Injectable()
 export class LedgerExportService {
-  constructor(
+  constructor(private readonly documents: CompanyDocumentService,
     private readonly prisma: PrismaService,
     private readonly ledger: GeneralLedgerService,
   ) {}
@@ -40,7 +40,7 @@ export class LedgerExportService {
       companyName: localizedCompanyName(company, lang),
       currency: company.defaultCurrency,
     });
-    return { content: await renderHtmlToPdf(html), contentType: "application/pdf", filename: `${base}.pdf` };
+    return { content: await this.documents.render(companyId, lang, html), contentType: "application/pdf", filename: `${base}.pdf` };
   }
 
   private async localizeName(

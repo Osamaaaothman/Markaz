@@ -1,4 +1,5 @@
 import { chromium, type Browser } from "playwright";
+import { escapeHtml } from "../common/html-escape.js";
 
 // docs/14-MILESTONES.md M3: "Bilingual PDF rendering pipeline (server-side,
 // RTL-correct)". HTML+CSS through a real browser engine is the only reliable way
@@ -17,15 +18,20 @@ async function getBrowser(): Promise<Browser> {
   return browserPromise;
 }
 
-export async function renderHtmlToPdf(html: string, options: { landscape?: boolean } = {}): Promise<Buffer> {
+export async function renderHtmlToPdf(html: string, options: { landscape?: boolean; letterheadHtml?: string } = {}): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
     // Templates embed approved assets. Never allow a document to fetch remote URLs.
     await page.route("**/*", (route) => route.request().url().startsWith("data:") ? route.continue() : route.abort());
     await page.emulateMedia({ media: "print" });
-    await page.setContent(html, { waitUntil: "load" });
+    const brandedHtml = options.letterheadHtml
+      ? html.replace(/<header class="company-head">[\s\S]*?<\/header>/, () => options.letterheadHtml!)
+      : html;
+    await page.setContent(brandedHtml, { waitUntil: "load" });
+    await page.evaluate("Promise.all(Array.from(document.images, img => img.decode().catch(() => undefined)))");
     await page.evaluate("document.fonts.ready");
+    const documentTitle = escapeHtml(await page.title());
     const footer = await page.evaluate<{ html: string; dir: string } | null>(`(() => {
       const element = document.querySelector(".report-footer-block");
       if (!element) return null;
@@ -33,11 +39,11 @@ export async function renderHtmlToPdf(html: string, options: { landscape?: boole
       element.remove();
       return result;
     })()`);
-    if (footer) await page.addStyleTag({ content: "@page { margin-bottom: 32mm; }" });
+    await page.addStyleTag({ content: `@page { size: A4 ${options.landscape ? "landscape" : "portrait"}; margin-bottom: 26mm; }` });
     return await page.pdf({ format: "A4", printBackground: true, landscape: options.landscape ?? false,
-      ...(footer ? { displayHeaderFooter: true, headerTemplate: "<span></span>",
-        footerTemplate: `<style>.issued-by-block{display:flex;gap:28px;border-top:1px solid #ddd;padding-top:8px;margin-bottom:8px}.issued-by-block span{display:block}.issued-by-block strong{display:block;font-weight:400;color:#666;margin-bottom:3px}.computer-generated{text-align:center;margin:0;color:#666}bdi{unicode-bidi:isolate}</style><div dir="${footer.dir === "rtl" ? "rtl" : "ltr"}" style="font-family:'Noto Sans Arabic','Segoe UI',sans-serif;font-size:9px;color:#444;width:100%;padding:0 14mm;box-sizing:border-box">${footer.html}</div>`,
-        margin: { bottom: "32mm" } } : {}),
+      displayHeaderFooter: true, headerTemplate: "<span></span>",
+      footerTemplate: `<style>.issued-by-block{display:flex;gap:28px;margin-bottom:6px}.issued-by-block span{display:block}.issued-by-block strong{display:block;font-weight:400;color:#64716c;margin-bottom:2px}.computer-generated{text-align:center;margin:0;color:#64716c}bdi{unicode-bidi:isolate}</style><div dir="${footer?.dir === "rtl" ? "rtl" : "ltr"}" style="font-family:'Noto Sans Arabic','Segoe UI',sans-serif;font-size:9px;color:#444;width:100%;padding:0 14mm;box-sizing:border-box"><div style="border-top:1px solid #cdd7d2;padding-top:7px">${footer?.html ?? ""}<div style="display:flex;justify-content:space-between;gap:20px;margin-top:5px;color:#64716c"><span>${documentTitle}</span><span dir="ltr"><span class="pageNumber"></span> / <span class="totalPages"></span></span></div></div></div>`,
+      margin: { bottom: "26mm" },
     });
   } finally {
     await page.close();
