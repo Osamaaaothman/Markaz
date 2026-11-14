@@ -7,6 +7,7 @@ import { findOpenFiscalPeriod } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "./account-mapping.service.js";
 import { lockStockRow, saveStockRow } from "./stock-row.repo.js";
 import { applyCountAdjustment, averageUnitCost } from "./weighted-average.util.js";
+import { receiveStock, recordSettlements, settlementJournalLines, type CostSettlement } from "./provisional-cost.repo.js";
 
 export class StockCountError extends Error {
   constructor(
@@ -201,7 +202,7 @@ export class StockCountService {
       for (const line of input.lines) {
         const stockRow = await tx.itemWarehouseStock.findUnique({
           where: { itemId_warehouseId: { itemId: line.itemId, warehouseId: input.warehouseId } },
-          select: { quantity: true, value: true },
+          select: { quantity: true, value: true, lastUnitCost: true },
         });
         const state = stockRow
           ? { quantity: stockRow.quantity, value: stockRow.value }
@@ -212,6 +213,8 @@ export class StockCountService {
           unitCost = averageUnitCost(state);
         } else if (line.unitCostIfNoStock !== undefined) {
           unitCost = new Prisma.Decimal(line.unitCostIfNoStock);
+        } else if (stockRow?.lastUnitCost !== null && stockRow?.lastUnitCost !== undefined) {
+          unitCost = stockRow.lastUnitCost;
         } else {
           throw new StockCountError(
             "UNIT_COST_REQUIRED",
@@ -270,15 +273,19 @@ export class StockCountService {
 
       let totalShortage = new Prisma.Decimal(0);
       let totalSurplus = new Prisma.Decimal(0);
-      // Movement rows are created once a journal entry id is known (or known not to exist) —
-      // stock_movements.journal_entry_id is NOT NULL with a real foreign key, so there is no
-      // valid placeholder to insert and fix up later within the same transaction.
+      const costSettlements: CostSettlement[] = [];
+      // Write append-only movements after posting. Unvalued physical movements have no journal.
       const movedLines: { itemId: string; variance: Prisma.Decimal; unitCost: Prisma.Decimal; varianceValue: Prisma.Decimal }[] = [];
 
       for (const line of count.lines) {
         const stock = await lockStockRow(tx, actor.companyId, line.itemId, count.warehouseId);
-        const adjustment = applyCountAdjustment(stock.state, line.countedQuantity, line.unitCost);
-        await saveStockRow(tx, stock.id, adjustment.state);
+        const variance = line.countedQuantity.minus(stock.state.quantity);
+        const adjustment = variance.greaterThan(0)
+          ? { variance, varianceValue: variance.times(line.unitCost).toDecimalPlaces(4) }
+          : applyCountAdjustment(stock.state, line.countedQuantity, line.unitCost);
+        if (variance.greaterThan(0)) costSettlements.push(...await receiveStock(tx,
+          { companyId: actor.companyId, itemId: line.itemId, warehouseId: count.warehouseId }, variance, adjustment.varianceValue));
+        else await saveStockRow(tx, stock.id, applyCountAdjustment(stock.state, line.countedQuantity, line.unitCost).state);
 
         if (adjustment.varianceValue.lessThan(0)) totalShortage = totalShortage.plus(adjustment.varianceValue.negated());
         else if (adjustment.varianceValue.greaterThan(0)) totalSurplus = totalSurplus.plus(adjustment.varianceValue);
@@ -291,7 +298,7 @@ export class StockCountService {
       let journalEntryId: string | null = null;
       // Nothing varied: no account has anything to record, and IAccountingEngine.postEntry
       // requires at least 2 lines — there is nothing to post.
-      if (totalShortage.greaterThan(0) || totalSurplus.greaterThan(0)) {
+      if (totalShortage.greaterThan(0) || totalSurplus.greaterThan(0) || costSettlements.some((s) => !s.actualValue.equals(s.estimatedValue))) {
         const period = await findOpenFiscalPeriod(tx, actor.companyId, count.documentDate);
         const currency = await companyCurrency(tx, actor.companyId);
         if (!period) throw new StockCountError("NO_OPEN_PERIOD", "No open fiscal period covers this document date");
@@ -305,6 +312,7 @@ export class StockCountService {
         const netInventory = totalSurplus.minus(totalShortage);
 
         const lines = [
+          ...settlementJournalLines(costSettlements, inventoryAccountId),
           ...(lossAccountId ? [{ accountId: lossAccountId, debit: totalShortage.toFixed(4), description: "Stock count shortage" }] : []),
           ...(gainAccountId ? [{ accountId: gainAccountId, credit: totalSurplus.toFixed(4), description: "Stock count surplus" }] : []),
           ...(netInventory.greaterThan(0)
@@ -332,7 +340,9 @@ export class StockCountService {
           tx,
         );
         journalEntryId = posting.journalEntryId;
+      }
 
+      if (movedLines.length) {
         await tx.stockMovement.createMany({
           data: movedLines.map((l) => ({
             id: newId(),
@@ -345,7 +355,7 @@ export class StockCountService {
             value: l.varianceValue.abs(),
             sourceDocumentType: "stock_count",
             sourceDocumentId: countId,
-            journalEntryId: journalEntryId as string,
+            journalEntryId,
             actorId: actor.id,
             correlationId,
           })),
@@ -354,6 +364,8 @@ export class StockCountService {
           await tx.stockCountLine.update({ where: { id: line.id }, data: { journalEntryId } });
         }
       }
+
+      await recordSettlements(tx, costSettlements, { type: "stock_count", id: countId }, journalEntryId, actor.id, correlationId);
 
       await tx.stockCount.update({ where: { id: countId }, data: { postedAt: new Date() } });
 

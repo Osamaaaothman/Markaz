@@ -6,8 +6,7 @@ import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
 import { returnShare } from "../inventory/return-amount.util.js";
-import { lockStockRow, saveStockRow } from "../inventory/stock-row.repo.js";
-import { applyIssue, InsufficientStockError } from "../inventory/weighted-average.util.js";
+import { issueStock } from "../inventory/provisional-cost.repo.js";
 import { loadOutstanding } from "../payments/outstanding.js";
 import { allocateDocumentNumber } from "../reference.js";
 import { expenseLineMath, invoiceTotals, poLineMath, type PoLineMath } from "./supplier-invoice.util.js";
@@ -492,6 +491,7 @@ export class SupplierInvoiceService {
         { accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_PAYABLE"), debit: gross.toFixed(4), description: "Debit note" },
       ];
       const stockReturns: { itemId: string; warehouseId: string; quantity: Prisma.Decimal; value: Prisma.Decimal; unitCost: Prisma.Decimal }[] = [];
+      const noteId = newId();
       const stockValues = new Map<string, Prisma.Decimal>();
       const ordered = sources.filter((entry) => entry?.source.kind === "PO_LINE")
         .sort((a, b) => (a!.source.purchaseOrderLine!.itemId + a!.warehouseId).localeCompare(b!.source.purchaseOrderLine!.itemId + b!.warehouseId));
@@ -500,14 +500,8 @@ export class SupplierInvoiceService {
         const warehouse = warehouseId ? await tx.warehouse.findFirst({ where: { id: warehouseId, companyId: actor.companyId, isActive: true } }) : null;
         if (!warehouse) throw new SupplierInvoiceError("WAREHOUSE_NOT_FOUND", "Choose an active return warehouse");
         const itemId = source.purchaseOrderLine!.itemId;
-        const stock = await lockStockRow(tx, actor.companyId, itemId, warehouse.id);
-        let issued;
-        try { issued = applyIssue(stock.state, quantity); }
-        catch (error) {
-          if (error instanceof InsufficientStockError) throw new SupplierInvoiceError("INSUFFICIENT_STOCK", error.message);
-          throw error;
-        }
-        await saveStockRow(tx, stock.id, issued.state);
+        const issued = await issueStock(tx, { companyId: actor.companyId, itemId, warehouseId: warehouse.id }, quantity,
+          { type: "supplier_debit_note", id: noteId, lineNumber: stockReturns.length + 1 }, () => this.accountMappings.resolve(tx, actor.companyId, "PURCHASE_PRICE_VARIANCE"));
         stockValues.set(source.id, issued.value);
         stockReturns.push({ itemId, warehouseId: warehouse.id, quantity, value: issued.value, unitCost: issued.unitCost });
       }
@@ -533,7 +527,6 @@ export class SupplierInvoiceService {
         journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_INPUT"), credit: totalTax.toFixed(4), description: "Debit note: input VAT" });
       }
 
-      const noteId = newId();
       const posting = await this.engine.postEntry(
         {
           companyId: actor.companyId,

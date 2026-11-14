@@ -4,8 +4,10 @@ import type { IAccountingEngine, IAuditLogger } from "../contracts.js";
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "./account-mapping.service.js";
-import { lockStockRow, saveStockRow } from "./stock-row.repo.js";
-import { InsufficientStockError, applyIssue } from "./weighted-average.util.js";
+import { issueStock } from "./provisional-cost.repo.js";
+import { allocateDocumentNumber } from "../reference.js";
+import { fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
+import { lockSubmission } from "../documents/submission-lock.js";
 
 export class StockIssueError extends Error {
   constructor(
@@ -61,8 +63,9 @@ export interface StockIssueLineDetail {
 }
 
 export interface StockIssueDetail extends StockIssueSummary {
+  readonly stockCostStatus?: "FINAL" | "PROVISIONAL" | "PENDING";
   readonly currency: string;
-  readonly journalEntryId: string;
+  readonly journalEntryId: string | null;
   readonly lines: readonly StockIssueLineDetail[];
 }
 
@@ -80,7 +83,7 @@ export interface StockIssueListPage {
 export interface StockIssueResult {
   readonly id: string;
   readonly number: string;
-  readonly journalEntryId: string;
+  readonly journalEntryId: string | null;
 }
 
 const ISSUE_INCLUDE = {
@@ -105,9 +108,7 @@ function toIssueSummary(r: IssueRow): StockIssueSummary {
 }
 
 // An issue to a project charges Direct Costs at the item's current weighted-average cost and
-// credits Inventory — docs/14-MILESTONES.md M4 decision. No negative stock
-// (docs/01-OPEN-DECISIONS.md A3): a line that asks for more than is on hand fails the whole
-// document cleanly (InsufficientStockError), nothing is issued, nothing is posted.
+// credits Inventory. Shortages use provisional or pending costs, settled on receipt (ADR 0005).
 export class StockIssueService {
   constructor(
     private readonly prisma: PrismaClient,
@@ -133,9 +134,14 @@ export class StockIssueService {
   async get(id: string, companyId: string): Promise<StockIssueDetail | null> {
     const row = await this.prisma.stockIssue.findFirst({ where: { id, companyId }, include: ISSUE_INCLUDE });
     if (!row) return null;
+    const outstanding = await this.prisma.inventoryShortfall.findMany({
+      where: { companyId, sourceDocumentType: "stock_issue", sourceDocumentId: id, remainingQuantity: { gt: 0 } },
+      select: { costKnown: true },
+    });
     const { defaultCurrency } = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { defaultCurrency: true } });
     return {
       ...toIssueSummary(row),
+      stockCostStatus: outstanding.some((s) => !s.costKnown) ? "PENDING" : outstanding.length ? "PROVISIONAL" : "FINAL",
       currency: defaultCurrency,
       journalEntryId: row.journalEntryId,
       lines: row.lines.map((l) => ({
@@ -163,6 +169,9 @@ export class StockIssueService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await lockSubmission(tx, actor.companyId, "stock_issue", idempotencyKey);
+      const previous = await tx.stockIssue.findFirst({ where: { companyId: actor.companyId, submissionKey: idempotencyKey } });
+      if (previous) return { id: previous.id, number: previous.number, journalEntryId: previous.journalEntryId };
       const warehouse = await tx.warehouse.findFirst({
         where: { id: input.warehouseId, companyId: actor.companyId, isActive: true },
         select: { id: true },
@@ -184,27 +193,21 @@ export class StockIssueService {
       const inventoryAccountId = await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY");
 
       let totalValue = new Prisma.Decimal(0);
+      const issueId = newId();
       const lineRecords: { itemId: string; quantity: Prisma.Decimal; unitCost: Prisma.Decimal; value: Prisma.Decimal }[] = [];
       for (const line of input.lines) {
         const quantity = new Prisma.Decimal(line.quantity);
-        const stock = await lockStockRow(tx, actor.companyId, line.itemId, input.warehouseId);
-        let issued;
-        try {
-          issued = applyIssue(stock.state, quantity);
-        } catch (error) {
-          if (error instanceof InsufficientStockError) {
-            throw new StockIssueError("INSUFFICIENT_STOCK", error.message);
-          }
-          throw error;
-        }
-        await saveStockRow(tx, stock.id, issued.state);
+        const issued = await issueStock(tx, { companyId: actor.companyId, itemId: line.itemId, warehouseId: input.warehouseId }, quantity,
+          { type: "stock_issue", id: issueId, lineNumber: lineRecords.length + 1 }, expenseAccountId);
 
         totalValue = totalValue.plus(issued.value);
         lineRecords.push({ itemId: line.itemId, quantity, unitCost: issued.unitCost, value: issued.value });
       }
 
-      const issueId = newId();
-      const posting = await this.engine.postEntry(
+      const posting = totalValue.isZero() ? {
+        journalEntryId: null,
+        number: await allocateDocumentNumber(tx, actor.companyId, "stock_issue", "SI", await fiscalYearKeyFor(tx, actor.companyId, input.documentDate)),
+      } : await this.engine.postEntry(
         {
           companyId: actor.companyId,
           fiscalPeriodId: period.id,
@@ -229,6 +232,7 @@ export class StockIssueService {
       await tx.stockIssue.create({
         data: {
           id: issueId,
+          submissionKey: idempotencyKey,
           companyId: actor.companyId,
           number,
           warehouseId: input.warehouseId,

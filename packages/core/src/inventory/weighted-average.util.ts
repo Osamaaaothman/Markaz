@@ -54,9 +54,8 @@ export interface IssueResult {
   readonly value: Prisma.Decimal;
 }
 
-// No negative stock (docs/01-OPEN-DECISIONS.md A3 decision) — throws rather than letting a
-// caller silently overdraw; item_warehouse_stock's own CHECK is the database-level backstop
-// for a concurrent race this function cannot see (docs/05 §9 principle).
+// Values only the available positive pool. Provisional issues split shortages from this
+// portion in provisional-cost.repo.ts; this pure helper must never invent missing costs.
 export function applyIssue(state: StockState, quantity: Prisma.Decimal | string): IssueResult {
   const qty = toDecimal(quantity);
   if (!qty.greaterThan(0)) throw new RangeError(`Issue quantity must be positive, got ${qty.toFixed()}`);
@@ -110,8 +109,8 @@ export function applyCountAdjustment(
   if (cost.lessThan(0)) throw new RangeError(`Unit cost cannot be negative, got ${cost.toFixed()}`);
 
   const variance = counted.minus(state.quantity);
-  const varianceValue = variance.times(cost).toDecimalPlaces(VALUE_DECIMALS);
-  const newValue = Prisma.Decimal.max(0, state.value.plus(varianceValue));
+  const newValue = counted.isZero() ? new Prisma.Decimal(0) : Prisma.Decimal.max(0, state.value.plus(variance.times(cost).toDecimalPlaces(VALUE_DECIMALS)));
+  const varianceValue = newValue.minus(state.value);
 
   return { state: { quantity: counted, value: newValue }, variance, varianceValue };
 }

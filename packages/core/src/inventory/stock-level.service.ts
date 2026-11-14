@@ -13,6 +13,7 @@ export interface StockLevelEntry {
   readonly quantity: string;
   readonly value: string;
   readonly averageUnitCost: string;
+  readonly costStatus: "FINAL" | "PROVISIONAL" | "PENDING";
   readonly reorderPoint: string;
   readonly belowReorderPoint: boolean;
 }
@@ -40,7 +41,9 @@ export class StockLevelService {
       orderBy: [{ item: { code: "asc" } }, { warehouse: { code: "asc" } }],
     });
 
-    const entries = rows.map((row) => {
+    const pending = await this.prisma.inventoryShortfall.findMany({ where: { companyId, remainingQuantity: { gt: 0 }, costKnown: false }, select: { itemId: true, warehouseId: true } });
+    const unknownPools = new Set(pending.map((s) => `${s.itemId}:${s.warehouseId}`));
+    const entries = rows.map<StockLevelEntry>((row) => {
       const belowReorderPoint = row.quantity.lessThan(row.item.reorderPoint);
       return {
         itemId: row.itemId,
@@ -53,7 +56,8 @@ export class StockLevelService {
         warehouseNameAr: row.warehouse.nameAr,
         quantity: row.quantity.toFixed(4),
         value: row.value.toFixed(4),
-        averageUnitCost: averageUnitCost(row).toFixed(4),
+        averageUnitCost: (row.quantity.isZero() ? row.lastUnitCost : averageUnitCost(row))?.toFixed(4) ?? "0.0000",
+        costStatus: row.quantity.lessThan(0) ? (unknownPools.has(`${row.itemId}:${row.warehouseId}`) ? "PENDING" : "PROVISIONAL") : "FINAL",
         reorderPoint: row.item.reorderPoint.toFixed(4),
         belowReorderPoint,
       };

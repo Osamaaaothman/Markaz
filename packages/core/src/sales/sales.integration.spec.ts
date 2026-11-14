@@ -160,7 +160,7 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
     expect((await trialBalance.compute(companyId)).isBalanced).toBe(true);
   });
 
-  it("refuses more than the order has left, and more than the warehouse holds, leaving nothing behind", async () => {
+  it("refuses excess order quantity and below-cost direct sales without mutating stock", async () => {
     await expect(
       invoices.createInvoice(
         { customerId, invoiceDate: today, lines: [{ itemId, warehouseId, salesOrderLineId: itemLineId, quantity: "2", unitPrice: "100", taxCodeId: vat15 }] },
@@ -172,7 +172,7 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
 
     await expect(
       invoices.createInvoice({ customerId, invoiceDate: today, lines: [{ itemId, warehouseId, quantity: "100", unitPrice: "1", taxCodeId: vat15 }] }, actor, cid(), newId()),
-    ).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK", lineNumber: 1 });
+    ).rejects.toMatchObject({ code: "BELOW_COST", lineNumber: 1 });
 
     expect((await stockLevels.list(companyId, { itemId }))[0]?.quantity).toBe("7.0000");
     expect((await orders.get(companyId, orderId)).lines.find((l) => l.id === itemLineId)?.invoicedQuantity).toBe("3.0000");

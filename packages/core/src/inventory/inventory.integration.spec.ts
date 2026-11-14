@@ -123,8 +123,8 @@ describeIfDb("Inventory (M4) — real database", () => {
     expect(itemByRef.data.map((i) => i.id)).toContain(itemId);
   });
 
-  let firstReceipt: { id: string; number: string; journalEntryId: string } | null = null;
-  let firstIssue: { id: string; number: string; journalEntryId: string } | null = null;
+  let firstReceipt: { id: string; number: string; journalEntryId: string | null } | null = null;
+  let firstIssue: { id: string; number: string; journalEntryId: string | null } | null = null;
 
   it("receiving stock debits Inventory and credits GRNI for exactly quantity * unit cost", async () => {
     const before = await inventoryAccountBalance();
@@ -200,16 +200,17 @@ describeIfDb("Inventory (M4) — real database", () => {
     expect(issue).toMatchObject({ number: firstIssue!.number, journalEntryId: firstIssue!.journalEntryId, costCenterRef: "PROJECT-1" });
     expect(issue.lines[0]).toMatchObject({ quantity: "5.0000", unitCost: "110.0000", value: "550.0000" });
     expect(await stockIssues.get(firstIssue!.id, newId())).toBeNull();
-    expect(await prisma.journalEntry.count({ where: { id: issue.journalEntryId, companyId } })).toBe(1);
+    expect(issue.journalEntryId).not.toBeNull();
+    expect(await prisma.journalEntry.count({ where: { id: issue.journalEntryId!, companyId } })).toBe(1);
   });
 
-  it("refuses to issue more than is on hand, and leaves stock and the ledger untouched", async () => {
+  it("rejects an invalid warehouse and leaves stock and the ledger untouched", async () => {
     const levelsBefore = await stockLevels.list(companyId, { itemId, warehouseId });
     const balanceBefore = await inventoryAccountBalance();
 
     await expect(
       stockIssues.create(
-        { warehouseId, costCenterRef: "PROJECT-1", documentDate: new Date(), lines: [{ itemId, quantity: "1000" }] },
+        { warehouseId: newId(), costCenterRef: "PROJECT-1", documentDate: new Date(), lines: [{ itemId, quantity: "1000" }] },
         actor,
         cid(),
         idk(),
@@ -222,7 +223,7 @@ describeIfDb("Inventory (M4) — real database", () => {
     expect(await inventoryAccountBalance()).toBeCloseTo(balanceBefore, 4);
   });
 
-  it("a concurrent issue for the last unit lets exactly one succeed", async () => {
+  it("concurrent issues both succeed and the shortage keeps the last known cost", async () => {
     const soloItemId = (await items.create({ code: "ITM-SOLO", name: "Solo Widget", unit: "EA" }, actor, cid())).id;
     await goodsReceipts.create(
       { warehouseId, documentDate: new Date(), lines: [{ itemId: soloItemId, quantity: "1", unitCost: "50" }] },
@@ -242,12 +243,15 @@ describeIfDb("Inventory (M4) — real database", () => {
 
     const fulfilled = results.filter((r) => r.status === "fulfilled");
     const rejected = results.filter((r) => r.status === "rejected");
-    expect(fulfilled).toHaveLength(1);
-    expect(rejected).toHaveLength(1);
+    expect(fulfilled).toHaveLength(2);
+    expect(rejected).toHaveLength(0);
 
     const levels = await stockLevels.list(companyId, { itemId: soloItemId, warehouseId });
-    expect(levels[0]?.quantity).toBe("0.0000");
-    expect(levels[0]?.value).toBe("0.0000");
+    expect(levels[0]?.quantity).toBe("-1.0000");
+    expect(levels[0]?.value).toBe("-50.0000");
+    const pending = await prisma.inventoryShortfall.findMany({ where: { companyId, itemId: soloItemId } });
+    expect(pending).toHaveLength(1);
+    expect(pending[0]!.remainingQuantity.toFixed(4)).toBe("1.0000");
   });
 
   let shortageCount: { id: string; journalEntryId: string | null } | null = null;

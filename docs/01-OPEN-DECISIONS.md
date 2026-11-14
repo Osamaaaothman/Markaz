@@ -68,8 +68,10 @@ rounded average; issuing the full remaining quantity takes the full remaining va
 equal to the sum of stock values (docs/05-ACCOUNTING-INTEGRITY-RULES.md §7), proven by a
 300-iteration property test and a real-database integration test.
 
-Posting rules (goods receipt, stock issue to a project, stock count gain/loss) and the "no
-negative stock" rule were confirmed with Osama in chat; `GoodsReceiptService`,
+Posting rules (goods receipt, stock issue to a project, stock count gain/loss) were confirmed
+with Osama. The former no-negative-stock rule is superseded by the owner's 2026-11-14
+decision: advisory stock warnings, last-known provisional costs, and settlement on receipt
+([ADR 0005](adr/0005-sales-prices-and-provisional-stock-costs.md)); `GoodsReceiptService`,
 `StockIssueService`, `StockCountService` in the same folder. Still open: the two stock-count
 gain/loss accounts (`COUNT_GAIN`/`COUNT_LOSS` in `account_mappings`) need the accountant's
 account codes before a real company can post a count — the keys exist, nothing is mapped to

@@ -200,11 +200,14 @@ describeIfDb("Purchase returns (M5) — real database", () => {
     expect((await trialBalance.compute(companyId)).isBalanced).toBe(true);
   });
 
-  it("refuses a return when the chosen warehouse does not hold the goods, leaving everything untouched", async () => {
+  it("allows an empty return warehouse and records the pending inventory cost", async () => {
     const { orderId, lineId } = await receivedOrder("4", "10", "4");
-    await expect(returns.create(returnInput(orderId, lineId, "1", emptyWarehouseId), actor, cid(), newId())).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK" });
-    expect((await orders.get(companyId, orderId)).lines[0]!.receivedQuantity).toBe("4.0000");
-    expect(await prisma.goodsReturn.count({ where: { companyId, purchaseOrderId: orderId } })).toBe(0);
+    const result = await returns.create(returnInput(orderId, lineId, "1", emptyWarehouseId), actor, cid(), newId());
+    expect((await orders.get(companyId, orderId)).lines[0]!.receivedQuantity).toBe("3.0000");
+    expect(await prisma.goodsReturn.count({ where: { companyId, purchaseOrderId: orderId } })).toBe(1);
+    const pending = await prisma.inventoryShortfall.findFirstOrThrow({ where: { companyId, sourceDocumentId: result.id } });
+    expect(pending.remainingQuantity.toFixed(4)).toBe("1.0000");
+    expect(pending.costKnown).toBe(false);
   });
 
   it("validates the request: empty, unknown order, order with nothing received, line from another order, other company", async () => {
@@ -279,7 +282,7 @@ describeIfDb("Purchase returns (M5) — real database", () => {
     const stock = await prisma.itemWarehouseStock.findFirstOrThrow({ where: { companyId, itemId: item, warehouseId } });
     expect(stock.quantity.toFixed(4)).toBe("2.0000");
     expect(stock.value.toFixed(4)).toBe("20.0000");
-    await expect(invoices.createDebitNote({ ...input, lines: [{ ...line, warehouseId: emptyWarehouseId }] }, actor, cid(), newId())).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK" });
+    await expect(invoices.createDebitNote({ ...input, lines: [{ ...line, warehouseId: newId() }] }, actor, cid(), newId())).rejects.toMatchObject({ code: "WAREHOUSE_NOT_FOUND" });
     await expect(invoices.createDebitNote({ ...input, lines: [line, line] }, actor, cid(), newId())).rejects.toMatchObject({ code: "INVALID_RETURN" });
     const outcomes = await Promise.allSettled([1, 2].map(() => invoices.createDebitNote({ ...input, lines: [{ ...line, quantity: "2" }] }, actor, cid(), newId())));
     expect(outcomes.filter((r) => r.status === "fulfilled")).toHaveLength(1);

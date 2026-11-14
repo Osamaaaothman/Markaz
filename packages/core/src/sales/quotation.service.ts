@@ -7,6 +7,7 @@ import { fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { allocateDocumentNumber } from "../reference.js";
 import {
   SalesError,
+  assertSellingPrices,
   blankToNull,
   dateOnly,
   lockCustomer,
@@ -116,6 +117,7 @@ export class QuotationService {
       }
       await lockCustomer(tx, actor.companyId, input.customerId);
       const lines = await resolveSalesLines(tx, actor.companyId, input.lines);
+      await assertSellingPrices(tx, actor.companyId, lines);
       const totals = totalsOf(lines);
       const currency = await companyCurrency(tx, actor.companyId);
       const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.quotationDate);
