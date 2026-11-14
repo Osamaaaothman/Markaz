@@ -445,7 +445,9 @@ export class SalesInvoiceService {
         if (source.itemId && !warehouseId) throw new SalesError("WAREHOUSE_REQUIRED", "Choose a warehouse for returned goods");
         return { source, quantity, returned, warehouseId, cost: returnShare(source.costValue, source.quantity, returned, quantity) };
       });
-      if (linked && input.creditDate < original.invoiceDate) throw new SalesError("INVALID_RETURN", "Return date cannot precede the invoice");
+      // The form supplies a calendar date; the original also carries its time of issuance.
+      // A return on the same day is valid even when its input is midnight.
+      if (linked && dateOnly(input.creditDate) < dateOnly(original.invoiceDate)) throw new SalesError("INVALID_RETURN", "Return date cannot precede the invoice");
       const lines = linked ? sources.map((entry, index) => {
         const { source, quantity, returned } = entry!;
         return { itemId: source.itemId, description: source.description, quantity, unitPrice: source.unitPrice,
