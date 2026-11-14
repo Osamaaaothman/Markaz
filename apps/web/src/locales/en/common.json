@@ -1160,6 +1160,12 @@
     "cashAccount": "Cash / bank account",
     "expenseAccount": "Expense account",
     "pickExpenseAccount": "Choose the expense account",
+    "lines": "Lines",
+    "addLine": "Add line",
+    "total": "Total",
+    "costCenter": "Cost center",
+    "costCenterPlaceholder": "Project / dept / cost center",
+    "lineDescriptionPlaceholder": "Line description (optional)",
     "description": "Description",
     "errors": {
       "CASH_ACCOUNT_NOT_FOUND": "The cash or bank account was not found.",
@@ -1167,6 +1173,7 @@
       "EXPENSE_ACCOUNT_NOT_FOUND": "The expense account was not found.",
       "EXPENSE_ACCOUNT_INVALID": "Choose a postable expense account.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
+      "LINES_EMPTY": "Add at least one expense line.",
       "generic": "Something went wrong. Please try again."
     }
   },

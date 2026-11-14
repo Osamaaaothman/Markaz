@@ -1160,6 +1160,12 @@
     "cashAccount": "حساب نقدي / بنكي",
     "expenseAccount": "حساب المصروف",
     "pickExpenseAccount": "اختر حساب المصروف",
+    "lines": "البنود",
+    "addLine": "إضافة بند",
+    "total": "الإجمالي",
+    "costCenter": "مركز التكلفة",
+    "costCenterPlaceholder": "مشروع / إدارة / مركز تكلفة",
+    "lineDescriptionPlaceholder": "وصف البند (اختياري)",
     "description": "الوصف",
     "errors": {
       "CASH_ACCOUNT_NOT_FOUND": "لم يتم العثور على الحساب النقدي أو البنكي.",
@@ -1167,6 +1173,7 @@
       "EXPENSE_ACCOUNT_NOT_FOUND": "لم يتم العثور على حساب المصروف.",
       "EXPENSE_ACCOUNT_INVALID": "اختر حساب مصروف قابلاً للترحيل.",
       "NO_OPEN_PERIOD": "لا توجد فترة مالية مفتوحة تغطي هذا التاريخ.",
+      "LINES_EMPTY": "أضف بنداً واحداً على الأقل.",
       "generic": "حدث خطأ ما. حاول مرة أخرى."
     }
   },

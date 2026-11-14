@@ -396,7 +396,7 @@ model Account {
   hrPaymentsFrom                HrPayment[]              @relation("HrPaymentCash")
   hrPaymentItems                HrPaymentItem[]          @relation("HrPaymentItemAccount")
   cashExpensesFrom              CashExpense[]            @relation("CashExpenseCash")
-  cashExpenseLines              CashExpense[]            @relation("CashExpenseExpenseAccount")
+  cashExpenseLines              CashExpenseLine[]        @relation("CashExpenseLineExpenseAccount")
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -1542,8 +1542,6 @@ model CashExpense {
   currency         String
   // The petty-cash or bank account the money came out of.
   cashAccountId    String   @map("cash_account_id")
-  // The expense account it was spent on.
-  expenseAccountId String   @map("expense_account_id")
   description      String?
   reference        String?
   journalEntryId   String   @map("journal_entry_id")
@@ -1553,12 +1551,27 @@ model CashExpense {
 
   company        Company      @relation(fields: [companyId], references: [id])
   cashAccount    Account      @relation("CashExpenseCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
-  expenseAccount Account      @relation("CashExpenseExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  lines          CashExpenseLine[]
 
   @@unique([companyId, number])
   @@index([companyId, expenseDate])
   @@map("cash_expenses")
+}
+
+model CashExpenseLine {
+  id               String   @id
+  cashExpenseId    String   @map("cash_expense_id")
+  expenseAccountId String   @map("expense_account_id")
+  amount           Decimal  @db.Decimal(19, 4)
+  costCenterRef    String?  @map("cost_center_ref")
+  description      String?
+
+  cashExpense    CashExpense @relation(fields: [cashExpenseId], references: [id], onDelete: Cascade)
+  expenseAccount Account     @relation("CashExpenseLineExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+
+  @@index([cashExpenseId])
+  @@map("cash_expense_lines")
 }
 
 // Scanned bills, receipts and supporting documents linked to a business record. Insert-only for the runtime

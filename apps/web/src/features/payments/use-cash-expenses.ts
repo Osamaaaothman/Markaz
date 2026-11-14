@@ -12,9 +12,7 @@ export interface CashExpenseSummary {
   readonly cashAccountCode: string;
   readonly cashAccountName: string;
   readonly cashAccountNameAr: string | null;
-  readonly expenseAccountCode: string;
-  readonly expenseAccountName: string;
-  readonly expenseAccountNameAr: string | null;
+  readonly lineCount: number;
   readonly description: string | null;
   readonly reference: string | null;
 }
@@ -37,11 +35,18 @@ export function useCashExpenses() {
   });
 }
 
+// One expense account line of a cash expense; cost center and note are optional per line.
+export interface CashExpenseLinePayload {
+  readonly expenseAccountId: string;
+  readonly amount: string;
+  readonly costCenterRef?: string;
+  readonly description?: string;
+}
+
 export interface CreateCashExpensePayload {
   readonly expenseDate: string;
-  readonly amount: string;
   readonly cashAccountId: string;
-  readonly expenseAccountId: string;
+  readonly lines: readonly CashExpenseLinePayload[];
   readonly description?: string;
   readonly reference?: string;
 }

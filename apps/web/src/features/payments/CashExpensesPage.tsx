@@ -45,7 +45,7 @@ export function CashExpensesPage(): React.JSX.Element {
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: CashExpenseSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("cashExpenses.date")} style={{ width: "9rem" }} body={(r: CashExpenseSummary) => formatCalendarDate(r.expenseDate, i18n.language)} />
             <Column header={t("cashExpenses.cashAccount")} body={(r: CashExpenseSummary) => `${r.cashAccountCode} — ${localizedName({ name: r.cashAccountName, nameAr: r.cashAccountNameAr }, i18n.language)}`} />
-            <Column header={t("cashExpenses.expenseAccount")} body={(r: CashExpenseSummary) => `${r.expenseAccountCode} — ${localizedName({ name: r.expenseAccountName, nameAr: r.expenseAccountNameAr }, i18n.language)}`} />
+            <Column header={t("cashExpenses.lines")} style={{ width: "7rem" }} align="center" body={(r: CashExpenseSummary) => r.lineCount} />
             <Column header={t("cashExpenses.description")} body={(r: CashExpenseSummary) => r.description ?? ""} />
             <Column header={t("payments.reference")} body={(r: CashExpenseSummary) => r.reference ?? ""} />
             <Column header={t("created.amount")} align="right" body={(r: CashExpenseSummary) => <strong>{formatMoney(r.amount, r.currency)}</strong>} />

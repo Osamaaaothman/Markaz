@@ -46,9 +46,13 @@ export class CashExpensesController {
       this.cashExpenses.create(
         {
           expenseDate: new Date(dto.expenseDate),
-          amount: dto.amount,
           cashAccountId: dto.cashAccountId,
-          expenseAccountId: dto.expenseAccountId,
+          lines: dto.lines.map((l) => ({
+            expenseAccountId: l.expenseAccountId,
+            amount: l.amount,
+            ...(l.costCenterRef !== undefined ? { costCenterRef: l.costCenterRef } : {}),
+            ...(l.description !== undefined ? { description: l.description } : {}),
+          })),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
           ...(dto.reference !== undefined ? { reference: dto.reference } : {}),
         },
