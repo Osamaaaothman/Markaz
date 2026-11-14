@@ -4,6 +4,7 @@
 // below is a direct read of what ZATCA (or the transport) actually said, never assumed.
 import type { ComplianceOutcome } from "@erp/compliance-contract";
 import { ZatcaApiError, type ClearanceResponseBody, type ReportingResponseBody } from "./zatca-api-client.js";
+import { validationMessages } from "./validation-messages.js";
 
 export interface SubmissionOutcome {
   readonly complianceOutcome: ComplianceOutcome;
@@ -14,7 +15,8 @@ export interface SubmissionOutcome {
 }
 
 export function classifyClearanceResponse(response: ClearanceResponseBody): SubmissionOutcome {
-  const { warningMessages: warnings, errorMessages: errors } = response.validationResults;
+  const warnings = validationMessages(response.validationResults.warningMessages);
+  const errors = validationMessages(response.validationResults.errorMessages);
   if (response.clearanceStatus === "CLEARED") {
     const complianceOutcome: ComplianceOutcome = warnings.length > 0 ? { kind: "ACCEPTED_WITH_WARNINGS", warnings } : { kind: "CLEARED" };
     return { complianceOutcome, clearedXml: response.clearedInvoice ? Buffer.from(response.clearedInvoice, "base64").toString("utf8") : null, warnings, errors, rawResponse: response };
@@ -23,7 +25,8 @@ export function classifyClearanceResponse(response: ClearanceResponseBody): Subm
 }
 
 export function classifyReportingResponse(response: ReportingResponseBody): SubmissionOutcome {
-  const { warningMessages: warnings, errorMessages: errors } = response.validationResults;
+  const warnings = validationMessages(response.validationResults.warningMessages);
+  const errors = validationMessages(response.validationResults.errorMessages);
   if (response.reportingStatus === "REPORTED") {
     const complianceOutcome: ComplianceOutcome = warnings.length > 0 ? { kind: "ACCEPTED_WITH_WARNINGS", warnings } : { kind: "REPORTED" };
     return { complianceOutcome, clearedXml: null, warnings, errors, rawResponse: response };
@@ -54,5 +57,5 @@ export function classifyError(error: unknown): SubmissionOutcome {
     return { complianceOutcome: { kind: "REJECTED", reason: error.message }, clearedXml: null, warnings: [], errors: [error.message], rawResponse };
   }
   const message = error instanceof Error ? error.message : String(error);
-  return { complianceOutcome: { kind: "REJECTED", reason: message }, clearedXml: null, warnings: [], errors: [message], rawResponse: undefined };
+  return { complianceOutcome: { kind: "PACK_UNAVAILABLE" }, clearedXml: null, warnings: [], errors: [message], rawResponse: undefined };
 }

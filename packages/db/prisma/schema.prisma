@@ -2080,12 +2080,30 @@ model ZatcaInvoiceRecord {
 
   egsUnit      EgsUnit      @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
   salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+    history      ZatcaSubmissionAttempt[]
 
   @@unique([egsUnitId, icv])
   @@index([companyId])
   @@index([egsUnitId])
   @@index([companyId, status])
   @@map("zatca_invoice_records")
+}
+
+model ZatcaSubmissionAttempt {
+  id          String   @id
+  companyId   String   @map("company_id")
+  recordId    String   @map("record_id")
+  stage       String
+  status      String
+  startedAt   DateTime @map("started_at")
+  completedAt DateTime @map("completed_at")
+  warnings    Json
+  errors      Json
+  httpStatus  Int?     @map("http_status")
+  record      ZatcaInvoiceRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, recordId, startedAt])
+  @@map("zatca_submission_attempts")
 }
 
 // Outgoing quotation correspondence. Provider acceptance is distinct from delivery.

@@ -68,7 +68,7 @@ export interface ZatcaInvoiceInput {
   readonly id: string; // our own document number, e.g. "INV-2026-000001"
   readonly uuid: string;
   readonly issueDate: string; // YYYY-MM-DD
-  readonly issueTime: string; // HH:mm:ss
+  readonly issueTime: string; // HH:mm:ss (AST) or HH:mm:ssZ (UTC), BR-KSA-70
   readonly currency: string; // DocumentCurrencyCode and TaxCurrencyCode (Tier 1: always equal)
   readonly icv: string; // decimal string of the chain's invoice counter value
   readonly previousInvoiceHash: string; // base64, from EgsChainService

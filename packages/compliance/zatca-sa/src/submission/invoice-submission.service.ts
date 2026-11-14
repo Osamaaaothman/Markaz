@@ -19,7 +19,9 @@ import { signInvoiceXml, type SignedInvoice } from "../xml/xades-signature.js";
 import type { QrFields } from "../xml/qr.js";
 import { EgsChainService } from "../egs-chain.service.js";
 import { checkInvoiceConsistency } from "../validation/invoice-consistency.js";
-import { verifySignedInvoice } from "../validation/signed-invoice-verifier.js";
+import { verifySignedInvoice, stripSignatureElements } from "../validation/signed-invoice-verifier.js";
+import { hashInvoiceXml } from "../xml/invoice-hash.js";
+import { invoiceQrArtifact, readInvoiceArtifacts } from "../xml/invoice-artifacts.js";
 import type { ValidationReport } from "../validation/validation-report.js";
 import { ZatcaApiClient, type ClearanceRequestBody, type ZatcaCredentials } from "./zatca-api-client.js";
 import { classifyClearanceResponse, classifyError, classifyReportingResponse, type SubmissionOutcome } from "./submission-outcome.js";
@@ -97,34 +99,57 @@ export class InvoiceSubmissionService {
   ) {}
 
   async submit(params: SubmitInvoiceParams): Promise<SubmitInvoiceResult> {
-    const { recordId, icv, previousInvoiceHash } = await this.reserveChainPosition(params);
-    const invoiceInput = params.buildInvoiceInput({ icv, previousInvoiceHash });
-
-    const bareXml = buildBareInvoiceXml(invoiceInput);
-    await this.requireValid(params.salesInvoiceId, recordId, "BEFORE_SIGNING", checkInvoiceConsistency(bareXml));
-    const signed = signInvoiceXml(bareXml, {
-      certificatePem: params.certificatePem,
-      privateKeyPem: params.privateKeyPem,
-      signingTime: params.signingTime,
-      isSimplified: params.isSimplified,
-      qr: params.qr,
-    });
-
-    // A signing bug must never reach ZATCA (or, worse, be accepted and then fail an audit).
-    await this.requireValid(params.salesInvoiceId, recordId, "AFTER_SIGNING", verifySignedInvoice(signed.signedXml));
-
-    const outcome = await this.callZatca(params, invoiceInput, signed);
-    await this.finalize(params.egsUnitId, recordId, signed, outcome);
+    const startedAt = new Date();
+    const { recordId, icv, previousInvoiceHash, uuid, signedXml } = await this.reserveChainPosition(params);
+    let signed: Pick<SignedInvoice, "signedXml" | "invoiceHash" | "qrBase64">;
+    let invoiceUuid = uuid;
+    let isSimplified = params.isSimplified;
+    try {
+      if (signedXml) {
+        // A timeout can mean ZATCA accepted the request. Retry the exact bytes, even after renewal.
+        const stored = readInvoiceArtifacts(signedXml);
+        invoiceUuid = stored.uuid;
+        isSimplified = stored.simplified;
+        signed = { signedXml, invoiceHash: hashInvoiceXml(stripSignatureElements(signedXml)), qrBase64: stored.qr ?? "" };
+      } else {
+        const invoiceInput = { ...params.buildInvoiceInput({ icv, previousInvoiceHash }), uuid };
+        const bareXml = buildBareInvoiceXml(invoiceInput);
+        await this.requireValid(params, recordId, startedAt, "BEFORE_SIGNING", checkInvoiceConsistency(bareXml));
+        signed = signInvoiceXml(bareXml, {
+          certificatePem: params.certificatePem, privateKeyPem: params.privateKeyPem,
+          signingTime: params.signingTime, isSimplified: params.isSimplified, qr: params.qr,
+        });
+      }
+      await this.requireValid(params, recordId, startedAt, "AFTER_SIGNING", verifySignedInvoice(signed.signedXml));
+    } catch (error) {
+      if (error instanceof InvoiceValidationError) throw error;
+      // Store a safe diagnostic, never the signing inputs or cryptographic key material.
+      await this.requireValid(params, recordId, startedAt, "BEFORE_SIGNING", {
+        valid: false, issues: [{ severity: "error", code: "PREPARATION_FAILED", message: "Invoice signing failed; verify the EGS certificate and invoice configuration" }],
+      });
+      throw error;
+    }
+    // Persist before the network call so a process crash cannot lose the bytes that were sent.
+    await this.prisma.zatcaInvoiceRecord.update({ where: { id: recordId }, data: {
+      uuid: invoiceUuid, status: "SUBMITTING", signedXml: signed.signedXml,
+      invoiceHash: signed.invoiceHash.zatcaHash, qrCode: isSimplified ? signed.qrBase64 : null, submittedAt: startedAt,
+    } });
+    const submissionParams = { ...params, isSimplified };
+    const outcome = await this.callZatca(submissionParams, invoiceUuid, signed);
+    await this.finalize(submissionParams, recordId, startedAt, signed, outcome);
     return { zatcaInvoiceRecordId: recordId, outcome };
   }
 
   // Warnings never block; any error stops the submission, is written onto the record where the UI
   // shows it, and is thrown. `attempts` is not incremented: ZATCA was never called.
-  private async requireValid(salesInvoiceId: string, recordId: string, stage: InvoiceValidationError["stage"], report: ValidationReport): Promise<void> {
+  private async requireValid(params: SubmitInvoiceParams, recordId: string, startedAt: Date, stage: InvoiceValidationError["stage"], report: ValidationReport): Promise<void> {
     if (report.valid) return;
     const messages = report.issues.filter((i) => i.severity === "error").map((i) => `${i.code}: ${i.message}`);
-    await this.prisma.zatcaInvoiceRecord.update({ where: { id: recordId }, data: { status: "FAILED_RETRYABLE", validationErrors: messages } });
-    throw new InvoiceValidationError(salesInvoiceId, stage, messages);
+    await this.prisma.zatcaInvoiceRecord.update({ where: { id: recordId }, data: {
+      status: "FAILED_RETRYABLE", validationErrors: messages,
+      history: { create: { id: newId(), companyId: params.companyId, stage, status: "FAILED_RETRYABLE", startedAt, completedAt: new Date(), warnings: [], errors: messages } },
+    } });
+    throw new InvoiceValidationError(params.salesInvoiceId, stage, messages);
   }
 
   // Reads any existing record for this invoice first: refuses outright if it already has a
@@ -132,13 +157,14 @@ export class InvoiceSubmissionService {
   // correction is a new document, never a resubmission under the same UUID/ICV); resumes at the
   // SAME chain position if a previous attempt only got as far as FAILED_RETRYABLE or crashed
   // mid-flight (still SUBMITTING); otherwise reserves a fresh position.
-  private async reserveChainPosition(params: SubmitInvoiceParams): Promise<{ recordId: string; icv: bigint; previousInvoiceHash: string }> {
+  private async reserveChainPosition(params: SubmitInvoiceParams): Promise<{ recordId: string; icv: bigint; previousInvoiceHash: string; uuid: string; signedXml: string | null }> {
     const existing = await this.prisma.zatcaInvoiceRecord.findUnique({ where: { salesInvoiceId: params.salesInvoiceId } });
     if (existing) {
+      if (existing.companyId !== params.companyId || existing.egsUnitId !== params.egsUnitId) throw new Error("Invoice scope mismatch");
       if (DEFINITIVE_STATUSES.includes(existing.status as RecordStatus)) {
         throw new AlreadySubmittedError(params.salesInvoiceId);
       }
-      return { recordId: existing.id, icv: existing.icv, previousInvoiceHash: existing.previousInvoiceHash };
+      return { recordId: existing.id, icv: existing.icv, previousInvoiceHash: existing.previousInvoiceHash, uuid: existing.uuid, signedXml: existing.signedXml };
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -150,21 +176,21 @@ export class InvoiceSubmissionService {
           companyId: params.companyId,
           salesInvoiceId: params.salesInvoiceId,
           egsUnitId: params.egsUnitId,
-          uuid: newId(),
+          uuid: params.salesInvoiceId,
           icv: next.icv,
           previousInvoiceHash: next.previousInvoiceHash,
           status: "SUBMITTING",
         },
       });
-      return { recordId, icv: next.icv, previousInvoiceHash: next.previousInvoiceHash };
+      return { recordId, icv: next.icv, previousInvoiceHash: next.previousInvoiceHash, uuid: params.salesInvoiceId, signedXml: null };
     });
   }
 
-  private async callZatca(params: SubmitInvoiceParams, invoiceInput: ZatcaInvoiceInput, signed: SignedInvoice): Promise<SubmissionOutcome> {
+  private async callZatca(params: SubmitInvoiceParams, uuid: string, signed: Pick<SignedInvoice, "signedXml" | "invoiceHash">): Promise<SubmissionOutcome> {
     const client = this.apiClientFactory(params.environment);
     const body: ClearanceRequestBody = {
       invoiceHash: signed.invoiceHash.xmldsigBase64,
-      uuid: invoiceInput.uuid,
+      uuid,
       invoice: Buffer.from(signed.signedXml, "utf8").toString("base64"),
     };
     try {
@@ -179,12 +205,20 @@ export class InvoiceSubmissionService {
 
   // The ICV is consumed on any DEFINITIVE outcome (success or business rejection) — only a
   // transient failure leaves it unconsumed so a retry reuses the exact same chain position.
-  private async finalize(egsUnitId: string, recordId: string, signed: SignedInvoice, outcome: SubmissionOutcome): Promise<void> {
+  private async finalize(params: SubmitInvoiceParams, recordId: string, startedAt: Date, signed: Pick<SignedInvoice, "signedXml" | "invoiceHash" | "qrBase64">, outcome: SubmissionOutcome): Promise<void> {
     const status = statusFor(outcome.complianceOutcome);
+    const completedAt = new Date();
+    const artifact = invoiceQrArtifact(signed.signedXml, outcome.clearedXml);
+    const warnings = [...outcome.warnings];
+    if (!params.isSimplified && ["CLEARED", "ACCEPTED_WITH_WARNINGS"].includes(status) && !artifact) {
+      warnings.push("CLEARED_QR_UNAVAILABLE: The clearance response did not contain a matching invoice QR. Download the XML and check the response; do not use the pre-clearance QR.");
+    }
+    const raw = outcome.rawResponse;
+    const httpStatus = raw && typeof raw === "object" && "status" in raw && typeof raw.status === "number" ? raw.status : null;
     await this.prisma.$transaction(async (tx) => {
       if (status !== "FAILED_RETRYABLE") {
         const record = await tx.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: recordId } });
-        await this.chain.advance(tx, egsUnitId, record.icv, signed.invoiceHash.zatcaHash);
+        await this.chain.advance(tx, params.egsUnitId, record.icv, signed.invoiceHash.zatcaHash);
       }
       await tx.zatcaInvoiceRecord.update({
         where: { id: recordId },
@@ -193,14 +227,15 @@ export class InvoiceSubmissionService {
           invoiceHash: signed.invoiceHash.zatcaHash,
           signedXml: signed.signedXml,
           clearedXml: outcome.clearedXml,
-          qrCode: signed.qrBase64,
-          lastResponse: (outcome.rawResponse ?? null) as Prisma.InputJsonValue,
-          validationWarnings: outcome.warnings,
+          qrCode: artifact?.qr ?? null,
+          ...(outcome.rawResponse !== undefined ? { lastResponse: outcome.rawResponse as Prisma.InputJsonValue } : {}),
+          validationWarnings: warnings,
           validationErrors: outcome.errors,
           attempts: { increment: 1 },
-          submittedAt: new Date(),
-          ...(status === "CLEARED" || status === "ACCEPTED_WITH_WARNINGS" ? { clearedAt: new Date() } : {}),
-          ...(status === "REPORTED" ? { reportedAt: new Date() } : {}),
+          submittedAt: completedAt,
+          ...(["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS"].includes(status)
+            ? params.isSimplified ? { reportedAt: completedAt } : { clearedAt: completedAt } : {}),
+          history: { create: { id: newId(), companyId: params.companyId, stage: params.isSimplified ? "REPORTING" : "CLEARANCE", status, startedAt, completedAt, warnings, errors: [...outcome.errors], httpStatus } },
         },
       });
     });

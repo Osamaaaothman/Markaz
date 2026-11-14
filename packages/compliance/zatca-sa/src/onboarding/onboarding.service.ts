@@ -10,6 +10,7 @@
 // knows how to sign and submit what it's given, same separation of concerns as
 // InvoiceSubmissionService.buildInvoiceInput in ../submission/).
 import { newId } from "@erp/shared";
+import { validationMessages } from "../submission/validation-messages.js";
 import type { PrismaClient } from "@erp/db";
 import { encryptText, decryptText } from "../key-encryption.js";
 import { parseCertificate } from "../xml/cert-parser.js";
@@ -128,7 +129,7 @@ export class OnboardingService {
     };
     const result = await client.submitComplianceInvoice(credentials, body, params.acceptLanguage ?? "en");
     if (result.validationResults.errorMessages.length > 0 || result.clearanceStatus === "NOT_CLEARED" || result.reportingStatus === "NOT_REPORTED") {
-      throw new OnboardingError("COMPLIANCE_CHECK_FAILED", `Compliance check failed for ${params.sampleInvoice.documentType}/${params.sampleInvoice.subtype}: ${result.validationResults.errorMessages.join("; ")}`);
+      throw new OnboardingError("COMPLIANCE_CHECK_FAILED", `Compliance check failed for ${params.sampleInvoice.documentType}/${params.sampleInvoice.subtype}: ${validationMessages(result.validationResults.errorMessages).join("; ")}`);
     }
     return result;
   }

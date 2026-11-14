@@ -270,12 +270,18 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
 
     // Retry: same salesInvoiceId, now the transport succeeds.
     transport.queue(CLEARED_RESPONSE);
-    const second = await service.submit(params);
+    const second = await service.submit({ ...params, isSimplified: true, signingTime: "2026-11-05T13:00:00", buildInvoiceInput: () => { throw new Error("A retry must not remap an invoice"); } });
     expect(second.zatcaInvoiceRecordId).toBe(first.zatcaInvoiceRecordId); // same record, resumed
     expect(second.outcome.complianceOutcome).toEqual({ kind: "CLEARED" });
     const recordAfterRetry = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: first.zatcaInvoiceRecordId } });
     expect(recordAfterRetry.icv).toBe(1n); // same ICV reused, not a new one
     expect(recordAfterRetry.attempts).toBe(2);
+    expect(transport.calls[1]!.body).toEqual(transport.calls[0]!.body);
+    expect(transport.calls[1]!.url).toEqual(transport.calls[0]!.url);
+    expect(recordAfterRetry.uuid).toBe(params.salesInvoiceId);
+    const history = await prisma.zatcaSubmissionAttempt.findMany({ where: { recordId: recordAfterRetry.id }, orderBy: { startedAt: "asc" } });
+    expect(history.map((attempt) => attempt.status)).toEqual(["FAILED_RETRYABLE", "CLEARED"]);
+    expect(history[0]!.httpStatus).toBe(503);
     const stateAfterRetry = await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } });
     expect(stateAfterRetry.lastIcv).toBe(1n); // advanced only now
   });
