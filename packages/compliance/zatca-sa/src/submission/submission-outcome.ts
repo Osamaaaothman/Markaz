@@ -35,16 +35,14 @@ export function classifyReportingResponse(response: ReportingResponseBody): Subm
 }
 
 // docs/06 §4: "Retry only on transient errors... never blindly retry 400s." Three different
-// outcomes, not two — getting this wrong either burns an ICV on a problem that was never the
-// invoice's fault, or retries something retrying can never fix:
-//   - transient (network/5xx/429): PENDING_RETRY — the ICV is NOT consumed, retry the identical
-//     submission.
+// outcomes, not two. Generation has already consumed the ICV; transport outcomes only
+// determine whether those same document bytes may be retried:
+//   - transient (network/5xx/429): PENDING_RETRY — retry the identical submission.
 //   - AUTH_ERROR (401/403): PACK_UNAVAILABLE — our own credentials/config are wrong, not a
 //     judgement ZATCA made about this invoice. Retrying the identical request won't help either,
-//     but the ICV must not be burned over what is an operational misconfiguration, not a
-//     business rejection; this needs a human to fix the credentials, then a normal retry.
+//     so fix the credentials, then retry the same document without allocating another ICV.
 //   - anything else (a genuine 4xx ZATCA validation failure): REJECTED, same as a business
-//     rejection — the ICV IS consumed, and a correction is a new document, not a resubmission.
+//     rejection — a correction is a new document, not a resubmission.
 export function classifyError(error: unknown): SubmissionOutcome {
   if (error instanceof ZatcaApiError) {
     const rawResponse = { code: error.code, status: error.status, body: error.body };

@@ -17,7 +17,7 @@ import { buildBareInvoiceXml } from "../xml/invoice-xml-builder.js";
 import type { ZatcaInvoiceInput } from "../xml/invoice-xml.types.js";
 import { signInvoiceXml, type SignedInvoice } from "../xml/xades-signature.js";
 import type { QrFields } from "../xml/qr.js";
-import { EgsChainService } from "../egs-chain.service.js";
+import { EgsChainError, EgsChainService } from "../egs-chain.service.js";
 import { checkInvoiceConsistency } from "../validation/invoice-consistency.js";
 import { verifySignedInvoice, stripSignatureElements } from "../validation/signed-invoice-verifier.js";
 import { hashInvoiceXml } from "../xml/invoice-hash.js";
@@ -129,11 +129,19 @@ export class InvoiceSubmissionService {
       });
       throw error;
     }
-    // Persist before the network call so a process crash cannot lose the bytes that were sent.
-    await this.prisma.zatcaInvoiceRecord.update({ where: { id: recordId }, data: {
-      uuid: invoiceUuid, status: "SUBMITTING", signedXml: signed.signedXml,
-      invoiceHash: signed.invoiceHash.zatcaHash, qrCode: isSimplified ? signed.qrBase64 : null, submittedAt: startedAt,
-    } });
+    // Generation, not a successful HTTP response, consumes a chain position. Persist
+    // the signed bytes and advance atomically; retries keep the original position.
+    await this.prisma.$transaction(async (tx) => {
+      const next = await this.chain.peekNext(tx, params.egsUnitId);
+      if (next.icv < icv || (next.icv === icv && next.previousInvoiceHash !== previousInvoiceHash)) {
+        throw new EgsChainError("ICV_MISMATCH", "Invoice does not follow the persisted EGS chain");
+      }
+      await tx.zatcaInvoiceRecord.update({ where: { id: recordId }, data: {
+        uuid: invoiceUuid, status: "SUBMITTING", signedXml: signed.signedXml,
+        invoiceHash: signed.invoiceHash.zatcaHash, qrCode: isSimplified ? signed.qrBase64 : null, submittedAt: startedAt,
+      } });
+      if (next.icv === icv) await this.chain.advance(tx, params.egsUnitId, icv, signed.invoiceHash.zatcaHash);
+    });
     const submissionParams = { ...params, isSimplified };
     const outcome = await this.callZatca(submissionParams, invoiceUuid, signed);
     await this.finalize(submissionParams, recordId, startedAt, signed, outcome);
@@ -168,7 +176,21 @@ export class InvoiceSubmissionService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const next = await this.chain.peekNext(tx, params.egsUnitId);
+      let next = await this.chain.peekNext(tx, params.egsUnitId);
+      // Older versions saved signed documents but advanced only after a definitive
+      // HTTP outcome. Recover that one reserved tail without changing its evidence.
+      const pendingTail = await tx.zatcaInvoiceRecord.findUnique({
+        where: { egsUnitId_icv: { egsUnitId: params.egsUnitId, icv: next.icv } },
+        select: { companyId: true, signedXml: true, invoiceHash: true, previousInvoiceHash: true },
+      });
+      if (pendingTail?.signedXml && pendingTail.invoiceHash) {
+        if (pendingTail.companyId !== params.companyId || pendingTail.previousInvoiceHash !== next.previousInvoiceHash
+          || hashInvoiceXml(stripSignatureElements(pendingTail.signedXml)).zatcaHash !== pendingTail.invoiceHash) {
+          throw new EgsChainError("ICV_MISMATCH", "Stored invoice does not match the EGS chain tail");
+        }
+        await this.chain.advance(tx, params.egsUnitId, next.icv, pendingTail.invoiceHash);
+        next = await this.chain.peekNext(tx, params.egsUnitId);
+      }
       const recordId = newId();
       await tx.zatcaInvoiceRecord.create({
         data: {
@@ -203,8 +225,8 @@ export class InvoiceSubmissionService {
     }
   }
 
-  // The ICV is consumed on any DEFINITIVE outcome (success or business rejection) — only a
-  // transient failure leaves it unconsumed so a retry reuses the exact same chain position.
+  // HTTP outcomes update submission evidence only. The generation chain was already
+  // committed before the call and must never rewind when an older invoice is retried.
   private async finalize(params: SubmitInvoiceParams, recordId: string, startedAt: Date, signed: Pick<SignedInvoice, "signedXml" | "invoiceHash" | "qrBase64">, outcome: SubmissionOutcome): Promise<void> {
     const status = statusFor(outcome.complianceOutcome);
     const completedAt = new Date();
@@ -216,10 +238,6 @@ export class InvoiceSubmissionService {
     const raw = outcome.rawResponse;
     const httpStatus = raw && typeof raw === "object" && "status" in raw && typeof raw.status === "number" ? raw.status : null;
     await this.prisma.$transaction(async (tx) => {
-      if (status !== "FAILED_RETRYABLE") {
-        const record = await tx.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: recordId } });
-        await this.chain.advance(tx, params.egsUnitId, record.icv, signed.invoiceHash.zatcaHash);
-      }
       await tx.zatcaInvoiceRecord.update({
         where: { id: recordId },
         data: {
