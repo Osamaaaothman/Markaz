@@ -58,6 +58,7 @@ export class PartyStatementService {
   async statement(companyId: string, partyId: string, side: InvoiceSide, from: Date, to: Date): Promise<PartyStatement> {
     const party = await this.prisma.party.findFirst({ where: { id: partyId, companyId }, select: { id: true, name: true, nameAr: true } });
     if (!party) throw new PartyNotFoundError();
+    const salesBefore = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate() + 1));
 
     const rows =
       side === "SALES"
@@ -69,7 +70,7 @@ export class PartyStatementService {
                      CASE WHEN si.document_type IN ('INVOICE', 'DEBIT_NOTE') THEN si.total_gross ELSE 0 END AS charge,
                      CASE WHEN si.document_type = 'CREDIT_NOTE' THEN si.total_gross ELSE 0 END AS settlement,
                      si.created_at
-              FROM sales_invoices si WHERE si.company_id = ${companyId} AND si.customer_id = ${partyId} AND si.invoice_date <= ${to}::date
+              FROM sales_invoices si WHERE si.company_id = ${companyId} AND si.customer_id = ${partyId} AND si.invoice_date < ${salesBefore}
               UNION ALL
               SELECT 'RECEIPT', p.id, p.number, p.payment_date, p.reference, 0, p.amount, p.created_at
               FROM payments p WHERE p.company_id = ${companyId} AND p.party_id = ${partyId} AND p.direction = 'RECEIPT' AND p.payment_date <= ${to}::date

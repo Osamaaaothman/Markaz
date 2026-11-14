@@ -42,6 +42,10 @@ export async function loadOutstanding(
   options: { readonly ids?: readonly string[]; readonly partyId?: string; readonly asOf?: Date } = {},
 ): Promise<OutstandingInvoice[]> {
   const asOf = options.asOf ?? FAR_FUTURE;
+  // Sales documents carry issuance time; an inclusive business date includes the whole UTC date.
+  // Calculate in PostgreSQL so the unbounded 9999-12-31 sentinel never becomes an
+  // unsupported year-10000 JavaScript date in Prisma's parameter encoding.
+  const salesBefore = Prisma.sql`(((${asOf}::timestamptz AT TIME ZONE 'UTC')::date + 1)::timestamp AT TIME ZONE 'UTC')`;
   const ids = options.ids ? [...options.ids] : null;
   const partyId = options.partyId ?? null;
 
@@ -54,11 +58,11 @@ export async function loadOutstanding(
                    - COALESCE((SELECT SUM(a.amount) FROM payment_allocations a JOIN payments p ON p.id = a.payment_id
                                WHERE a.sales_invoice_id = si.id AND p.payment_date <= ${asOf}::date), 0)
                    - COALESCE((SELECT SUM(cn.total_gross) FROM sales_invoices cn
-                               WHERE cn.original_invoice_id = si.id AND cn.document_type = 'CREDIT_NOTE' AND cn.invoice_date <= ${asOf}::date), 0)
+                               WHERE cn.original_invoice_id = si.id AND cn.document_type = 'CREDIT_NOTE' AND cn.invoice_date < ${salesBefore}), 0)
                    + COALESCE((SELECT SUM(dn.total_gross) FROM sales_invoices dn
-                               WHERE dn.original_invoice_id = si.id AND dn.document_type = 'DEBIT_NOTE' AND dn.invoice_date <= ${asOf}::date), 0))::text AS outstanding
+                               WHERE dn.original_invoice_id = si.id AND dn.document_type = 'DEBIT_NOTE' AND dn.invoice_date < ${salesBefore}), 0))::text AS outstanding
           FROM sales_invoices si
-          WHERE si.company_id = ${companyId} AND si.document_type = 'INVOICE' AND si.invoice_date <= ${asOf}::date
+          WHERE si.company_id = ${companyId} AND si.document_type = 'INVOICE' AND si.invoice_date < ${salesBefore}
             AND (${ids}::text[] IS NULL OR si.id = ANY(${ids}::text[]))
             AND (${partyId}::text IS NULL OR si.customer_id = ${partyId})
           ORDER BY si.invoice_date, si.number

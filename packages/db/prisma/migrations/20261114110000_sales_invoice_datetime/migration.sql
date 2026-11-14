@@ -3,4 +3,4 @@
 -- column. The USING clause keeps existing rows at midnight UTC (safe: they predate ZATCA
 -- submission, so no live certificate chain references their timestamp yet).
 ALTER TABLE "sales_invoices"
-  ALTER COLUMN "invoice_date" TYPE TIMESTAMPTZ USING ("invoice_date"::timestamptz);
+  ALTER COLUMN "invoice_date" TYPE TIMESTAMPTZ USING ("invoice_date"::timestamp AT TIME ZONE 'UTC');

@@ -141,10 +141,11 @@ export class DashboardService {
 
   private async salesSummary(companyId: string, today: Date): Promise<{ thisMonthNet: string; openQuotations: number; openOrders: number }> {
     const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    const tomorrow = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1));
     const [invoices, creditNotes, debitNotes, openQuotations, openOrders] = await Promise.all([
-      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "INVOICE", invoiceDate: { gte: monthStart, lte: today } }, _sum: { totalNet: true } }),
-      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "CREDIT_NOTE", invoiceDate: { gte: monthStart, lte: today } }, _sum: { totalNet: true } }),
-      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "DEBIT_NOTE", invoiceDate: { gte: monthStart, lte: today } }, _sum: { totalNet: true } }),
+      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "INVOICE", invoiceDate: { gte: monthStart, lt: tomorrow } }, _sum: { totalNet: true } }),
+      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "CREDIT_NOTE", invoiceDate: { gte: monthStart, lt: tomorrow } }, _sum: { totalNet: true } }),
+      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "DEBIT_NOTE", invoiceDate: { gte: monthStart, lt: tomorrow } }, _sum: { totalNet: true } }),
       this.prisma.quotation.count({ where: { companyId, status: "OPEN" } }),
       this.prisma.salesOrder.count({ where: { companyId, status: { in: ["OPEN", "PARTIALLY_INVOICED"] } } }),
     ]);
