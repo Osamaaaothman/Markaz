@@ -10,15 +10,9 @@
 //   - signData/extractPublicKeyDer/extractCertificateSignatureDer (signing.ts) are verified
 //     against the real sample's key, certificate, and certificate signature
 //     (signing.spec.ts).
-//   - xades-signature.spec.ts verifies this module's OWN output end to end: the SignedInfo it
-//     builds, once canonicalized, produces a signature that verifies against its own public key,
-//     and the final document's top-level element order matches a real signed sample.
-//
-// One field could not be cross-checked: the official sample's own xades:CertDigest does not
-// match SHA-256 of its own embedded ds:X509Certificate (a sample-data inconsistency, not
-// something this code can resolve) — see docs/01-OPEN-DECISIONS.md section T. This module
-// computes CertDigest the spec-correct way (the hash of the actual certificate bytes).
-import { canonicalizeElementByLocalName } from "./canonicalize.js";
+//   - The API sales-flow SDK gate checks all six generated document types independently.
+//     Signature/certificate/SignedProperties conventions follow SDK 3.4.8. Earlier notes
+//     alleging sample inconsistencies are corrected in docs/zatca/DEVELOPMENT-VALIDATION.md.
 import { parseCertificate, type CertInfo } from "./cert-parser.js";
 import { hashCanonicalBytes, hashInvoiceXml, zatcaHashOf, type InvoiceHash } from "./invoice-hash.js";
 import { buildQrBase64, type QrFields } from "./qr.js";
@@ -54,7 +48,8 @@ function serialNumberDecimal(cert: CertInfo): string {
 }
 
 function buildSignedProperties(cert: CertInfo, signingTime: string): string {
-  const certDigest = zatcaHashOf(Buffer.from(cert.raw));
+  // SDK 3.4.8 SignatureValidator.getHashedCertificate hashes the base64 certificate text.
+  const certDigest = zatcaHashOf(Buffer.from(cert.raw.toString("base64"), "utf8"));
   return (
     `<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:ds="${DS_NS}" Id="xadesSignedProperties">` +
     `<xades:SignedSignatureProperties>` +
@@ -95,11 +90,14 @@ function buildSignedInfo(invoiceDigestBase64: string, signedPropertiesDigestZatc
 // the extension XML plus the signature value (reused verbatim as the QR code's tag 7).
 function buildSignatureExtension(invoiceHash: InvoiceHash, cert: CertInfo, certificateBase64: string, privateKeyPem: string, signingTime: string): { extensionXml: string; signatureBase64: string } {
   const signedPropertiesXml = buildSignedProperties(cert, signingTime);
-  const signedPropertiesDigest = hashCanonicalBytes(canonicalizeElementByLocalName(signedPropertiesXml, "http://uri.etsi.org/01903/v1.3.2#", "SignedProperties")).zatcaHash;
+  // The SDK hashes dom4j's serialized SignedProperties, including empty-element syntax,
+  // rather than C14N SignedProperties. Keep this compact fragment's namespaces explicit.
+  const signedPropertiesDigest = hashCanonicalBytes(signedPropertiesXml).zatcaHash;
 
   const signedInfoXml = buildSignedInfo(invoiceHash.xmldsigBase64, signedPropertiesDigest);
-  const canonicalSignedInfo = canonicalizeElementByLocalName(signedInfoXml, DS_NS, "SignedInfo");
-  const signatureBuffer = signData(Buffer.from(canonicalSignedInfo, "utf8"), privateKeyPem);
+  // ZATCA's SDK validates SHA256withECDSA over the raw invoice digest (SignatureValidator /
+  // ECDSAUtil), not over canonical SignedInfo. The independent SDK gate covers this profile.
+  const signatureBuffer = signData(invoiceHash.digest, privateKeyPem);
   const signatureBase64 = signatureBuffer.toString("base64");
 
   const signature =

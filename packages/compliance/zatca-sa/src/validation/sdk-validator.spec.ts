@@ -7,6 +7,8 @@ import { signInvoiceXml } from "../xml/xades-signature.js";
 import { SDK_CERTS, SDK_ROOT, SDK_SAMPLES, describeIfSdk } from "../testing/fixtures.js";
 import { findSdkJar, parseSdkVerdict, runSdkValidation } from "./sdk-validator.js";
 
+jest.setTimeout(150_000); // JVM startup/validation can exceed Jest's default on shared CI runners.
+
 describe("parseSdkVerdict", () => {
   it("reads PASSED and FAILED from the verdict line", () => {
     expect(parseSdkVerdict("...\nINFO - GLOBAL VALIDATION RESULT = PASSED\n")).toBe("PASSED");
@@ -20,8 +22,8 @@ describe("parseSdkVerdict", () => {
   });
 });
 
-// NOT run in the session that wrote it (no SDK there). Needs the SDK under docs/vendor/zatca/sdk
-// (or ZATCA_SDK_DIR) and `java` on PATH.
+// Required in CI; needs official SDK 3.4.8 and Java 11. The API integration suite validates
+// all six document types from posted sales documents; these cases check the harness and builder.
 describeIfSdk("the official SDK validates our documents", () => {
   const jar = findSdkJar(SDK_ROOT);
   const workDir = mkdtempSync(join(tmpdir(), "zatca-sdk-validate-"));
@@ -35,6 +37,16 @@ describeIfSdk("the official SDK validates our documents", () => {
     const result = await runSdkValidation({ sdkDir: SDK_ROOT, xmlPath: join(SDK_SAMPLES, "Standard", "Invoice", "Standard_Invoice.xml") });
     // If this is UNKNOWN the harness (flags / verdict pattern), not the invoice, needs fixing: read result.output.
     expect({ verdict: result.verdict, output: result.verdict === "PASSED" ? "" : result.output }).toEqual({ verdict: "PASSED", output: "" });
+  });
+
+  it("fails the gate for a corrupted simplified signature", async () => {
+    const sample = readFileSync(join(SDK_SAMPLES, "Simplified", "Invoice", "Simplified_Invoice.xml"), "utf8");
+    const corrupted = sample.replace(/<ds:SignatureValue>[^<]+<\/ds:SignatureValue>/, "<ds:SignatureValue>AAAA</ds:SignatureValue>");
+    expect(corrupted).not.toBe(sample);
+    const path = join(workDir, "corrupted-signature.xml");
+    writeFileSync(path, corrupted, "utf8");
+    const result = await runSdkValidation({ sdkDir: SDK_ROOT, xmlPath: path });
+    expect(result.verdict).toBe("FAILED");
   });
 
   it("our builder + signer output, signed with the SDK's own sample key and certificate, is accepted", async () => {

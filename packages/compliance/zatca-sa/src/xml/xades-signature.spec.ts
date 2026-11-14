@@ -5,7 +5,6 @@ import { buildBareInvoiceXml } from "./invoice-xml-builder.js";
 import type { ZatcaInvoiceInput, ZatcaParty } from "./invoice-xml.types.js";
 import { toPem, verifyData } from "./signing.js";
 import { signInvoiceXml } from "./xades-signature.js";
-import { canonicalizeElementByLocalName } from "./canonicalize.js";
 import { SDK_SAMPLES, describeIfSdk, generateTestCertificate } from "../testing/fixtures.js";
 
 
@@ -72,11 +71,10 @@ describe("signInvoiceXml — signature round trip with a generated secp256k1 key
     qr: { sellerName: "Maximum Speed Tech Supply LTD", vatNumber: "399999999900003", timestamp: "2026-11-04T12:21:28", invoiceTotalWithVat: "4.60", vatTotal: "0.60" },
   });
 
-  it("produces a document whose own SignedInfo, once canonicalized, verifies against the certificate's public key", () => {
-    const signedInfoCanonical = canonicalizeElementByLocalName(result.signedXml, "http://www.w3.org/2000/09/xmldsig#", "SignedInfo");
+  it("signs the raw invoice digest using the SDK's SHA256withECDSA profile", () => {
     const cert = new X509Certificate(certificatePem.includes("BEGIN") ? certificatePem : `-----BEGIN CERTIFICATE-----\n${certificatePem.trim()}\n-----END CERTIFICATE-----\n`);
     const signatureBuffer = Buffer.from(result.signatureBase64, "base64");
-    expect(verifyData(Buffer.from(signedInfoCanonical, "utf8"), signatureBuffer, cert.publicKey)).toBe(true);
+    expect(verifyData(result.invoiceHash.digest, signatureBuffer, cert.publicKey)).toBe(true);
   });
 
   it("embeds DER and signs correctly when the stored CSID wraps a base64-encoded token", () => {
@@ -89,11 +87,10 @@ describe("signInvoiceXml — signature round trip with a generated secp256k1 key
     });
     expect(signed.signedXml).toContain(`<ds:X509Certificate>${cert.raw.toString("base64")}</ds:X509Certificate>`);
     expect(signed.signedXml).not.toContain(token);
-    const signedInfo = canonicalizeElementByLocalName(signed.signedXml, "http://www.w3.org/2000/09/xmldsig#", "SignedInfo");
-    expect(verifyData(Buffer.from(signedInfo), Buffer.from(signed.signatureBase64, "base64"), cert.publicKey)).toBe(true);
+    expect(verifyData(signed.invoiceHash.digest, Buffer.from(signed.signatureBase64, "base64"), cert.publicKey)).toBe(true);
   });
 
-  it("reuses the SignedInfo signature verbatim as the QR code's tag 7", () => {
+  it("reuses the invoice signature verbatim as the QR code's tag 7", () => {
     const decoded = Buffer.from(result.qrBase64, "base64");
     let i = 0;
     let tag7: Buffer | undefined;

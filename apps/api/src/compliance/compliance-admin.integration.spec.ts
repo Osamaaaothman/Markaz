@@ -10,6 +10,7 @@ import type { AuditEvent, IAuditLogger } from "@erp/core";
 import {
   OnboardingService,
   ZatcaOnboardingApiClient,
+  encryptText,
   type CsidResponseBody,
   type ComplianceCheckResponseBody,
 } from "@erp/compliance-zatca-sa";
@@ -58,7 +59,7 @@ const ENCRYPTION_KEY = Buffer.from("k".repeat(32), "utf8");
 // and not part of the pack's public API (docs/02-ARCHITECTURE-RULES.md §1). Needed because
 // onboarding.service.ts parses the server-returned certificate with node:crypto's
 // X509Certificate to read its expiry — a scripted response must be a real, parseable cert.
-function generateTestCertificate(): { certificateBase64: string } {
+function generateTestCertificate(): { certificateBase64: string; privateKeyPem: string } {
   const dir = mkdtempSync(join(tmpdir(), "zatca-admin-test-cert-"));
   try {
     const keyPath = join(dir, "key.pem");
@@ -69,7 +70,7 @@ function generateTestCertificate(): { certificateBase64: string } {
       .split("\n")
       .filter((line) => line.length > 0 && !line.startsWith("-----"))
       .join("");
-    return { certificateBase64 };
+    return { certificateBase64, privateKeyPem: readFileSync(keyPath, "utf8") };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -273,6 +274,41 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     const final = await service.getEgsUnit(companyId, egs.id);
     expect(final.status).toBe("ACTIVE");
     expect(final.credentialStatus).toBe("ACTIVE");
+  });
+
+  it("a renewal requiring checks pauses the unit, resumes through all six checks, and exposes no credentials", async () => {
+    await service.updateSellerProfile(completeProfile, actor, newId());
+    const egs = await service.createEgsUnit({ name: "Till-renewal", businessCategory: "Retail", invoiceTypes: "1100", environment: "simulation" }, actor, newId());
+    const encrypted = (value: string): Uint8Array<ArrayBuffer> => Uint8Array.from(encryptText(value, ENCRYPTION_KEY));
+    await prisma.egsUnit.update({ where: { id: egs.id }, data: { status: "ACTIVE" } });
+    await prisma.egsCredential.create({ data: { id: newId(), companyId, egsUnitId: egs.id, status: "ACTIVE", privateKeyCiphertext: encrypted(testCertificate.privateKeyPem), productionCsidCiphertext: encrypted(testCertificate.certificateBase64), productionSecretCiphertext: encrypted("previous-secret") } });
+    const chain = await prisma.egsChainState.update({ where: { egsUnitId: egs.id }, data: { lastIcv: 17n, lastInvoiceHash: "unchanged" } });
+    const transport = new ScriptedTransport().queue({ status: 428, body: { requestID: 1730365866069, dispositionMessage: "NOT_COMPLIANT", binarySecurityToken: testCertificate.certificateBase64, secret: "renewal-secret" } });
+    service = makeService(transport);
+    await expect(service.renew(egs.id, "654321", { id: actor.id, companyId: otherCompanyId }, newId())).rejects.toMatchObject({ code: "EGS_NOT_FOUND" });
+    expect(transport.calls).toHaveLength(0);
+    const renewal = await service.renew(egs.id, "654321", actor, newId());
+    expect(renewal).toEqual({ step: "RENEWAL", ok: true, egsStatus: "COMPLIANCE_CSID_ISSUED" });
+    expect(await service.getEgsUnit(companyId, egs.id)).toMatchObject({ status: "COMPLIANCE_CSID_ISSUED", credentialStatus: "COMPLIANCE_CSID_ISSUED", lastRenewalAt: null });
+    expect(audit.events.some((event) => event.action === "compliance.renewal_checks_required")).toBe(true);
+    for (let index = 0; index < 6; index++) transport.queue({ status: 200, body: { clearanceStatus: "CLEARED", reportingStatus: "REPORTED", validationResults: { status: "PASS", errorMessages: [], warningMessages: [] } } });
+    const checks = await service.runComplianceChecks(egs.id, actor, newId());
+    expect(checks.ok).toBe(true);
+    expect(checks.checks).toHaveLength(6);
+    transport.queue({ status: 200, body: { requestID: "new-pcsid", binarySecurityToken: testCertificate.certificateBase64, secret: "new-production-secret" } });
+    const issued = await service.requestProductionCsid(egs.id, actor, newId());
+    expect(issued.egsStatus).toBe("ACTIVE");
+    const view = await service.getEgsUnit(companyId, egs.id);
+    expect(view).toMatchObject({ status: "ACTIVE", credentialStatus: "ACTIVE" });
+    expect(view.lastRenewalAt).not.toBeNull();
+    expect(await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId: egs.id } })).toEqual(chain);
+    const visible = JSON.stringify([renewal, checks, issued, view, audit.events]);
+    for (const secret of ["654321", "renewal-secret", "new-production-secret", testCertificate.certificateBase64, testCertificate.privateKeyPem]) expect(visible).not.toContain(secret);
+    transport.queue({ status: 428, body: { dispositionMessage: "NOT_COMPLIANT", binarySecurityToken: testCertificate.certificateBase64, secret: "must-not-leak" } });
+    const failed = await service.renew(egs.id, "654321", actor, newId());
+    expect(failed).toMatchObject({ ok: false, egsStatus: "ACTIVE", error: { code: "CLIENT_ERROR" } });
+    expect(failed.error).not.toHaveProperty("body");
+    expect(JSON.stringify(failed)).not.toContain("must-not-leak");
   });
 
   it("a failing sample keeps the unit at COMPLIANCE_CSID_ISSUED and reports every failure, not just the first", async () => {

@@ -107,11 +107,13 @@ export function EgsOnboardingDialog({ egsUnitId, visible, onHide }: { readonly e
 
 function StepResult({ result }: { readonly result: OnboardingStepResult }): React.JSX.Element {
   const { t } = useTranslation();
+  const renewalPending = result.step === "RENEWAL" && result.ok && result.egsStatus === "COMPLIANCE_CSID_ISSUED";
   return (
-    <div className={`erp-card ${result.ok ? "erp-card--success" : "erp-card--error"}`}>
+    <div className={`erp-card ${renewalPending ? "" : result.ok ? "erp-card--success" : "erp-card--error"}`}>
       <div className="erp-card__header">
-        <Tag value={t(`compliance.onboarding.steps.${result.step}`)} severity={result.ok ? "success" : "danger"} />
+        <Tag value={t(`compliance.onboarding.steps.${result.step}`)} severity={renewalPending ? "warning" : result.ok ? "success" : "danger"} />
       </div>
+      {renewalPending ? <p className="compliance-test-notice">{t("compliance.onboarding.renewalChecksRequired")}</p> : null}
       {result.checks ? (
         <ul className="mk-checklist">
           {result.checks.map((c) => (
