@@ -77,7 +77,7 @@ export class OnboardingService {
     const data = {
       csr: csrPem,
       privateKeyCiphertext: toBytesColumn(encryptText(privateKeyPem, this.encryptionKey)),
-      complianceRequestId: response.requestID,
+      complianceRequestId: String(response.requestID),
       complianceCsidCiphertext: toBytesColumn(encryptText(certificatePem, this.encryptionKey)),
       complianceSecretCiphertext: toBytesColumn(encryptText(response.secret, this.encryptionKey)),
       status: "COMPLIANCE_CSID_ISSUED",
@@ -92,7 +92,7 @@ export class OnboardingService {
     if (existing) {
       await this.prisma.egsCredential.update({ where: { id: existing.id }, data });
     }
-    return { egsCredentialId, complianceRequestId: response.requestID };
+    return { egsCredentialId, complianceRequestId: String(response.requestID) };
   }
 
   // Signs the given sample invoice with the compliance CSID issued by `startOnboarding` and
