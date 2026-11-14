@@ -962,7 +962,7 @@
       "generic": "Could not save this document.",
       "badRequest": "Check that Settings > Account mapping has the receivable, revenue, VAT and cost-of-goods accounts set, and that the date is in an open period.",
       "INSUFFICIENT_STOCK": "Not enough stock in that warehouse for this line.",
-      "INSUFFICIENT_STOCK_WARN": "One or more lines may have insufficient stock. The order will still be posted (drop-ship or factory-direct).",
+      "INSUFFICIENT_STOCK_WARN": "One or more lines may have insufficient stock. Replenish the selected warehouse or reduce the quantity before invoicing.",
       "BELOW_COST": "Unit price is below the weighted-average cost. Raise the price or use a credit note to adjust.",
       "OVER_INVOICED": "More than the quantity still to invoice on the order.",
       "CUSTOMER_MISMATCH": "An order line belongs to a different customer.",

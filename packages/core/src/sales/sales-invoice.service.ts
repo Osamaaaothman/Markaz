@@ -244,9 +244,7 @@ export class SalesInvoiceService {
           issued = applyIssue(stock.state, line.quantity);
         } catch (error) {
           if (error instanceof InsufficientStockError) {
-            // Drop-ship / factory-direct: allow posting but record zero cost (no stock movement).
-            costByLine.set(line.lineNumber, { unitCost: new Prisma.Decimal(0), value: new Prisma.Decimal(0), warehouseId: warehouse.id });
-            continue;
+            throw new SalesError("INSUFFICIENT_STOCK", error.message, line.lineNumber);
           }
           throw error;
         }
