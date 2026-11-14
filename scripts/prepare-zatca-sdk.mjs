@@ -6,8 +6,9 @@ import { spawnSync } from "node:child_process";
 const sdk = resolve(process.env.ZATCA_SDK_DIR ?? "docs/vendor/zatca/sdk");
 const paths = {
   xsdPath: "Data/Schemas/xsds/UBL2.1/xsd/maindoc/UBL-Invoice-2.1.xsd",
-  enSchematron: "Data/Rules/schematrons/CEN-EN16931-UBL.xsl",
-  zatcaSchematron: "Data/Rules/schematrons/20210819_ZATCA_E-invoice_Validation_Rules.xsl",
+  // The vendor defaults use lowercase here, but the ZIP directory is capitalized.
+  enSchematron: "Data/Rules/Schematrons/CEN-EN16931-UBL.xsl",
+  zatcaSchematron: "Data/Rules/Schematrons/20210819_ZATCA_E-invoice_Validation_Rules.xsl",
   certPath: "Data/Certificates/cert.pem",
   privateKeyPath: "Data/Certificates/ec-secp256k1-priv-key.pem",
   pihPath: "Data/PIH/pih.txt",
