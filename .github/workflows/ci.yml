@@ -25,7 +25,6 @@ jobs:
       DATABASE_URL: postgresql://erp_app@127.0.0.1:5432/postgres
       REDIS_URL: redis://127.0.0.1:6379
       ZATCA_REQUIRE_SDK: "1"
-      ZATCA_SDK_DIR: ${{ runner.temp }}/zatca/zatca-einvoicing-sdk-Java-238-R3.4.8
     steps:
       - uses: actions/checkout@v4
 
@@ -44,10 +43,12 @@ jobs:
       - name: Install and verify official ZATCA SDK 3.4.8 (required)
         shell: bash
         run: |
+          export ZATCA_SDK_DIR="$RUNNER_TEMP/zatca/zatca-einvoicing-sdk-Java-238-R3.4.8"
           curl --fail --location --retry 3 --max-time 180 'https://sadzit.sharepoint.com/:u:/s/EXTERNALZATCA/IQCVzjXNpLTOTZbrYhs_w7aIAb7pPg1wfwl6wACeu1xCPAQ?e=pn3riq&download=1' --output "$RUNNER_TEMP/zatca-sdk.zip"
           echo "91d079b4a6c21c8ed7fb6ec434227409537119cae8b74de34dc150f91793d1f6  $RUNNER_TEMP/zatca-sdk.zip" | sha256sum --check --strict
           unzip -q "$RUNNER_TEMP/zatca-sdk.zip" -d "$RUNNER_TEMP/zatca"
           node scripts/prepare-zatca-sdk.mjs
+          echo "ZATCA_SDK_DIR=$ZATCA_SDK_DIR" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: npm ci
