@@ -86,6 +86,14 @@ national address) and `parties` (buyer VAT number and national address, for a B2
   `@types/node`-vs-Prisma `Buffer`/`Uint8Array<ArrayBuffer>` generics mismatch, not a real type
   hole). Covered by `onboarding.service.spec.ts` against a real database and a scripted
   transport — never the real network (docs/06 §6).
+- `xml/cert-parser.ts` — accepts PEM, base64 DER, and the sandbox's extra base64
+  transport layer, including existing encrypted credentials armored by onboarding.
+  Signing embeds the decoded DER certificate; Basic auth retains the original
+  `binarySecurityToken`. OpenSSL parses all X.509 fields without an extension-bypass
+  fallback. The stored sandbox certificate parsed normally once decoded (2026-11-14).
+  Local troubleshooting: Docker's published API port and the host dev API may differ;
+  rebuilding Docker does not refresh an already-running host Node process or its
+  workspace `dist` modules. Check both the listener and resolved module before retrying.
 - `submission/zatca-environment.ts` — base URLs and CSR certificate template names per
   environment. `// REVIEW:` not yet confirmed against the Integration Sandbox's own swagger
   (still not reachable by this tool) — see `docs/01-OPEN-DECISIONS.md` section V.
@@ -138,11 +146,10 @@ but archived by its own maintainer in Aug 2025.
 
 ## Known gaps (Phases 1, 2, 3, 4, and 5 only)
 
-- **Only `requestComplianceCsid` has been confirmed against ZATCA's real sandbox** (a real
-  compliance CSID was issued — `docs/01-OPEN-DECISIONS.md` section X). `submitComplianceInvoice`,
-  `requestProductionCsid`, and `renewProductionCsid` are still unexercised against the real
-  sandbox — their endpoint/header/body shapes remain `// REVIEW:` until each gets its own real
-  call.
+- **Sandbox onboarding verified through ACTIVE on 2026-11-14:** all six compliance
+  samples passed and `requestProductionCsid` succeeded after correcting token decoding.
+  This was the developer sandbox, not the production environment. Renewal and actual
+  production invoice submission remain unverified against their live environments.
 - No API endpoints or UI anywhere yet (Phase 7) — nothing creates an `EgsUnit` or triggers
   onboarding through a real use case; every test creates one directly via Prisma and drives
   `OnboardingService` directly. The OTP (from the FATOORA portal, or the fixed sandbox value) is

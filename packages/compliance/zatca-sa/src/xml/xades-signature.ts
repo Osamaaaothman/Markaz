@@ -137,11 +137,9 @@ const SIGNATURE_PLACEHOLDER =
 // official samples use.
 export function signInvoiceXml(bareXml: string, context: SigningContext): SignedInvoice {
   const certificatePem = toPem(context.certificatePem, "CERTIFICATE");
-  const certificateBase64 = certificatePem
-    .split("\n")
-    .filter((line) => !line.startsWith("-----"))
-    .join("");
   const cert = parseCertificate(certificatePem);
+  // Embed the actual DER certificate, never the API token's extra base64 layer.
+  const certificateBase64 = cert.raw.toString("base64");
 
   const invoiceHash = hashInvoiceXml(bareXml);
   const { extensionXml, signatureBase64 } = buildSignatureExtension(invoiceHash, cert, certificateBase64, toPem(context.privateKeyPem, "EC PRIVATE KEY"), context.signingTime);

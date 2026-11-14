@@ -3,9 +3,9 @@
 // independent sources — this task's own brief and a Microsoft Dynamics 365 onboarding guide's
 // complete worked example (fetched 2026-11-05) — not just one secondary source.
 // `requestComplianceCsid` is now CONFIRMED against the real sandbox: a real call issued a real
-// compliance CSID (docs/01-OPEN-DECISIONS.md section X). `submitComplianceInvoice`/
-// `requestProductionCsid`/`renewProductionCsid` are // REVIEW: still unconfirmed — none of them
-// has been exercised against the real sandbox yet.
+// compliance CSID (docs/01-OPEN-DECISIONS.md section X). All six compliance samples and
+// `requestProductionCsid` also succeeded against the sandbox on 2026-11-14.
+// `renewProductionCsid` remains // REVIEW: not exercised against the real sandbox.
 import { ZATCA_BASE_URL, type ZatcaEnvironment } from "../submission/zatca-environment.js";
 import { FetchHttpTransport, classifyErrorStatus, DEFAULT_ZATCA_TIMEOUT_MS, type HttpTransport } from "../http/zatca-http-transport.js";
 import type { ZatcaCredentials } from "../submission/zatca-api-client.js";
@@ -14,11 +14,9 @@ import type { ClearanceRequestBody, ValidationResults } from "../submission/zatc
 export interface CsidResponseBody {
   readonly requestID: string;
   readonly dispositionMessage?: string;
-  // The certificate's body, base64 — NOT itself PEM-armored (confirmed by the Microsoft
-  // reference script, which wraps it in "-----BEGIN CERTIFICATE-----"/"-----END..." before
-  // using it). Encrypted at rest immediately by whoever calls this client — see
-  // onboarding.service.ts, never logged or returned further up by any API of ours
-  // (docs/09-SECURITY-RULES.md §5).
+  // Keep this token unchanged for authentication. The sandbox token adds a base64
+  // transport layer around certificate text; parseCertificate decodes it for signing.
+  // Encrypted at rest by onboarding.service.ts, never logged or returned by our API.
   readonly binarySecurityToken: string;
   readonly secret: string;
 }

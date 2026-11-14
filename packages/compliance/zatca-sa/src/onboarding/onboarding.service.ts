@@ -216,9 +216,9 @@ function toBytesColumn(value: Buffer): Uint8Array<ArrayBuffer> {
   return value as unknown as Uint8Array<ArrayBuffer>;
 }
 
-// ZATCA's Basic auth "username" is the raw base64 certificate body (the same value
-// `binarySecurityToken` carried in the onboarding response) — not the PEM-armored form stored
-// in EgsCredential, which exists for X509Certificate parsing and PCKS#10/XAdES use elsewhere.
+// Preserve the exact binarySecurityToken from the response for Basic auth. Its
+// encrypted storage uses PEM armor even when the token has an extra base64 layer;
+// parseCertificate unwraps that layer only for signing and expiry, never for auth.
 function certificateBodyBase64(certificatePem: string): string {
   return certificatePem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
 }

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildBareInvoiceXml } from "./invoice-xml-builder.js";
 import type { ZatcaInvoiceInput, ZatcaParty } from "./invoice-xml.types.js";
-import { verifyData } from "./signing.js";
+import { toPem, verifyData } from "./signing.js";
 import { signInvoiceXml } from "./xades-signature.js";
 import { canonicalizeElementByLocalName } from "./canonicalize.js";
 import { SDK_SAMPLES, describeIfSdk, generateTestCertificate } from "../testing/fixtures.js";
@@ -77,6 +77,20 @@ describe("signInvoiceXml — signature round trip with a generated secp256k1 key
     const cert = new X509Certificate(certificatePem.includes("BEGIN") ? certificatePem : `-----BEGIN CERTIFICATE-----\n${certificatePem.trim()}\n-----END CERTIFICATE-----\n`);
     const signatureBuffer = Buffer.from(result.signatureBase64, "base64");
     expect(verifyData(Buffer.from(signedInfoCanonical, "utf8"), signatureBuffer, cert.publicKey)).toBe(true);
+  });
+
+  it("embeds DER and signs correctly when the stored CSID wraps a base64-encoded token", () => {
+    const cert = new X509Certificate(certificatePem);
+    const token = Buffer.from(cert.raw.toString("base64"), "utf8").toString("base64");
+    const signed = signInvoiceXml(bareXml, {
+      certificatePem: toPem(token, "CERTIFICATE"), privateKeyPem,
+      signingTime: "2026-11-04T12:21:28", isSimplified: true,
+      qr: { sellerName: "Test", vatNumber: "399999999900003", timestamp: "2026-11-04T12:21:28", invoiceTotalWithVat: "4.60", vatTotal: "0.60" },
+    });
+    expect(signed.signedXml).toContain(`<ds:X509Certificate>${cert.raw.toString("base64")}</ds:X509Certificate>`);
+    expect(signed.signedXml).not.toContain(token);
+    const signedInfo = canonicalizeElementByLocalName(signed.signedXml, "http://www.w3.org/2000/09/xmldsig#", "SignedInfo");
+    expect(verifyData(Buffer.from(signedInfo), Buffer.from(signed.signatureBase64, "base64"), cert.publicKey)).toBe(true);
   });
 
   it("reuses the SignedInfo signature verbatim as the QR code's tag 7", () => {

@@ -46,7 +46,8 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
   // fidelity between a generated key and a server-issued cert. That fidelity is what
   // ../xml/xades-signature.spec.ts already proves, against the SDK's own matching key+cert pair.
   const testCertificate = generateTestCertificate();
-  const sdkCertBase64 = testCertificate.certificateBase64;
+  // Match the sandbox response: base64 of certificate text, not raw base64 DER.
+  const sdkCertBase64 = Buffer.from(testCertificate.certificateBase64, "utf8").toString("base64");
 
   const csrInput: StartOnboardingParams["csr"] = {
     commonName: "Till-1",
@@ -150,9 +151,11 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
     ).resolves.toMatchObject({ clearanceStatus: "CLEARED" });
 
     expect(checkTransport.calls).toHaveLength(1);
+    expect(checkTransport.calls[0]!.headers.Authorization).toBe(`Basic ${Buffer.from(`${sdkCertBase64}:compliance-secret`).toString("base64")}`);
     const body = checkTransport.calls[0]!.body as { uuid: string; invoice: string };
     expect(body.uuid).toBe(sampleInvoice.uuid);
     expect(Buffer.from(body.invoice, "base64").toString("utf8")).toContain("<Invoice");
+    expect(Buffer.from(body.invoice, "base64").toString("utf8")).toContain(`<ds:X509Certificate>${testCertificate.certificateBase64}</ds:X509Certificate>`);
   });
 
   it("runComplianceCheck throws OnboardingError when ZATCA rejects the sample — never fabricates a pass", async () => {
@@ -190,7 +193,7 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
     await prodService.requestProductionCsid(egsUnitId, "sandbox");
 
     // Authenticated with the COMPLIANCE csid/secret, not the OTP.
-    expect(prodTransport.calls[0]!.headers.Authorization).toMatch(/^Basic /);
+    expect(prodTransport.calls[0]!.headers.Authorization).toBe(`Basic ${Buffer.from(`${sdkCertBase64}:compliance-secret`).toString("base64")}`);
     expect(prodTransport.calls[0]!.headers.OTP).toBeUndefined();
 
     const credential = await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } });
@@ -218,6 +221,7 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
 
     expect(renewTransport.calls[0]!.method).toBe("PATCH");
     expect(renewTransport.calls[0]!.headers.OTP).toBe("123345");
+    expect(renewTransport.calls[0]!.headers.Authorization).toBe(`Basic ${Buffer.from(`${sdkCertBase64}:production-secret-1`).toString("base64")}`);
 
     const afterRenewal = await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } });
     expect(decryptText(afterRenewal.privateKeyCiphertext!, ENCRYPTION_KEY)).toBe(keyBeforeRenewal); // same key, not regenerated
