@@ -5,18 +5,13 @@
 // `docs/vendor/zatca/sdk` (git-ignored: public, but not redistributed -- ADR 0004). It is never
 // shipped to a customer deployment and nothing in the running product calls this file.
 //
-// REVIEW: written WITHOUT the SDK on hand (the session that wrote it had no network access to
-// ZATCA and no SDK copy), from the SDK's documented command line and from how the sibling session
-// ran the same jar for CSR generation (`java -jar <jar> ... ` with SDK_CONFIG pointing at
-// Configuration/config.json). Two details are therefore unconfirmed and are handled so that a
-// wrong guess can only ever produce "UNKNOWN", never a false "PASSED":
-//   - the exact flags (`-validate -invoice <file>`), and
-//   - the verdict line the jar prints (`GLOBAL VALIDATION RESULT = PASSED|FAILED`).
-// If the first run on a machine with the SDK prints UNKNOWN, read `output` and adjust
-// VERDICT_PATTERN / the arguments here -- do not change a test to accept UNKNOWN.
+// CLI flags and verdict line verified with official SDK 3.4.8. Unknown output fails closed.
+// PIH is caller-supplied chain context, not extracted from the XML being validated. A separate
+// config per invocation prevents parallel suites from overwriting the SDK's shared pih.txt.
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 export type SdkVerdict = "PASSED" | "FAILED" | "UNKNOWN";
 
@@ -43,14 +38,26 @@ export function findSdkJar(sdkDir: string): string | undefined {
     .map((f) => join(apps, f))[0];
 }
 
-export function runSdkValidation(params: { readonly sdkDir: string; readonly xmlPath: string; readonly timeoutMs?: number }): Promise<SdkValidationResult> {
+export function runSdkValidation(params: { readonly sdkDir: string; readonly xmlPath: string; readonly previousInvoiceHash?: string; readonly timeoutMs?: number }): Promise<SdkValidationResult> {
   const jar = findSdkJar(params.sdkDir);
   if (!jar) return Promise.reject(new Error(`No zatca-einvoicing-sdk*.jar under ${join(params.sdkDir, "Apps")}`));
+  let config = join(params.sdkDir, "Configuration", "config.json");
+  let workDir: string | undefined;
+  if (params.previousInvoiceHash !== undefined) {
+    const original = JSON.parse(readFileSync(config, "utf8")) as Record<string, unknown>;
+    workDir = mkdtempSync(join(tmpdir(), "zatca-sdk-context-"));
+    const pihPath = join(workDir, "pih.txt");
+    writeFileSync(pihPath, params.previousInvoiceHash, "utf8");
+    config = join(workDir, "config.json");
+    writeFileSync(config, JSON.stringify({ ...original, pihPath }), "utf8");
+  }
+  const cleanup = (): void => { if (workDir) rmSync(workDir, { recursive: true, force: true }); };
   return new Promise((resolve, reject) => {
     // Array arguments, no shell: the path is ours, but there is no reason to ever give it one.
-    const child = spawn("java", ["-jar", jar, "-validate", "-invoice", params.xmlPath], {
+    // Java 11 on Windows otherwise reads Arabic XML using the system code page.
+    const child = spawn("java", ["-Dfile.encoding=UTF-8", "-jar", jar, "-validate", "-invoice", params.xmlPath], {
       cwd: params.sdkDir,
-      env: { ...process.env, SDK_CONFIG: join(params.sdkDir, "Configuration", "config.json") },
+      env: { ...process.env, SDK_CONFIG: config },
     });
     let output = "";
     child.stdout.on("data", (d: Buffer) => (output += d.toString("utf8")));
@@ -61,11 +68,13 @@ export function runSdkValidation(params: { readonly sdkDir: string; readonly xml
     }, params.timeoutMs ?? 120_000);
     child.on("error", (e) => {
       clearTimeout(timer);
+      cleanup();
       reject(e);
     });
     child.on("close", (exitCode) => {
       clearTimeout(timer);
-      resolve({ verdict: parseSdkVerdict(output), exitCode, output });
+      cleanup();
+      resolve({ verdict: exitCode === 0 ? parseSdkVerdict(output) : "UNKNOWN", exitCode, output });
     });
   });
 }

@@ -31,6 +31,8 @@ export * from "./onboarding/csr.js";
 export * from "./onboarding/onboarding-api-client.js";
 export * from "./onboarding/onboarding.service.js";
 export * from "./validation/validation-report.js";
+// Development validation entry point; never called by the invoice worker or API routes.
+export { runSdkValidation, findSdkJar } from "./validation/sdk-validator.js";
 export { checkInvoiceConsistency } from "./validation/invoice-consistency.js";
 export { verifySignedInvoice, stripSignatureElements } from "./validation/signed-invoice-verifier.js";
 export * from "./onboarding/compliance-samples.js";

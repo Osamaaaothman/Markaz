@@ -36,7 +36,7 @@
       // Caching a DB/Redis-dependent test's result at all is borderline; at minimum
       // the cache key must include what it actually depends on.
       "cache": false,
-      "env": ["DATABASE_URL", "MIGRATE_DATABASE_URL", "REDIS_URL", "PLAYWRIGHT_BROWSERS_PATH", "ZATCA_SDK_DIR"]
+      "env": ["DATABASE_URL", "MIGRATE_DATABASE_URL", "REDIS_URL", "PLAYWRIGHT_BROWSERS_PATH", "ZATCA_SDK_DIR", "ZATCA_REQUIRE_SDK"]
     }
   }
 }
