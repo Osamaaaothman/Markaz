@@ -52,6 +52,9 @@ national address) and `parties` (buyer VAT number and national address, for a B2
 - `xml/qr.ts` — `buildQrTlv`/`buildQrBase64`. Reproduces two real signed samples' own embedded QR
   codes byte-for-byte (`qr.spec.ts`), which is how two tags turned out to be UTF-8 text of a
   base64 string rather than the raw bytes the Security Standard's prose seems to describe.
+  `buildSandboxDataQrBase64` separately supports an explicitly labeled data-reading exercise
+  with tags 1–5 only. It returns null outside Sandbox or for missing/oversized values. This
+  unsigned preview is never used in submission XML or as evidence of ZATCA acceptance.
 - `xml/signing.ts` — `signData`/`verifyData` (ECDSA-SHA256 via `node:crypto`, no new dependency
   needed), `extractPublicKeyDer`, `extractCertificateSignatureDer` (a minimal, targeted DER
   reader for our own certificate's fixed 3-field top-level shape — not a general ASN.1 library).

@@ -19,6 +19,7 @@ import {
   ZATCA_CSR_CERTIFICATE_TEMPLATE,
   ZatcaApiError,
   buildComplianceSamples,
+  buildSandboxDataQrBase64,
   invoiceQrArtifact,
   validationMessages,
   type ComplianceSample,
@@ -122,6 +123,8 @@ export interface InvoiceRecordView {
   readonly egsName: string;
   readonly qrImageDataUrl: string | null;
   readonly qrSource: "SIGNED" | "CLEARED" | null;
+  readonly dataPreviewQrCode: string | null;
+  readonly dataPreviewQrImageDataUrl: string | null;
   readonly history: readonly {
     readonly id: string; readonly stage: string; readonly status: string;
     readonly startedAt: string; readonly completedAt: string;
@@ -400,17 +403,28 @@ export class ComplianceAdminService {
 
   async invoiceRecord(companyId: string, salesInvoiceId: string): Promise<InvoiceRecordView | null> {
     const row = await this.prisma.zatcaInvoiceRecord.findFirst({ where: { salesInvoiceId, companyId }, include: {
-      egsUnit: { select: { name: true, environment: true } }, salesInvoice: { select: { number: true, documentType: true } },
+      egsUnit: { select: { name: true, environment: true } }, salesInvoice: { select: {
+        number: true, documentType: true, invoiceDate: true, totalGross: true, totalTax: true,
+        company: { select: { name: true, nameAr: true, vatNumber: true } },
+      } },
       history: { where: { companyId }, orderBy: { startedAt: "desc" } },
     } });
     if (!row) return null;
     const artifact = invoiceQrArtifact(row.signedXml, row.clearedXml);
+    const dataPreviewQrCode = artifact ? null : buildSandboxDataQrBase64(row.egsUnit.environment, {
+      sellerName: row.salesInvoice.company.nameAr || row.salesInvoice.company.name,
+      vatNumber: row.salesInvoice.company.vatNumber ?? "",
+      timestamp: row.salesInvoice.invoiceDate.toISOString().replace(/\.\d{3}Z$/, "Z"),
+      invoiceTotalWithVat: row.salesInvoice.totalGross.toFixed(2), vatTotal: row.salesInvoice.totalTax.toFixed(2),
+    });
     return {
       invoiceNumber: row.salesInvoice.number,
       documentType: row.salesInvoice.documentType,
       egsName: row.egsUnit.name,
       qrImageDataUrl: artifact ? await QRCode.toDataURL(artifact.qr, { errorCorrectionLevel: "M", width: 360, margin: 4 }) : null,
       qrSource: artifact?.source ?? null,
+      dataPreviewQrCode,
+      dataPreviewQrImageDataUrl: dataPreviewQrCode ? await QRCode.toDataURL(dataPreviewQrCode, { errorCorrectionLevel: "M", width: 360, margin: 4 }) : null,
       history: row.history.map((attempt) => ({
         id: attempt.id, stage: attempt.stage, status: attempt.status,
         startedAt: attempt.startedAt.toISOString(), completedAt: attempt.completedAt.toISOString(),
@@ -471,7 +485,7 @@ export class ComplianceAdminService {
     const invoice = await this.prisma.salesInvoice.findFirst({ where: { id: salesInvoiceId, companyId }, select: { egsUnit: { select: { environment: true } } } });
     if (!invoice?.egsUnit) return null;
     const record = await this.invoiceRecord(companyId, salesInvoiceId);
-    return { environment: invoice.egsUnit.environment, status: record?.status ?? "NOT_SUBMITTED", qrImageDataUrl: record?.qrImageDataUrl ?? null };
+    return { environment: invoice.egsUnit.environment, status: record?.status ?? "NOT_SUBMITTED", qrImageDataUrl: record?.qrImageDataUrl ?? null, dataPreviewQrImageDataUrl: record?.dataPreviewQrImageDataUrl ?? null };
   }
 
   // `cleared` is the version a standard (B2B) buyer must receive; `signed` is what we signed and sent.

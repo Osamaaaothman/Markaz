@@ -68,6 +68,28 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
   });
   afterAll(async () => { await prisma.$disconnect(); });
 
+  it("offers a separately labeled Sandbox data QR without changing failed submission evidence", async () => {
+    const egs = await admin.createEgsUnit({ name: "Data preview", businessCategory: "Retail", invoiceTypes: "1100", environment: "sandbox" }, actor, newId());
+    await prisma.egsUnit.update({ where: { id: egs.id }, data: { status: "ACTIVE" } });
+    const customer = await prisma.party.create({ data: { id: newId(), companyId, ref: newId(), name: "Preview customer", kind: "CUSTOMER" } });
+    const invoice = await sales.createInvoice({ customerId: customer.id, invoiceDate: now, egsUnitId: egs.id, lines: [{ description: "Preview service", quantity: "1", unitPrice: "100", taxCodeId }] }, actor, newId(), newId());
+    const record = await prisma.zatcaInvoiceRecord.create({ data: { id: newId(), companyId, salesInvoiceId: invoice.id, egsUnitId: egs.id, uuid: invoice.id, icv: 1n, previousInvoiceHash: "test-only", status: "FAILED_RETRYABLE", validationErrors: ["SIGNATURE_INVALID"] } });
+    const view = await admin.invoiceRecord(companyId, invoice.id);
+    expect(view).toMatchObject({ status: "FAILED_RETRYABLE", qrCode: null, qrSource: null, qrImageDataUrl: null, hasSignedXml: false, attempts: 0, errors: ["SIGNATURE_INVALID"] });
+    const tags = parseQrTlv(view!.dataPreviewQrCode!);
+    expect([...tags.keys()]).toEqual([1, 2, 3, 4, 5]);
+    expect(tags.get(4)!.toString()).toBe("115.00");
+    expect(tags.get(5)!.toString()).toBe("15.00");
+    expect(await admin.invoiceRecord(newId(), invoice.id)).toBeNull();
+    const print = await admin.invoicePrintData(companyId, invoice.id);
+    const html = await salesInvoiceToPdfHtml({ invoice: await sales.get(companyId, invoice.id), language: "ar", companyName: "Test", compliance: print });
+    expect(html).toContain("غير معتمد من زاتكا");
+    expect(html).toContain(view!.dataPreviewQrImageDataUrl!);
+    expect(await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: record.id } })).toEqual(record);
+    await prisma.egsUnit.update({ where: { id: egs.id }, data: { environment: "production" } });
+    expect((await admin.invoiceRecord(companyId, invoice.id))!.dataPreviewQrImageDataUrl).toBeNull();
+  });
+
   it.each([
     { simplified: false, environment: "simulation" as const },
     { simplified: true, environment: "simulation" as const },

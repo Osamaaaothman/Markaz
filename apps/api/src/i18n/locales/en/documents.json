@@ -358,6 +358,7 @@
     }
   },
   "compliance": {
+    "dataPreviewNotice": "Data-reading test QR only — not ZATCA approved. Contains invoice data without a digital signature and does not prove acceptance.",
     "testNotice": "TEST DOCUMENT — not a production tax invoice.",
     "environment": {
       "sandbox": "Sandbox",

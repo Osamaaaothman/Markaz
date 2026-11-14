@@ -63,6 +63,11 @@ export function ZatcaInvoicePanel({ salesInvoiceId }: { readonly salesInvoiceId:
             <img src={record.qrImageDataUrl} alt={t("compliance.invoicePanel.qr")} width={280} height={280} style={{ maxWidth: "100%", height: "auto", imageRendering: "pixelated" }} />
             <figcaption>{t(`compliance.invoicePanel.qrSource.${record.qrSource}`)}</figcaption>
             <a href={record.qrImageDataUrl} download={`${record.invoiceNumber}-qr.png`} className="erp-button-link">{t("compliance.invoicePanel.downloadQr")}</a>
+          </figure> : record.dataPreviewQrImageDataUrl ? <figure style={{ marginInline: 0 }}>
+            <figcaption className="compliance-test-notice">{t("compliance.invoicePanel.dataPreviewNotice")}</figcaption>
+            <img src={record.dataPreviewQrImageDataUrl} alt={t("compliance.invoicePanel.dataPreviewTitle")} width={280} height={280} style={{ maxWidth: "100%", height: "auto", imageRendering: "pixelated" }} />
+            <figcaption>{t("compliance.invoicePanel.dataPreviewFields")}</figcaption>
+            <a href={record.dataPreviewQrImageDataUrl} download={`${record.invoiceNumber}-data-preview-qr.png`} className="erp-button-link">{t("compliance.invoicePanel.downloadQr")}</a>
           </figure> : <p className="erp-field__hint">{t("compliance.invoicePanel.qrUnavailable")}</p>}
           <p className="erp-field__hint">{t("compliance.invoicePanel.scanHint")}</p>
           <div className="erp-row-actions">

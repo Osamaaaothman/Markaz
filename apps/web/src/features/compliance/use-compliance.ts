@@ -60,6 +60,8 @@ export interface InvoiceRecordView {
   readonly egsName: string;
   readonly qrImageDataUrl: string | null;
   readonly qrSource: "SIGNED" | "CLEARED" | null;
+  readonly dataPreviewQrCode?: string | null;
+  readonly dataPreviewQrImageDataUrl?: string | null;
   readonly history: readonly { readonly id: string; readonly stage: string; readonly status: string; readonly startedAt: string; readonly completedAt: string; readonly warnings: readonly string[]; readonly errors: readonly string[]; readonly httpStatus: number | null }[];
   readonly salesInvoiceId: string;
   readonly status: string;

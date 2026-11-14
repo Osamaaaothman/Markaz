@@ -18,10 +18,12 @@ export async function salesInvoiceToPdfHtml(params: {
   readonly sellerCrNumber?: string | null;
   readonly sellerAddress?: string | null;
   readonly sellerPhone?: string | null;
-  readonly compliance?: { readonly environment: string; readonly status: string; readonly qrImageDataUrl: string | null } | null;
+  readonly compliance?: { readonly environment: string; readonly status: string; readonly qrImageDataUrl: string | null; readonly dataPreviewQrImageDataUrl?: string | null } | null;
 }): Promise<string> {
   const t = await getDocumentTranslator(params.language);
   const { invoice } = params;
+  const isDataPreview = !params.compliance?.qrImageDataUrl && params.compliance?.environment === "sandbox" && !!params.compliance.dataPreviewQrImageDataUrl;
+  const qrImage = params.compliance?.qrImageDataUrl ?? (isDataPreview ? params.compliance?.dataPreviewQrImageDataUrl : null);
   const cur = invoice.currency;
   const money = (v: string): string => escapeHtml(`${Money.of(v, cur).toDecimalString()} ${cur}`);
   const customer = params.language === "ar" && invoice.customerNameAr ? invoice.customerNameAr : invoice.customerName;
@@ -124,9 +126,10 @@ ${params.compliance && params.compliance.environment !== "production" ? `<div cl
 <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur))}</p>
 ${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
 ${params.compliance ? `<div class="invoice-compliance">
-${params.compliance.qrImageDataUrl?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(params.compliance.qrImageDataUrl)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : ""}
+${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : ""}
 <div><p>${escapeHtml(t("compliance.status"))}: ${escapeHtml(t(`compliance.statuses.${params.compliance.status}`))}</p>
-${!params.compliance.qrImageDataUrl ? `<p>${escapeHtml(t("compliance.qrUnavailable"))}</p>` : ""}
+${isDataPreview ? `<p><strong>${escapeHtml(t("compliance.dataPreviewNotice"))}</strong></p>` : ""}
+${!qrImage ? `<p>${escapeHtml(t("compliance.qrUnavailable"))}</p>` : ""}
 <p>${escapeHtml(t("compliance.xmlNotice"))}</p></div></div>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("salesInvoice.computerGenerated") }),
   });

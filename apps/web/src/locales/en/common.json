@@ -2161,6 +2161,9 @@
         "CLEARED": "QR returned with the cleared invoice"
       },
       "downloadQr": "Download QR (PNG)",
+      "dataPreviewTitle": "Invoice data test QR",
+      "dataPreviewNotice": "Data-reading test QR only — not ZATCA approved. It has no digital signature and does not prove invoice acceptance.",
+      "dataPreviewFields": "Contains only seller name, VAT number, timestamp, total and VAT total.",
       "qrUnavailable": "No usable QR is available yet. Standard invoices need a matching QR from the clearance response.",
       "scanHint": "Use a ZATCA-compatible reader. Reading a QR is separate from checking acceptance; the QR has no explicit Sandbox label.",
       "awaiting": "This invoice is linked to an EGS unit and is awaiting processing. If it remains here, check the unit and retry.",

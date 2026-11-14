@@ -8,6 +8,7 @@ This update supersedes the historical implementation gaps below. It does **not**
 - The mapper uses the unit's stored environment and its issued Production CSID for reporting/clearance in every environment, including the test Production CSID in developer Sandbox. Compliance credentials are only for onboarding. UTC invoice time and QR time match exactly, including `Z` (XML standard BR-KSA-70).
 - `/settings/zatca` has a tenant-scoped invoice list with number/customer search and status/environment/document-type filters. Open an invoice to inspect UUID, ICV, submission timestamps, warnings/errors, append-only completed attempt history, XML downloads, QR preview/download, and an authorized retry. New unprocessed linked invoices can also be queued manually.
 - Standard invoices display only the QR returned in a matching cleared XML. A canned or mismatched Sandbox document does not supply a usable QR for that invoice. Simplified invoices use their signed XML QR. Retry uses the identical saved XML, UUID, hash and submission route, even if source customer data or the certificate changes later.
+- When no signed/cleared QR artifact exists, Sandbox invoices can display a separately labeled **data-reading preview** in the screen, PNG download and PDF. It contains only TLV tags 1–5 (seller, VAT number, timestamp, gross total and VAT total), has no signature, and is never used in submission XML or stored as an official QR. Simulation and production never get this fallback. Missing or oversized fields suppress the preview; Arabic/English notices explicitly say it is not ZATCA approved. The submission status, errors and attempt history remain unchanged.
 - The generation chain advances atomically with verified signed XML before HTTP submission. Network/authentication failures preserve the document for retry without blocking the next invoice or reusing its ICV. The previous version's unadvanced signed tail is recovered from unchanged stored evidence; retrying older invoices never rewinds the chain. Regression tests cover HTTP 401/503, subsequent invoices and legacy-tail recovery.
 - Screen and printable PDF explicitly label Sandbox/Simulation documents as tests. A PDF is a visual copy, **not PDF/A-3**; retain/download the original XML separately. QR TLV does not have a Sandbox label; no promise is made about an external scanner's wording or trust verdict.
 - Completed attempts are retained from migration `20261114090000_zatca_submission_history` onward. Old attempts are not reconstructed. The runtime role can insert/read history but cannot update/delete it.
@@ -27,9 +28,14 @@ confirms Sandbox certificates are static and recommends Simulation for actual in
 Signature verification remains enforced; an ACTIVE onboarding status is not proof that a signed
 invoice can be generated with those Sandbox credentials. No local test invoice is claimed accepted.
 
-Latest validation: 156 compliance-pack tests, 15 party/import database tests and four API journeys
-(standard/simplified in Sandbox/Simulation, scripted authority, three document types each) passed.
-API/web builds, changed-file lint and locale parity passed. Local runtime images reuse the existing
+Latest validation: the preceding full run passed 156 compliance-pack tests and 15 party/import
+database tests. The subsequent data-preview change passed all six QR tests and five API tests:
+four journeys (standard/simplified in Sandbox/Simulation, scripted authority, three document types
+each), plus preview isolation, unchanged failure evidence, PDF rendering and production exclusion.
+An owner-authorized local browser journey converted a quotation to a sales order and posted a
+demo invoice. Both downloaded Arabic/English PDFs were rendered and their QR payloads decoded to
+the exact on-screen five-field payload. API/web builds, changed-file lint and locale parity passed.
+Local runtime images reuse the existing
 tested Chromium/dependency layers plus the newly compiled application code; a full clean Docker
 build was interrupted during slow dependency downloads. Railway and remote Git branches were not changed.
 
