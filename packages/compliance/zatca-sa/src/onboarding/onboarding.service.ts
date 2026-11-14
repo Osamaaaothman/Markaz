@@ -9,10 +9,10 @@
 // non-negotiable "never fabricate" extends to compliance-check documents too; this service only
 // knows how to sign and submit what it's given, same separation of concerns as
 // InvoiceSubmissionService.buildInvoiceInput in ../submission/).
-import { X509Certificate } from "node:crypto";
 import { newId } from "@erp/shared";
 import type { PrismaClient } from "@erp/db";
 import { encryptText, decryptText } from "../key-encryption.js";
+import { parseCertificate } from "../xml/cert-parser.js";
 import { toPem } from "../xml/signing.js";
 import { buildBareInvoiceXml } from "../xml/invoice-xml-builder.js";
 import { signInvoiceXml } from "../xml/xades-signature.js";
@@ -204,7 +204,7 @@ export class OnboardingService {
 }
 
 function certificateNotAfter(certificatePem: string): Date {
-  return new Date(new X509Certificate(certificatePem).validTo);
+  return new Date(parseCertificate(certificatePem).validTo);
 }
 
 // Current @types/node parameterizes `Buffer` over `ArrayBufferLike` (which includes

@@ -4,7 +4,8 @@
 // All built on Node's built-in `node:crypto`, including secp256k1 ECDSA — no new dependency was
 // needed for this part. Every piece here is verified byte-for-byte against the official SDK's
 // own sample key/certificate (signing.spec.ts), not just "should work" reasoning.
-import { X509Certificate, createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify, type KeyObject } from "node:crypto";
+import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify, type KeyObject } from "node:crypto";
+import { parseCertificate } from "./cert-parser.js";
 
 export class ZatcaSigningError extends Error {
   constructor(
@@ -36,11 +37,11 @@ export function verifyData(data: Buffer, signatureDer: Buffer, publicKey: KeyObj
 }
 
 export function extractPublicKeyDer(certificatePem: string): Buffer {
-  return new X509Certificate(certificatePem).publicKey.export({ type: "spki", format: "der" });
+  return Buffer.from(parseCertificate(certificatePem).publicKey.export({ type: "spki", format: "der" }));
 }
 
 export function publicKeyOf(certificatePem: string): KeyObject {
-  return new X509Certificate(certificatePem).publicKey;
+  return parseCertificate(certificatePem).publicKey;
 }
 
 // Minimal DER/TLV reader — not a general ASN.1 library, just enough to walk the fixed top-level
