@@ -13,11 +13,11 @@ export function totalStockValue(entries: readonly StockLevelEntry[], currency: s
 }
 
 export function stockLevelsToCsv(entries: readonly StockLevelEntry[], currency: string): string {
-  const rows: string[][] = [["Item Ref", "Item Code", "Item", "Warehouse", "Quantity", "Average Cost", "Value", "Reorder Point"]];
+  const rows: string[][] = [["Item Ref", "Item Code", "Item", "Warehouse", "Quantity", "Average Cost", "Value", "Reorder Point", "Cost Status"]];
   for (const e of entries) {
-    rows.push([e.itemRef, e.itemCode, e.itemName, e.warehouseName, e.quantity, e.averageUnitCost, e.value, e.reorderPoint]);
+    rows.push([e.itemRef, e.itemCode, e.itemName, e.warehouseName, e.quantity, e.averageUnitCost, e.value, e.reorderPoint, e.costStatus]);
   }
-  rows.push(["", "", "", "Total", "", "", totalStockValue(entries, currency), ""]);
+  rows.push(["", "", "", "Total", "", "", totalStockValue(entries, currency), "", ""]);
   return toCsvDocument(rows);
 }
 
@@ -36,7 +36,7 @@ export async function stockLevelsToPdfHtml(params: {
       (e) =>
         `<tr><td>${escapeHtml(e.itemCode)}</td><td>${escapeHtml(itemName(e))}</td><td>${escapeHtml(e.warehouseName)}</td>` +
         `<td class="amount">${escapeHtml(e.quantity)}</td>` +
-        `<td class="amount">${escapeHtml(`${Money.of(e.averageUnitCost, params.currency).toDecimalString(4)} ${params.currency}`)}</td>` +
+        `<td class="amount">${escapeHtml(`${Money.of(e.averageUnitCost, params.currency).toDecimalString(4)} ${params.currency}`)}${e.costStatus !== "FINAL" ? `<br>${escapeHtml(t(`stockLevels.costStatus.${e.costStatus}`))}` : ""}</td>` +
         `<td class="amount">${escapeHtml(formatAmount(e.value, params.currency))}</td></tr>`,
     )
     .join("");

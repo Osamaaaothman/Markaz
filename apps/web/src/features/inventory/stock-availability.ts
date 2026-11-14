@@ -12,16 +12,16 @@ const quantityPattern = /^\d{1,15}(\.\d{1,4})?$/;
 export function stockAvailability(
   lines: readonly StockLine[],
   balances: readonly StockBalance[] | undefined,
+  scope: "warehouse" | "company" = "warehouse",
 ) {
   return lines.map((line) => {
-    if (!line.itemId || !line.warehouseId)
+    if (!line.itemId || (scope === "warehouse" && !line.warehouseId))
       return { onHand: null, remaining: null, exceeded: false };
     if (!balances) return { onHand: null, remaining: null, exceeded: false };
-    const onHand =
-      balances.find((b) => b.itemId === line.itemId && b.warehouseId === line.warehouseId)
-        ?.quantity ?? "0";
+    const onHand = balances.filter((b) => b.itemId === line.itemId && (scope === "company" || b.warehouseId === line.warehouseId))
+      .reduce((sum, b) => sum.add(Money.of(b.quantity, "SAR")), Money.zero("SAR")).toDecimalString(4);
     const total = lines
-      .filter((l) => l.itemId === line.itemId && l.warehouseId === line.warehouseId)
+      .filter((l) => l.itemId === line.itemId && (scope === "company" || l.warehouseId === line.warehouseId))
       .reduce(
         (sum, l) => (quantityPattern.test(l.quantity) ? sum.add(Money.of(l.quantity, "SAR")) : sum),
         Money.zero("SAR"),

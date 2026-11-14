@@ -763,6 +763,12 @@ html body .erp-table .p-datatable-emptymessage > td {
   font-size: 0.8rem;
 }
 
+.erp-field__warning {
+  color: var(--mk-warning, #b45309);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .erp-field__error {
   color: var(--mk-danger);
   font-size: 0.78rem;

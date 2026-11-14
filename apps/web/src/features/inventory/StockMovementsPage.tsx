@@ -20,7 +20,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { useAllItems } from "./use-items";
 import { useAllWarehouses } from "./use-warehouses";
 
-type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT" | "RETURN";
+type MovementType = "RECEIPT" | "ISSUE" | "COUNT_ADJUSTMENT" | "RETURN" | "COST_ADJUSTMENT";
 
 interface MovementEntry {
   readonly id: string;
@@ -47,7 +47,7 @@ interface Page {
 }
 
 const ALL = "ALL";
-const TYPES: readonly MovementType[] = ["RECEIPT", "ISSUE", "COUNT_ADJUSTMENT", "RETURN"];
+const TYPES: readonly MovementType[] = ["RECEIPT", "ISSUE", "COUNT_ADJUSTMENT", "RETURN", "COST_ADJUSTMENT"];
 
 // The stock card: every movement of every item. Read-only — movements are written only by the posting
 // documents (receipt, issue, count, sales invoice), so there is nothing to edit here.

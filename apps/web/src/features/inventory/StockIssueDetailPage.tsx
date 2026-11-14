@@ -40,12 +40,13 @@ export function StockIssueDetailPage(): React.JSX.Element {
           <p className="erp-page__subtitle">{localizedName({ name: issue.warehouseName, nameAr: issue.warehouseNameAr }, i18n.language)}</p>
         </div>
         <div className="erp-page__header-actions">
-          <JournalEntryLinkButton entryId={issue.journalEntryId} />
+          {issue.journalEntryId ? <JournalEntryLinkButton entryId={issue.journalEntryId} /> : null}
           <Button label={t("actions.exportPdf")} icon="pi pi-file-pdf" outlined onClick={() => void exportReport(`/v1/stock-issues/${issue.id}/pdf`, { lang: i18n.language }, issue.number, "pdf")} />
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/stock-issues/${issue.id}/pdf`, { lang: i18n.language }, issue.number, "print")} />
         </div>
       </div>
 
+      {issue.stockCostStatus && issue.stockCostStatus !== "FINAL" ? <p className="erp-field__warning" role="status">{t(issue.stockCostStatus === "PENDING" ? "inventory.stockLevels.pendingCost" : "inventory.stockLevels.provisionalCost")}</p> : null}
       <dl className="mk-facts">
         <div>
           <dt>{t("inventory.goodsReceipt.documentDate")}</dt>

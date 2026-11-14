@@ -69,7 +69,11 @@
     "quantity": "الكمية",
     "averageCost": "متوسط التكلفة",
     "value": "القيمة",
-    "totalValue": "إجمالي قيمة المخزون"
+    "totalValue": "إجمالي قيمة المخزون",
+    "costStatus": {
+      "PENDING": "تكلفة معلقة",
+      "PROVISIONAL": "تكلفة مؤقتة"
+    }
   },
   "aging": {
     "receivablesTitle": "أعمار الذمم المدينة",
@@ -347,7 +351,8 @@
       "RECEIPT": "استلام",
       "ISSUE": "صرف",
       "COUNT_ADJUSTMENT": "تسوية جرد",
-      "RETURN": "مردود إلى المورد"
+      "RETURN": "مردود إلى المورد",
+      "COST_ADJUSTMENT": "تسوية تكلفة"
     },
     "sources": {
       "goods_receipt": "استلام مخزون",

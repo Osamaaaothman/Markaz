@@ -192,6 +192,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         </span>
       </div>
       <ZatcaInvoicePanel salesInvoiceId={invoice.id} />
+      {invoice.stockCostStatus && invoice.stockCostStatus !== "FINAL" ? <p role="note" className="erp-auth-card__warning">{t(invoice.stockCostStatus === "PENDING" ? "inventory.stockLevels.pendingCost" : "inventory.stockLevels.provisionalCost")}</p> : null}
 
       <div className="erp-form__actions">
         <Button type="button" label={t("sales.orders.back")} text onClick={() => void navigate("/sales/invoices")} />

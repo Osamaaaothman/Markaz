@@ -14,6 +14,7 @@ export interface StockLevelEntry {
   readonly quantity: string;
   readonly value: string;
   readonly averageUnitCost: string;
+  readonly costStatus: "FINAL" | "PROVISIONAL" | "PENDING";
   readonly reorderPoint: string;
   readonly belowReorderPoint: boolean;
 }

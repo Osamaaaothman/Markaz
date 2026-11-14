@@ -606,9 +606,13 @@
       "reorderPoint": "Reorder point",
       "belowReorder": "Below reorder point",
       "onHand": "On hand",
-      "unavailable": "Stock cannot be verified; wait or reload the page.",
+      "unavailable": "Stock cannot be verified. You can continue or reload to check it.",
       "availableQuantity": "Available in warehouse: {{quantity}}",
-      "exceeded": "Total requested quantity for this item exceeds available stock"
+      "availableCompanyQuantity": "Available across warehouses: {{quantity}}",
+      "offerWarning": "Stock is insufficient or could not be verified. You can save this document; quotations and orders do not issue stock.",
+      "exceeded": "Total requested quantity for this item exceeds available stock",
+      "provisionalCost": "Cost is provisional until the shortage is received.",
+      "pendingCost": "No previous cost is known; cost remains pending until receipt."
     },
     "goodsReceipt": {
       "title": "Goods receipt",
@@ -737,7 +741,8 @@
         "RECEIPT": "Receipt",
         "ISSUE": "Issue",
         "COUNT_ADJUSTMENT": "Count adjustment",
-        "RETURN": "Return to supplier"
+        "RETURN": "Return to supplier",
+        "COST_ADJUSTMENT": "Cost adjustment"
       },
       "sources": {
         "goods_receipt": "Goods receipt",
@@ -962,8 +967,8 @@
       "generic": "Could not save this document.",
       "badRequest": "Check that Settings > Account mapping has the receivable, revenue, VAT and cost-of-goods accounts set, and that the date is in an open period.",
       "INSUFFICIENT_STOCK": "Not enough stock in that warehouse for this line.",
-      "INSUFFICIENT_STOCK_WARN": "One or more lines may have insufficient stock. Replenish the selected warehouse or reduce the quantity before invoicing.",
-      "BELOW_COST": "Unit price is below the weighted-average cost. Raise the price or use a credit note to adjust.",
+      "INSUFFICIENT_STOCK_WARN": "Quantity exceeds available stock or availability could not be checked. You can continue; shortages use provisional costs settled on receipt.",
+      "BELOW_COST": "Selling price is below the known average cost. Increase it before saving.",
       "OVER_INVOICED": "More than the quantity still to invoice on the order.",
       "CUSTOMER_MISMATCH": "An order line belongs to a different customer.",
       "WAREHOUSE_REQUIRED": "A line with an item needs a warehouse.",
@@ -975,7 +980,8 @@
       "CREDIT_EXCEEDS_INVOICE": "The credit notes would be worth more than the invoice.",
       "DEBIT_EXCEEDS_INVOICE": "The debit notes would be worth more than the invoice.",
       "EGS_UNIT_REQUIRED": "This company has more than one active ZATCA issuing unit. Choose which one issues this document.",
-      "EGS_UNIT_NOT_FOUND": "The chosen ZATCA issuing unit was not found or is not active."
+      "EGS_UNIT_NOT_FOUND": "The chosen ZATCA issuing unit was not found or is not active.",
+      "ORDER_LINE_MISMATCH": "Item, price and tax code must match the linked sales order."
     },
     "quotations": {
       "title": "Quotations",
@@ -1071,7 +1077,8 @@
       "customerDetails": "Buyer details",
       "customerAddress": "Buyer address"
     },
-    "item": "Item (or service)"
+    "item": "Item (or service)",
+    "priceLocked": "Price is fixed by the linked sales order."
   },
   "payments": {
     "title": "Payments",
@@ -2171,7 +2178,9 @@
       "scanHint": "Use a ZATCA-compatible reader. Reading a QR is separate from checking acceptance; the QR has no explicit Sandbox label.",
       "awaiting": "This invoice is linked to an EGS unit and is awaiting processing. If it remains here, check the unit and retry.",
       "notLinked": "This invoice is not linked to an issuing unit. No ZATCA submission is available.",
-      "downloadError": "The XML download failed. Please retry."
+      "downloadError": "The XML download failed. Please retry.",
+      "sandboxSignatureInvalid": "Local signature verification failed. Sandbox may return a fixed certificate that does not match the device key. This is neither acceptance nor rejection by ZATCA. Verify the key/certificate pair and test in Simulation with a device-bound certificate.",
+      "signatureInvalid": "The electronic signature is invalid. Verify the key, certificate and XML before resubmitting; this invoice is not accepted."
     },
     "invoiceStatus": {
       "PENDING": "Pending",
