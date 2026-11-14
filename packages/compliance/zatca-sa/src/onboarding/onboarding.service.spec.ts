@@ -1,13 +1,15 @@
 import { X509Certificate } from "node:crypto";
 import { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
-import { decryptText } from "../key-encryption.js";
+import { decryptText, encryptText } from "../key-encryption.js";
 import type { ZatcaInvoiceInput, ZatcaParty } from "../xml/invoice-xml.types.js";
 import { OnboardingError, OnboardingService, type StartOnboardingParams } from "./onboarding.service.js";
 import { ZatcaOnboardingApiClient, type CsidResponseBody, type ComplianceCheckResponseBody } from "./onboarding-api-client.js";
 import type { HttpResponse, HttpTransport } from "../http/zatca-http-transport.js";
 import { ZatcaApiError } from "../http/zatca-http-transport.js";
 import { generateTestCertificate } from "../testing/fixtures.js";
+import { buildComplianceSamples } from "./compliance-samples.js";
+import { generateEcPrivateKeyPem } from "./csr.js";
 
 const describeIfReady = process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -212,6 +214,9 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
     const prodTransport = new ScriptedTransport().queue({ status: 200, body: { requestID: "req-5", binarySecurityToken: sdkCertBase64, secret: "production-secret-1" } satisfies CsidResponseBody });
     await new OnboardingService(prisma, ENCRYPTION_KEY, (environment) => new ZatcaOnboardingApiClient(environment, prodTransport)).requestProductionCsid(egsUnitId, "sandbox");
 
+    // Renewal must use a certificate bound to the stored key, including in test environments.
+    await prisma.egsCredential.update({ where: { egsUnitId }, data: { privateKeyCiphertext: Uint8Array.from(encryptText(testCertificate.privateKeyPem, ENCRYPTION_KEY)) } });
+
     const beforeRenewal = await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } });
     const keyBeforeRenewal = decryptText(beforeRenewal.privateKeyCiphertext!, ENCRYPTION_KEY);
 
@@ -234,5 +239,102 @@ describeIfReady("OnboardingService — real database, scripted ZATCA transport",
     const service = makeService(transport);
     await expect(service.startOnboarding({ companyId, egsUnitId, environment: "sandbox", otp: "123345", csr: csrInput, certificateTemplateName: "TSTZATCA-Code-Signing" })).rejects.toBeInstanceOf(ZatcaApiError);
     expect(await prisma.egsCredential.findUnique({ where: { egsUnitId } })).toBeNull();
+  });
+
+  async function activeCredential() {
+    const encrypted = (value: string): Uint8Array<ArrayBuffer> => Uint8Array.from(encryptText(value, ENCRYPTION_KEY));
+    await prisma.egsUnit.update({ where: { id: egsUnitId }, data: { status: "ACTIVE", environment: "simulation" } });
+    await prisma.egsChainState.create({ data: { id: newId(), companyId, egsUnitId, lastIcv: 42n, lastInvoiceHash: "preserved-chain-hash" } });
+    return prisma.egsCredential.create({ data: {
+      id: newId(), companyId, egsUnitId, status: "ACTIVE", privateKeyCiphertext: encrypted(testCertificate.privateKeyPem),
+      productionCsidCiphertext: encrypted(testCertificate.certificatePem), productionSecretCiphertext: encrypted("old-issuance-secret"),
+      certificateExpiresAt: new X509Certificate(testCertificate.certificatePem).validToDate,
+    } });
+  }
+  const renewalCsr = { ...csrInput, certificateTemplateName: "PREZATCA-Code-Signing" };
+
+  it("resumes a 428 renewal through all six checks and issuance, without replacing the key or resetting ICV/PIH", async () => {
+    const before = await activeCredential();
+    const chain = await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } });
+    const transport = new ScriptedTransport().queue({ status: 428, body: {
+      requestID: 1730365866069, dispositionMessage: "NOT_COMPLIANT", binarySecurityToken: sdkCertBase64, secret: "renewal-compliance-secret",
+    } });
+    const service = makeService(transport);
+    await expect(service.renewProductionCsid(egsUnitId, "simulation", "654321", renewalCsr)).resolves.toBe("COMPLIANCE_CSID_ISSUED");
+    expect(transport.calls[0]).toMatchObject({ method: "PATCH", url: "https://gw-fatoora.zatca.gov.sa/e-invoicing/simulation/production/csids", headers: { OTP: "654321", "Accept-Version": "V2", Authorization: `Basic ${Buffer.from(`${testCertificate.certificateBase64}:old-issuance-secret`).toString("base64")}` } });
+    expect(Buffer.from((transport.calls[0]!.body as { csr: string }).csr, "base64").toString()).toContain("BEGIN CERTIFICATE REQUEST");
+    const pending = await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } });
+    expect(pending).toMatchObject({ status: "COMPLIANCE_CSID_ISSUED", complianceRequestId: "1730365866069", lastRenewalAt: null,
+      productionCsidCiphertext: before.productionCsidCiphertext, productionSecretCiphertext: before.productionSecretCiphertext,
+      certificateExpiresAt: before.certificateExpiresAt, privateKeyCiphertext: before.privateKeyCiphertext });
+    expect((await prisma.egsUnit.findUniqueOrThrow({ where: { id: egsUnitId } })).status).toBe("COMPLIANCE_CSID_ISSUED");
+    await expect(service.requestProductionCsid(egsUnitId, "simulation")).rejects.toMatchObject({ code: "WRONG_STATUS" });
+    const samples = buildComplianceSamples(supplier, new Date(), newId);
+    expect(samples).toHaveLength(6);
+    for (const sample of samples) {
+      transport.queue({ status: 200, body: { validationResults: { status: "PASS", errorMessages: [], warningMessages: [] }, ...(sample.isSimplified ? { reportingStatus: "REPORTED" } : { clearanceStatus: "CLEARED" }) } });
+      await service.runComplianceCheck({ egsUnitId, environment: "simulation", isSimplified: sample.isSimplified, signingTime: sample.signingTime, qr: sample.qr, sampleInvoice: sample.input });
+    }
+    await service.markComplianceChecksPassed(egsUnitId);
+    transport.queue({ status: 200, body: { requestID: "renewed", binarySecurityToken: sdkCertBase64, secret: "new-issuance-secret" } });
+    await service.requestProductionCsid(egsUnitId, "simulation");
+    expect(transport.calls[7]).toMatchObject({ method: "POST", body: { compliance_request_id: "1730365866069" }, headers: { Authorization: `Basic ${Buffer.from(`${sdkCertBase64}:renewal-compliance-secret`).toString("base64")}` } });
+    const after = await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } });
+    expect(after.status).toBe("ACTIVE");
+    expect(after.lastRenewalAt).not.toBeNull();
+    expect(after.privateKeyCiphertext).toEqual(before.privateKeyCiphertext);
+    expect(decryptText(after.productionSecretCiphertext!, ENCRYPTION_KEY)).toBe("new-issuance-secret");
+    expect(await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } })).toEqual(chain);
+  });
+
+  it.each([
+    { label: "invalid OTP", status: 400, body: { errors: [{ code: "Invalid-OTP" }] }, code: "CLIENT_ERROR" },
+    { label: "invalid authentication", status: 401, body: {}, code: "AUTH_ERROR" },
+    { label: "server unavailable", status: 503, body: {}, code: "SERVER_ERROR" },
+    { label: "incomplete 428", status: 428, body: { dispositionMessage: "NOT_COMPLIANT", secret: "must-not-leak" }, code: "CLIENT_ERROR" },
+    { label: "malformed certificate", status: 200, body: { requestID: "r", binarySecurityToken: "not-a-certificate", secret: "must-not-leak" }, code: "INVALID_CERTIFICATE" },
+    { label: "missing secret", status: 200, body: { requestID: "r", binarySecurityToken: sdkCertBase64 }, code: "CLIENT_ERROR" },
+  ])("preserves credentials and chain when renewal fails: $label", async ({ status, body, code }) => {
+    const before = await activeCredential();
+    const unit = await prisma.egsUnit.findUniqueOrThrow({ where: { id: egsUnitId } });
+    const chain = await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } });
+    const service = makeService(new ScriptedTransport().queue({ status, body }));
+    await expect(service.renewProductionCsid(egsUnitId, "simulation", "654321", renewalCsr)).rejects.toMatchObject({ code });
+    expect(await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } })).toEqual(before);
+    expect(await prisma.egsUnit.findUniqueOrThrow({ where: { id: egsUnitId } })).toEqual(unit);
+    expect(await prisma.egsChainState.findUniqueOrThrow({ where: { egsUnitId } })).toEqual(chain);
+  });
+
+  it("rejects a renewed certificate for a different key and one past its expiry", async () => {
+    await activeCredential();
+    const before = await prisma.egsCredential.update({ where: { egsUnitId }, data: { privateKeyCiphertext: Uint8Array.from(encryptText(generateEcPrivateKeyPem(), ENCRYPTION_KEY)) } });
+    const response = { status: 200, body: { requestID: "r", binarySecurityToken: sdkCertBase64, secret: "new-secret" } };
+    await expect(makeService(new ScriptedTransport().queue(response)).renewProductionCsid(egsUnitId, "simulation", "654321", renewalCsr)).rejects.toMatchObject({ code: "INVALID_CERTIFICATE" });
+    expect(await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } })).toEqual(before);
+    const matching = await prisma.egsCredential.update({ where: { egsUnitId }, data: { privateKeyCiphertext: Uint8Array.from(encryptText(testCertificate.privateKeyPem, ENCRYPTION_KEY)) } });
+    const clock = jest.spyOn(Date, "now").mockReturnValue(new X509Certificate(testCertificate.certificatePem).validToDate.getTime() + 1);
+    try {
+      await expect(makeService(new ScriptedTransport().queue(response)).renewProductionCsid(egsUnitId, "simulation", "654321", renewalCsr)).rejects.toMatchObject({ code: "INVALID_CERTIFICATE" });
+    } finally { clock.mockRestore(); }
+    expect(await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } })).toEqual(matching);
+  });
+
+  it("does not overwrite credentials changed while the renewal HTTP request was in flight", async () => {
+    await activeCredential();
+    const transport: HttpTransport = {
+      request: async () => {
+        await prisma.egsCredential.update({ where: { egsUnitId }, data: { status: "REVOKED" } });
+        return { status: 200, body: { requestID: "r", binarySecurityToken: sdkCertBase64, secret: "stale-new-secret" } };
+      },
+    };
+    const service = new OnboardingService(prisma, ENCRYPTION_KEY, (env) => new ZatcaOnboardingApiClient(env, transport));
+    await expect(service.renewProductionCsid(egsUnitId, "simulation", "654321", renewalCsr)).rejects.toMatchObject({ code: "CREDENTIAL_CHANGED" });
+    const stored = await prisma.egsCredential.findUniqueOrThrow({ where: { egsUnitId } });
+    expect(stored.status).toBe("REVOKED");
+    expect(stored.lastRenewalAt).toBeNull();
+    expect(decryptText(stored.productionSecretCiphertext!, ENCRYPTION_KEY)).toBe("old-issuance-secret");
+    const noCalls = new ScriptedTransport();
+    await expect(makeService(noCalls).renewProductionCsid(egsUnitId, "simulation", "654321", renewalCsr)).rejects.toMatchObject({ code: "WRONG_STATUS" });
+    expect(noCalls.calls).toHaveLength(0);
   });
 });

@@ -7,7 +7,7 @@
 // `requestProductionCsid` also succeeded against the sandbox on 2026-11-14.
 // `renewProductionCsid` remains // REVIEW: not exercised against the real sandbox.
 import { ZATCA_BASE_URL, type ZatcaEnvironment } from "../submission/zatca-environment.js";
-import { FetchHttpTransport, classifyErrorStatus, DEFAULT_ZATCA_TIMEOUT_MS, type HttpTransport } from "../http/zatca-http-transport.js";
+import { FetchHttpTransport, ZatcaApiError, classifyErrorStatus, DEFAULT_ZATCA_TIMEOUT_MS, type HttpTransport } from "../http/zatca-http-transport.js";
 import type { ZatcaCredentials } from "../submission/zatca-api-client.js";
 import type { ClearanceRequestBody, ValidationResults } from "../submission/zatca-api-client.js";
 
@@ -25,6 +25,28 @@ export interface ComplianceCheckResponseBody {
   readonly clearanceStatus?: "CLEARED" | "NOT_CLEARED";
   readonly reportingStatus?: "REPORTED" | "NOT_REPORTED";
   readonly validationResults: ValidationResults;
+}
+
+export interface RenewalResponse extends CsidResponseBody {
+  readonly requiresComplianceChecks: boolean;
+}
+
+function readRenewalResponse(body: unknown, status: number): RenewalResponse {
+  if (typeof body !== "object" || body === null) throw new ZatcaApiError("CLIENT_ERROR", "ZATCA returned an invalid renewal response", status);
+  const value = body as Record<string, unknown>;
+  const validId = (typeof value.requestID === "string" && value.requestID.trim().length > 0)
+    || (typeof value.requestID === "number" && Number.isSafeInteger(value.requestID) && value.requestID > 0);
+  if (!validId || typeof value.binarySecurityToken !== "string" || !value.binarySecurityToken.trim()
+    || typeof value.secret !== "string" || !value.secret.trim()
+    || (status === 428 && value.dispositionMessage !== "NOT_COMPLIANT")) {
+    // Never attach the raw response: it can contain the new authentication credentials.
+    throw new ZatcaApiError("CLIENT_ERROR", "ZATCA returned an incomplete renewal response", status);
+  }
+  return {
+    requestID: String(value.requestID), binarySecurityToken: value.binarySecurityToken, secret: value.secret,
+    ...(typeof value.dispositionMessage === "string" ? { dispositionMessage: value.dispositionMessage } : {}),
+    requiresComplianceChecks: status === 428 || value.dispositionMessage === "NOT_COMPLIANT",
+  };
 }
 
 function authHeader(credentials: ZatcaCredentials): string {
@@ -70,15 +92,16 @@ export class ZatcaOnboardingApiClient {
   }
 
   // PATCH /production/csids — renews an expiring production CSID with a fresh CSR and a new OTP.
-  // Authenticates with the CURRENT (about-to-expire) production CSID, not the OTP alone — // REVIEW:
-  // this task's brief only says "PATCH /production/csids with a new OTP"; whether the OTP
-  // replaces or supplements the existing CSID's Basic auth is unconfirmed (no reference
-  // implementation for renewal specifically was found, unlike the two other calls above).
-  async renewProductionCsid(credentials: ZatcaCredentials, otp: string, csrBase64: string, acceptLanguage: "ar" | "en" = "en"): Promise<CsidResponseBody> {
+  // Current PCSID Basic auth + renewal OTP + base64 CSR, confirmed by ZATCA support:
+  // https://zatca1.discourse.group/t/change-to-the-new-api-url/5456
+  // A 428 NOT_COMPLIANT returns a CCSID requiring checks, then POST /production/csids:
+  // https://zatca1.discourse.group/t/how-to-renew-expired-pcsid/524
+  // Contract tests are offline; a real Simulation renewal is still a release prerequisite.
+  async renewProductionCsid(credentials: ZatcaCredentials, otp: string, csrBase64: string, acceptLanguage: "ar" | "en" = "en"): Promise<RenewalResponse> {
     const url = `${ZATCA_BASE_URL[this.environment]}/production/csids`;
     const headers = { Accept: "application/json", Authorization: authHeader(credentials), OTP: otp, "Accept-Version": "V2", "Accept-Language": acceptLanguage };
     const response = await this.transport.request("PATCH", url, headers, { csr: csrBase64 }, this.timeoutMs);
-    if (response.status < 200 || response.status >= 300) throw classifyErrorStatus(response.status, response.body);
-    return response.body as CsidResponseBody;
+    if (response.status !== 428 && (response.status < 200 || response.status >= 300)) throw classifyErrorStatus(response.status, undefined);
+    return readRenewalResponse(response.body, response.status);
   }
 }

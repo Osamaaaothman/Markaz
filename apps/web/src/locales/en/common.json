@@ -1866,6 +1866,7 @@
       "posted": "Posted",
       "renamed": "Renamed",
       "certificate_renewed": "Certificate renewed",
+      "renewal_checks_required": "Renewal requires compliance checks",
       "egs_created": "Egs created",
       "invoice_resubmit_requested": "Invoice resubmit requested",
       "onboarding_csid_issued": "Onboarding csid issued",
@@ -2126,6 +2127,7 @@
       "step2": "2. Run compliance checks",
       "step3": "3. Request production certificate",
       "renew": "Renew certificate",
+      "renewalChecksRequired": "ZATCA requires compliance checks to complete renewal. Run the checks, then request the issuance certificate. Invoice submission for this unit is paused until both steps are complete.",
       "active": "This device is active and issuing invoices.",
       "hint": {
         "NEW": "Enter the OTP from the Fatoora developer portal to request a compliance certificate.",

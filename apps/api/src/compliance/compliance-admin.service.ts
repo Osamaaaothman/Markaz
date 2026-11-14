@@ -114,7 +114,7 @@ export interface OnboardingStepResult {
   readonly egsStatus: string;
   // Per-document results for COMPLIANCE_CHECKS.
   readonly checks?: readonly { readonly label: string; readonly ok: boolean; readonly message?: string }[];
-  readonly error?: { readonly code: string; readonly message: string; readonly status?: number; readonly body?: unknown };
+  readonly error?: { readonly code: string; readonly message: string; readonly status?: number };
 }
 
 export interface InvoiceRecordView {
@@ -164,14 +164,6 @@ const DEFAULT_EXPIRY_WARNING_DAYS = 30;
 
 function asStringArray(value: unknown): string[] {
   return validationMessages(value);
-}
-
-// ZATCA's error bodies are { errorCode, errorCategory, errorMessage } -- small and safe to hand to the screen --
-// but a body is untrusted input, so it is cut down to at most 2 KB of JSON text.
-function boundedBody(body: unknown): unknown {
-  if (body === undefined || body === null) return undefined;
-  const text = typeof body === "string" ? body : JSON.stringify(body);
-  return text.length > 2048 ? `${text.slice(0, 2048)}…` : body;
 }
 
 export class ComplianceAdminService {
@@ -379,8 +371,9 @@ export class ComplianceAdminService {
     const seller = await this.requireCompleteSeller(actor.companyId);
     const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId } });
     const environment = unit.environment as ZatcaEnvironment;
+    let egsStatus: "ACTIVE" | "COMPLIANCE_CSID_ISSUED";
     try {
-      await this.service().renewProductionCsid(egsUnitId, environment, otp, {
+      egsStatus = await this.service().renewProductionCsid(egsUnitId, environment, otp, {
         commonName: unit.name,
         organizationUnit: unit.branchName ?? company.name,
         organizationName: company.name,
@@ -395,8 +388,8 @@ export class ComplianceAdminService {
     } catch (error) {
       return this.failed("RENEWAL", unit.status, error, actor, egsUnitId, correlationId);
     }
-    await this.audit.log({ actorId: actor.id, action: "compliance.certificate_renewed", entityType: "EgsUnit", entityId: egsUnitId, correlationId });
-    return { step: "RENEWAL", ok: true, egsStatus: "ACTIVE" };
+    await this.audit.log({ actorId: actor.id, action: egsStatus === "ACTIVE" ? "compliance.certificate_renewed" : "compliance.renewal_checks_required", entityType: "EgsUnit", entityId: egsUnitId, correlationId });
+    return { step: "RENEWAL", ok: true, egsStatus };
   }
 
   // ── invoices ────────────────────────────────────────────────────────────────────────────────────────────
@@ -559,10 +552,11 @@ export class ComplianceAdminService {
       ok: false,
       egsStatus,
       error: {
-        code: known ? error.code : "UNEXPECTED",
+        code: known || error instanceof OnboardingError ? error.code : "UNEXPECTED",
         message: error instanceof Error ? error.message : "Unknown error",
         ...(known && error.status !== undefined ? { status: error.status } : {}),
-        ...(known && error.body !== undefined ? { body: boundedBody(error.body) } : {}),
+        // Onboarding error bodies can contain a fresh CSID and secret (HTTP 428).
+        // Return only the classified code/message/status, never the upstream payload.
       },
     };
     await this.audit.log({ actorId: actor.id, action: `compliance.${step.toLowerCase()}_failed`, entityType: "EgsUnit", entityId: egsUnitId, after: { code: result.error?.code, status: result.error?.status }, correlationId });
