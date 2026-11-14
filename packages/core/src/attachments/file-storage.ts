@@ -21,7 +21,7 @@ export interface StoredFile {
 export interface IFileStorage {
   readonly provider: StorageProvider;
   put(input: PutFileInput): Promise<StoredFile>;
-  get(key: string, visibility: AttachmentVisibility): Promise<Uint8Array>;
+  get(key: string, visibility: AttachmentVisibility, contentType?: string): Promise<Uint8Array>;
 }
 
 export class StorageError extends Error {

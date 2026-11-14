@@ -1067,7 +1067,9 @@
       "debitDate": "تاريخ الإشعار المدين",
       "postDebitNote": "ترحيل الإشعار المدين",
       "openOriginal": "فتح الفاتورة",
-      "downloadPdf": "تنزيل PDF"
+      "downloadPdf": "تنزيل PDF",
+      "customerDetails": "بيانات المشتري",
+      "customerAddress": "عنوان المشتري"
     },
     "item": "الصنف (أو خدمة)"
   },
@@ -1406,7 +1408,8 @@
     "pictureNone": "لا توجد صورة بعد.",
     "uploadPicture": "رفع صورة",
     "replacePicture": "استبدال",
-    "removePicture": "إزالة"
+    "removePicture": "إزالة",
+    "imageLoadError": "تعذر تحميل الصورة. حاول مرة أخرى."
   },
   "company": {
     "title": "الشركة",

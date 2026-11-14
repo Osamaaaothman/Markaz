@@ -75,9 +75,11 @@ export class CloudinaryFileStorage implements IFileStorage {
     return { publicUrl: input.visibility === "PUBLIC" ? (body.secure_url ?? null) : null };
   }
 
-  async get(key: string, visibility: AttachmentVisibility): Promise<Uint8Array> {
-    // The extension is not part of the key, so try the known ones in order of likelihood.
-    for (const contentType of ["application/pdf", "image/jpeg", "image/png", "image/webp"]) {
+  async get(key: string, visibility: AttachmentVisibility, storedContentType?: string): Promise<Uint8Array> {
+    // Current callers know the upload MIME type. Do not probe another private asset first:
+    // a denied/missing guessed PDF can prevent the actual PNG logo from ever being requested.
+    const contentTypes = storedContentType ? [storedContentType] : ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    for (const contentType of contentTypes) {
       const publicId = this.publicId(key, contentType);
       const url =
         visibility === "PUBLIC"

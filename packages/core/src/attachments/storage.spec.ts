@@ -61,6 +61,18 @@ describe("Cloudinary signing", () => {
 });
 
 describe("CloudinaryFileStorage (fake network)", () => {
+  it("uses the stored PNG type directly without probing a different private resource", async () => {
+    const calls: string[] = [];
+    const storage = new CloudinaryFileStorage({ cloudName: "demo", apiKey: "test", apiSecret: "test", folder: "markaz", fetchImpl: (url) => {
+      if (typeof url !== "string") throw new Error("Expected a string storage URL");
+      calls.push(url);
+      return Promise.resolve(url.endsWith(".png") ? new Response("image", { status: 200 }) : new Response("denied", { status: 401 }));
+    } });
+    expect(Buffer.from(await storage.get("a/b", "PRIVATE", "image/png")).toString()).toBe("image");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("/raw/authenticated/s--");
+    expect(calls[0]).toMatch(/\.png$/);
+  });
   const config = { cloudName: "demo", apiKey: "key123", apiSecret: "secret456", folder: "markaz" };
 
   it("uploads private files as authenticated raw assets with a signature and never exposes a URL", async () => {

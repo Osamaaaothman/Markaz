@@ -1067,7 +1067,9 @@
       "debitDate": "Debit note date",
       "postDebitNote": "Post debit note",
       "openOriginal": "Open the invoice",
-      "downloadPdf": "Download PDF"
+      "downloadPdf": "Download PDF",
+      "customerDetails": "Buyer details",
+      "customerAddress": "Buyer address"
     },
     "item": "Item (or service)"
   },
@@ -1406,7 +1408,8 @@
     "pictureNone": "No picture yet.",
     "uploadPicture": "Upload picture",
     "replacePicture": "Replace",
-    "removePicture": "Remove"
+    "removePicture": "Remove",
+    "imageLoadError": "The image could not be loaded. Please retry."
   },
   "company": {
     "title": "Company",
