@@ -20,17 +20,20 @@ import { partyKindIcon } from "./party-kind";
 import { useParties, type PartyKind, type PartySummary } from "./use-parties";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 
-const TABS: { kind: PartyKind; labelKey: string }[] = [
-  { kind: "SUPPLIER", labelKey: "parties.tabs.suppliers" },
-  { kind: "CUSTOMER", labelKey: "parties.tabs.customers" },
-  { kind: "EMPLOYEE", labelKey: "parties.tabs.employees" },
+const LEGACY_KINDS = new Set(["COMPANY", "PERSON", "OTHER"]);
+
+const TABS: { kind: PartyKind | null; labelKey: string; icon: string }[] = [
+  { kind: "SUPPLIER", labelKey: "parties.tabs.suppliers", icon: "pi pi-truck" },
+  { kind: "CUSTOMER", labelKey: "parties.tabs.customers", icon: "pi pi-shopping-bag" },
+  { kind: "EMPLOYEE", labelKey: "parties.tabs.employees", icon: "pi pi-id-card" },
+  { kind: null, labelKey: "parties.tabs.others", icon: "pi pi-tag" },
 ];
 
 function PartiesTab({
   kind,
   defaultKind,
 }: {
-  kind: PartyKind;
+  kind: PartyKind | null;
   defaultKind: PartyKind;
 }): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -47,7 +50,10 @@ function PartiesTab({
     kind,
     includeInactive,
   });
-  const parties = data?.pages.flatMap((page) => page.data) ?? [];
+  // The "others" tab (kind=null) shows only legacy kinds not covered by the main tabs.
+  const parties = (data?.pages.flatMap((page) => page.data) ?? []).filter(
+    (p) => kind !== null || LEGACY_KINDS.has(p.kind),
+  );
 
   const openDialog = (party: PartySummary | null): void => {
     setDialogParty(party);
@@ -189,8 +195,8 @@ export function PartiesPage(): React.JSX.Element {
 
       <TabView className="erp-tabs">
         {TABS.map((tab) => (
-          <TabPanel key={tab.kind} header={t(tab.labelKey)} leftIcon={`${partyKindIcon(tab.kind)} me-2`}>
-            <PartiesTab kind={tab.kind} defaultKind={tab.kind} />
+          <TabPanel key={tab.kind ?? "others"} header={t(tab.labelKey)} leftIcon={`${tab.icon} me-2`}>
+            <PartiesTab kind={tab.kind} defaultKind={tab.kind ?? "COMPANY"} />
           </TabPanel>
         ))}
       </TabView>

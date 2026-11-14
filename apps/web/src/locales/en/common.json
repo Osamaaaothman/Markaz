@@ -434,7 +434,8 @@
     "tabs": {
       "suppliers": "Suppliers",
       "customers": "Customers",
-      "employees": "Employees"
+      "employees": "Employees",
+      "others": "Others"
     },
     "phone": "Phone",
     "email": "Email",

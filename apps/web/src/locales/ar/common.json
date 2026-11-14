@@ -434,7 +434,8 @@
     "tabs": {
       "suppliers": "الموردون",
       "customers": "العملاء",
-      "employees": "الموظفون"
+      "employees": "الموظفون",
+      "others": "الأخرى"
     },
     "phone": "الهاتف",
     "email": "البريد الإلكتروني",
