@@ -1,10 +1,12 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import type pino from "pino";
+import { createHash } from "node:crypto";
 
 export interface EmailAttachment {
   readonly filename: string;
   readonly content: Buffer;
   readonly contentType: string;
+  readonly contentId?: string;
 }
 
 export interface EmailMessage {
@@ -20,6 +22,22 @@ export interface EmailTransport {
   readonly configured?: boolean;
   send(message: EmailMessage): Promise<void | { id: string; provider: string }>;
   deliveryStatus?(id: string): Promise<string | null>;
+}
+
+// Preview HTML uses embedded data; email clients receive multipart/related CID images.
+// https://resend.com/changelog/embed-images-using-cid and nodemailer.com/message/embedded-images
+export function withInlineImages(message: EmailMessage): EmailMessage {
+  const attachments = [...(message.attachments ?? [])];
+  const html = message.html.replace(/src="data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)"/g, (_match: string, contentType: string, data: string) => {
+    const content = Buffer.from(data, "base64");
+    const contentId = `image-${createHash("sha256").update(content).digest("hex").slice(0, 24)}@markaz`;
+    if (!attachments.some((attachment) => attachment.contentId === contentId)) attachments.push({
+      filename: `company-logo.${contentType === "image/jpeg" ? "jpg" : contentType.split("/")[1]}`,
+      contentType, content, contentId,
+    });
+    return `src="cid:${contentId}"`;
+  });
+  return { ...message, html, ...(attachments.length ? { attachments } : {}) };
 }
 
 export class EmailDeliveryError extends Error {
@@ -58,6 +76,7 @@ export class SmtpEmailTransport implements EmailTransport {
   ) {}
 
   async send(message: EmailMessage): Promise<void> {
+    message = withInlineImages(message);
     const result = await this.transporter.sendMail({
       from: this.fromAddress,
       to: message.to,
@@ -65,7 +84,7 @@ export class SmtpEmailTransport implements EmailTransport {
       html: message.html,
       text: message.text,
       ...(message.attachments
-        ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) }
+        ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType, ...(a.contentId ? { cid: a.contentId } : {}) })) }
         : {}),
     });
     if (Array.isArray(result.rejected) && result.rejected.length > 0) throw new EmailDeliveryError("EMAIL_DELIVERY_FAILED");
@@ -108,6 +127,7 @@ export class ResendEmailTransport implements EmailTransport {
   constructor(private readonly apiKey: string, private readonly fromAddress: string, private readonly request: typeof fetch = fetch) {}
 
   async send(message: EmailMessage): Promise<{ id: string; provider: string }> {
+    message = withInlineImages(message);
     try {
       const response = await this.request("https://api.resend.com/emails", {
         method: "POST",
@@ -115,7 +135,7 @@ export class ResendEmailTransport implements EmailTransport {
         signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({ from: this.fromAddress, to: [message.to], subject: message.subject,
           html: message.html, text: message.text,
-          ...(message.attachments ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64"), content_type: a.contentType })) } : {}),
+          ...(message.attachments ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64"), content_type: a.contentType, ...(a.contentId ? { content_id: a.contentId } : {}) })) } : {}),
         }),
       });
       if (!response.ok) throw new EmailDeliveryError(response.status >= 500 ? "EMAIL_DELIVERY_UNCERTAIN" : "EMAIL_DELIVERY_FAILED");
