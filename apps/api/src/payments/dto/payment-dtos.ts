@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsIn, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
-import { PAYMENT_METHODS, type PaymentDirection, type PaymentMethod } from "@erp/core";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateIf, ValidateNested } from "class-validator";
+import { PAYMENT_METHODS, PAYMENT_COUNTERPARTY_KINDS, type PaymentCounterpartyKind, type PaymentDirection, type PaymentMethod } from "@erp/core";
 import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 export class PaymentAllocationDto {
@@ -12,8 +12,19 @@ export class PaymentAllocationDto {
 }
 
 export class CreatePaymentDto {
+  @ValidateIf((dto: CreatePaymentDto) => dto.counterpartyKind !== "ACCOUNT" || dto.partyId !== undefined)
   @IsString()
-  partyId!: string;
+  @IsNotEmpty()
+  partyId?: string;
+
+  @IsOptional()
+  @IsIn(PAYMENT_COUNTERPARTY_KINDS)
+  counterpartyKind?: PaymentCounterpartyKind;
+
+  @ValidateIf((dto: CreatePaymentDto) => dto.counterpartyKind === "ACCOUNT" || dto.counterpartyKind === "EMPLOYEE" || dto.counterAccountId !== undefined)
+  @IsString()
+  @IsNotEmpty()
+  counterAccountId?: string;
 
   @IsDateString()
   paymentDate!: string;
@@ -42,6 +53,11 @@ export class CreatePaymentDto {
   @ValidateNested({ each: true })
   @Type(() => PaymentAllocationDto)
   allocations!: PaymentAllocationDto[];
+}
+
+export class PaymentCashAccountsQueryDto {
+  @IsIn(PAYMENT_METHODS)
+  method!: PaymentMethod;
 }
 
 export class PaymentsQueryDto {

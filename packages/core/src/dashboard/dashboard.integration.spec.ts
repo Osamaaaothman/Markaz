@@ -59,6 +59,9 @@ describeIfDb("Dashboard — real database", () => {
       grni: await make("2010", "GRNI", "LIABILITY", "CREDIT"),
       cogs: await make("5100", "COGS", "EXPENSE", "DEBIT"),
     };
+    const bankFolder = await prisma.account.create({ data: { id: newId(), ref: "BANKS-" + companyId, companyId, code: "BANKS", name: "Banks", type: "ASSET", normalBalance: "DEBIT", isPostable: false } });
+    await prisma.account.update({ where: { id: acc.bank }, data: { parentId: bankFolder.id } });
+    await mappings.set("BANK_ACCOUNTS_PARENT", bankFolder.id, actor, cid());
     await mappings.set("ACCOUNTS_RECEIVABLE", acc.ar, actor, cid());
     await mappings.set("SALES_REVENUE", acc.revenue, actor, cid());
     await mappings.set("VAT_OUTPUT", acc.vat, actor, cid());
@@ -76,7 +79,7 @@ describeIfDb("Dashboard — real database", () => {
     // 1000 due long ago (overdue), 500 not yet due.
     await sales.createInvoice({ customerId, invoiceDate: new Date(Date.UTC(year, 0, 2)), dueDate: new Date(Date.UTC(year, 0, 3)), lines: [{ description: "Old", quantity: "1", unitPrice: "1000", taxCodeId: vat0 }] }, actor, cid(), newId());
     await sales.createInvoice({ customerId, invoiceDate: today, dueDate: new Date(today.getTime() + 20 * 86_400_000), lines: [{ description: "New", quantity: "1", unitPrice: "500", taxCodeId: vat0 }] }, actor, cid(), newId());
-    await new PaymentService(prisma, engine, mappings, audit).create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "200", cashAccountId: acc.bank, method: "CASH", allocations: [] }, actor, cid(), newId());
+    await new PaymentService(prisma, engine, mappings, audit).create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "200", cashAccountId: acc.bank, method: "BANK_TRANSFER", allocations: [] }, actor, cid(), newId());
   });
 
   afterAll(async () => {

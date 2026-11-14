@@ -23,7 +23,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
 import { paymentToPdfHtml } from "./exports/payment-export.js";
 import { localizedCompanyName } from "../common/company-name.js";
-import { CreatePaymentDto, OpenInvoicesQueryDto, PartyBalanceQueryDto, PaymentsQueryDto, SettleDto } from "./dto/payment-dtos.js";
+import { CreatePaymentDto, OpenInvoicesQueryDto, PartyBalanceQueryDto, PaymentCashAccountsQueryDto, PaymentsQueryDto, SettleDto } from "./dto/payment-dtos.js";
 
 async function mapPaymentErrors<T>(work: Promise<T>): Promise<T> {
   try {
@@ -69,6 +69,12 @@ export class PaymentsController {
   @RequirePermission("payment", "read")
   openInvoices(@CurrentUser() actor: CurrentUserPayload, @Query() query: OpenInvoicesQueryDto): Promise<OpenInvoiceView[]> {
     return this.payments.openInvoices(actor.companyId, query.partyId, query.direction);
+  }
+
+  @Get("payments/cash-accounts")
+  @RequirePermission("account", "read")
+  cashAccounts(@CurrentUser() actor: CurrentUserPayload, @Query() query: PaymentCashAccountsQueryDto) {
+    return this.payments.cashAccounts(actor.companyId, query.method);
   }
 
   // What a party has on account (old receipts/payments never tied to an invoice) against what it
@@ -184,6 +190,8 @@ function toInput(direction: PaymentDirection, dto: CreatePaymentDto) {
   return {
     direction,
     partyId: dto.partyId,
+    counterpartyKind: dto.counterpartyKind,
+    counterAccountId: dto.counterAccountId,
     paymentDate: new Date(dto.paymentDate),
     amount: dto.amount,
     cashAccountId: dto.cashAccountId,

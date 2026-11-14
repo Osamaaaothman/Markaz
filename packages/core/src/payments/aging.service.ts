@@ -78,11 +78,16 @@ export class AgingService {
 
     // On account: payments dated on or before the date, less what they were allocated to.
     const direction = side === "SALES" ? "RECEIPT" : "PAYMENT";
+    const counterpartyKind = side === "SALES" ? "CUSTOMER" : "SUPPLIER";
     const unallocated = await this.prisma.$queryRaw<{ party_id: string; unallocated: string }[]>`
       SELECT p.party_id,
-             SUM(p.amount - COALESCE((SELECT SUM(a.amount) FROM payment_allocations a WHERE a.payment_id = p.id), 0))::text AS unallocated
+             SUM((CASE WHEN p.direction = ${direction} THEN 1 ELSE -1 END) *
+                 (CASE WHEN p.reverses_payment_id IS NULL THEN 1 ELSE -1 END) * p.amount
+                 - CASE WHEN p.voided_at IS NULL OR p.voided_at::date > ${asOf}::date
+                   THEN COALESCE((SELECT SUM(a.amount) FROM payment_allocations a WHERE a.payment_id = p.id), 0) ELSE 0 END)::text AS unallocated
       FROM payments p
-      WHERE p.company_id = ${companyId} AND p.direction = ${direction} AND p.payment_date <= ${asOf}::date
+      WHERE p.company_id = ${companyId} AND p.payment_date <= ${asOf}::date
+        AND (p.counterparty_kind = ${counterpartyKind} OR (p.counterparty_kind IS NULL AND p.direction = ${direction}))
       GROUP BY p.party_id
     `;
     for (const u of unallocated) {

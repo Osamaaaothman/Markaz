@@ -72,8 +72,11 @@ export class PartyStatementService {
                      si.created_at
               FROM sales_invoices si WHERE si.company_id = ${companyId} AND si.customer_id = ${partyId} AND si.invoice_date < ${salesBefore}
               UNION ALL
-              SELECT 'RECEIPT', p.id, p.number, p.payment_date, p.reference, 0, p.amount, p.created_at
-              FROM payments p WHERE p.company_id = ${companyId} AND p.party_id = ${partyId} AND p.direction = 'RECEIPT' AND p.payment_date <= ${to}::date
+              SELECT p.direction, p.id, p.number, p.payment_date, p.reference,
+                     CASE WHEN (p.direction = 'PAYMENT') <> (p.reverses_payment_id IS NOT NULL) THEN p.amount ELSE 0 END,
+                     CASE WHEN (p.direction = 'RECEIPT') <> (p.reverses_payment_id IS NOT NULL) THEN p.amount ELSE 0 END, p.created_at
+              FROM payments p WHERE p.company_id = ${companyId} AND p.party_id = ${partyId} AND p.payment_date <= ${to}::date
+                AND (p.counterparty_kind = 'CUSTOMER' OR (p.counterparty_kind IS NULL AND p.direction = 'RECEIPT'))
             ) x ORDER BY doc_date, created_at, number
           `
         : await this.prisma.$queryRaw<Row[]>`
@@ -85,8 +88,11 @@ export class PartyStatementService {
                      si.created_at
               FROM supplier_invoices si WHERE si.company_id = ${companyId} AND si.supplier_id = ${partyId} AND si.invoice_date <= ${to}::date
               UNION ALL
-              SELECT 'PAYMENT', p.id, p.number, p.payment_date, p.reference, 0, p.amount, p.created_at
-              FROM payments p WHERE p.company_id = ${companyId} AND p.party_id = ${partyId} AND p.direction = 'PAYMENT' AND p.payment_date <= ${to}::date
+              SELECT p.direction, p.id, p.number, p.payment_date, p.reference,
+                     CASE WHEN (p.direction = 'RECEIPT') <> (p.reverses_payment_id IS NOT NULL) THEN p.amount ELSE 0 END,
+                     CASE WHEN (p.direction = 'PAYMENT') <> (p.reverses_payment_id IS NOT NULL) THEN p.amount ELSE 0 END, p.created_at
+              FROM payments p WHERE p.company_id = ${companyId} AND p.party_id = ${partyId} AND p.payment_date <= ${to}::date
+                AND (p.counterparty_kind = 'SUPPLIER' OR (p.counterparty_kind IS NULL AND p.direction = 'PAYMENT'))
             ) x ORDER BY doc_date, created_at, number
           `;
 

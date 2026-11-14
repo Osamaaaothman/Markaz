@@ -386,7 +386,8 @@ model Account {
   accountMappings               AccountMapping[]
   supplierInvoiceLines          SupplierInvoiceLine[]
   salesInvoiceLines             SalesInvoiceLine[]
-  payments                      Payment[]
+  payments                      Payment[]                @relation("PaymentCash")
+  counterPayments               Payment[]                @relation("PaymentCounterAccount")
   salaryAdvances                SalaryAdvance[]
   salaryAdvanceRepayments       SalaryAdvanceRepayment[]
   employeeAdvanceAccounts       Employee[]               @relation("EmployeeAdvanceAccount")
@@ -1478,17 +1479,20 @@ model SalesInvoiceLine {
   @@index([originalLineId])
 }
 
-// ─── Payments (customer receipts and supplier payments) ─────────────────────────
-// A RECEIPT is money in from a customer (Dr cash/bank, Cr receivable); a PAYMENT is money out to a
-// supplier (Dr payable, Cr cash/bank). The whole amount posts to the control account; the allocations
-// say which invoices it settles. Whatever is not allocated stays "on account" for the party. A posted
-// payment is immutable — a mistake is corrected by a reversing entry, never an edit.
+// ─── Receipt and payment vouchers ───────────────────────────────────────────────
+// RECEIPT: Dr cash/bank, Cr counter-account. PAYMENT: the opposite.
+// Customer/supplier roles use their invoice control account. Employee/account vouchers explicitly
+// select a counter-account. Eligible invoice allocations may total less than the voucher amount.
+// Posted financial fields are immutable; mistakes are corrected by a reversing entry.
 model Payment {
   id             String   @id
   companyId      String   @map("company_id")
   direction      String // RECEIPT | PAYMENT
   number         String
-  partyId        String   @map("party_id")
+  partyId        String?  @map("party_id")
+  // Null on legacy vouchers; their role follows direction. New vouchers store the selected role.
+  counterpartyKind String? @map("counterparty_kind") // CUSTOMER | SUPPLIER | EMPLOYEE | ACCOUNT
+  counterAccountId String? @map("counter_account_id")
   paymentDate    DateTime @map("payment_date") @db.Date
   amount         Decimal  @db.Decimal(19, 4)
   currency       String
@@ -1509,8 +1513,9 @@ model Payment {
   reversedByPaymentId  String?   @map("reversed_by_payment_id")
 
   company      Company             @relation(fields: [companyId], references: [id])
-  party        Party               @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  cashAccount  Account             @relation(fields: [cashAccountId], references: [id], onDelete: Restrict)
+  party        Party?              @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  cashAccount  Account             @relation("PaymentCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  counterAccount Account?          @relation("PaymentCounterAccount", fields: [counterAccountId], references: [id], onDelete: Restrict)
   journalEntry JournalEntry        @relation(fields: [journalEntryId], references: [id])
   allocations  PaymentAllocation[]
 
