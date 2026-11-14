@@ -15,6 +15,7 @@ const LINK_ID = "prime-theme-link";
 export function usePrimeTheme(): void {
   const mode = useThemeStore((state) => state.mode);
   const theme = useThemeStore((state) => state.theme);
+  const direction = useThemeStore((state) => state.direction);
 
   useEffect(() => {
     let link = document.getElementById(LINK_ID) as HTMLLinkElement | null;
@@ -25,7 +26,11 @@ export function usePrimeTheme(): void {
       document.head.appendChild(link);
     }
     link.href = mode === "dark" ? darkThemeUrl : lightThemeUrl;
+  }, [mode]);
+
+  useEffect(() => {
     document.documentElement.dataset.themeMode = mode;
     document.documentElement.dataset.theme = theme;
-  }, [mode, theme]);
+    document.documentElement.dataset.design = direction;
+  }, [mode, theme, direction]);
 }

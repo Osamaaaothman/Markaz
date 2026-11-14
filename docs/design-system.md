@@ -13,6 +13,10 @@ This file explains the rules behind it. The stack stays **PrimeReact** — we re
 | `design/components.css` | PrimeReact overrides (buttons, inputs, dropdowns, dialogs, tables, tabs, toasts) and `erp-*` building blocks. |
 | `design/pages.css` | Login, dashboard, KPI cards, forms, line grids. |
 | `design/motion.css` | Keyframes: stagger-in, chart growth, ring fill, logo draw-in. |
+| `design/directions.css` | Optional Balance, Canvas and Precision geometry, navigation and restrained motion; selected via `html[data-design]`. |
+| `design/direction-palettes.css` | The original Balance green, Canvas gold and Precision blue palettes, in light/dark versions, independent of geometry. |
+| `shared/theme/DirectionPicker.tsx` | Instant design selection in the topbar and Interface settings. |
+| `shared/ui/ChoiceSelect.tsx` | Themed PrimeReact selection popup shared by the app and redesign preview toolbars. |
 | `shared/ui/Logo.tsx` | The emblem (`mark`, `full`, `stacked`; `animate` once or `"loop"`). |
 | `shared/ui/AnimatedMoney.tsx`, `shared/lib/use-count-up.ts` | Count-up figures. |
 | `app/layout/CommandPalette.tsx` | `Ctrl+K` jump to any screen. |
@@ -31,6 +35,30 @@ This file explains the rules behind it. The stack stays **PrimeReact** — we re
 9. **Dark mode is a full token set**, not an inversion. Check both on every new screen.
 
 ## Palette (identity)
+
+### Optional design directions
+
+The topbar and **Settings → Interface** offer Balance, Canvas and Precision. They
+change shape and composition independently of colour. Balance anchors the sidebar and
+connects KPI cards; Canvas uses a floating sidebar, rounded panels and pill actions;
+Precision starts with an expandable icon rail, permission-filtered section shortcuts,
+square panels and denser ruled tables. The original colour themes remain available.
+
+Every one of the 15 colour choices can be applied to every direction, including the
+original layout. The six original direction palettes remain selectable, with a
+button to use the current style's original colours. Changing style preserves the
+palette; changing colour or mode preserves the style. The quick mode toggle pairs
+the original direction palettes and remembers the other light/dark selections.
+Version 3 of `erp-theme` stores `direction` separately from `theme`; migration keeps
+version-1 mode and version-2 palette/layout choices. Preferences
+are per browser, not synced to an account or another device. Switching does not
+remount the route or discard a form's current input. Precision's expansion state is
+separate from the saved sidebar preference used by other directions.
+
+The production app imports the shared CSS entry `design/styles.ts`. For a local
+fixture review of its actual shell, settings and component reference, open
+`http://127.0.0.1:5186/appearance.html` using the dedicated redesign preview server.
+This separate HTML entry is excluded from the normal application build.
 
 Ink `--mk-ink-*` (shell, hero), Forest `--mk-brand-*` (primary), Brass `--mk-brass-*` (centre dot, revenue/expense pairing). Flat colour only: no gradients, glows or decorative patterns. Semantic colours (`--mk-danger`, `--mk-warn`, `--mk-success`, `--mk-info`) are separate from the brand set.
 

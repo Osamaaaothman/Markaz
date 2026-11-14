@@ -37,6 +37,7 @@ export function useCashExpenses() {
 
 // One expense account line of a cash expense; cost center and note are optional per line.
 export interface CashExpenseLinePayload {
+  readonly costCenterId?: string;
   readonly expenseAccountId: string;
   readonly amount: string;
   readonly costCenterRef?: string;

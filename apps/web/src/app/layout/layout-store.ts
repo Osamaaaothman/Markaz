@@ -10,6 +10,8 @@ interface LayoutState {
   closeMobileSidebar: () => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  precisionSidebarExpanded: boolean;
+  togglePrecisionSidebar: () => void;
   // Sidebar group headings (NavItem.groupKey) the user folded closed. Absent = expanded (the default).
   collapsedGroups: Record<string, boolean>;
   toggleGroup: (groupKey: string) => void;
@@ -31,8 +33,17 @@ export const useLayoutStore = create<LayoutState>()(
       closeMobileSidebar: () => set({ mobileSidebarOpen: false }),
       sidebarCollapsed: false,
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
+      precisionSidebarExpanded: false,
+      togglePrecisionSidebar: () =>
+        set({ precisionSidebarExpanded: !get().precisionSidebarExpanded }),
       collapsedGroups: {},
-      toggleGroup: (groupKey) => set({ collapsedGroups: { ...get().collapsedGroups, [groupKey]: !get().collapsedGroups[groupKey] } }),
+      toggleGroup: (groupKey) =>
+        set({
+          collapsedGroups: {
+            ...get().collapsedGroups,
+            [groupKey]: !get().collapsedGroups[groupKey],
+          },
+        }),
       groupOrder: [],
       setGroupOrder: (order) => set({ groupOrder: order }),
       resetGroupOrder: () => set({ groupOrder: [] }),

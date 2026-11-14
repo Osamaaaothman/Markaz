@@ -1184,6 +1184,22 @@
       "ACCOUNT": "Account"
     }
   },
+  "costCenters": {
+    "title": "Cost center directory",
+    "new": "Add cost center",
+    "edit": "Edit cost center",
+    "code": "Code",
+    "name": "Name",
+    "nameAr": "Arabic name",
+    "kind": "Type",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pick": "Choose cost center / project / department",
+    "empty": "No cost centers; add them in the directory",
+    "legacy": "Previous reference",
+    "duplicate": "This code is already in use",
+    "kinds": { "COST_CENTER": "Cost center", "PROJECT": "Project", "DEPARTMENT": "Department" }
+  },
   "cashExpenses": {
     "title": "Cash Expenses",
     "subtitle": "Small cash outlays straight to an expense — no supplier, no invoice.",
@@ -1191,13 +1207,13 @@
     "newTitle": "New cash expense",
     "newSubtitle": "Pick where the money came from and what it was spent on.",
     "date": "Date",
-    "cashAccount": "Cash / bank account",
+    "cashAccount": "Cash box account",
     "expenseAccount": "Expense account",
     "pickExpenseAccount": "Choose the expense account",
     "lines": "Lines",
     "addLine": "Add line",
     "total": "Total",
-    "costCenter": "Cost center",
+    "costCenter": "Cost center / project / department",
     "costCenterPlaceholder": "Project / dept / cost center",
     "lineDescriptionPlaceholder": "Line description (optional)",
     "description": "Description",
@@ -1208,6 +1224,7 @@
       "EXPENSE_ACCOUNT_INVALID": "Choose a postable expense account.",
       "NO_OPEN_PERIOD": "No open fiscal period covers this date.",
       "LINES_EMPTY": "Add at least one expense line.",
+      "COST_CENTER_INVALID": "Choose an active cost center belonging to this company.",
       "generic": "Something went wrong. Please try again."
     }
   },
@@ -1460,6 +1477,18 @@
     "yearFailed": "Could not create the year. Check that it does not overlap an existing year."
   },
   "interfaceSettings": {
+    "direction": "Design style",
+    "directionHint": "Three complete styles for navigation, cards, fields, tables and dialogs. Switch instantly without leaving your work. Your choice is remembered in this browser.",
+    "directionRestore": "Style controls shape and layout. Choose colours separately below; changing one keeps the other. The existing style is also available in the topbar.",
+    "directionPalette": "Use this style’s original colours",
+    "originalLook": "Existing style",
+    "recommended": "Recommended",
+    "moduleNavigation": "Workspace sections",
+    "directions": {
+      "balance": { "name": "Balance", "description": "Anchored navigation, gently squared controls and connected metrics. Clear and practical for everyday work." },
+      "canvas": { "name": "Canvas", "description": "Floating navigation, rounded cards and generous space. A calm, spacious workspace." },
+      "precision": { "name": "Precision", "description": "An icon rail, section shortcuts, square edges and dense tables. Built for frequent users." }
+    },
     "title": "Interface",
     "subtitle": "Personal display preferences, kept on this device only.",
     "sidebarOrder": "Sidebar section order",
@@ -1468,7 +1497,7 @@
     "moveDown": "Move {{section}} down",
     "resetOrder": "Reset to default order",
     "theme": "Colour theme",
-    "themeHint": "Pick the look you like. It applies instantly and is remembered on this device only.",
+    "themeHint": "Apply any palette to your selected style. The original Balance, Canvas and Precision colours are included in light and dark versions. Both choices are saved in this browser.",
     "modeLight": "Light",
     "modeDark": "Dark",
     "themes": {
@@ -1480,7 +1509,13 @@
       "night": "Night",
       "graphite": "Graphite",
       "prime": "PrimeReact",
-      "primedark": "PrimeReact Dark"
+      "primedark": "PrimeReact Dark",
+      "balance": "Balance green",
+      "balancedark": "Balance green",
+      "canvas": "Canvas gold",
+      "canvasdark": "Canvas gold",
+      "precision": "Precision blue",
+      "precisiondark": "Precision blue"
     }
   },
   "created": {
@@ -2422,6 +2457,13 @@
     "parties": "parties",
     "hint": "Upload XLSX (first worksheet) or CSV. Maximum 200 rows and 2 MB. Download the column template; preview does not save anything. Correct errors in your file and upload it again.",
     "kindsHint": "Party kinds: CUSTOMER, SUPPLIER, CUSTOMER_SUPPLIER (both), COMPANY, PERSON, OTHER. Import employees through HR. Keep phone numbers and identifiers as text in Excel to preserve leading zeros.",
+    "prepare": "Prepare your file, then review the data",
+    "fileLimits": "XLSX (first worksheet) or CSV · Up to 200 rows · 2 MB",
+    "kindTitle": "Available values for column",
+    "partyTemplateHint": "The template includes one row per kind. Complete the rows you need and delete unused rows. You can repeat a kind for multiple parties.",
+    "employeeHint": "Add employees through Human Resources.",
+    "textHint": "Format phone numbers and identifiers as text in Excel to preserve leading zeros.",
+    "previewHint": "Preview does not save data. Review the results, correct errors in your file and upload it again before confirming the import.",
     "template": "Download column template",
     "choose": "Choose file and preview",
     "row": "File row",
@@ -2459,7 +2501,7 @@
       "TOO_LONG": "Value is too long",
       "REQUIRED": "Required",
       "INVALID_DECIMAL": "Use a non-negative decimal with at most four decimal places",
-      "INVALID_KIND": "Use COMPANY, PERSON or OTHER",
+      "INVALID_KIND": "Use CUSTOMER, SUPPLIER, CUSTOMER_SUPPLIER, COMPANY, PERSON or OTHER",
       "INVALID_EMAIL": "Invalid email address",
       "INVALID_COUNTRY": "Use a two-letter country code",
       "DUPLICATE_FILE": "Repeated in this file",

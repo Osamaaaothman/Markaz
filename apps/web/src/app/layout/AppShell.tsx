@@ -7,6 +7,8 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { useLayoutStore } from "./layout-store";
 import { useLineGridKeys } from "./use-line-grid-keys";
+import { useSidebarLayout } from "./use-sidebar-layout";
+import { ModuleNavigation } from "./ModuleNavigation";
 
 // docs/08-FRONTEND-I18N-RULES.md §4/§9: the desktop sidebar is a permanent column; below the responsive
 // breakpoint it becomes a slide-in drawer (the stylesheet handles the breakpoint and uses logical
@@ -14,7 +16,7 @@ import { useLineGridKeys } from "./use-line-grid-keys";
 export function AppShell(): React.JSX.Element {
   const mobileSidebarOpen = useLayoutStore((state) => state.mobileSidebarOpen);
   const closeMobileSidebar = useLayoutStore((state) => state.closeMobileSidebar);
-  const collapsed = useLayoutStore((state) => state.sidebarCollapsed);
+  const { collapsed } = useSidebarLayout();
 
   useLineGridKeys();
 
@@ -34,8 +36,11 @@ export function AppShell(): React.JSX.Element {
 
       <div className="erp-shell__main">
         <Topbar />
+        <ModuleNavigation />
         <main className="erp-shell__content">
-          <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
+          <Suspense fallback={<PageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
       <CommandPalette />
