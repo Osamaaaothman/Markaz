@@ -1,0 +1,15 @@
+page-flip.ogg      (0.6 s, a crisp page flip: the clip the home page plays)
+page-flip-alt.ogg  (1.0 s, a longer, steadier paper rustle: a spare; set SOUND_URL in
+                    apps/web/src/shared/lib/page-sound.ts to use it)
+
+Both are unmodified files from the pack "10 Book Page Flips" (book_flip.8.ogg and book_flip.9.ogg).
+
+Author:   StarNinjas
+Source:   https://opengameart.org/content/10-book-page-flips
+License:  CC0 (public domain dedication). Free for any use, including commercial, with no attribution
+          required; the author says credit is appreciated, hence this note.
+Fetched:  2026-11-15
+SHA-256:  page-flip.ogg      0a39301fbbd9cf422148bebab3c1c8b5bd9eaf08dd780d98832d0ebacbefb35e
+          page-flip-alt.ogg  ef84248ff6fed254b7abcd82ad5d1dc21d21062f97698db5e6fd53e62b474d28
+
+Used by apps/web/src/shared/lib/page-sound.ts for the optional section-book sound on the home page.
