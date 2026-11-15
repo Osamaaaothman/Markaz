@@ -16,3 +16,7 @@ test("partial batch failures and skipped records never claim complete success", 
   assert.deepEqual(successFeedback([{ status: "APPLIED" }, { status: "SKIPPED" }]), { severity: "warn", key: "feedback.partial" });
   assert.equal(successFeedback({ failed: [] }).severity, "success");
 });
+
+test("queued submissions use informational feedback, never completed success", () => {
+  assert.deepEqual(successFeedback({ status: "QUEUED" }, { successKey: "compliance.invoicePanel.queued", successSeverity: "info" }), { severity: "info", key: "compliance.invoicePanel.queued" });
+});

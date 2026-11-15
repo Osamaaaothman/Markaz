@@ -1990,7 +1990,10 @@ html body .mk-created {
 /* The "saved" message must stay readable above any dialog that opens with it (the new record's details). */
 html body .p-toast {
   z-index: 100000 !important;
+  width: min(24rem, calc(100vw - 2.5rem));
   max-width: calc(100vw - 2.5rem);
+  max-height: calc(100dvh - 2.5rem);
+  overflow-y: auto;
 }
 
 /* The first-run checklist and the proposed-mapping list: one row per item, text in the middle, the action at the end (logical order, so it flips in RTL). */

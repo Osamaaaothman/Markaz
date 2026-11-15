@@ -9,6 +9,7 @@ import { SupplierInvoiceService } from "../purchasing/supplier-invoice.service.j
 import { TaxCodeService } from "../purchasing/tax-code.service.js";
 import { SalesInvoiceService } from "../sales/sales-invoice.service.js";
 import { loadOutstanding } from "./outstanding.js";
+import { DocumentTrailService } from "../documents/document-trail.service.js";
 import { PaymentService } from "./payment.service.js";
 
 // Real PostgreSQL (docs/10-TESTING-RULES.md §1); skipped without DATABASE_URL.
@@ -537,5 +538,22 @@ describeIfDb("Payments and allocation — real database", () => {
 
     expect(await payments.get(supplierPayment.id, newId())).toBeNull();
     expect(await payments.get(newId(), companyId)).toBeNull();
+  });
+  it("does not traverse a shared payment into another invoice or that customer's other payments", async () => {
+    const makeInvoice = () => sales.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "Trail service", quantity: "1", unitPrice: "100", taxCodeId: vat0, revenueAccountId: acc.revenue! }] }, actor, cid(), newId());
+    const first = await makeInvoice(), second = await makeInvoice();
+    const shared = await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "100", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [{ invoiceId: first.id, amount: "50" }, { invoiceId: second.id, amount: "50" }] }, actor, cid(), newId());
+    const other = await payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "50", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [{ invoiceId: second.id, amount: "50" }] }, actor, cid(), newId());
+    const trail = new DocumentTrailService(prisma, { can: () => Promise.resolve(true) });
+    const graph = await trail.trail("sales_invoice", first.id, actor);
+    expect(graph.nodes.map((n) => n.id)).toEqual(expect.arrayContaining([first.id, shared.id]));
+    expect(graph.nodes.map((n) => n.id)).not.toEqual(expect.arrayContaining([second.id]));
+    expect(graph.nodes.map((n) => n.id)).not.toContain(other.id);
+    const paymentGraph = await trail.trail("payment", shared.id, actor);
+    expect(paymentGraph.nodes.map((n) => n.id)).toEqual(expect.arrayContaining([first.id, second.id, shared.id]));
+    expect(paymentGraph.nodes.map((n) => n.id)).not.toContain(other.id);
+    const allowed = new DocumentTrailService(prisma, { can: (_id, _action, kind) => Promise.resolve(kind === "sales_invoice") });
+    expect((await allowed.trail("sales_invoice", first.id, actor)).nodes.map((n) => n.id)).toEqual([first.id]);
+    await expect(trail.trail("sales_invoice", first.id, { ...actor, companyId: newId() })).rejects.toThrow("NOT_FOUND");
   });
 });

@@ -181,6 +181,25 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     return { ...base, service };
   }
 
+  it("identifies an unsigned predecessor without consuming a second counter, and recovers after its correction", async () => {
+    const transport = new ScriptedTransport().queue(CLEARED_RESPONSE, CLEARED_RESPONSE);
+    const { service, ...first } = await makeParams({ transport });
+    const good = first.buildInvoiceInput;
+    await expect(service.submit({ ...first, buildInvoiceInput: (c) => ({ ...good(c), supplier: { ...supplier, vatNumber: "12345" } }) })).rejects.toBeInstanceOf(InvoiceValidationError);
+    const reserved = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { salesInvoiceId: first.salesInvoiceId } });
+    const { service: secondService, ...second } = await makeParams({ transport });
+    await expect(secondService.submit(second)).rejects.toMatchObject({ code: "CHAIN_BLOCKED" });
+    expect(transport.calls).toHaveLength(0);
+    expect(await prisma.zatcaInvoiceRecord.findUnique({ where: { salesInvoiceId: second.salesInvoiceId } })).toBeNull();
+    expect(await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { id: reserved.id } })).toEqual(reserved);
+    await service.submit(first);
+    await secondService.submit(second);
+    const records = await prisma.zatcaInvoiceRecord.findMany({ where: { egsUnitId }, orderBy: { icv: "asc" } });
+    expect(records.map((r) => r.icv)).toEqual([1n, 2n]);
+    expect(records[1]!.previousInvoiceHash).toBe(records[0]!.invoiceHash);
+    expect(transport.calls).toHaveLength(2);
+  });
+
   it("clears a standard invoice, advances the chain, and persists the cleared XML", async () => {
     const transport = new ScriptedTransport().queue(CLEARED_RESPONSE);
     const { service, ...params } = await makeParams({ transport });
@@ -357,12 +376,12 @@ describeIfReady("InvoiceSubmissionService — real database, scripted ZATCA tran
     // The chain now advances before HTTP. Depending on scheduling, the second reservation
     // either collides and retries, or sees the next free position. Both must remain gapless.
     if (settledA.status === "rejected") {
-      expect(settledA.reason).toMatchObject({ code: "P2002" });
+      expect(settledA.reason).toMatchObject({ code: "CHAIN_BLOCKED" });
       expect(transportA.calls).toHaveLength(0);
       await serviceA.submit(paramsA);
     }
     if (settledB.status === "rejected") {
-      expect(settledB.reason).toMatchObject({ code: "P2002" });
+      expect(settledB.reason).toMatchObject({ code: "CHAIN_BLOCKED" });
       expect(transportB.calls).toHaveLength(0);
       await serviceB.submit(paramsB);
     }

@@ -22,6 +22,7 @@ import {
   buildSandboxDataQrBase64,
   invoiceQrArtifact,
   validationMessages,
+  providerValidationMessages,
   type ComplianceSample,
   type OnboardingService,
   type ZatcaEnvironment,
@@ -36,7 +37,8 @@ export type ComplianceErrorCode =
   | "WRONG_STATUS"
   | "INVOICE_RECORD_NOT_FOUND"
   | "SUBMISSION_NOT_WIRED"
-  | "ENCRYPTION_KEY_MISSING";
+  | "ENCRYPTION_KEY_MISSING"
+  | "SUBMISSION_BLOCKED";
 
 export class ComplianceError extends Error {
   constructor(
@@ -146,6 +148,12 @@ export interface InvoiceRecordView {
   readonly reportedAt: string | null;
   // A rejected invoice is never resubmitted (docs/06 §7); only one that has not reached a verdict can be.
   readonly canResubmit: boolean;
+}
+
+export interface SubmissionReadiness {
+  readonly canSubmit: boolean;
+  readonly issue: string | null;
+  readonly blockingInvoice: { readonly id: string; readonly number: string } | null;
 }
 
 export interface Resubmitter {
@@ -404,6 +412,7 @@ export class ComplianceAdminService {
     } });
     if (!row) return null;
     const artifact = invoiceQrArtifact(row.signedXml, row.clearedXml);
+    const providerFeedback = providerValidationMessages(row.lastResponse);
     const dataPreviewQrCode = artifact ? null : buildSandboxDataQrBase64(row.egsUnit.environment, {
       sellerName: row.salesInvoice.company.nameAr || row.salesInvoice.company.name,
       vatNumber: row.salesInvoice.company.vatNumber ?? "",
@@ -428,8 +437,8 @@ export class ComplianceAdminService {
       uuid: row.uuid,
       icv: row.icv.toString(),
       attempts: row.attempts,
-      warnings: asStringArray(row.validationWarnings),
-      errors: asStringArray(row.validationErrors),
+      warnings: [...new Set([...asStringArray(row.validationWarnings), ...providerFeedback.warnings])],
+      errors: providerFeedback.errors.length ? providerFeedback.errors : asStringArray(row.validationErrors),
       hasSignedXml: row.signedXml !== null,
       hasClearedXml: row.clearedXml !== null,
       qrCode: artifact?.qr ?? null,
@@ -489,16 +498,39 @@ export class ComplianceAdminService {
     return xml;
   }
 
-  async resubmit(companyId: string, salesInvoiceId: string, actor: Actor, correlationId: string): Promise<InvoiceRecordView | null> {
+  async submissionReadiness(companyId: string, salesInvoiceId: string): Promise<SubmissionReadiness> {
+    const invoice = await this.prisma.salesInvoice.findFirst({ where: { id: salesInvoiceId, companyId }, select: {
+      egsUnitId: true, egsUnit: { select: { status: true, isActive: true, chainState: { select: { lastIcv: true } } } },
+      zatcaRecord: { select: { status: true } },
+    } });
+    if (!invoice?.egsUnitId || !invoice.egsUnit) throw new ComplianceError("INVOICE_RECORD_NOT_FOUND", "This invoice is not linked to an EGS unit");
+    if (["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS", "REJECTED"].includes(invoice.zatcaRecord?.status ?? "")) return { canSubmit: false, issue: null, blockingInvoice: null };
+    if (!this.options.resubmitter) return { canSubmit: false, issue: "SUBMISSION_NOT_WIRED", blockingInvoice: null };
+    if (!invoice.egsUnit.isActive || invoice.egsUnit.status !== "ACTIVE") return { canSubmit: false, issue: "EGS_NOT_ACTIVE", blockingInvoice: null };
+    const tail = !invoice.zatcaRecord && invoice.egsUnit.chainState ? await this.prisma.zatcaInvoiceRecord.findFirst({
+      where: { companyId, egsUnitId: invoice.egsUnitId, icv: invoice.egsUnit.chainState.lastIcv + 1n, OR: [{ signedXml: null }, { invoiceHash: null }] },
+      select: { salesInvoice: { select: { id: true, number: true } } },
+    }) : null;
+    let issue: string | null;
+    try { issue = await this.service().submissionCredentialIssue(companyId, invoice.egsUnitId); }
+    catch (error) { if (!(error instanceof ComplianceError) || error.code !== "ENCRYPTION_KEY_MISSING") throw error; issue = error.code; }
+    issue ??= tail ? "CHAIN_BLOCKED" : null;
+    return { canSubmit: issue === null, issue, blockingInvoice: tail?.salesInvoice ?? null };
+  }
+
+  async resubmit(companyId: string, salesInvoiceId: string, actor: Actor, correlationId: string): Promise<{ status: "QUEUED" }> {
     const record = await this.invoiceRecord(companyId, salesInvoiceId);
     if (record && !record.canResubmit) throw new ComplianceError("WRONG_STATUS", `An invoice with status ${record.status} cannot be resubmitted; a correction is a new document`);
     if (!this.options.resubmitter) throw new ComplianceError("SUBMISSION_NOT_WIRED", "Submitting invoices to ZATCA is not enabled in this installation yet");
     const row = await this.prisma.salesInvoice.findFirst({ where: { id: salesInvoiceId, companyId }, select: { egsUnitId: true, egsUnit: { select: { status: true, isActive: true } } } });
     if (!row?.egsUnitId) throw new ComplianceError("INVOICE_RECORD_NOT_FOUND", "This invoice is not linked to an EGS unit");
     if (!row.egsUnit?.isActive || row.egsUnit.status !== "ACTIVE") throw new ComplianceError("WRONG_STATUS", "Complete EGS onboarding first");
+    const readiness = await this.submissionReadiness(companyId, salesInvoiceId);
+    await this.audit.log({ actorId: actor.id, action: "compliance.submission_readiness_checked", entityType: "EgsUnit", entityId: row.egsUnitId, correlationId, after: { issue: readiness.issue } });
+    if (!readiness.canSubmit) throw new ComplianceError("SUBMISSION_BLOCKED", "Resolve the submission issue before retrying", { ...readiness });
     await this.options.resubmitter.enqueue(salesInvoiceId, row.egsUnitId);
     await this.audit.log({ actorId: actor.id, action: "compliance.invoice_resubmit_requested", entityType: "ZatcaInvoiceRecord", entityId: salesInvoiceId, correlationId });
-    return record;
+    return { status: "QUEUED" };
   }
 
   // ── internals ───────────────────────────────────────────────────────────────────────────────────────────

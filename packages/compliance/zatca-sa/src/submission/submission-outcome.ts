@@ -4,7 +4,7 @@
 // below is a direct read of what ZATCA (or the transport) actually said, never assumed.
 import type { ComplianceOutcome } from "@erp/compliance-contract";
 import { ZatcaApiError, type ClearanceResponseBody, type ReportingResponseBody } from "./zatca-api-client.js";
-import { validationMessages } from "./validation-messages.js";
+import { providerValidationMessages, validationMessages } from "./validation-messages.js";
 
 export interface SubmissionOutcome {
   readonly complianceOutcome: ComplianceOutcome;
@@ -45,14 +45,17 @@ export function classifyReportingResponse(response: ReportingResponseBody): Subm
 //     rejection — a correction is a new document, not a resubmission.
 export function classifyError(error: unknown): SubmissionOutcome {
   if (error instanceof ZatcaApiError) {
+    const feedback = providerValidationMessages(error.body);
+    const errors = feedback.errors.length ? feedback.errors : [error.message];
+    const warnings = feedback.warnings;
     const rawResponse = { code: error.code, status: error.status, body: error.body };
     if (error.isTransient) {
-      return { complianceOutcome: { kind: "PENDING_RETRY" }, clearedXml: null, warnings: [], errors: [error.message], rawResponse };
+      return { complianceOutcome: { kind: "PENDING_RETRY" }, clearedXml: null, warnings, errors, rawResponse };
     }
     if (error.code === "AUTH_ERROR") {
-      return { complianceOutcome: { kind: "PACK_UNAVAILABLE" }, clearedXml: null, warnings: [], errors: [error.message], rawResponse };
+      return { complianceOutcome: { kind: "PACK_UNAVAILABLE" }, clearedXml: null, warnings, errors, rawResponse };
     }
-    return { complianceOutcome: { kind: "REJECTED", reason: error.message }, clearedXml: null, warnings: [], errors: [error.message], rawResponse };
+    return { complianceOutcome: { kind: "REJECTED", reason: errors[0]! }, clearedXml: null, warnings, errors, rawResponse };
   }
   const message = error instanceof Error ? error.message : String(error);
   return { complianceOutcome: { kind: "PACK_UNAVAILABLE" }, clearedXml: null, warnings: [], errors: [message], rawResponse: undefined };

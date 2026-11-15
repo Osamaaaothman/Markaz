@@ -181,8 +181,11 @@ export class InvoiceSubmissionService {
       // HTTP outcome. Recover that one reserved tail without changing its evidence.
       const pendingTail = await tx.zatcaInvoiceRecord.findUnique({
         where: { egsUnitId_icv: { egsUnitId: params.egsUnitId, icv: next.icv } },
-        select: { companyId: true, signedXml: true, invoiceHash: true, previousInvoiceHash: true },
+        select: { companyId: true, salesInvoiceId: true, signedXml: true, invoiceHash: true, previousInvoiceHash: true },
       });
+      if (pendingTail && (!pendingTail.signedXml || !pendingTail.invoiceHash)) {
+        throw new EgsChainError("CHAIN_BLOCKED", `The EGS chain is reserved by invoice ${pendingTail.salesInvoiceId}; resolve that invoice before generating another one.`);
+      }
       if (pendingTail?.signedXml && pendingTail.invoiceHash) {
         if (pendingTail.companyId !== params.companyId || pendingTail.previousInvoiceHash !== next.previousInvoiceHash
           || hashInvoiceXml(stripSignatureElements(pendingTail.signedXml)).zatcaHash !== pendingTail.invoiceHash) {

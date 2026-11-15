@@ -10,3 +10,12 @@ export function validationMessages(value: unknown): string[] {
     return [typeof item.code === "string" ? `${item.code}: ${message}` : message];
   });
 }
+
+/** Read only validation feedback, never serialize the provider response or credentials. */
+export function providerValidationMessages(response: unknown): { errors: string[]; warnings: string[] } {
+  const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const envelope = object(response);
+  const body = Object.hasOwn(envelope, "body") ? object(envelope.body) : envelope;
+  const validation = object(body.validationResults);
+  return { errors: validationMessages(validation.errorMessages), warnings: validationMessages(validation.warningMessages) };
+}

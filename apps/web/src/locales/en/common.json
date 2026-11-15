@@ -13,7 +13,8 @@
     "uploaded": "File uploaded successfully.",
     "posted": "Posted successfully.",
     "sent": "Email sent.",
-    "submitted": "Submitted for processing. Follow its status on this screen."
+    "submitted": "Submitted for processing. Follow its status on this screen.",
+    "info": "Processing"
   },
   "app": {
     "name": "Markaz",
@@ -2015,7 +2016,8 @@
       "allowance_posted": "Allowance posted",
       "advance_posted": "Advance posted",
       "deduction_posted": "Deduction posted",
-      "end_of_service_posted": "End of service posted"
+      "end_of_service_posted": "End of service posted",
+      "submission_readiness_checked": "Submission readiness checked"
     },
     "fields": {
       "id": "Id",
@@ -2298,7 +2300,12 @@
       "notLinked": "This invoice is not linked to an issuing unit. No ZATCA submission is available.",
       "downloadError": "The XML download failed. Please retry.",
       "sandboxSignatureInvalid": "Local signature verification failed. Sandbox may return a fixed certificate that does not match the device key. This is neither acceptance nor rejection by ZATCA. Verify the key/certificate pair and test in Simulation with a device-bound certificate.",
-      "signatureInvalid": "The electronic signature is invalid. Verify the key, certificate and XML before resubmitting; this invoice is not accepted."
+      "signatureInvalid": "The electronic signature is invalid. Verify the key, certificate and XML before resubmitting; this invoice is not accepted.",
+      "queued": "The request is queued. ZATCA has not accepted the invoice yet; follow its status here.",
+      "blocked": "Invoice submission is blocked",
+      "sandboxSellerMismatch": "Sandbox rejected submission because the seller VAT number does not match its fixed test certificate. Generating XML and a QR does not mean the invoice was accepted. Keep the invoice data intact; test company-specific invoices with a Simulation unit and its own certificate.",
+      "sandboxCertificateHint": "This unit uses Sandbox. Its current test certificate does not match the device key, so an invalid signature will not be sent. Keep this environment for testing; use a Simulation unit with a matching certificate to test the complete issuance flow.",
+      "blockingInvoice": "Invoice reserving the sequence"
     },
     "invoiceStatus": {
       "PENDING": "Pending",
@@ -2334,6 +2341,17 @@
       "AFTER_SIGNING": "Validation after signing",
       "CLEARANCE": "Clearance",
       "REPORTING": "Reporting"
+    },
+    "submissionIssue": {
+      "CERTIFICATE_KEY_MISMATCH": "The unit certificate does not match its signing key. Configure a matching certificate before retrying.",
+      "CERTIFICATE_INVALID": "The unit certificate or key could not be read. Review the integration setup.",
+      "CERTIFICATE_SELLER_MISMATCH": "ZATCA rejected the current certificate because it does not match the seller VAT number. Configure credentials for this company before sending more documents. For company-specific Sandbox tests, use Simulation.",
+      "CERTIFICATE_EXPIRED": "The unit certificate has expired or is not valid yet.",
+      "CREDENTIALS_MISSING": "The unit credentials are incomplete.",
+      "EGS_NOT_ACTIVE": "Complete issuing-unit onboarding first.",
+      "ENCRYPTION_KEY_MISSING": "The server credential encryption key is not configured.",
+      "SUBMISSION_NOT_WIRED": "Invoice submission is not enabled.",
+      "CHAIN_BLOCKED": "A previous invoice reserved the sequence but could not finish generation. Resolve its issue first; its sequence will not be skipped or reset."
     }
   },
   "setup": {
@@ -2427,7 +2445,7 @@
   },
   "trail": {
     "title": "Track document",
-    "subtitle": "Linked documents in creation order, within your permissions.",
+    "subtitle": "This document’s preceding and following documents, direct payments and journal entries, without expanding into other documents through a shared customer or payment.",
     "related": "Linked to",
     "recorded": "Recorded",
     "truncated": "This chain is large; open a linked document to explore further relationships.",

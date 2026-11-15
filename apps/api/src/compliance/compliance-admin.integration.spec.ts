@@ -109,7 +109,7 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
   // entry, the invoice itself) to satisfy it. Not a realistic posting (the compliance pack does
   // not care, and this is not an accounting test); accounting correctness of this fixture is out
   // of scope here — packages/core/src/sales/sales.integration.spec.ts covers that.
-  async function createMinimalSalesInvoice(forCompanyId: string): Promise<string> {
+  async function createMinimalSalesInvoice(forCompanyId: string, egsUnitId?: string): Promise<string> {
     const unique = newId();
     const year = await prisma.fiscalYear.create({ data: { id: newId(), companyId: forCompanyId, name: `FY-Test-${unique}`, startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") } });
     const period = await prisma.fiscalPeriod.create({ data: { id: newId(), companyId: forCompanyId, fiscalYearId: year.id, periodNumber: 1, startDate: new Date("2026-01-01"), endDate: new Date("2026-12-31") } });
@@ -144,6 +144,7 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
         id: newId(),
         companyId: forCompanyId,
         documentType: "INVOICE",
+        ...(egsUnitId ? { egsUnitId } : {}),
         number: `TEST-${unique}`,
         customerId: customer.id,
         invoiceDate: new Date("2026-06-01"),
@@ -377,8 +378,55 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     expect(JSON.stringify(record)).not.toContain("secret content");
     expect(JSON.stringify(record)).not.toContain("<Invoice>");
 
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId }, data: {
+      status: "REJECTED", validationErrors: ["ZATCA rejected the request (HTTP 400)"],
+      lastResponse: { code: "CLIENT_ERROR", status: 400, body: { secret: "never-return-response", validationResults: { errorMessages: [{ code: "certificate-permissions", message: "Seller VAT mismatch" }], warningMessages: [] } } },
+    } });
+    const rejected = await service.invoiceRecord(companyId, salesInvoiceId);
+    expect(rejected!.errors).toEqual(["certificate-permissions: Seller VAT mismatch"]);
+    expect(rejected!.canResubmit).toBe(false);
+    expect(JSON.stringify(rejected)).not.toContain("never-return-response");
+
     // Cross-tenant: another company gets null, not someone else's record.
     expect(await service.invoiceRecord(otherCompanyId, salesInvoiceId)).toBeNull();
+  });
+
+  it("reports certificate mismatch and the blocking invoice without leaking secrets or queueing work", async () => {
+    const egs = await service.createEgsUnit({ name: "Till-readiness", businessCategory: "Retail", invoiceTypes: "1000" }, actor, newId());
+    const first = await createMinimalSalesInvoice(companyId, egs.id);
+    const next = await createMinimalSalesInvoice(companyId, egs.id);
+    const encrypted = (value: string): Uint8Array<ArrayBuffer> => Uint8Array.from(encryptText(value, ENCRYPTION_KEY));
+    const otherCertificate = generateTestCertificate();
+    await prisma.egsCredential.create({ data: { id: newId(), companyId, egsUnitId: egs.id,
+      privateKeyCiphertext: encrypted(testCertificate.privateKeyPem), productionCsidCiphertext: encrypted(otherCertificate.certificateBase64),
+      productionSecretCiphertext: encrypted("never-return-me"), status: "ACTIVE",
+    } });
+    await prisma.egsUnit.update({ where: { id: egs.id }, data: { status: "ACTIVE" } });
+    await prisma.zatcaInvoiceRecord.create({ data: { id: newId(), companyId, salesInvoiceId: first, egsUnitId: egs.id, uuid: first, icv: 1n, previousInvoiceHash: "unused-test-hash", status: "FAILED_RETRYABLE", validationErrors: ["SIGNATURE_INVALID"] } });
+    const enqueue = jest.fn<Promise<void>, [string, string]>().mockResolvedValue(undefined);
+    const readyService = new ComplianceAdminService(prisma, () => new OnboardingService(prisma, ENCRYPTION_KEY), audit, { defaultEnvironment: "sandbox", resubmitter: { enqueue } });
+    const readiness = await readyService.submissionReadiness(companyId, next);
+    expect(readiness).toMatchObject({ canSubmit: false, issue: "CERTIFICATE_KEY_MISMATCH", blockingInvoice: { id: first } });
+    expect(JSON.stringify(readiness)).not.toContain("never-return-me");
+    expect(JSON.stringify(readiness)).not.toContain("PRIVATE KEY");
+    await expect(readyService.submissionReadiness(otherCompanyId, next)).rejects.toMatchObject({ code: "INVOICE_RECORD_NOT_FOUND" });
+    await expect(readyService.resubmit(companyId, next, actor, newId())).rejects.toMatchObject({ code: "SUBMISSION_BLOCKED" });
+    expect(enqueue).not.toHaveBeenCalled();
+    await prisma.egsCredential.update({ where: { egsUnitId: egs.id }, data: { productionCsidCiphertext: encrypted(testCertificate.certificateBase64) } });
+    expect(await readyService.submissionReadiness(companyId, next)).toMatchObject({ canSubmit: false, issue: "CHAIN_BLOCKED" });
+    expect(await readyService.submissionReadiness(companyId, first)).toEqual({ canSubmit: true, issue: null, blockingInvoice: null });
+    expect(await readyService.resubmit(companyId, first, actor, newId())).toEqual({ status: "QUEUED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledWith(first, egs.id);
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId: first }, data: {
+      status: "REJECTED", lastResponse: { body: { validationResults: { errorMessages: [{ code: "certificate-permissions", message: "Seller VAT mismatch" }] } } },
+    } });
+    expect(await readyService.submissionReadiness(companyId, next)).toMatchObject({ canSubmit: false, issue: "CERTIFICATE_SELLER_MISMATCH" });
+    await expect(readyService.resubmit(companyId, next, actor, newId())).rejects.toMatchObject({ code: "SUBMISSION_BLOCKED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    await prisma.egsCredential.update({ where: { egsUnitId: egs.id }, data: { updatedAt: new Date(Date.now() + 1000) } });
+    expect((await readyService.submissionReadiness(companyId, next)).issue).not.toBe("CERTIFICATE_SELLER_MISMATCH");
+
   });
 
   it("resubmit throws SUBMISSION_NOT_WIRED when no Resubmitter is configured (the current, deliberate state)", async () => {
