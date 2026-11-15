@@ -47,3 +47,9 @@ describe("credit note DTO", () => {
     expect(await fieldsWithErrors(CreateCreditNoteDto, { creditDate: "2026-01-01", lines: [{ description: "x", quantity: "0", unitPrice: "100", taxCodeId: "t1" }] })).toEqual(["lines"]);
   });
 });
+
+it("requires an actual calendar date when a supply date is provided", async () => {
+  const input = { customerId: "c1", invoiceDate: "2026-11-15", lines: [serviceLine] };
+  expect(await fieldsWithErrors(CreateSalesInvoiceDto, { ...input, actualDeliveryDate: "2026-11-15" })).toEqual([]);
+  for (const actualDeliveryDate of [null, "", "2026-02-30", "2026-11-15T00:00:00Z", "not-a-date"]) expect(await fieldsWithErrors(CreateSalesInvoiceDto, { ...input, actualDeliveryDate })).toEqual(["actualDeliveryDate"]);
+});

@@ -1,3 +1,4 @@
+import { complianceIssueErrorKey } from "../compliance/issue-error-key";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { downloadCsv } from "../../shared/lib/export-csv";
 import { positiveReturnQuantity, validReturnQuantity } from "../../shared/lib/return-quantity";
@@ -470,6 +471,10 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           <label>{t("purchasing.invoices.dueDate")}</label>
           <span>{invoice.dueDate ? formatCalendarDate(invoice.dueDate, i18n.language) : "—"}</span>
         </div>
+        {invoice.actualDeliveryDate ? <div className="erp-field">
+          <label>{t("sales.invoices.actualDeliveryDate")}</label>
+          <span>{formatCalendarDate(invoice.actualDeliveryDate, i18n.language)}</span>
+        </div> : null}
       </div>
       <section className="erp-card" aria-label={t("sales.invoices.customerDetails")}>
         <h2 className="erp-card__title">{t("sales.invoices.customerDetails")}</h2>
@@ -829,7 +834,7 @@ function SalesReturnDialog({
           </DataTable>
           {create.isError ? (
             <p className="erp-auth-card__error">
-              {t(`returns.errors.${code ?? "generic"}`, {
+              {t(complianceIssueErrorKey(code) ?? `returns.errors.${code ?? "generic"}`, {
                 defaultValue: t("returns.errors.generic"),
               })}
             </p>
@@ -949,9 +954,7 @@ function DebitNoteDialog({
         </div>
         {create.isError ? (
           <p className="erp-auth-card__error">
-            {code === "DEBIT_EXCEEDS_INVOICE"
-              ? t("sales.errors.DEBIT_EXCEEDS_INVOICE")
-              : t("sales.errors.generic")}
+            {t(complianceIssueErrorKey(code) ?? (code === "DEBIT_EXCEEDS_INVOICE" ? "sales.errors.DEBIT_EXCEEDS_INVOICE" : "sales.errors.generic"))}
           </p>
         ) : null}
         <div className="erp-form__actions">

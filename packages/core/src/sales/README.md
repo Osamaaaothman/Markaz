@@ -10,3 +10,6 @@ inventory provisional-cost repository. Returned goods include completed cost cor
 
 No tax-signature or environment behavior is implemented here. Compliance errors remain in
 the compliance pack and its API/UI adapter.
+
+
+Sales invoices accept an explicitly supplied `actualDeliveryDate` (calendar date), preserved in detail/audit output; existing invoices are not backfilled. An optional `SalesInvoiceIssueValidator` supplied by application composition runs within the posting transaction before financial/stock/numbering/outbox effects for invoices and notes. Core contains no country validation rules. Rejections leave all posting effects unchanged; existing idempotent invoice/credit-note replays still return their original result.

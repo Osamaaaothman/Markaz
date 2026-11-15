@@ -39,7 +39,7 @@ export async function invoiceAuditSnapshot(
     kind === "sales"
       ? await prisma.salesInvoice.findFirst({
           where,
-          select: { ...select, customer: partySelect, customerId: true, salesOrderId: true },
+          select: { ...select, actualDeliveryDate: true, customer: partySelect, customerId: true, salesOrderId: true },
         })
       : await prisma.supplierInvoice.findFirst({
           where,
@@ -66,6 +66,7 @@ export async function invoiceAuditSnapshot(
     journalEntryId: row.journalEntryId,
     ...("customer" in row
       ? {
+          actualDeliveryDate: row.actualDeliveryDate?.toISOString().slice(0, 10) ?? null,
           customerId: row.customerId,
           customerName: row.customer.name,
           customerNameAr: row.customer.nameAr,

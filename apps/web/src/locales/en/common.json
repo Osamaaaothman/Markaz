@@ -1090,7 +1090,9 @@
         "OVERDUE": "Overdue",
         "RECORDED": "Posted"
       },
-      "statusHint": "Status follows the balance after linked vouchers and notes. Counts and filters cover loaded invoices; load more for remaining results."
+      "statusHint": "Status follows the balance after linked vouchers and notes. Counts and filters cover loaded invoices; load more for remaining results.",
+      "actualDeliveryDate": "Supply date",
+      "actualDeliveryDateHint": "Enter the actual date goods were supplied or the service was provided; it may differ from the invoice date. Required for standard tax invoices."
     },
     "item": "Item (or service)",
     "priceLocked": "Price is fixed by the linked sales order."
@@ -2147,7 +2149,8 @@
       "size": "Size",
       "settledAmount": "Settled amount",
       "remainingAmount": "Remaining amount",
-      "lineNumber": "Line number"
+      "lineNumber": "Line number",
+      "actualDeliveryDate": "Supply date"
     },
     "values": {
       "OPEN": "Open",
@@ -2353,6 +2356,19 @@
       "ENCRYPTION_KEY_MISSING": "The server credential encryption key is not configured.",
       "SUBMISSION_NOT_WIRED": "Invoice submission is not enabled.",
       "CHAIN_BLOCKED": "A previous invoice reserved the sequence but could not finish generation. Resolve its issue first; its sequence will not be skipped or reset."
+    },
+    "issueErrors": {
+      "COMPLIANCE_UNIT_NOT_READY": "Complete issuing-unit onboarding in ZATCA settings before issuing the document.",
+      "COMPLIANCE_SUPPLY_DATE_REQUIRED": "Enter the actual supply date for the standard tax invoice.",
+      "COMPLIANCE_SUPPLY_DATE_INVALID": "The supply date is invalid; select a valid calendar date.",
+      "COMPLIANCE_SELLER_VAT_INVALID": "Correct the seller VAT number in company settings: 15 digits, starting and ending with 3.",
+      "COMPLIANCE_BUYER_VAT_INVALID": "Correct the customer VAT number: 15 digits, starting and ending with 3.",
+      "COMPLIANCE_SELLER_ADDRESS_INVALID": "Complete the seller address: street, 4-digit building number, district, city, 5-digit postal code and country.",
+      "COMPLIANCE_BUYER_ADDRESS_INVALID": "Complete the customer street, city and country; a Saudi address also requires a building number, district and 5-digit postal code.",
+      "COMPLIANCE_SELLER_CR_INVALID": "Correct the seller commercial registration number to 10 digits.",
+      "COMPLIANCE_BUYER_CR_INVALID": "Correct the customer commercial registration number to 10 digits.",
+      "COMPLIANCE_SELLER_NAME_REQUIRED": "Enter the seller name in company settings.",
+      "COMPLIANCE_BUYER_NAME_REQUIRED": "Enter the customer name before issuing the invoice."
     }
   },
   "setup": {

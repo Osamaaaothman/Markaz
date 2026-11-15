@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsDateString, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsDateString, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, Matches, ValidateIf, ValidateNested } from "class-validator";
 import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 // A line on a quotation or sales order: an item, or a free-text service line.
@@ -87,6 +87,11 @@ export class SalesInvoiceLineDto extends SalesLineDto {
 }
 
 export class CreateSalesInvoiceDto {
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  actualDeliveryDate?: string;
+
   @IsString()
   customerId!: string;
 

@@ -1,5 +1,6 @@
 import { QuotationEmailService } from "./quotation-email.service.js";
 import { Module } from "@nestjs/common";
+import { SalesInvoiceIssueGuard } from "../compliance/sales-invoice-issue.guard.js";
 import { ComplianceModule } from "../compliance/compliance.module.js";
 import {
   AccountMappingService,
@@ -44,9 +45,9 @@ import { EMAIL_TRANSPORT, MailModule } from "../notifications/mail.module.js";
     },
     {
       provide: SalesInvoiceService,
-      useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger) =>
-        new SalesInvoiceService(prisma, engine, new AccountMappingService(prisma, audit), audit),
-      inject: [PrismaService, SALES_ENGINE, AUDIT_LOGGER],
+      useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger, guard: SalesInvoiceIssueGuard) =>
+        new SalesInvoiceService(prisma, engine, new AccountMappingService(prisma, audit), audit, guard.validate),
+      inject: [PrismaService, SALES_ENGINE, AUDIT_LOGGER, SalesInvoiceIssueGuard],
     },
   ],
 })

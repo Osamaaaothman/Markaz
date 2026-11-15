@@ -1,3 +1,4 @@
+import { SalesInvoiceIssueGuard } from "./sales-invoice-issue.guard.js";
 import { Module } from "@nestjs/common";
 import type IORedis from "ioredis";
 import { loadEncryptionKey, OnboardingService, type ZatcaEnvironment } from "@erp/compliance-zatca-sa";
@@ -48,9 +49,10 @@ class ZatcaQueueResubmitter implements Resubmitter {
 }
 
 @Module({
-  exports: [ComplianceAdminService],
+  exports: [ComplianceAdminService, SalesInvoiceIssueGuard],
   controllers: [ComplianceController],
   providers: [
+    { provide: SalesInvoiceIssueGuard, useFactory: () => new SalesInvoiceIssueGuard() },
     {
       provide: ComplianceAdminService,
       // `onboarding` is a thunk, not an eagerly-constructed OnboardingService: ZATCA_KEY_ENCRYPTION_KEY is
