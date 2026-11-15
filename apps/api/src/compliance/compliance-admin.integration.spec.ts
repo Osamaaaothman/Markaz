@@ -389,7 +389,9 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
 
     // Cross-tenant: another company gets null, not someone else's record.
     expect(await service.invoiceRecord(otherCompanyId, salesInvoiceId)).toBeNull();
-  });
+  // Real database reads plus two QR PNG encodes run alongside the Java SDK in CI.
+  // This is an integration correctness check, not a five-second performance budget.
+  }, 30_000);
 
   it("reports certificate mismatch and the blocking invoice without leaking secrets or queueing work", async () => {
     const egs = await service.createEgsUnit({ name: "Till-readiness", businessCategory: "Retail", invoiceTypes: "1000" }, actor, newId());
