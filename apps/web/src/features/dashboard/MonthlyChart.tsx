@@ -74,6 +74,12 @@ export function MonthlyChart({ months, currency }: { months: readonly MonthlyRes
             </g>
           ))}
 
+          {Array.from({ length: months.length + 1 }, (_, i) => (
+            <line key={`rule-${i}`} x1={PAD.left + i * slot} x2={PAD.left + i * slot} y1={PAD.top} y2={PAD.top + PLOT_H} className="erp-chart__rule" />
+          ))}
+          <line x1={PAD.left - 3} x2={PAD.left - 3} y1={PAD.top} y2={PAD.top + PLOT_H} className="erp-chart__margin" />
+          <line x1={PAD.left} x2={PAD.left} y1={PAD.top} y2={PAD.top + PLOT_H} className="erp-chart__margin" />
+
           {months.map((m, i) => (
             <g key={m.month} className="erp-chart__col" onMouseEnter={() => setHover(i)}>
               <rect className="erp-chart__hit" x={centerX(i) - slot / 2} y={PAD.top} width={slot} height={PLOT_H + PAD.bottom} rx={8} />

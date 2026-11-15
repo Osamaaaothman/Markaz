@@ -500,7 +500,7 @@ html[dir="rtl"] .erp-kpi::before {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
   gap: 1.9rem var(--mk-space-4);
   padding-inline-end: 0.5rem;
-  padding-block-end: 0.6rem;
+  padding-block: 0.8rem 0.6rem;
 }
 
 html[dir="rtl"] .mk-tiles {
@@ -543,9 +543,9 @@ html[dir="rtl"] .mk-tiles {
   aspect-ratio: 4 / 5;
   min-width: 0;
   padding: 0;
+  margin: 0;
   perspective: 900px;
   text-align: center;
-  font: inherit;
   color: var(--mk-text);
   background: var(--mk-surface);
   border: 1px solid var(--mk-border-strong);
@@ -553,7 +553,6 @@ html[dir="rtl"] .mk-tiles {
   border-end-start-radius: 5px;
   border-start-end-radius: 14px;
   border-end-end-radius: 14px;
-  cursor: pointer;
   /* the stacked page edges on the open side of the book */
   box-shadow:
     calc(var(--mk-book-dir) * var(--mk-pages)) 0 0 0 var(--mk-surface),
@@ -565,20 +564,21 @@ html[dir="rtl"] .mk-tiles {
 }
 
 .mk-tile:hover,
-.mk-tile:focus-visible {
+.mk-tile:focus-within {
   --mk-pages: 5px;
   z-index: 2;
   transform: translateY(-7px);
   outline: none;
 }
 
-.mk-tile:active {
-  transform: translateY(-3px) scale(0.98);
+.mk-tile__cover:active {
+  filter: brightness(0.97);
 }
 
-.mk-tile:focus-visible {
+.mk-tile__cover:focus-visible,
+.mk-tile__row:focus-visible {
   outline: 2px solid var(--mk-tile-accent);
-  outline-offset: 5px;
+  outline-offset: -3px;
 }
 
 /* the cloth spine, stitched through four times */
@@ -622,13 +622,29 @@ html[dir="rtl"] .mk-tiles {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding-block: 0.22rem;
+  inline-size: 100%;
+  margin: 0;
+  padding: 0.22rem 0;
+  border: 0;
   border-block-end: 1px solid var(--mk-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 0.72rem;
   font-weight: 600;
+  text-align: start;
+  cursor: pointer;
   opacity: 0;
   transform: translateX(calc(var(--mk-book-dir) * -10px));
-  transition: opacity var(--mk-dur) ease, transform var(--mk-dur) var(--mk-ease);
+  transition: opacity var(--mk-dur) ease, transform var(--mk-dur) var(--mk-ease), background-color var(--mk-dur-fast) ease;
+}
+
+.mk-tile__row:hover {
+  background: var(--mk-tile-soft);
+}
+
+.mk-tile__row:hover span {
+  color: var(--mk-tile-accent);
 }
 
 .mk-tile__row b {
@@ -642,10 +658,13 @@ html[dir="rtl"] .mk-tiles {
 }
 
 .mk-tile__row span {
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .mk-tile__more {
@@ -659,14 +678,14 @@ html[dir="rtl"] .mk-tiles {
 }
 
 .mk-tile:hover .mk-tile__row,
-.mk-tile:focus-visible .mk-tile__row {
+.mk-tile:focus-within .mk-tile__row {
   opacity: 1;
   transform: none;
-  transition-delay: calc(var(--n, 0) * 70ms + 220ms);
+  transition-delay: calc(var(--n, 0) * 70ms + 220ms), calc(var(--n, 0) * 70ms + 220ms), 0ms;
 }
 
 .mk-tile:hover .mk-tile__more,
-.mk-tile:focus-visible .mk-tile__more {
+.mk-tile:focus-within .mk-tile__more {
   opacity: 1;
   transition-delay: calc(var(--n, 0) * 70ms + 220ms);
 }
@@ -696,7 +715,7 @@ html[dir="rtl"] .mk-tiles {
 }
 
 .mk-tile:hover .mk-tile__ribbon,
-.mk-tile:focus-visible .mk-tile__ribbon {
+.mk-tile:focus-within .mk-tile__ribbon {
   block-size: 2.7rem;
   animation: mk-ribbon-swing 1s ease-out;
 }
@@ -704,8 +723,14 @@ html[dir="rtl"] .mk-tiles {
 /* the front cover: hinged on the spine edge and swung open in 3D */
 .mk-tile__cover {
   position: absolute;
-  inset-block: 0;
-  inset-inline: var(--mk-spine) 0;
+  inset-block-start: 0;
+  inset-inline-start: var(--mk-spine);
+  inline-size: calc(100% - var(--mk-spine));
+  block-size: 100%;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -723,7 +748,7 @@ html[dir="rtl"] .mk-tiles {
 }
 
 .mk-tile:hover .mk-tile__cover,
-.mk-tile:focus-visible .mk-tile__cover {
+.mk-tile:focus-within .mk-tile__cover {
   transform: rotateY(calc(var(--mk-book-dir) * -82deg));
 }
 
@@ -838,6 +863,80 @@ html[dir="rtl"] .mk-tiles {
   --mk-tile-soft: var(--mk-danger-soft);
 }
 
+/* a sticky note on a book: work is waiting in that section */
+.mk-tile__note {
+  position: absolute;
+  z-index: 4;
+  inset-block-start: -1.05rem;
+  inset-inline-start: 1.4rem;
+  max-inline-size: calc(100% - 1.8rem);
+  padding: 0.12rem 0.5rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--mk-note-ink) 45%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mk-note-ink) 16%, var(--mk-surface));
+  box-shadow: var(--mk-shadow-sm);
+  color: var(--mk-note-ink);
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: rotate(calc(var(--mk-book-dir) * -2.5deg));
+  animation: mk-note-drop 0.7s var(--mk-ease-spring) backwards;
+  animation-delay: calc(var(--i, 0) * 55ms + 700ms);
+}
+
+.mk-tile__note--warn {
+  --mk-note-ink: var(--mk-warning);
+}
+
+.mk-tile__note--danger {
+  --mk-note-ink: var(--mk-danger);
+}
+
+.mk-tile__note--info {
+  --mk-note-ink: var(--mk-info);
+}
+
+.mk-tiles-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-block-end: 0.9rem;
+}
+
+.mk-tiles-head .erp-card__title {
+  margin-block-end: 0;
+}
+
+/* an opt-in soft paper sound for the books; off until switched on */
+.mk-sound {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 1px solid var(--mk-border);
+  border-radius: 50%;
+  background: var(--mk-surface);
+  color: var(--mk-text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, border-color var(--mk-dur-fast) ease;
+}
+
+.mk-sound:hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+
+.mk-sound[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--mk-primary) 45%, var(--mk-border));
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+
 /* ---- small touches elsewhere on the page ---- */
 
 .mk-hero__title {
@@ -900,8 +999,28 @@ html[dir="rtl"] .mk-tiles {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(100%, 11.5rem);
+  width: min(calc(100% - 1.6rem), 11.5rem);
   margin-inline: auto;
+}
+
+/* the seal: a slowly turning dashed ring and a fine ring around the donut */
+.mk-donut-wrap::before,
+.mk-donut-wrap::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.mk-donut-wrap::before {
+  inset: -12px;
+  border: 1.5px dashed color-mix(in srgb, var(--mk-text-muted) 60%, transparent);
+  animation: mk-spin-slow 40s linear infinite;
+}
+
+.mk-donut-wrap::after {
+  inset: -6px;
+  border: 1px solid color-mix(in srgb, var(--mk-text-muted) 35%, transparent);
 }
 
 .mk-donut {
@@ -909,7 +1028,7 @@ html[dir="rtl"] .mk-tiles {
   width: 100%;
   height: auto;
   overflow: visible;
-  animation: mk-donut-spin 1.2s var(--mk-ease) both;
+  animation: mk-stamp 0.9s var(--mk-ease-spring) both;
 }
 
 .mk-donut__track {
@@ -929,7 +1048,7 @@ html[dir="rtl"] .mk-tiles {
   cursor: pointer;
   transition: stroke-width var(--mk-dur-fast) ease, opacity var(--mk-dur-fast) ease;
   animation: mk-arc-sweep 1.3s var(--mk-ease) both;
-  animation-delay: calc(var(--i, 0) * 340ms + 250ms);
+  animation-delay: calc(var(--i, 0) * 340ms + 650ms);
 }
 
 .mk-donut__arc:hover,
@@ -966,7 +1085,7 @@ html[dir="rtl"] .mk-tiles {
   padding: 0 22%;
   text-align: center;
   pointer-events: none;
-  animation: mk-scale-in 0.7s var(--mk-ease-spring) 0.5s both;
+  animation: mk-scale-in 0.7s var(--mk-ease-spring) 0.8s both;
 }
 
 .mk-donut__center strong {
@@ -974,6 +1093,13 @@ html[dir="rtl"] .mk-tiles {
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+}
+
+.mk-donut__center strong {
+  padding: 0.12rem 0.55rem;
+  border-block: 3px double var(--mk-text-muted);
+  letter-spacing: 0.08em;
+  transform: rotate(-6deg);
 }
 
 .mk-donut__center span {
@@ -1002,7 +1128,7 @@ html[dir="rtl"] .mk-tiles {
   cursor: default;
   transition: background-color var(--mk-dur-fast) ease;
   animation: mk-rise 0.6s var(--mk-ease) backwards;
-  animation-delay: calc(var(--i, 0) * 160ms + 800ms);
+  animation-delay: calc(var(--i, 0) * 160ms + 1100ms);
 }
 
 .mk-donut__legend-item:hover {
@@ -1321,8 +1447,19 @@ html[dir="rtl"] .mk-tiles {
 .erp-chart__grid {
   stroke: var(--mk-chart-grid);
   stroke-width: 1;
-  stroke-dasharray: 3 5;
   animation: mk-fade 0.8s ease both;
+}
+
+.erp-chart__rule {
+  stroke: var(--mk-chart-grid);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* the double red margin line of a ledger sheet */
+.erp-chart__margin {
+  stroke: color-mix(in srgb, var(--mk-danger) 50%, transparent);
+  stroke-width: 1;
 }
 
 .erp-chart__axis-label {
@@ -1450,6 +1587,9 @@ html[dir="rtl"] .mk-tiles {
 
 .erp-chart-wrap {
   position: relative;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface-2);
 }
 
 .erp-chart-summary {

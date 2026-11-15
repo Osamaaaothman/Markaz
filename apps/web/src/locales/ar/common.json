@@ -134,7 +134,14 @@
     "nothingToShow": "لا توجد تقارير للوحة التحكم لدورك بعد. استخدم القائمة للوصول إلى عملك.",
     "sections": {
       "title": "اذهب إلى قسم",
-      "count": "{{count}} شاشة"
+      "count": "{{count}} شاشة",
+      "sound": "صوت الصفحات"
+    },
+    "notes": {
+      "approvals": "{{count}} بانتظار الاعتماد",
+      "requests": "{{count}} طلبات بانتظار القرار",
+      "reorder": "{{count}} تحت حد الطلب",
+      "quotations": "{{count}} عروض مفتوحة"
     },
     "quickActions": {
       "title": "إجراءات سريعة"

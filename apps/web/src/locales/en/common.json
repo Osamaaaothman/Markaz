@@ -134,7 +134,14 @@
     "nothingToShow": "Your role has no dashboard reports yet. Use the menu to get to your work.",
     "sections": {
       "title": "Go to a section",
-      "count": "{{count}} screens"
+      "count": "{{count}} screens",
+      "sound": "Page sound"
+    },
+    "notes": {
+      "approvals": "{{count}} awaiting approval",
+      "requests": "{{count}} requests to review",
+      "reorder": "{{count}} below reorder point",
+      "quotations": "{{count}} open quotations"
     },
     "quickActions": {
       "title": "Quick actions"

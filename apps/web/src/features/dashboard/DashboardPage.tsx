@@ -5,7 +5,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { AnimatedMoney } from "../../shared/ui/AnimatedMoney";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { MonthlyChart } from "./MonthlyChart";
-import { ModuleTiles } from "./ModuleTiles";
+import { ModuleTiles, type TileNote } from "./ModuleTiles";
 import { QuickActions } from "./QuickActions";
 import { Sparkline } from "./Sparkline";
 import { Reveal } from "../../shared/ui/Reveal";
@@ -140,6 +140,21 @@ export function DashboardPage(): React.JSX.Element {
   const name = currentUser?.email.split("@")[0] ?? "";
   const roleNames = currentUser?.roles.map((r) => r.name).join(" · ") ?? "";
 
+  // A sticky note on the book of any section that has work waiting. Each exists only when the API sent that
+  // count, so — like the cards above — a note never reveals a queue the user may not read.
+  const tileNotes: Record<string, TileNote> = {};
+  if (data.purchasing && data.purchasing.pendingApprovals > 0) {
+    tileNotes["nav.groups.purchasing"] = { text: t("dashboard.notes.approvals", { count: data.purchasing.pendingApprovals }), tone: "warn" };
+  } else if (data.purchasing && data.purchasing.pendingRequests > 0) {
+    tileNotes["nav.groups.purchasing"] = { text: t("dashboard.notes.requests", { count: data.purchasing.pendingRequests }), tone: "warn" };
+  }
+  if (data.stock && data.stock.belowReorder > 0) {
+    tileNotes["nav.groups.inventory"] = { text: t("dashboard.notes.reorder", { count: data.stock.belowReorder }), tone: "danger" };
+  }
+  if (data.sales && data.sales.openQuotations > 0) {
+    tileNotes["nav.groups.sales"] = { text: t("dashboard.notes.quotations", { count: data.sales.openQuotations }), tone: "info" };
+  }
+
   // Every pending count this user may see, in one ranked strip — see ActivityPulse. A bar appears only
   // for a count the API actually sent (the same permission gate as the KPIs and the attention list
   // above), so this never shows a queue the user has no right to read.
@@ -186,7 +201,7 @@ export function DashboardPage(): React.JSX.Element {
         </div>
       ) : null}
 
-      <ModuleTiles />
+      <ModuleTiles notes={tileNotes} />
 
       <QuickActions />
 
