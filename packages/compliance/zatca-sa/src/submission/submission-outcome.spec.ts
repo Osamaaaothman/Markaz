@@ -1,6 +1,6 @@
 import { classifyError } from "./submission-outcome.js";
 import { ZatcaApiError } from "./zatca-api-client.js";
-import { providerValidationMessages } from "./validation-messages.js";
+import { providerAcceptanceStatus, providerValidationMessages } from "./validation-messages.js";
 
 const body = { validationResults: { errorMessages: [{ code: "certificate-permissions", message: "Seller VAT does not match the authentication certificate" }], warningMessages: [{ code: "warning-code", message: "Review seller address" }] }, secret: "must-not-be-displayed" };
 
@@ -24,4 +24,10 @@ it("retains retry and authentication classifications when a structured validatio
   const auth = classifyError(new ZatcaApiError("AUTH_ERROR", "invalid credentials", 401));
   expect(auth.complianceOutcome).toEqual({ kind: "PACK_UNAVAILABLE" });
   expect(auth.errors).toEqual(["invalid credentials"]);
+});
+
+it("retains the explicit authority acceptance when validation warnings accompany it", () => {
+  expect(providerAcceptanceStatus({ clearanceStatus: "CLEARED", validationResults: { warningMessages: ["Review delivery date"] } })).toBe("CLEARED");
+  expect(providerAcceptanceStatus({ reportingStatus: "REPORTED" })).toBe("REPORTED");
+  for (const value of [null, [], "CLEARED", { clearanceStatus: "NOT_CLEARED" }, { reportingStatus: "NOT_REPORTED" }, { body: { clearanceStatus: "CLEARED" } }]) expect(providerAcceptanceStatus(value)).toBeNull();
 });

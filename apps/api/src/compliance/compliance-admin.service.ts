@@ -23,6 +23,7 @@ import {
   invoiceQrArtifact,
   validationMessages,
   providerValidationMessages,
+  providerAcceptanceStatus,
   type ComplianceSample,
   type OnboardingService,
   type ZatcaEnvironment,
@@ -125,6 +126,7 @@ export interface InvoiceRecordView {
   readonly egsName: string;
   readonly qrImageDataUrl: string | null;
   readonly qrSource: "SIGNED" | "CLEARED" | null;
+  readonly authorityStatus?: "CLEARED" | "REPORTED" | null;
   readonly dataPreviewQrCode: string | null;
   readonly dataPreviewQrImageDataUrl: string | null;
   readonly history: readonly {
@@ -435,6 +437,7 @@ export class ComplianceAdminService {
       })),
       salesInvoiceId,
       status: row.status,
+      authorityStatus: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS"].includes(row.status) ? providerAcceptanceStatus(row.lastResponse) : null,
       uuid: row.uuid,
       icv: row.icv.toString(),
       attempts: row.attempts,
