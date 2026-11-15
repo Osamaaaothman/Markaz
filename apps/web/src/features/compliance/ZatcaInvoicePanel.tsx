@@ -46,6 +46,7 @@ export function ZatcaInvoicePanel({ salesInvoiceId }: { readonly salesInvoiceId:
     <section className="erp-card">
       <div className="erp-card__header">
         <h2 className="erp-card__title">{t("compliance.invoicePanel.title")}</h2>
+        {record?.status === "ACCEPTED_WITH_WARNINGS" && record.authorityStatus ? <Tag value={<><span>{t(`compliance.invoiceStatus.${record.authorityStatus}`)}</span> <bdi>({record.authorityStatus})</bdi></>} severity="success" /> : null}
         <ZatcaStatusBadge status={record?.status ?? pendingStatus?.status} />
         {environment ? <Tag value={t(`compliance.environment.${environment}`)} severity={environment === "production" ? "success" : "warning"} /> : null}
       </div>

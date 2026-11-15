@@ -19,3 +19,12 @@ export function providerValidationMessages(response: unknown): { errors: string[
   const validation = object(body.validationResults);
   return { errors: validationMessages(validation.errorMessages), warnings: validationMessages(validation.warningMessages) };
 }
+
+/** Expose only an explicit positive authority result, never the raw response. */
+export function providerAcceptanceStatus(response: unknown): "CLEARED" | "REPORTED" | null {
+  if (!response || typeof response !== "object" || Array.isArray(response)) return null;
+  const body = response as Record<string, unknown>;
+  if (body.clearanceStatus === "CLEARED") return "CLEARED";
+  if (body.reportingStatus === "REPORTED") return "REPORTED";
+  return null;
+}

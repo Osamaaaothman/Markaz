@@ -379,6 +379,17 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     expect(JSON.stringify(record)).not.toContain("<Invoice>");
 
     await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId }, data: {
+      status: "ACCEPTED_WITH_WARNINGS", lastResponse: { clearanceStatus: "CLEARED", validationResults: { warningMessages: [{ code: "BR-KSA-15", message: "Delivery date required" }] }, secret: "never-return-response" },
+    } });
+    const accepted = await service.invoiceRecord(companyId, salesInvoiceId);
+    expect(accepted).toMatchObject({ status: "ACCEPTED_WITH_WARNINGS", authorityStatus: "CLEARED", warnings: ["BR-KSA-15: Delivery date required"], canResubmit: false });
+    expect(JSON.stringify(accepted)).not.toContain("never-return-response");
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId }, data: {
+      status: "REJECTED",
+    } });
+    expect((await service.invoiceRecord(companyId, salesInvoiceId))!.authorityStatus).toBeNull();
+
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId }, data: {
       status: "REJECTED", validationErrors: ["ZATCA rejected the request (HTTP 400)"],
       lastResponse: { code: "CLIENT_ERROR", status: 400, body: { secret: "never-return-response", validationResults: { errorMessages: [{ code: "certificate-permissions", message: "Seller VAT mismatch" }], warningMessages: [] } } },
     } });
@@ -435,7 +446,15 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     expect(enqueue).toHaveBeenCalledTimes(2);
     await prisma.egsUnit.update({ where: { id: egs.id }, data: { environment: "production" } });
     expect(await readyService.submissionReadiness(companyId, next)).toMatchObject({ canSubmit: false, issue: "CERTIFICATE_SELLER_MISMATCH" });
-    await prisma.egsCredential.update({ where: { egsUnitId: egs.id }, data: { updatedAt: new Date(Date.now() + 1000) } });
+    const oldRejection = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { salesInvoiceId: first } });
+    const accepted = await createMinimalSalesInvoice(companyId, egs.id);
+    await prisma.zatcaInvoiceRecord.create({ data: { id: newId(), companyId, salesInvoiceId: accepted, egsUnitId: egs.id, uuid: accepted, icv: 2n, previousInvoiceHash: "test-hash", signedXml: "accepted-test-document", invoiceHash: "accepted-hash", status: "ACCEPTED_WITH_WARNINGS", updatedAt: new Date(oldRejection.updatedAt.getTime() + 1000) } });
+    expect(await readyService.submissionReadiness(companyId, next)).toEqual({ canSubmit: true, issue: null, blockingInvoice: null });
+    expect((await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { salesInvoiceId: first } })).status).toBe("REJECTED");
+    // A rejection newer than that acceptance is still actionable.
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId: first }, data: { updatedAt: new Date(oldRejection.updatedAt.getTime() + 2000) } });
+    expect((await readyService.submissionReadiness(companyId, next)).issue).toBe("CERTIFICATE_SELLER_MISMATCH");
+    await prisma.egsCredential.update({ where: { egsUnitId: egs.id }, data: { updatedAt: new Date(oldRejection.updatedAt.getTime() + 3000) } });
     expect((await readyService.submissionReadiness(companyId, next)).issue).not.toBe("CERTIFICATE_SELLER_MISMATCH");
 
   });

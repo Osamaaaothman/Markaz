@@ -227,13 +227,18 @@ export class OnboardingService {
     } catch {
       return "CERTIFICATE_INVALID";
     }
-    // Do not send more documents after the provider rejected this credential's seller identity.
-    // A later credential update makes the old rejection historical, without editing its record.
+    // A credential update or a later accepted submission supersedes an old seller-identity
+    // rejection. Preserve the rejected record; inspect only this company and EGS unit.
     const rejected = await this.prisma.zatcaInvoiceRecord.findFirst({ where: {
       companyId, egsUnitId, status: "REJECTED", updatedAt: { gte: credential.updatedAt },
       lastResponse: { path: ["body", "validationResults", "errorMessages"], array_contains: [{ code: "certificate-permissions" }] },
+    }, orderBy: { updatedAt: "desc" }, select: { updatedAt: true } });
+    if (!rejected) return null;
+    const accepted = await this.prisma.zatcaInvoiceRecord.findFirst({ where: {
+      companyId, egsUnitId, status: { in: ["CLEARED", "REPORTED", "ACCEPTED_WITH_WARNINGS"] },
+      updatedAt: { gt: rejected.updatedAt },
     }, select: { id: true } });
-    return rejected ? "CERTIFICATE_SELLER_MISMATCH" : null;
+    return accepted ? null : "CERTIFICATE_SELLER_MISMATCH";
   }
 
   private async loadCredential(egsUnitId: string) {

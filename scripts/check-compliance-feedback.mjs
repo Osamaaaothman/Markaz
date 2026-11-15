@@ -82,7 +82,8 @@ try {
         );
         const page = await context.newPage();
         page.on("pageerror", (e) => errors.push(e.message));
-        let warning,
+        let acceptance,
+          warning,
           issue = "CERTIFICATE_KEY_MISMATCH",
           queued = 0;
         await page.route("**/api/**", async (route) => {
@@ -161,8 +162,10 @@ try {
               egsUnits: [],
               capabilities: { resubmit: true },
             };
-          else if (path === "/v1/compliance/invoices/invoice-1")
-            return route.fulfill({ status: 404, json: {} });
+          else if (path === "/v1/compliance/invoices/invoice-1") {
+            if (!acceptance) return route.fulfill({ status: 404, json: {} });
+            data = { invoiceNumber: "INV-0001", egsName: "Sandbox", salesInvoiceId: "invoice-1", status: "ACCEPTED_WITH_WARNINGS", authorityStatus: acceptance, environment: "sandbox", uuid: "invoice-1", icv: "1", attempts: 1, warnings: ["BR-KSA-15: Delivery date required"], errors: [], history: [], canResubmit: false, submittedAt: null, clearedAt: null, reportedAt: null };
+          }
           else if (path === "/v1/compliance/invoices/statuses")
             data = { "invoice-1": { status: "NOT_SUBMITTED", environment: "sandbox" } };
           else if (path === "/v1/compliance/invoices/invoice-1/submission-readiness")
@@ -248,12 +251,21 @@ try {
         await page.locator(".p-toast-message-info").waitFor();
         assert.equal(queued, 3);
         assert.equal(await page.locator(".p-toast-message-success").count(), 0);
+        warning = undefined;
+        for (acceptance of ["CLEARED", "REPORTED"]) {
+          await page.reload({ waitUntil: "networkidle" });
+          await page.getByText(`(${acceptance})`, { exact: true }).waitFor();
+          assert(await page.getByText(copy.compliance.invoiceStatus.ACCEPTED_WITH_WARNINGS, { exact: true }).isVisible());
+          assert(await page.getByText("BR-KSA-15: Delivery date required", { exact: true }).isVisible());
+          assert.equal(await retry.count(), 0);
+          if (acceptance === "CLEARED" && style === "balance" && mode === "light") await page.screenshot({ path: fileURLToPath(new URL(`${lang}-accepted-with-warnings.png`, output)) });
+        }
         await context.close();
       }
   assert.deepEqual(errors, []);
   await writeFile(new URL("browser-results.json", output), JSON.stringify(results, null, 2));
   console.log(
-    `Passed ${results.length} toast cases and 16 blocked/queued invoice flows (Arabic/English, all styles, light/dark, desktop/mobile).`,
+    `Passed ${results.length} toast cases, 16 blocked/queued invoice flows and 32 authority-acceptance views (Arabic/English, all styles, light/dark, desktop/mobile).`,
   );
 } finally {
   await browser?.close();
