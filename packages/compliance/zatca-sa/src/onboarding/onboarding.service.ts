@@ -215,6 +215,21 @@ export class OnboardingService {
     return status;
   }
 
+  // Returns only a safe diagnosis. Key material remains inside the compliance pack.
+  async submissionCredentialIssue(companyId: string, egsUnitId: string): Promise<"CREDENTIALS_MISSING" | "CERTIFICATE_INVALID" | "CERTIFICATE_KEY_MISMATCH" | "CERTIFICATE_EXPIRED" | null> {
+    const credential = await this.prisma.egsCredential.findFirst({ where: { companyId, egsUnitId } });
+    if (!credential?.privateKeyCiphertext || !credential.productionCsidCiphertext || !credential.productionSecretCiphertext) return "CREDENTIALS_MISSING";
+    try {
+      const certificate = parseCertificate(decryptText(credential.productionCsidCiphertext, this.encryptionKey));
+      const key = createPrivateKey(toPem(decryptText(credential.privateKeyCiphertext, this.encryptionKey), "EC PRIVATE KEY"));
+      if (!certificate.checkPrivateKey(key)) return "CERTIFICATE_KEY_MISMATCH";
+      if (Date.parse(certificate.validFrom) > Date.now() || Date.parse(certificate.validTo) <= Date.now()) return "CERTIFICATE_EXPIRED";
+      return null;
+    } catch {
+      return "CERTIFICATE_INVALID";
+    }
+  }
+
   private async loadCredential(egsUnitId: string) {
     const credential = await this.prisma.egsCredential.findUnique({ where: { egsUnitId } });
     if (!credential) throw new OnboardingError("NOT_FOUND", `No EgsCredential for EGS unit ${egsUnitId} — call startOnboarding first.`);

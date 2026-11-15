@@ -185,12 +185,28 @@ export function useInvoiceStatuses(salesInvoiceIds: readonly string[]) {
   });
 }
 
+export interface SubmissionReadiness {
+  readonly canSubmit: boolean;
+  readonly issue: string | null;
+  readonly blockingInvoice: { readonly id: string; readonly number: string } | null;
+}
+
+export function useSubmissionReadiness(salesInvoiceId: string, enabled: boolean) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["compliance", "submissionReadiness", salesInvoiceId],
+    queryFn: async () => (await apiClient.get<SubmissionReadiness>(`/v1/compliance/invoices/${salesInvoiceId}/submission-readiness`)).data,
+    enabled: enabled && can("compliance:read"),
+    refetchInterval: 15_000,
+  });
+}
+
 export function useResubmitInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { successKey: "feedback.submitted" },
-    mutationFn: async (salesInvoiceId: string) => (await apiClient.post<InvoiceRecordView>(`/v1/compliance/invoices/${salesInvoiceId}/resubmit`, {}, { headers: { "Idempotency-Key": newId() } })).data,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["compliance"] }),
+    meta: { successKey: "compliance.invoicePanel.queued", successSeverity: "info" },
+    mutationFn: async (salesInvoiceId: string) => (await apiClient.post<{ status: "QUEUED" }>(`/v1/compliance/invoices/${salesInvoiceId}/resubmit`, {}, { headers: { "Idempotency-Key": newId() } })).data,
+    onSettled: () => void qc.invalidateQueries({ queryKey: ["compliance"] }),
   });
 }
 

@@ -22,7 +22,7 @@ export type TransactionClient = Omit<PrismaClient, "$connect" | "$disconnect" | 
 
 export class EgsChainError extends Error {
   constructor(
-    readonly code: "CHAIN_STATE_NOT_FOUND" | "ICV_MISMATCH",
+    readonly code: "CHAIN_STATE_NOT_FOUND" | "ICV_MISMATCH" | "CHAIN_BLOCKED",
     message: string,
   ) {
     super(message);

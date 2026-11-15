@@ -1,7 +1,7 @@
 // HTTP surface for the ZATCA compliance pack's admin/back-office operations (docs/zatca/HANDOFF.md
 // "Finish Phase 7a"). All the real logic lives in ComplianceAdminService — this file only maps
 // HTTP <-> that service, same shape as setup.controller.ts / hr.controller.ts.
-import { Body, ConflictException, Controller, Get, NotFoundException, Param, Post, Put, Query, Res, ServiceUnavailableException } from "@nestjs/common";
+import { Body, ConflictException, Controller, Get, HttpCode, NotFoundException, Param, Post, Put, Query, Res, ServiceUnavailableException } from "@nestjs/common";
 import type { Response } from "express";
 import {
   ComplianceAdminService,
@@ -132,9 +132,16 @@ export class ComplianceController {
     return xml;
   }
 
+  @Get("invoices/:salesInvoiceId/submission-readiness")
+  @RequirePermission("compliance", "read")
+  submissionReadiness(@Param("salesInvoiceId") salesInvoiceId: string, @CurrentUser() actor: CurrentUserPayload) {
+    return mapErrors(this.admin.submissionReadiness(actor.companyId, salesInvoiceId));
+  }
+
   @Post("invoices/:salesInvoiceId/resubmit")
+  @HttpCode(202)
   @RequirePermission("compliance", "manage")
-  resubmit(@Param("salesInvoiceId") salesInvoiceId: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<InvoiceRecordView | null> {
+  resubmit(@Param("salesInvoiceId") salesInvoiceId: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<{ status: "QUEUED" }> {
     return mapErrors(this.admin.resubmit(actor.companyId, salesInvoiceId, actor, correlationId));
   }
 }
