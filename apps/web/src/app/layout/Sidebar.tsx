@@ -6,7 +6,6 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { useApiImageUrl } from "../../shared/ui/ApiImage";
 import { localizedName } from "../../shared/lib/localized-name";
-import { Logo } from "../../shared/ui/Logo";
 import { DEFAULT_GROUP_ICON, GROUP_ICONS, NAV_ITEMS, sortGroups, type NavItem } from "./NavConfig";
 import {
   usePurchasingCounts,
@@ -59,15 +58,29 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
       className={`erp-sidebar erp-sidebar--${variant}${collapsed ? " erp-sidebar--collapsed" : ""}`}
       aria-label={t("app.name")}
     >
-      <div className="erp-sidebar__brand">
-        <Logo
-          variant="full"
-          size={collapsed ? 44 : 48}
-          name={t("app.name")}
-          tagline={t("app.tagline")}
-          className="erp-sidebar__logo"
-        />
-      </div>
+      {currentUser ? (
+        <div className="erp-sidebar__head">
+          <div
+            className="erp-sidebar__company"
+            data-pr-tooltip={`${localizedName({ name: currentUser.companyName, nameAr: currentUser.companyNameAr }, i18n.language)} · ${currentUser.companyDefaultCurrency}`}
+          >
+            {companyLogo ? (
+              <img className="erp-sidebar__company-logo" src={companyLogo} alt="" />
+            ) : (
+              <span className="erp-sidebar__company-dot" aria-hidden="true" />
+            )}
+            <span className="erp-sidebar__label">
+              <strong>
+                {localizedName(
+                  { name: currentUser.companyName, nameAr: currentUser.companyNameAr },
+                  i18n.language,
+                )}
+              </strong>
+              <small>{currentUser.companyDefaultCurrency}</small>
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {variant === "desktop" ? (
         <Tooltip
@@ -157,27 +170,6 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
       </ul>
 
       <div className="erp-sidebar__footer">
-        {currentUser ? (
-          <div
-            className="erp-sidebar__company"
-            data-pr-tooltip={`${localizedName({ name: currentUser.companyName, nameAr: currentUser.companyNameAr }, i18n.language)} · ${currentUser.companyDefaultCurrency}`}
-          >
-            {companyLogo ? (
-              <img className="erp-sidebar__company-logo" src={companyLogo} alt="" />
-            ) : (
-              <span className="erp-sidebar__company-dot" aria-hidden="true" />
-            )}
-            <span className="erp-sidebar__label">
-              <strong>
-                {localizedName(
-                  { name: currentUser.companyName, nameAr: currentUser.companyNameAr },
-                  i18n.language,
-                )}
-              </strong>
-              <small>{currentUser.companyDefaultCurrency}</small>
-            </span>
-          </div>
-        ) : null}
         {variant === "desktop" ? (
           <button
             type="button"

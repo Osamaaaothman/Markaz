@@ -8,6 +8,7 @@ import { useThemeStore } from "../../shared/theme/theme-store";
 import { DirectionPicker } from "../../shared/theme/DirectionPicker";
 import { useAuthStore } from "../../shared/auth/auth-store";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
+import { Logo } from "../../shared/ui/Logo";
 import { NAV_ITEMS } from "./NavConfig";
 import { useLayoutStore } from "./layout-store";
 import { localizedName } from "../../shared/lib/localized-name";
@@ -66,6 +67,8 @@ export function Topbar(): React.JSX.Element {
       >
         <i className="pi pi-bars" />
       </button>
+
+      <Logo variant="full" size={36} name={t("app.name")} className="erp-topbar__brand" />
 
       <nav className="erp-breadcrumb" aria-label={t("shell.breadcrumb")}>
         {nav?.groupKey ? (
