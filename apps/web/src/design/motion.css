@@ -347,3 +347,65 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- first-entry splash screen ---- */
+.mk-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: var(--mk-ink-900, #1b1a17);
+  color: #ece9e1;
+  transition: opacity 0.5s ease;
+}
+
+.mk-splash--out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mk-splash__body {
+  display: grid;
+  justify-items: center;
+  gap: 0.9rem;
+  text-align: center;
+}
+
+.mk-splash__name {
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  animation: mk-rise 0.8s var(--mk-ease) 0.9s backwards;
+}
+
+.mk-splash__tagline {
+  color: #a8a398;
+  font-size: 1rem;
+  animation: mk-rise 0.8s var(--mk-ease) 1.15s backwards;
+}
+
+.mk-splash__bar {
+  inline-size: min(14rem, 60vw);
+  block-size: 3px;
+  margin-block-start: 1.2rem;
+  border-radius: 99px;
+  background: rgb(236 233 225 / 0.14);
+  overflow: hidden;
+  animation: mk-fade 0.5s ease 1s backwards;
+}
+
+.mk-splash__bar span {
+  display: block;
+  block-size: 100%;
+  inline-size: 0;
+  border-radius: 99px;
+  background: #c9aa5c;
+  animation: mk-splash-fill 1.5s var(--mk-ease) 1s forwards;
+}
+
+@keyframes mk-splash-fill {
+  to {
+    inline-size: 100%;
+  }
+}
