@@ -158,7 +158,7 @@ html[data-design="canvas"] body .p-tabview .p-tabview-nav li.p-highlight .p-tabv
   box-shadow: var(--mk-shadow-xs);
 }
 
-/* Precision: icon rail, module shortcuts and compact, ruled records. */
+/* Precision: icon rail and compact, ruled records. */
 html[data-design="precision"] .erp-shell__content {
   max-width: none;
   padding: var(--mk-space-5);

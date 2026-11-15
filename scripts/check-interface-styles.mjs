@@ -162,7 +162,7 @@ try {
                     const rect = element.getBoundingClientRect();
                     return (
                       rect.width > 0 &&
-                      rect.right > innerWidth + 2 &&
+                      (rect.right > innerWidth + 2 || rect.left < -2) &&
                       !element.closest(".p-datatable-wrapper, .p-treetable-wrapper")
                     );
                   })

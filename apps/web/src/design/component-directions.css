@@ -390,6 +390,17 @@ html[data-design] body .p-multiselect.p-component .p-multiselect-token,
 html[data-design] body .p-tag.p-component {
   border-radius: var(--mk-action-radius);
 }
+/* Number fields must shrink beside their spinner buttons on narrow RTL layouts. */
+html body .p-inputnumber {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+html body .p-inputnumber .p-inputnumber-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  width: 1%;
+}
 html[data-design] body .p-checkbox.p-component .p-checkbox-box {
   border-radius: var(--mk-radius-xs);
 }
