@@ -288,8 +288,7 @@
   overflow: visible;
 }
 
-.mk-logo__ring,
-.mk-logo__tail {
+.mk-logo__ring {
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
 }
@@ -298,12 +297,6 @@
 .mk-logo--loop .mk-logo__ring {
   --mk-len: 1;
   animation: mk-draw 0.8s var(--mk-ease) 0.1s both;
-}
-
-.mk-logo--intro .mk-logo__tail,
-.mk-logo--loop .mk-logo__tail {
-  --mk-len: 1;
-  animation: mk-draw 0.55s var(--mk-ease) 0.78s both;
 }
 
 .mk-logo__dot {
@@ -326,10 +319,6 @@
 
 .mk-logo--loop .mk-logo__ring {
   animation: mk-draw 1.4s var(--mk-ease) 0.1s infinite alternate;
-}
-
-.mk-logo--loop .mk-logo__tail {
-  animation: mk-draw 1.4s var(--mk-ease) 0.5s infinite alternate;
 }
 
 @keyframes mk-shine {
