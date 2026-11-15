@@ -2,14 +2,12 @@ import "./shared/i18n/config";
 import "./design/styles";
 import { useDocumentDirection } from "./shared/i18n/use-document-direction";
 import { usePrimeTheme } from "./shared/theme/use-prime-theme";
-import { usePrimeLocale } from "./shared/prime/use-prime-locale";
 import { AppProviders } from "./app/AppProviders";
 import { AppRoutes } from "./app/AppRoutes";
 
 export function App(): React.JSX.Element {
   useDocumentDirection();
   usePrimeTheme();
-  usePrimeLocale();
   return (
     <AppProviders>
       <AppRoutes />

@@ -4,7 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PrimeReactProvider } from "primereact/api";
+import { PrimeProvider } from "../../shared/prime/PrimeProvider";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import "../../shared/i18n/config";
@@ -15,7 +15,6 @@ import { NAV_ITEMS } from "../../app/layout/NavConfig";
 import { InterfaceSettingsPage } from "../settings/InterfaceSettingsPage";
 import { DesignSystemPage } from "../design-system/DesignSystemPage";
 import { usePrimeTheme } from "../../shared/theme/use-prime-theme";
-import { usePrimeLocale } from "../../shared/prime/use-prime-locale";
 import { useDocumentDirection } from "../../shared/i18n/use-document-direction";
 
 // Disabled queries use sample cache data. No token is created and no API is called.
@@ -54,10 +53,9 @@ function Review(): React.JSX.Element {
 
 function ProductionPreview(): React.JSX.Element {
   usePrimeTheme();
-  usePrimeLocale();
   useDocumentDirection();
   return (
-    <PrimeReactProvider value={{ ripple: false }}>
+    <PrimeProvider ripple={false}>
       <QueryClientProvider client={fixtureClient}>
         <MemoryRouter initialEntries={["/settings/interface"]}>
           <Routes>
@@ -67,7 +65,7 @@ function ProductionPreview(): React.JSX.Element {
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
-    </PrimeReactProvider>
+    </PrimeProvider>
   );
 }
 

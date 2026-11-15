@@ -15,6 +15,7 @@ import { Tag } from "primereact/tag";
 import { MonthlyChart } from "../dashboard/MonthlyChart";
 import { AnimatedMoney } from "../../shared/ui/AnimatedMoney";
 import { Logo, LogoMark } from "../../shared/ui/Logo";
+import { ComponentGallery } from "./ComponentGallery";
 
 const BRAND = [
   ["Ink 900", "--mk-ink-900"], ["Ink 700", "--mk-ink-700"], ["Forest 700", "--mk-brand-700"], ["Forest 500", "--mk-brand-500"],
@@ -62,7 +63,7 @@ function Swatches({ items }: { items: readonly (readonly [string, string])[] }):
 // The living style guide: every colour, type size, component and motion the product is built from, drawn
 // from the same tokens and components the screens use, in the current language, direction and theme.
 export function DesignSystemPage(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [replay, setReplay] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [segment, setSegment] = useState<"a" | "b">("a");
@@ -204,7 +205,7 @@ export function DesignSystemPage(): React.JSX.Element {
       </Section>
 
       <Section title={t("ds.data")}>
-        <DataTable value={rows} className="erp-table" showGridlines size="small">
+        <DataTable key={i18n.language} value={rows} className="erp-table" showGridlines size="small">
           <Column header={t("ds.number")} body={(r: (typeof rows)[number]) => <span className="coa-code">{r.number}</span>} />
           <Column header={t("ds.customer")} field="customer" />
           <Column header={t("ds.status")} body={(r: (typeof rows)[number]) => tag(r.status)} />
@@ -236,6 +237,8 @@ export function DesignSystemPage(): React.JSX.Element {
           </div>
         </Dialog>
       </Section>
+
+      <ComponentGallery />
 
       <Section title={t("ds.motion")} note={t("ds.motionNote")}>
         <Button label={t("ds.replay")} icon="pi pi-replay" outlined onClick={() => setReplay((n) => n + 1)} />
