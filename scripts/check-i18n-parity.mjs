@@ -48,7 +48,16 @@ function loadNamespaceKeys(localesRoot, lang) {
   const namespaces = new Map();
   for (const file of listJsonFiles(langDir)) {
     const namespace = relative(langDir, file).replace(/\.json$/, "").split(sep).join("/");
-    const content = JSON.parse(readFileSync(file, "utf8"));
+    let text;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(file));
+    } catch {
+      throw new Error(`Locale file is not valid UTF-8: ${relative(repoRoot, file)}`);
+    }
+    const content = JSON.parse(text);
+    if (JSON.stringify(content).includes("\uFFFD")) {
+      throw new Error(`Locale contains replacement characters: ${relative(repoRoot, file)}`);
+    }
     namespaces.set(namespace, new Set(flattenKeys(content)));
   }
   return namespaces;
