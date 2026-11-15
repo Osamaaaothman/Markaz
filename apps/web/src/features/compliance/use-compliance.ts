@@ -186,6 +186,7 @@ export function useInvoiceStatuses(salesInvoiceIds: readonly string[]) {
 }
 
 export interface SubmissionReadiness {
+  readonly warning?: string;
   readonly canSubmit: boolean;
   readonly issue: string | null;
   readonly blockingInvoice: { readonly id: string; readonly number: string } | null;

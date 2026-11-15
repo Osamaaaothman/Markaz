@@ -421,9 +421,18 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId: first }, data: {
       status: "REJECTED", lastResponse: { body: { validationResults: { errorMessages: [{ code: "certificate-permissions", message: "Seller VAT mismatch" }] } } },
     } });
+    // A generated predecessor no longer holds the next position. Sandbox may still test
+    // another document; Simulation/Production must refuse the known identity mismatch.
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId: first }, data: { signedXml: "previously-generated-test-document", invoiceHash: "test-hash" } });
+    expect(await readyService.submissionReadiness(companyId, next)).toEqual({ canSubmit: true, issue: null, blockingInvoice: null, warning: "CERTIFICATE_SELLER_MISMATCH" });
+    expect(await readyService.resubmit(companyId, next, actor, newId())).toEqual({ status: "QUEUED" });
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    await prisma.egsUnit.update({ where: { id: egs.id }, data: { environment: "simulation" } });
     expect(await readyService.submissionReadiness(companyId, next)).toMatchObject({ canSubmit: false, issue: "CERTIFICATE_SELLER_MISMATCH" });
     await expect(readyService.resubmit(companyId, next, actor, newId())).rejects.toMatchObject({ code: "SUBMISSION_BLOCKED" });
-    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    await prisma.egsUnit.update({ where: { id: egs.id }, data: { environment: "production" } });
+    expect(await readyService.submissionReadiness(companyId, next)).toMatchObject({ canSubmit: false, issue: "CERTIFICATE_SELLER_MISMATCH" });
     await prisma.egsCredential.update({ where: { egsUnitId: egs.id }, data: { updatedAt: new Date(Date.now() + 1000) } });
     expect((await readyService.submissionReadiness(companyId, next)).issue).not.toBe("CERTIFICATE_SELLER_MISMATCH");
 
