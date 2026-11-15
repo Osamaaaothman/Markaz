@@ -360,30 +360,6 @@ export function Preview(): React.JSX.Element {
                 </button>
               </div>
             </header>
-            <div className="rd-module-bar">
-              {["dashboard", "sales", "purchasing", "inventory", "accounting", "hr"].map(
-                (key, i) => (
-                  <button
-                    type="button"
-                    key={key}
-                    onClick={() =>
-                      document
-                        .getElementById(
-                          ["dashboard", "tables", "documents", "dialogs", "accounting", "dialogs"][
-                            i
-                          ]!,
-                        )
-                        ?.scrollIntoView()
-                    }
-                  >
-                    <Icon
-                      name={["chart-bar", "shopping-cart", "truck", "box", "book", "users"][i]!}
-                    />
-                    {t(key)}
-                  </button>
-                ),
-              )}
-            </div>
             <main className="rd-main">
               <section id="overview" aria-labelledby="overview-title" className="rd-intro">
                 <div className="rd-intro-heading">

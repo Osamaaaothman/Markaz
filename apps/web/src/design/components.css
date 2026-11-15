@@ -565,7 +565,7 @@ html body .mk-grid--scroll .p-datatable-wrapper {
 }
 
 /* When the table scrolls horizontally the sticky header would stay put while columns drift — disable it. */
-html body .mk-grid--scroll .p-datatable-thead > tr > th {
+html body .mk-grid.mk-grid--scroll .p-datatable-thead > tr > th {
   position: static;
 }
 

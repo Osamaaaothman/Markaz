@@ -42,7 +42,7 @@ This file explains the rules behind it. The stack stays **PrimeReact** — we re
 The topbar and **Settings → Interface** offer Balance, Canvas and Precision. They
 change shape and composition independently of colour. Balance anchors the sidebar and
 connects KPI cards; Canvas uses a floating sidebar, rounded panels and pill actions;
-Precision starts with an expandable icon rail, permission-filtered section shortcuts,
+Precision starts with an expandable icon rail,
 square panels and denser ruled tables. The original colour themes remain available.
 
 Every one of the 15 colour choices can be applied to every direction, including the
@@ -81,6 +81,27 @@ node scripts/check-interface-styles.mjs
 
 PrimeReact's locale is synchronized through `shared/prime/PrimeProvider.tsx`;
 changing only the legacy global locale does not update the provider's controls.
+
+### Operational document pages
+
+Sales invoices display settlement status and outstanding amount from Core's
+existing `loadOutstanding` calculation. Settled includes linked credit notes;
+overdue means a positive balance past the due date. Credit/debit notes show
+Posted. Counts and status filters apply to loaded records and say so explicitly.
+Checkboxes select the current filtered page; selected records can be exported
+as a formula-safe CSV. Search and status changes clear the selection.
+
+The shared `DocumentTrail` used on document details displays linked cards,
+the current document and its actual relationships. Its Activity tab queries the
+existing audit log for this document only and requires `audit_log:read`.
+Events open the same audit-detail dialog as Settings → Audit log. Old events
+retain only their recorded details; no history is fabricated or backfilled.
+Precision keeps the expandable sidebar and removes the extra section navbar.
+
+`scripts/check-document-interface.mjs` verifies the actual application routes
+with API fixtures: invoice state filters, selection/export, linked invoice and
+voucher history, audit details and permission denial, in AR/EN, all three styles
+and both modes. Build the web app before running it. CI runs both browser gates.
 
 Ink `--mk-ink-*` (shell, hero), Forest `--mk-brand-*` (primary), Brass `--mk-brass-*` (centre dot, revenue/expense pairing). Flat colour only: no gradients, glows or decorative patterns. Semantic colours (`--mk-danger`, `--mk-warn`, `--mk-success`, `--mk-info`) are separate from the brand set.
 

@@ -41,23 +41,62 @@ describeIfDb("Payments and allocation — real database", () => {
   let supplierInvoiceId: string;
 
   async function balance(accountId: string): Promise<number> {
-    const row = (await trialBalance.compute(companyId)).lines.find((l) => l.accountId === accountId);
+    const row = (await trialBalance.compute(companyId)).lines.find(
+      (l) => l.accountId === accountId,
+    );
     return row ? Number(row.debitTotal) - Number(row.creditTotal) : 0;
   }
 
-  const outstandingOf = async (id: string, side: "SALES" | "SUPPLIER"): Promise<string | undefined> =>
+  const outstandingOf = async (
+    id: string,
+    side: "SALES" | "SUPPLIER",
+  ): Promise<string | undefined> =>
     (await loadOutstanding(prisma, companyId, side, { ids: [id] }))[0]?.outstanding.toFixed(4);
 
   beforeAll(async () => {
-    await prisma.company.create({ data: { id: companyId, name: `Payments Test ${companyId}`, defaultCurrency: "SAR" } });
+    await prisma.company.create({
+      data: { id: companyId, name: `Payments Test ${companyId}`, defaultCurrency: "SAR" },
+    });
     const fiscalYear = await prisma.fiscalYear.create({
-      data: { id: newId(), companyId, name: `FY${year}-${companyId.slice(0, 6)}`, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) },
+      data: {
+        id: newId(),
+        companyId,
+        name: `FY${year}-${companyId.slice(0, 6)}`,
+        startDate: new Date(Date.UTC(year, 0, 1)),
+        endDate: new Date(Date.UTC(year, 11, 31)),
+      },
     });
     await prisma.fiscalPeriod.create({
-      data: { id: newId(), companyId, fiscalYearId: fiscalYear.id, periodNumber: 1, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) },
+      data: {
+        id: newId(),
+        companyId,
+        fiscalYearId: fiscalYear.id,
+        periodNumber: 1,
+        startDate: new Date(Date.UTC(year, 0, 1)),
+        endDate: new Date(Date.UTC(year, 11, 31)),
+      },
     });
-    const make = async (code: string, name: string, type: string, normalBalance: string, isPostable = true): Promise<string> =>
-      (await prisma.account.create({ data: { id: newId(), ref: `TEST-${code}-${companyId.slice(0, 6)}`, companyId, code, name, type, normalBalance, isPostable } })).id;
+    const make = async (
+      code: string,
+      name: string,
+      type: string,
+      normalBalance: string,
+      isPostable = true,
+    ): Promise<string> =>
+      (
+        await prisma.account.create({
+          data: {
+            id: newId(),
+            ref: `TEST-${code}-${companyId.slice(0, 6)}`,
+            companyId,
+            code,
+            name,
+            type,
+            normalBalance,
+            isPostable,
+          },
+        })
+      ).id;
     acc = {
       bank: await make("1010", "Bank", "ASSET", "DEBIT"),
       ar: await make("1200", "Accounts receivable", "ASSET", "DEBIT"),
@@ -68,7 +107,18 @@ describeIfDb("Payments and allocation — real database", () => {
       vatIn: await make("1300", "Input VAT", "ASSET", "DEBIT"),
       assetsGroup: await make("1", "Assets", "ASSET", "DEBIT", false),
     };
-    const bankFolder = await prisma.account.create({ data: { id: newId(), ref: "BANKS-" + companyId, companyId, code: "BANKS", name: "Banks", type: "ASSET", normalBalance: "DEBIT", isPostable: false } });
+    const bankFolder = await prisma.account.create({
+      data: {
+        id: newId(),
+        ref: "BANKS-" + companyId,
+        companyId,
+        code: "BANKS",
+        name: "Banks",
+        type: "ASSET",
+        normalBalance: "DEBIT",
+        isPostable: false,
+      },
+    });
     await prisma.account.update({ where: { id: acc.bank! }, data: { parentId: bankFolder.id } });
     await mappings.set("BANK_ACCOUNTS_PARENT", bankFolder.id, actor, cid());
     await mappings.set("ACCOUNTS_RECEIVABLE", acc.ar!, actor, cid());
@@ -78,17 +128,60 @@ describeIfDb("Payments and allocation — real database", () => {
     await mappings.set("VAT_INPUT", acc.vatIn!, actor, cid());
 
     vat0 = (await taxCodes.addSaudiDefaults(actor, cid())).find((c) => c.code === "VAT0")!.id;
-    const party = async (name: string) => (await prisma.party.create({ data: { id: newId(), ref: `TEST-${name}-${companyId.slice(0, 6)}`, companyId, name, kind: "COMPANY" } })).id;
+    const party = async (name: string) =>
+      (
+        await prisma.party.create({
+          data: {
+            id: newId(),
+            ref: `TEST-${name}-${companyId.slice(0, 6)}`,
+            companyId,
+            name,
+            kind: "COMPANY",
+          },
+        })
+      ).id;
     customerId = await party("C1");
     otherCustomerId = await party("C2");
     supplierId = await party("S1");
 
-    const service = (price: string) => ({ description: "Consulting", quantity: "1", unitPrice: price, taxCodeId: vat0 });
-    invoiceId = (await sales.createInvoice({ customerId, invoiceDate: today, lines: [service("1000")] }, actor, cid(), newId())).id;
-    secondInvoiceId = (await sales.createInvoice({ customerId, invoiceDate: today, lines: [service("300")] }, actor, cid(), newId())).id;
+    const service = (price: string) => ({
+      description: "Consulting",
+      quantity: "1",
+      unitPrice: price,
+      taxCodeId: vat0,
+    });
+    invoiceId = (
+      await sales.createInvoice(
+        { customerId, invoiceDate: today, lines: [service("1000")] },
+        actor,
+        cid(),
+        newId(),
+      )
+    ).id;
+    secondInvoiceId = (
+      await sales.createInvoice(
+        { customerId, invoiceDate: today, lines: [service("300")] },
+        actor,
+        cid(),
+        newId(),
+      )
+    ).id;
     supplierInvoiceId = (
       await purchases.create(
-        { supplierId, supplierInvoiceNumber: "RENT-1", invoiceDate: today, lines: [{ kind: "EXPENSE", accountId: acc.rent!, quantity: "1", unitPrice: "500", taxCodeId: vat0 }] },
+        {
+          supplierId,
+          supplierInvoiceNumber: "RENT-1",
+          invoiceDate: today,
+          lines: [
+            {
+              kind: "EXPENSE",
+              accountId: acc.rent!,
+              quantity: "1",
+              unitPrice: "500",
+              taxCodeId: vat0,
+            },
+          ],
+        },
         actor,
         cid(),
         newId(),
@@ -105,7 +198,15 @@ describeIfDb("Payments and allocation — real database", () => {
     const ar = await balance(acc.ar!);
 
     const receipt = await payments.create(
-      { direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "600", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [{ invoiceId, amount: "600" }] },
+      {
+        direction: "RECEIPT",
+        partyId: customerId,
+        paymentDate: today,
+        amount: "600",
+        cashAccountId: acc.bank!,
+        method: "BANK_TRANSFER",
+        allocations: [{ invoiceId, amount: "600" }],
+      },
       actor,
       cid(),
       newId(),
@@ -115,16 +216,57 @@ describeIfDb("Payments and allocation — real database", () => {
     expect(await balance(acc.bank!)).toBeCloseTo(bank + 600, 4);
     expect(await balance(acc.ar!)).toBeCloseTo(ar - 600, 4);
     expect(await outstandingOf(invoiceId, "SALES")).toBe("400.0000");
+    expect(await sales.get(companyId, invoiceId)).toMatchObject({
+      settlementStatus: "PARTIAL",
+      outstandingAmount: "400.0000",
+    });
+    expect(
+      (await sales.list(companyId, { customerId })).data.find((row) => row.id === invoiceId),
+    ).toMatchObject({ settlementStatus: "PARTIAL", outstandingAmount: "400.0000" });
   });
 
   it("refuses more than an invoice owes, more than the payment, a repeat, and another party's invoice", async () => {
-    const attempt = (allocations: { invoiceId: string; amount: string }[], amount = "1000", partyId = customerId) =>
-      payments.create({ direction: "RECEIPT", partyId, paymentDate: today, amount, cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations }, actor, cid(), newId());
+    const attempt = (
+      allocations: { invoiceId: string; amount: string }[],
+      amount = "1000",
+      partyId = customerId,
+    ) =>
+      payments.create(
+        {
+          direction: "RECEIPT",
+          partyId,
+          paymentDate: today,
+          amount,
+          cashAccountId: acc.bank!,
+          method: "BANK_TRANSFER",
+          allocations,
+        },
+        actor,
+        cid(),
+        newId(),
+      );
 
-    await expect(attempt([{ invoiceId, amount: "400.0001" }])).rejects.toMatchObject({ code: "OVER_ALLOCATED" });
-    await expect(attempt([{ invoiceId, amount: "400" }, { invoiceId: secondInvoiceId, amount: "300" }], "500")).rejects.toMatchObject({ code: "ALLOCATION_EXCEEDS_PAYMENT" });
-    await expect(attempt([{ invoiceId, amount: "1" }, { invoiceId, amount: "1" }])).rejects.toMatchObject({ code: "DUPLICATE_ALLOCATION" });
-    await expect(attempt([{ invoiceId, amount: "1" }], "1", otherCustomerId)).rejects.toMatchObject({ code: "INVOICE_NOT_FOUND" });
+    await expect(attempt([{ invoiceId, amount: "400.0001" }])).rejects.toMatchObject({
+      code: "OVER_ALLOCATED",
+    });
+    await expect(
+      attempt(
+        [
+          { invoiceId, amount: "400" },
+          { invoiceId: secondInvoiceId, amount: "300" },
+        ],
+        "500",
+      ),
+    ).rejects.toMatchObject({ code: "ALLOCATION_EXCEEDS_PAYMENT" });
+    await expect(
+      attempt([
+        { invoiceId, amount: "1" },
+        { invoiceId, amount: "1" },
+      ]),
+    ).rejects.toMatchObject({ code: "DUPLICATE_ALLOCATION" });
+    await expect(attempt([{ invoiceId, amount: "1" }], "1", otherCustomerId)).rejects.toMatchObject(
+      { code: "INVOICE_NOT_FOUND" },
+    );
     // Nothing was booked by any of them.
     expect(await outstandingOf(invoiceId, "SALES")).toBe("400.0000");
   });
@@ -139,7 +281,10 @@ describeIfDb("Payments and allocation — real database", () => {
         cashAccountId: acc.bank!,
         method: "CHEQUE",
         reference: "CHQ-77",
-        allocations: [{ invoiceId, amount: "400" }, { invoiceId: secondInvoiceId, amount: "300" }],
+        allocations: [
+          { invoiceId, amount: "400" },
+          { invoiceId: secondInvoiceId, amount: "300" },
+        ],
       },
       actor,
       cid(),
@@ -147,6 +292,10 @@ describeIfDb("Payments and allocation — real database", () => {
     );
     expect(receipt.unallocated).toBe("100.0000");
     expect(await outstandingOf(invoiceId, "SALES")).toBe("0.0000");
+    expect(await sales.get(companyId, invoiceId)).toMatchObject({
+      settlementStatus: "SETTLED",
+      outstandingAmount: "0.0000",
+    });
     expect(await payments.openInvoices(companyId, customerId, "RECEIPT")).toEqual([]);
 
     // Invoices 1300 - receipts 1400 = -100: the customer has 100 on account.
@@ -154,11 +303,45 @@ describeIfDb("Payments and allocation — real database", () => {
   });
 
   it("counts a credit note against an invoice as settling it", async () => {
-    const third = (await sales.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "Work", quantity: "1", unitPrice: "200", taxCodeId: vat0 }] }, actor, cid(), newId())).id;
-    await sales.createCreditNote({ originalInvoiceId: third, creditDate: today, lines: [{ description: "Discount", quantity: "1", unitPrice: "50", taxCodeId: vat0 }] }, actor, cid(), newId());
+    const third = (
+      await sales.createInvoice(
+        {
+          customerId,
+          invoiceDate: today,
+          lines: [{ description: "Work", quantity: "1", unitPrice: "200", taxCodeId: vat0 }],
+        },
+        actor,
+        cid(),
+        newId(),
+      )
+    ).id;
+    await sales.createCreditNote(
+      {
+        originalInvoiceId: third,
+        creditDate: today,
+        lines: [{ description: "Discount", quantity: "1", unitPrice: "50", taxCodeId: vat0 }],
+      },
+      actor,
+      cid(),
+      newId(),
+    );
     expect(await outstandingOf(third, "SALES")).toBe("150.0000");
+    expect(await sales.get(companyId, third)).toMatchObject({ settlementStatus: "PARTIAL", outstandingAmount: "150.0000" });
     await expect(
-      payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "200", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [{ invoiceId: third, amount: "200" }] }, actor, cid(), newId()),
+      payments.create(
+        {
+          direction: "RECEIPT",
+          partyId: customerId,
+          paymentDate: today,
+          amount: "200",
+          cashAccountId: acc.bank!,
+          method: "BANK_TRANSFER",
+          allocations: [{ invoiceId: third, amount: "200" }],
+        },
+        actor,
+        cid(),
+        newId(),
+      ),
     ).rejects.toMatchObject({ code: "OVER_ALLOCATED" });
   });
 
@@ -166,8 +349,27 @@ describeIfDb("Payments and allocation — real database", () => {
     const before = await payments.partyBalance(companyId, customerId, "RECEIPT");
     expect(before.totalUnallocated).toBe("100.0000");
 
-    const fresh = (await sales.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "New work", quantity: "1", unitPrice: "40", taxCodeId: vat0 }] }, actor, cid(), newId())).id;
-    const result = await payments.settle({ partyId: customerId, direction: "RECEIPT", allocations: [{ invoiceId: fresh, amount: "40" }] }, actor, cid());
+    const fresh = (
+      await sales.createInvoice(
+        {
+          customerId,
+          invoiceDate: today,
+          lines: [{ description: "New work", quantity: "1", unitPrice: "40", taxCodeId: vat0 }],
+        },
+        actor,
+        cid(),
+        newId(),
+      )
+    ).id;
+    const result = await payments.settle(
+      {
+        partyId: customerId,
+        direction: "RECEIPT",
+        allocations: [{ invoiceId: fresh, amount: "40" }],
+      },
+      actor,
+      cid(),
+    );
     expect(result.totalAllocated).toBe("40.0000");
     expect(await outstandingOf(fresh, "SALES")).toBe("0.0000");
 
@@ -176,24 +378,61 @@ describeIfDb("Payments and allocation — real database", () => {
 
     // The invoice is now fully settled: asking for one more riyal is "more than it owes", not "not found".
     await expect(
-      payments.settle({ partyId: customerId, direction: "RECEIPT", allocations: [{ invoiceId: fresh, amount: "1" }] }, actor, cid()),
+      payments.settle(
+        {
+          partyId: customerId,
+          direction: "RECEIPT",
+          allocations: [{ invoiceId: fresh, amount: "1" }],
+        },
+        actor,
+        cid(),
+      ),
     ).rejects.toMatchObject({ code: "OVER_ALLOCATED" });
   });
 
   it("refuses to settle more than the party has on account", async () => {
-    const big = (await sales.createInvoice({ customerId, invoiceDate: today, lines: [{ description: "Big job", quantity: "1", unitPrice: "1000", taxCodeId: vat0 }] }, actor, cid(), newId())).id;
+    const big = (
+      await sales.createInvoice(
+        {
+          customerId,
+          invoiceDate: today,
+          lines: [{ description: "Big job", quantity: "1", unitPrice: "1000", taxCodeId: vat0 }],
+        },
+        actor,
+        cid(),
+        newId(),
+      )
+    ).id;
     await expect(
-      payments.settle({ partyId: customerId, direction: "RECEIPT", allocations: [{ invoiceId: big, amount: "1000" }] }, actor, cid()),
+      payments.settle(
+        {
+          partyId: customerId,
+          direction: "RECEIPT",
+          allocations: [{ invoiceId: big, amount: "1000" }],
+        },
+        actor,
+        cid(),
+      ),
     ).rejects.toMatchObject({ code: "INSUFFICIENT_BALANCE" });
     // Nothing was allocated: the balance is exactly as the previous test left it.
-    expect((await payments.partyBalance(companyId, customerId, "RECEIPT")).totalUnallocated).toBe("60.0000");
+    expect((await payments.partyBalance(companyId, customerId, "RECEIPT")).totalUnallocated).toBe(
+      "60.0000",
+    );
   });
 
   it("pays a supplier: payable down, bank out, supplier invoice part-settled", async () => {
     const ap = await balance(acc.ap!);
     const bank = await balance(acc.bank!);
     const payment = await payments.create(
-      { direction: "PAYMENT", partyId: supplierId, paymentDate: today, amount: "300", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [{ invoiceId: supplierInvoiceId, amount: "300" }] },
+      {
+        direction: "PAYMENT",
+        partyId: supplierId,
+        paymentDate: today,
+        amount: "300",
+        cashAccountId: acc.bank!,
+        method: "BANK_TRANSFER",
+        allocations: [{ invoiceId: supplierInvoiceId, amount: "300" }],
+      },
       actor,
       cid(),
       newId(),
@@ -202,15 +441,43 @@ describeIfDb("Payments and allocation — real database", () => {
     expect(await balance(acc.ap!)).toBeCloseTo(ap + 300, 4); // debit reduces the credit balance
     expect(await balance(acc.bank!)).toBeCloseTo(bank - 300, 4);
     expect(await outstandingOf(supplierInvoiceId, "SUPPLIER")).toBe("200.0000");
-    expect((await payments.openInvoices(companyId, supplierId, "PAYMENT"))[0]?.outstanding).toBe("200.0000");
+    expect((await payments.openInvoices(companyId, supplierId, "PAYMENT"))[0]?.outstanding).toBe(
+      "200.0000",
+    );
   });
 
   it("refuses a group or non-asset account as the bank, and lists payments newest first", async () => {
     await expect(
-      payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "1", cashAccountId: acc.assetsGroup!, method: "BANK_TRANSFER", allocations: [] }, actor, cid(), newId()),
+      payments.create(
+        {
+          direction: "RECEIPT",
+          partyId: customerId,
+          paymentDate: today,
+          amount: "1",
+          cashAccountId: acc.assetsGroup!,
+          method: "BANK_TRANSFER",
+          allocations: [],
+        },
+        actor,
+        cid(),
+        newId(),
+      ),
     ).rejects.toMatchObject({ code: "CASH_ACCOUNT_INVALID" });
     await expect(
-      payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "1", cashAccountId: acc.revenue!, method: "BANK_TRANSFER", allocations: [] }, actor, cid(), newId()),
+      payments.create(
+        {
+          direction: "RECEIPT",
+          partyId: customerId,
+          paymentDate: today,
+          amount: "1",
+          cashAccountId: acc.revenue!,
+          method: "BANK_TRANSFER",
+          allocations: [],
+        },
+        actor,
+        cid(),
+        newId(),
+      ),
     ).rejects.toMatchObject({ code: "CASH_ACCOUNT_INVALID" });
 
     const page = await payments.list(companyId, { direction: "RECEIPT" });
@@ -222,21 +489,47 @@ describeIfDb("Payments and allocation — real database", () => {
   it("keeps companies apart", async () => {
     const stranger = { id: "stranger", companyId: newId() };
     await expect(
-      payments.create({ direction: "RECEIPT", partyId: customerId, paymentDate: today, amount: "1", cashAccountId: acc.bank!, method: "BANK_TRANSFER", allocations: [] }, stranger, cid(), newId()),
+      payments.create(
+        {
+          direction: "RECEIPT",
+          partyId: customerId,
+          paymentDate: today,
+          amount: "1",
+          cashAccountId: acc.bank!,
+          method: "BANK_TRANSFER",
+          allocations: [],
+        },
+        stranger,
+        cid(),
+        newId(),
+      ),
     ).rejects.toMatchObject({ code: "PARTY_NOT_FOUND" });
   });
 
   it("reads one payment back: the bank account, what each invoice took, what stayed on account; nothing for another company", async () => {
     const page = await payments.list(companyId, { limit: "100" });
-    const supplierPayment = page.data.find((p) => p.direction === "PAYMENT" && p.partyId === supplierId)!;
+    const supplierPayment = page.data.find(
+      (p) => p.direction === "PAYMENT" && p.partyId === supplierId,
+    )!;
     const detail = (await payments.get(supplierPayment.id, companyId))!;
-    expect(detail).toMatchObject({ number: supplierPayment.number, direction: "PAYMENT", amount: supplierPayment.amount, allocated: supplierPayment.allocated });
+    expect(detail).toMatchObject({
+      number: supplierPayment.number,
+      direction: "PAYMENT",
+      amount: supplierPayment.amount,
+      allocated: supplierPayment.allocated,
+    });
     expect(detail.allocations).toHaveLength(1);
-    expect(detail.allocations[0]).toMatchObject({ invoiceId: supplierInvoiceId, invoiceKind: "SUPPLIER", amount: "300.0000" });
+    expect(detail.allocations[0]).toMatchObject({
+      invoiceId: supplierInvoiceId,
+      invoiceKind: "SUPPLIER",
+      amount: "300.0000",
+    });
     expect(detail.allocations[0]!.invoiceNumber).toMatch(/^SI-/);
     expect(Number(detail.unallocated)).toBeCloseTo(Number(detail.amount) - 300, 4);
     expect(detail.cashAccountCode).toBe("1010");
-    expect(await prisma.journalEntry.count({ where: { id: detail.journalEntryId, companyId } })).toBe(1);
+    expect(
+      await prisma.journalEntry.count({ where: { id: detail.journalEntryId, companyId } }),
+    ).toBe(1);
 
     const receipt = page.data.find((p) => p.direction === "RECEIPT")!;
     const read = (await payments.get(receipt.id, companyId))!;

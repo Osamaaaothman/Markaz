@@ -580,9 +580,7 @@ html[data-preview-style] body .rd-style-select .p-dropdown-trigger {
   color: var(--rd-muted);
   background: transparent;
 }
-.rd-module-bar {
-  display: none;
-}
+
 .rd-main {
   max-width: 1540px;
   margin-inline: auto;
@@ -3417,30 +3415,7 @@ html[data-preview-style="precision"] .rd-sidebar-foot {
   width: 100%;
   justify-content: center;
 }
-html[data-preview-style="precision"] .rd-module-bar {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding-inline: 36px;
-  min-height: 44px;
-  border-block-end: 1px solid var(--rd-line);
-  background: var(--rd-surface);
-  overflow-x: auto;
-}
-html[data-preview-style="precision"] .rd-module-bar button {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 11px;
-  background: transparent;
-  border: 0;
-  color: var(--rd-muted);
-  padding-block: 12px;
-  white-space: nowrap;
-}
-html[data-preview-style="precision"] .rd-module-bar button:hover {
-  color: var(--rd-primary);
-}
+
 html[data-preview-style="precision"] .rd-main {
   max-width: 1480px;
 }
@@ -3711,10 +3686,7 @@ html[data-preview-motion="off"] *::after {
   .rd-intro-foot > a {
     margin-inline-start: auto;
   }
-  html[data-preview-style="precision"] .rd-module-bar {
-    gap: 20px;
-    padding-inline: 22px;
-  }
+
   .rd-invoice-bottom {
     gap: 26px;
   }

@@ -2,6 +2,8 @@ import type { SalesInvoiceDetail } from "@erp/core";
 import { salesInvoiceToPdfHtml } from "./sales-invoice-export.js";
 
 const invoice: SalesInvoiceDetail = {
+  settlementStatus: "OPEN",
+  outstandingAmount: "345.0000",
   id: "i1",
   documentType: "INVOICE",
   number: "INV-FY2026-000001",

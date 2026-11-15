@@ -203,32 +203,6 @@ html[data-design="precision"] body .p-tabview .p-tabview-nav li .p-tabview-nav-l
   border-inline-end: 1px solid var(--mk-border);
   border-radius: 0;
 }
-.mk-module-nav {
-  display: flex;
-  gap: var(--mk-space-1);
-  min-width: 0;
-  overflow-x: auto;
-  padding-inline: var(--mk-space-5);
-  background: var(--mk-surface);
-  border-block-end: 1px solid var(--mk-border);
-}
-.mk-module-nav a {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: var(--mk-space-2);
-  padding: var(--mk-space-3);
-  color: var(--mk-text-muted);
-  font-size: var(--mk-text-sm);
-  text-decoration: none;
-  border-block-end: 2px solid transparent;
-}
-.mk-module-nav a[aria-current],
-.mk-module-nav a:hover {
-  color: var(--mk-primary);
-  background: var(--mk-primary-soft);
-  border-block-end-color: var(--mk-primary);
-}
 
 /* Productive motion: colour/focus feedback, short entrances, no ornamental loops. */
 html:is([data-design="balance"], [data-design="canvas"], [data-design="precision"]) .erp-page > *,
@@ -446,9 +420,7 @@ html body .mk-direction-select .p-dropdown-trigger {
   html body .mk-direction-select .p-dropdown {
     inline-size: 7.5rem;
   }
-  .mk-module-nav {
-    padding-inline: var(--mk-space-2);
-  }
+
   html[data-design="precision"] .erp-shell__content {
     padding: var(--mk-space-4) var(--mk-space-3);
   }

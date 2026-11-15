@@ -83,6 +83,7 @@ jobs:
         run: |
           npx vite build --config apps/web/vite.redesign.config.ts
           node scripts/check-interface-styles.mjs
+          node scripts/check-document-interface.mjs
 
       - name: Interface review screenshots and results
         if: always()
