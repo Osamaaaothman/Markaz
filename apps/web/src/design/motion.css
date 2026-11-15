@@ -348,64 +348,188 @@
   }
 }
 
-/* ---- first-entry splash screen ---- */
+/* ---- the Markaz splash (from the brand package, splash/splash.html) ---- */
 .mk-splash {
+  --sp-bg: #f8f6f1;
+  --sp-frame: #1c5a40;
+  --sp-centre: #a8842a;
+  --sp-word: #1b1a17;
+  --sp-muted: #6b665b;
+  --sp-shine: #ffffff;
+  --sp-shine-o: 0.55;
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: grid;
-  place-items: center;
-  background: var(--mk-ink-900, #1b1a17);
-  color: #ece9e1;
-  transition: opacity 0.5s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: var(--sp-bg);
 }
 
-.mk-splash--out {
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme-mode="light"]) .mk-splash {
+    --sp-bg: #12110f;
+    --sp-frame: #ece9e1;
+    --sp-centre: #c9aa5c;
+    --sp-word: #ece9e1;
+    --sp-muted: #b4afa3;
+    --sp-shine: #c9aa5c;
+    --sp-shine-o: 0.6;
+  }
+}
+
+html[data-theme-mode="dark"] .mk-splash {
+    --sp-bg: #12110f;
+    --sp-frame: #ece9e1;
+    --sp-centre: #c9aa5c;
+    --sp-word: #ece9e1;
+    --sp-muted: #b4afa3;
+    --sp-shine: #c9aa5c;
+    --sp-shine-o: 0.6;
+  }
+
+.mk-splash__mark {
+  inline-size: 96px;
+  block-size: 96px;
+  overflow: visible;
+}
+
+.mk-splash__frame {
+  fill: none;
+  stroke: var(--sp-frame);
+  stroke-width: 6;
+}
+
+.mk-splash__frame path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mks-draw 220ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.mk-splash__frame path:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.mk-splash__frame path:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.mk-splash__frame path:nth-child(4) {
+  animation-delay: 360ms;
+}
+
+.mk-splash__centre {
+  fill: var(--sp-centre);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mks-pop 220ms cubic-bezier(0.2, 0, 0, 1) 580ms both;
+}
+
+.mk-splash__shine polygon {
+  fill: var(--sp-shine);
+  opacity: var(--sp-shine-o);
+}
+
+.mk-splash__shine {
+  transform: translateX(-36px);
+  animation: mks-sweep 480ms cubic-bezier(0.4, 0, 0.2, 1) 800ms both;
+}
+
+.mk-splash__word {
+  fill: var(--sp-word);
+  animation: mks-rise 220ms cubic-bezier(0.2, 0, 0, 1) 1280ms both;
+}
+
+.mk-splash__status {
+  position: absolute;
+  inset-block-end: 72px;
+  margin: 0;
+  color: var(--sp-muted);
+  font-size: 14px;
   opacity: 0;
+  transition: opacity 480ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* the app is not ready yet: the brackets breathe in turn */
+.mk-splash--waiting .mk-splash__frame path {
+  stroke-dashoffset: 0;
+  animation: mks-calm 1920ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.mk-splash--waiting .mk-splash__frame path:nth-child(2) {
+  animation-delay: 480ms;
+}
+
+.mk-splash--waiting .mk-splash__frame path:nth-child(3) {
+  animation-delay: 960ms;
+}
+
+.mk-splash--waiting .mk-splash__frame path:nth-child(4) {
+  animation-delay: 1440ms;
+}
+
+.mk-splash--slow .mk-splash__status {
+  opacity: 1;
+}
+
+.mk-splash--leaving {
+  animation: mks-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
   pointer-events: none;
 }
 
-.mk-splash__body {
-  display: grid;
-  justify-items: center;
-  gap: 0.9rem;
-  text-align: center;
-}
-
-.mk-splash__name {
-  font-size: 2.4rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  animation: mk-rise 0.8s var(--mk-ease) 0.9s backwards;
-}
-
-.mk-splash__tagline {
-  color: #a8a398;
-  font-size: 1rem;
-  animation: mk-rise 0.8s var(--mk-ease) 1.15s backwards;
-}
-
-.mk-splash__bar {
-  inline-size: min(14rem, 60vw);
-  block-size: 3px;
-  margin-block-start: 1.2rem;
-  border-radius: 99px;
-  background: rgb(236 233 225 / 0.14);
-  overflow: hidden;
-  animation: mk-fade 0.5s ease 1s backwards;
-}
-
-.mk-splash__bar span {
-  display: block;
-  block-size: 100%;
-  inline-size: 0;
-  border-radius: 99px;
-  background: #c9aa5c;
-  animation: mk-splash-fill 1.5s var(--mk-ease) 1s forwards;
-}
-
-@keyframes mk-splash-fill {
+@keyframes mks-draw {
   to {
-    inline-size: 100%;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes mks-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes mks-sweep {
+  from {
+    transform: translateX(-36px);
+  }
+  to {
+    transform: translateX(60px);
+  }
+}
+
+@keyframes mks-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes mks-calm {
+  0% {
+    opacity: 1;
+  }
+  35%,
+  100% {
+    opacity: 0.28;
+  }
+}
+
+@keyframes mks-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-splash__frame path {
+    stroke-dashoffset: 0;
+  }
+
+  .mk-splash__shine {
+    display: none;
   }
 }

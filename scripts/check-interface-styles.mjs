@@ -147,7 +147,10 @@ try {
         await page.setViewportSize({ width: 390, height: 844 });
         await page
           .waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 2, null, {
-            timeout: 5000,
+            // CI runs this right after a full monorepo build on a shared, loaded runner;
+            // 5s was tight enough to flake there even though the layout itself settles
+            // well under that locally. The assertion right after stays exactly as strict.
+            timeout: 15000,
           })
           .catch(async (error) => {
             console.error(

@@ -245,3 +245,29 @@ html body .erp-topbar__search {
   min-width: 9rem;
   flex-shrink: 1;
 }
+
+/* on a phone only the emblem is left in the brand slot, so it needs no divider and no extra padding */
+@media (max-width: 759px) {
+  html body .erp-topbar__brand {
+    padding-inline-end: 0;
+    border-inline-end: 0;
+  }
+
+  html body .erp-topbar__lang {
+    padding-inline: 0.5rem;
+  }
+}
+
+/* very narrow phones: the ringed buttons and gaps shrink so the bar never pushes the page sideways */
+@media (max-width: 480px) {
+  html body .erp-topbar {
+    gap: 0.2rem;
+    padding-inline: 0.5rem;
+  }
+
+  html body .erp-topbar__icon-button,
+  html body .erp-topbar__avatar-button {
+    inline-size: 2.1rem;
+    block-size: 2.1rem;
+  }
+}
