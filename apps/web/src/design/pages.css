@@ -490,36 +490,60 @@ html[dir="rtl"] .erp-kpi::before {
 }
 
 /* ---- the sections shelf: one ledger book per part of the app this user may open ----
-   Flat colour only. The spine (with its stitches) sits on the start side — the right in Arabic, like a real
-   Arabic book — and the stacked page edges show on the open side. */
+   Flat colour only. Each book stands on a plank; its cloth spine (with stitches) is on the start side — the
+   right in Arabic, like a real Arabic book. Picking it up swings the cover open in 3D to show the inner page,
+   which lists the first screens inside, numbered like folios. */
 
 .mk-tiles {
   --mk-book-dir: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
-  gap: var(--mk-space-5) var(--mk-space-4);
+  gap: 1.9rem var(--mk-space-4);
   padding-inline-end: 0.5rem;
+  padding-block-end: 0.6rem;
 }
 
 html[dir="rtl"] .mk-tiles {
   --mk-book-dir: -1;
 }
 
-.mk-tiles > .mk-tile,
-.mk-actions > .mk-action {
+.mk-tiles > .mk-slot,
+.mk-actions > .mk-action,
+.erp-kpis > .erp-kpi {
   animation: mk-tile-pop 0.7s var(--mk-ease-spring) backwards;
   animation-delay: calc(var(--i, 0) * 55ms + 80ms);
+}
+
+/* the plank each book stands on; neighbouring planks meet to read as one shelf */
+.mk-slot {
+  position: relative;
+}
+
+.mk-slot::after {
+  content: "";
+  position: absolute;
+  inset-inline: -8px;
+  inset-block-end: -10px;
+  block-size: 8px;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: 3px;
+  background: var(--mk-surface-3);
+  box-shadow: var(--mk-shadow-xs);
 }
 
 .mk-tile {
   --mk-tile-accent: var(--mk-primary);
   --mk-tile-soft: var(--mk-primary-soft);
   --mk-pages: 3px;
+  --mk-spine: 1.15rem;
   position: relative;
+  z-index: 1;
   display: flex;
+  inline-size: 100%;
   aspect-ratio: 4 / 5;
   min-width: 0;
   padding: 0;
+  perspective: 900px;
   text-align: center;
   font: inherit;
   color: var(--mk-text);
@@ -543,8 +567,13 @@ html[dir="rtl"] .mk-tiles {
 .mk-tile:hover,
 .mk-tile:focus-visible {
   --mk-pages: 5px;
-  transform: translateY(-6px) rotate(calc(var(--mk-book-dir) * -1.4deg));
+  z-index: 2;
+  transform: translateY(-7px);
   outline: none;
+}
+
+.mk-tile:active {
+  transform: translateY(-3px) scale(0.98);
 }
 
 .mk-tile:focus-visible {
@@ -554,7 +583,7 @@ html[dir="rtl"] .mk-tiles {
 
 /* the cloth spine, stitched through four times */
 .mk-tile__spine {
-  flex: 0 0 1.15rem;
+  flex: 0 0 var(--mk-spine);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -572,9 +601,81 @@ html[dir="rtl"] .mk-tiles {
   background: color-mix(in srgb, var(--mk-surface) 75%, transparent);
 }
 
-/* a bookmark ribbon hanging from the top edge: the number of screens inside */
+/* the inner page, revealed when the cover opens: a ruled ledger page with a margin line and folio numbers */
+.mk-tile__inside {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: var(--mk-spine) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding: 2.6rem 0.55rem 0.45rem;
+  padding-inline: 1.7rem 0.55rem;
+  overflow: hidden;
+  text-align: start;
+  background: var(--mk-surface-2);
+  border-start-end-radius: 13px;
+  border-end-end-radius: 13px;
+}
+
+.mk-tile__row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-block: 0.22rem;
+  border-block-end: 1px solid var(--mk-border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateX(calc(var(--mk-book-dir) * -10px));
+  transition: opacity var(--mk-dur) ease, transform var(--mk-dur) var(--mk-ease);
+}
+
+.mk-tile__row b {
+  flex: 0 0 1.05rem;
+  padding-inline-end: 0.35rem;
+  border-inline-end: 1px solid color-mix(in srgb, var(--mk-tile-accent) 55%, transparent);
+  color: var(--mk-tile-accent);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.mk-tile__row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-tile__more {
+  padding-block-start: 0.25rem;
+  padding-inline-start: 1.5rem;
+  color: var(--mk-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity var(--mk-dur) ease;
+}
+
+.mk-tile:hover .mk-tile__row,
+.mk-tile:focus-visible .mk-tile__row {
+  opacity: 1;
+  transform: none;
+  transition-delay: calc(var(--n, 0) * 70ms + 220ms);
+}
+
+.mk-tile:hover .mk-tile__more,
+.mk-tile:focus-visible .mk-tile__more {
+  opacity: 1;
+  transition-delay: calc(var(--n, 0) * 70ms + 220ms);
+}
+
+/* a bookmark ribbon hanging from the top edge: the number of screens inside. It sways a little even when the
+   book is shut, each at its own pace, and swings when the book is picked up. */
 .mk-tile__ribbon {
   position: absolute;
+  z-index: 3;
   inset-block-start: -1px;
   inset-inline-end: 0.7rem;
   display: grid;
@@ -588,27 +689,47 @@ html[dir="rtl"] .mk-tiles {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  transform-origin: 50% 0;
+  animation: mk-ribbon-sway 5s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.7s);
   transition: block-size var(--mk-dur) var(--mk-ease-spring);
 }
 
 .mk-tile:hover .mk-tile__ribbon,
 .mk-tile:focus-visible .mk-tile__ribbon {
   block-size: 2.7rem;
+  animation: mk-ribbon-swing 1s ease-out;
 }
 
+/* the front cover: hinged on the spine edge and swung open in 3D */
 .mk-tile__cover {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  inset-block: 0;
+  inset-inline: var(--mk-spine) 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   gap: 0.45rem;
   padding: 1.75rem 0.6rem 0.7rem;
+  background: var(--mk-surface);
+  border: 1px solid var(--mk-border-strong);
+  border-inline-start: 0;
+  border-start-end-radius: 13px;
+  border-end-end-radius: 13px;
+  transform-origin: calc(50% - var(--mk-book-dir) * 50%) 50%;
+  transition: transform 0.75s var(--mk-ease-spring);
 }
 
-/* an accountant's rubber stamp: a ringed disc with a dashed outer ring */
+.mk-tile:hover .mk-tile__cover,
+.mk-tile:focus-visible .mk-tile__cover {
+  transform: rotateY(calc(var(--mk-book-dir) * -82deg));
+}
+
+/* an accountant's rubber stamp: a ringed disc inside a slowly turning dashed ring */
 .mk-tile__icon {
+  position: relative;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -616,19 +737,18 @@ html[dir="rtl"] .mk-tiles {
   block-size: 2.5rem;
   border: 1.5px solid var(--mk-tile-accent);
   border-radius: 50%;
-  outline: 1.5px dashed color-mix(in srgb, var(--mk-tile-accent) 55%, transparent);
-  outline-offset: 3px;
   background: var(--mk-tile-soft);
   color: var(--mk-tile-accent);
   font-size: 1.1rem;
-  transition: transform var(--mk-dur) var(--mk-ease-spring), background-color var(--mk-dur) ease, color var(--mk-dur) ease;
 }
 
-.mk-tile:hover .mk-tile__icon,
-.mk-tile:focus-visible .mk-tile__icon {
-  transform: rotate(-14deg) scale(1.1);
-  background: var(--mk-tile-accent);
-  color: var(--mk-surface);
+.mk-tile__icon::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1.5px dashed color-mix(in srgb, var(--mk-tile-accent) 55%, transparent);
+  border-radius: 50%;
+  animation: mk-spin-slow 22s linear infinite;
 }
 
 /* the label plate: a ledger heading, ruled twice above and below */
@@ -663,7 +783,7 @@ html[dir="rtl"] .mk-tiles {
   overflow-wrap: anywhere;
 }
 
-/* blank ledger rows at the foot of the cover; they write themselves out when the book is picked up */
+/* blank ledger rows at the foot of the cover */
 .mk-tile__rules {
   display: grid;
   gap: 0.3rem;
@@ -674,7 +794,6 @@ html[dir="rtl"] .mk-tiles {
   display: block;
   block-size: 1px;
   background: var(--mk-border-strong);
-  transition: inline-size var(--mk-dur-slow) var(--mk-ease);
 }
 
 .mk-tile__rules i:nth-child(1) {
@@ -687,20 +806,6 @@ html[dir="rtl"] .mk-tiles {
 
 .mk-tile__rules i:nth-child(3) {
   inline-size: 38%;
-}
-
-.mk-tile:hover .mk-tile__rules i,
-.mk-tile:focus-visible .mk-tile__rules i {
-  inline-size: 100%;
-  background: color-mix(in srgb, var(--mk-tile-accent) 60%, var(--mk-border-strong));
-}
-
-.mk-tile:hover .mk-tile__rules i:nth-child(2) {
-  transition-delay: 70ms;
-}
-
-.mk-tile:hover .mk-tile__rules i:nth-child(3) {
-  transition-delay: 140ms;
 }
 
 .mk-tile--a {
@@ -731,6 +836,26 @@ html[dir="rtl"] .mk-tiles {
 .mk-tile--f {
   --mk-tile-accent: var(--mk-danger);
   --mk-tile-soft: var(--mk-danger-soft);
+}
+
+/* ---- small touches elsewhere on the page ---- */
+
+.mk-hero__title {
+  animation: mk-rise 0.8s var(--mk-ease) backwards;
+}
+
+.mk-hero__role {
+  animation: mk-pop 0.7s var(--mk-ease-spring) 0.5s backwards;
+}
+
+/* an item that needs someone to act keeps a soft heartbeat on its icon */
+.erp-attention__item > .pi:first-child {
+  animation: mk-pulse-soft 2.8s ease-in-out infinite;
+}
+
+.mk-action:active,
+.erp-kpi:active {
+  transform: translateY(-1px) scale(0.98);
 }
 
 /* ---- the chart area: three columns on a wide screen, two on a tablet, one on a phone. A card

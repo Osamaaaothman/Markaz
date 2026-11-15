@@ -223,6 +223,34 @@
   }
 }
 
+@keyframes mk-ribbon-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes mk-ribbon-swing {
+  0% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(10deg);
+  }
+  55% {
+    transform: rotate(-7deg);
+  }
+  80% {
+    transform: rotate(3deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+
 /* ---- skeleton shimmer ---- */
 .mk-shimmer {
   background: linear-gradient(100deg, var(--mk-surface-3) 30%, color-mix(in srgb, var(--mk-surface) 70%, var(--mk-surface-3)) 50%, var(--mk-surface-3) 70%);
