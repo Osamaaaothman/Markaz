@@ -82,7 +82,8 @@ try {
         );
         const page = await context.newPage();
         page.on("pageerror", (e) => errors.push(e.message));
-        let issue = "CERTIFICATE_KEY_MISMATCH",
+        let warning,
+          issue = "CERTIFICATE_KEY_MISMATCH",
           queued = 0;
         await page.route("**/api/**", async (route) => {
           const req = route.request(),
@@ -168,6 +169,7 @@ try {
             data = {
               canSubmit: !issue,
               issue,
+              warning,
               blockingInvoice: issue ? { id: "invoice-previous", number: "INV-0000" } : null,
             };
           else if (path === "/v1/tax-codes" || path === "/v1/warehouses") data = [];
@@ -232,16 +234,20 @@ try {
         assert(await retry.isDisabled(), "A late server rejection refreshes readiness");
         assert.equal(await page.locator(".p-toast-message-success").count(), 0);
         assert.equal(queued, 2);
-        issue = "CERTIFICATE_SELLER_MISMATCH";
+        warning = "CERTIFICATE_SELLER_MISMATCH";
+        issue = null;
         await page.reload({ waitUntil: "networkidle" });
         await page
-          .getByText(copy.compliance.submissionIssue.CERTIFICATE_SELLER_MISMATCH, { exact: true })
+          .getByText(copy.compliance.invoicePanel.sandboxSubmissionWarning, { exact: true })
           .waitFor();
         assert(
-          await retry.isDisabled(),
-          "A provider rejection blocks further submissions with the same credentials",
+          await retry.isEnabled(),
+          "Sandbox test generation remains available with a provider warning",
         );
-        assert.equal(queued, 2);
+        await retry.click();
+        await page.locator(".p-toast-message-info").waitFor();
+        assert.equal(queued, 3);
+        assert.equal(await page.locator(".p-toast-message-success").count(), 0);
         await context.close();
       }
   assert.deepEqual(errors, []);

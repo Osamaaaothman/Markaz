@@ -98,6 +98,7 @@ export function ZatcaInvoicePanel({ salesInvoiceId }: { readonly salesInvoiceId:
         {environment === "sandbox" && issue === "CERTIFICATE_KEY_MISMATCH" ? <p>{t("compliance.invoicePanel.sandboxCertificateHint")}</p> : null}
         {blocker ? <p>{t("compliance.invoicePanel.blockingInvoice")}: {can("sales_invoice:read") ? <Link to={`/sales/invoices/${blocker.id}`}><bdi>{blocker.number}</bdi></Link> : <bdi>{blocker.number}</bdi>}</p> : null}
       </div> : null}
+      {readiness.data?.warning === "CERTIFICATE_SELLER_MISMATCH" ? <p role="note" className="compliance-test-notice">{t("compliance.invoicePanel.sandboxSubmissionWarning")}</p> : null}
       {retryEnabled ? <PermissionButton allowed={can("compliance:manage")} label={t("compliance.invoicePanel.resubmit")} icon="pi pi-refresh" loading={resubmit.isPending} disabled={readiness.data?.canSubmit !== true || readiness.isFetching} onClick={() => resubmit.mutate(salesInvoiceId)} /> : null}
       {retryEnabled && readiness.isError ? <p role="alert">{t("status.error")} <Button text label={t("actions.retry")} onClick={() => void readiness.refetch()} /></p> : null}
       {(resubmit.isError && !issue) || downloadError ? <p role="alert" className="erp-auth-card__error">{t(downloadError ? "compliance.invoicePanel.downloadError" : "compliance.invoicePanel.resubmitError")}</p> : null}

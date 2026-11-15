@@ -151,6 +151,7 @@ export interface InvoiceRecordView {
 }
 
 export interface SubmissionReadiness {
+  readonly warning?: string;
   readonly canSubmit: boolean;
   readonly issue: string | null;
   readonly blockingInvoice: { readonly id: string; readonly number: string } | null;
@@ -500,7 +501,7 @@ export class ComplianceAdminService {
 
   async submissionReadiness(companyId: string, salesInvoiceId: string): Promise<SubmissionReadiness> {
     const invoice = await this.prisma.salesInvoice.findFirst({ where: { id: salesInvoiceId, companyId }, select: {
-      egsUnitId: true, egsUnit: { select: { status: true, isActive: true, chainState: { select: { lastIcv: true } } } },
+      egsUnitId: true, egsUnit: { select: { status: true, isActive: true, environment: true, chainState: { select: { lastIcv: true } } } },
       zatcaRecord: { select: { status: true } },
     } });
     if (!invoice?.egsUnitId || !invoice.egsUnit) throw new ComplianceError("INVOICE_RECORD_NOT_FOUND", "This invoice is not linked to an EGS unit");
@@ -514,8 +515,13 @@ export class ComplianceAdminService {
     let issue: string | null;
     try { issue = await this.service().submissionCredentialIssue(companyId, invoice.egsUnitId); }
     catch (error) { if (!(error instanceof ComplianceError) || error.code !== "ENCRYPTION_KEY_MISSING") throw error; issue = error.code; }
+    // Sandbox is explicitly a test environment: a provider identity rejection warns about
+    // the expected response, but does not prevent generating and testing the next document.
+    // Invalid signatures, expired credentials and chain conflicts still block everywhere.
+    const warning = invoice.egsUnit.environment === "sandbox" && issue === "CERTIFICATE_SELLER_MISMATCH" ? issue : undefined;
+    if (warning) issue = null;
     issue ??= tail ? "CHAIN_BLOCKED" : null;
-    return { canSubmit: issue === null, issue, blockingInvoice: tail?.salesInvoice ?? null };
+    return { canSubmit: issue === null, issue, blockingInvoice: tail?.salesInvoice ?? null, ...(warning ? { warning } : {}) };
   }
 
   async resubmit(companyId: string, salesInvoiceId: string, actor: Actor, correlationId: string): Promise<{ status: "QUEUED" }> {
@@ -526,7 +532,7 @@ export class ComplianceAdminService {
     if (!row?.egsUnitId) throw new ComplianceError("INVOICE_RECORD_NOT_FOUND", "This invoice is not linked to an EGS unit");
     if (!row.egsUnit?.isActive || row.egsUnit.status !== "ACTIVE") throw new ComplianceError("WRONG_STATUS", "Complete EGS onboarding first");
     const readiness = await this.submissionReadiness(companyId, salesInvoiceId);
-    await this.audit.log({ actorId: actor.id, action: "compliance.submission_readiness_checked", entityType: "EgsUnit", entityId: row.egsUnitId, correlationId, after: { issue: readiness.issue } });
+    await this.audit.log({ actorId: actor.id, action: "compliance.submission_readiness_checked", entityType: "EgsUnit", entityId: row.egsUnitId, correlationId, after: { issue: readiness.issue, warning: readiness.warning ?? null } });
     if (!readiness.canSubmit) throw new ComplianceError("SUBMISSION_BLOCKED", "Resolve the submission issue before retrying", { ...readiness });
     await this.options.resubmitter.enqueue(salesInvoiceId, row.egsUnitId);
     await this.audit.log({ actorId: actor.id, action: "compliance.invoice_resubmit_requested", entityType: "ZatcaInvoiceRecord", entityId: salesInvoiceId, correlationId });

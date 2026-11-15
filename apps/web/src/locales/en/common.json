@@ -2303,6 +2303,7 @@
       "signatureInvalid": "The electronic signature is invalid. Verify the key, certificate and XML before resubmitting; this invoice is not accepted.",
       "queued": "The request is queued. ZATCA has not accepted the invoice yet; follow its status here.",
       "blocked": "Invoice submission is blocked",
+      "sandboxSubmissionWarning": "You can generate XML and QR files and send a Sandbox test request. Sandbox may reject submission because its test certificate has a fixed VAT number different from your company; the actual response will be shown. Generated files do not mean the invoice was accepted.",
       "sandboxSellerMismatch": "Sandbox rejected submission because the seller VAT number does not match its fixed test certificate. Generating XML and a QR does not mean the invoice was accepted. Keep the invoice data intact; test company-specific invoices with a Simulation unit and its own certificate.",
       "sandboxCertificateHint": "This unit uses Sandbox. Its current test certificate does not match the device key, so an invalid signature will not be sent. Keep this environment for testing; use a Simulation unit with a matching certificate to test the complete issuance flow.",
       "blockingInvoice": "Invoice reserving the sequence"
