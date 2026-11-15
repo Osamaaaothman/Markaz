@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { PageSkeleton } from "../shared/ui/PageSkeleton";
+import { SplashGate } from "../shared/ui/SplashGate";
 import { Navigate, Route, Routes } from "react-router-dom";
 const DraftsPage = lazy(() => import("../features/documents/DraftsPage").then((module) => ({ default: module.DraftsPage })));
 const LoginPage = lazy(() => import("../features/auth/LoginPage").then((module) => ({ default: module.LoginPage })));
@@ -268,6 +269,6 @@ export function AppRoutes(): React.JSX.Element {
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes></Suspense>
+    </Routes><SplashGate /></Suspense>
   );
 }

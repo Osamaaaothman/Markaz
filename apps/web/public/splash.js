@@ -17,22 +17,25 @@
   } catch (e) {}
 
   var el = document.getElementById("markaz-splash");
-  var MIN_MS = 5000; // always shown for at least 5 s, even if the data arrives sooner
-  var t0 = performance.now();
+  if (!el) return;
   var t1 = setTimeout(function () { el.classList.add("waiting"); }, 1500);
-  var t2 = setTimeout(function () { el.classList.add("slow"); }, 4000);
+  // A failed bundle or an offline session must never leave an endless animation.
+  var t2 = setTimeout(function () {
+    el.classList.add("failed");
+    document.getElementById("markaz-splash-retry").hidden = false;
+  }, 20000);
+  document.getElementById("markaz-splash-retry").addEventListener("click", function () {
+    window.location.reload();
+  });
   var done = false;
   window.markazSplash = {
     ready: function () {
       if (done) return;
       done = true;
-      var wait = Math.max(0, MIN_MS - (performance.now() - t0));
-      setTimeout(function () {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        el.classList.add("leaving");
-        setTimeout(function () { el.remove(); }, 220);
-      }, wait);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      el.classList.add("leaving");
+      setTimeout(function () { el.remove(); }, 220);
     },
   };
 })();
