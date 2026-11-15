@@ -387,7 +387,7 @@ html body .p-selectbutton {
 html body .p-selectbutton .p-button {
   height: calc(var(--mk-control-h) - 0.55rem);
   border: 0;
-  border-radius: 999px !important;
+  border-radius: var(--mk-action-radius, 999px);
   background: transparent;
   color: var(--mk-text-muted);
   box-shadow: none;

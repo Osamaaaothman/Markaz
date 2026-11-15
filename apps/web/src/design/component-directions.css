@@ -1,0 +1,573 @@
+/* The production component contract. Keep geometry on html so portal content
+   and nested controls use the same direction as the page. Component-qualified
+   selectors also beat the small/gridlined/striped rules in the late Lara theme. */
+:root {
+  --mk-action-radius: var(--mk-radius-sm);
+  --mk-table-head-bg: var(--mk-surface-2);
+  --mk-table-head-color: var(--mk-text-muted);
+  --mk-table-rule: 0px;
+  --mk-table-gap: 0px;
+  --mk-table-stripe: var(--mk-surface);
+  --mk-panel-pad: 1.25rem;
+}
+
+/* Actions, including rounded icon buttons and segmented choices. */
+html[data-design] body .p-button.p-component,
+html[data-design] body .p-button.p-component.p-button-rounded,
+html[data-design] body .p-selectbutton,
+html[data-design] body .p-selectbutton .p-button {
+  border-radius: var(--mk-action-radius);
+}
+html[data-design] body .p-selectbutton {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+html[data-design] body .p-button.p-component.p-button-lg {
+  height: calc(var(--mk-control-h) + 0.5rem);
+  padding-inline: var(--mk-space-6);
+}
+html[data-design] body .p-button.p-component.p-button-lg.p-button-icon-only {
+  width: calc(var(--mk-control-h) + 0.5rem);
+  padding-inline: 0;
+}
+html[data-design]
+  body
+  :is(
+    .erp-topbar__icon-button,
+    .erp-topbar__lang,
+    .erp-copy-id,
+    .mk-export__close,
+    .p-dialog-header-icon,
+    .p-treetable-toggler,
+    .p-row-toggler,
+    .p-column-filter-menu-button,
+    .p-column-filter-clear-button,
+    .p-multiselect-close,
+    .p-overlaypanel-close,
+    .p-message-close,
+    .p-toast-icon-close,
+    .p-image-action
+  ) {
+  border-radius: var(--mk-action-radius);
+}
+html[data-design] body .erp-button-link {
+  border-radius: var(--mk-radius-xs);
+  text-underline-offset: 0.2em;
+}
+html[data-design] body .erp-button-link:focus-visible {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: 3px;
+}
+
+/* All severity variants, including the icon actions used by operational pages. */
+html[data-design] body .p-button.p-button-success {
+  --action-tone: var(--mk-success);
+  --action-soft: var(--mk-success-soft);
+}
+html[data-design] body .p-button.p-button-warning {
+  --action-tone: var(--mk-warning);
+  --action-soft: var(--mk-warning-soft);
+}
+html[data-design] body .p-button.p-button-info {
+  --action-tone: var(--mk-info);
+  --action-soft: var(--mk-info-soft);
+}
+html[data-design] body .p-button.p-button-danger {
+  --action-tone: var(--mk-danger);
+  --action-soft: var(--mk-danger-soft);
+}
+html[data-design] body .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined),
+html[data-design]
+  body
+  .p-button.p-button-danger:not(.p-button-text):not(.p-button-outlined):enabled:hover {
+  color: var(--mk-surface);
+}
+html[data-design] body .p-button:is(.p-button-success, .p-button-warning, .p-button-info) {
+  background: var(--action-tone);
+  border-color: var(--action-tone);
+  color: var(--mk-surface);
+}
+html[data-design]
+  body
+  .p-button:is(.p-button-success, .p-button-warning, .p-button-info):enabled:hover {
+  background: color-mix(in srgb, var(--action-tone) 85%, var(--mk-text));
+  border-color: var(--action-tone);
+  color: var(--mk-surface);
+}
+html[data-design]
+  body
+  .p-button:is(.p-button-success, .p-button-warning, .p-button-info):is(
+    .p-button-text,
+    .p-button-outlined
+  ) {
+  background: transparent;
+  color: var(--action-tone);
+}
+html[data-design]
+  body
+  .p-button:is(.p-button-success, .p-button-warning, .p-button-info).p-button-text {
+  border-color: transparent;
+}
+html[data-design]
+  body
+  .p-button:is(.p-button-success, .p-button-warning, .p-button-info):is(
+    .p-button-text,
+    .p-button-outlined
+  ):enabled:hover {
+  background: var(--action-soft);
+  color: var(--action-tone);
+}
+
+/* List grids, report tables, nested detail tables and the chart-of-accounts tree.
+   Row/cell state is explicit because Lara's small + striped variants beat the
+   older .erp-table rules. Preserve account hierarchy/user-assigned row colours. */
+html[data-design] body :is(.p-datatable, .p-treetable).p-component {
+  border-radius: var(--mk-radius);
+  border-color: var(--mk-border);
+  background: var(--mk-surface);
+}
+html[data-design] body :is(.p-datatable-table, .p-treetable-table) {
+  border-collapse: separate;
+  border-spacing: 0 var(--mk-table-gap);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(.p-datatable-thead, .p-treetable-thead)
+  > tr
+  > th {
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  background: var(--mk-table-head-bg);
+  color: var(--mk-table-head-color);
+  border: 0;
+  border-block-end: 1px solid var(--mk-border-strong);
+  border-inline-end: var(--mk-table-rule) solid var(--mk-border);
+  font-size: var(--mk-text-sm);
+  font-weight: 600;
+  letter-spacing: normal;
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(.p-datatable-tbody, .p-treetable-tbody)
+  > tr
+  > td {
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  border: 0;
+  border-block-end: 1px solid var(--mk-border);
+  border-inline-end: var(--mk-table-rule) solid var(--mk-border);
+  color: var(--mk-text);
+  font-size: var(--mk-text-base);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(.p-datatable-tbody, .p-treetable-tbody)
+  > tr:not(.p-highlight):not([class*="coa-row--"]) {
+  background: var(--mk-surface);
+  color: var(--mk-text);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(.p-datatable-tbody, .p-treetable-tbody)
+  > tr:where(:nth-child(even):not(.p-highlight):not([class*="coa-row--"]))
+  > td {
+  background: var(--mk-table-stripe);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(.p-datatable-tbody, .p-treetable-tbody)
+  > tr:not(.p-highlight):hover
+  > td {
+  background: color-mix(in srgb, var(--mk-primary) 8%, var(--mk-surface));
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(.p-datatable-tbody, .p-treetable-tbody)
+  > tr.p-highlight
+  > td {
+  background: var(--mk-primary-soft);
+  color: var(--mk-text);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(.p-datatable-tfoot, .p-treetable-tfoot)
+  > tr
+  > td {
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  background: var(--mk-surface-2);
+  color: var(--mk-text);
+  border-color: var(--mk-border);
+}
+html[data-design="canvas"] body :is(.p-datatable-table, .p-treetable-table) {
+  padding-inline: var(--mk-space-2);
+}
+html[data-design="canvas"] body :is(.p-datatable-tbody, .p-treetable-tbody) > tr > td:first-child {
+  border-start-start-radius: var(--mk-radius-sm);
+  border-end-start-radius: var(--mk-radius-sm);
+}
+html[data-design="canvas"] body :is(.p-datatable-tbody, .p-treetable-tbody) > tr > td:last-child {
+  border-start-end-radius: var(--mk-radius-sm);
+  border-end-end-radius: var(--mk-radius-sm);
+}
+html[data-design="precision"] body .erp-table {
+  box-shadow: none;
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  .p-sortable-column
+  .p-sortable-column-icon {
+  color: var(--mk-text-muted);
+}
+html[data-design] body :is(.p-datatable, .p-treetable).p-component .p-sortable-column.p-highlight,
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  .p-sortable-column.p-highlight
+  .p-sortable-column-icon {
+  color: var(--mk-primary);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(
+    .p-treetable-toggler,
+    .p-row-toggler,
+    .p-column-filter-menu-button,
+    .p-column-filter-clear-button
+  ) {
+  color: var(--mk-text-muted);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(
+    .p-treetable-toggler,
+    .p-row-toggler,
+    .p-column-filter-menu-button,
+    .p-column-filter-clear-button
+  ):enabled:hover {
+  color: var(--mk-primary);
+  background: var(--mk-primary-soft);
+}
+html[data-design]
+  body
+  .p-datatable.p-component
+  .p-column-filter-menu-button.p-column-filter-menu-button-active {
+  color: var(--mk-primary);
+  background: var(--mk-primary-soft);
+}
+html[data-design]
+  body
+  :is(.p-datatable, .p-treetable).p-component
+  :is(
+    .p-sortable-column,
+    .p-treetable-toggler,
+    .p-row-toggler,
+    .p-column-filter-menu-button
+  ):focus-visible {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+html[data-design] body .mk-grid__toolbar {
+  padding: var(--mk-space-3);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface-2);
+}
+html[data-design="canvas"] body .mk-grid__toolbar {
+  padding: var(--mk-space-4);
+  gap: var(--mk-space-3);
+}
+html[data-design="precision"] body .mk-grid__toolbar {
+  padding: var(--mk-space-2);
+}
+html[data-design] body .p-paginator.p-component {
+  background: var(--mk-surface);
+  color: var(--mk-text-muted);
+  border-color: var(--mk-border);
+  border-radius: var(--mk-radius);
+}
+html[data-design] body .p-paginator.p-component .p-paginator-element {
+  border-radius: var(--mk-action-radius);
+  color: var(--mk-text-muted);
+  min-width: var(--mk-control-h);
+  height: var(--mk-control-h);
+}
+html[data-design]
+  body
+  .p-paginator.p-component
+  .p-paginator-element:not(.p-highlight):not(.p-disabled):hover {
+  background: var(--mk-surface-3);
+  color: var(--mk-text);
+}
+html[data-design] body .p-paginator.p-component .p-paginator-element.p-highlight {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+html[data-design] body .audit-changes {
+  border-collapse: separate;
+  border-spacing: 0 var(--mk-table-gap);
+}
+html[data-design] body .audit-changes :is(th, td) {
+  padding: var(--mk-row-pad-y) var(--mk-row-pad-x);
+  border-color: var(--mk-border);
+}
+html[data-design] body .audit-changes th {
+  background: var(--mk-table-head-bg);
+  color: var(--mk-table-head-color);
+}
+
+/* Popups rendered under body: filter menu, calendar, multi-select and password. */
+html[data-design]
+  body
+  :is(
+    .p-overlaypanel,
+    .p-column-filter-overlay,
+    .p-password-panel,
+    .p-datepicker,
+    .p-dropdown-panel,
+    .p-multiselect-panel
+  ).p-component {
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-radius);
+  box-shadow: var(--mk-shadow-lg);
+  font-family: var(--mk-font);
+}
+html[data-design] body .p-overlaypanel::before {
+  border-bottom-color: var(--mk-border-strong);
+}
+html[data-design] body .p-overlaypanel::after {
+  border-bottom-color: var(--mk-surface);
+}
+html[data-design]
+  body
+  :is(.p-overlaypanel-content, .p-column-filter-overlay .p-column-filter-buttonbar) {
+  padding: var(--mk-panel-pad);
+}
+html[data-design] body .p-datepicker .p-datepicker-header {
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  border-color: var(--mk-border);
+}
+html[data-design] body .p-datepicker .p-datepicker-header button,
+html[data-design] body .p-datepicker :is(.p-monthpicker-month, .p-yearpicker-year),
+html[data-design] body .p-datepicker table td > span {
+  border-radius: var(--mk-radius-xs);
+  color: var(--mk-text);
+}
+html[data-design]
+  body
+  .p-datepicker
+  :is(.p-monthpicker-month, .p-yearpicker-year, td > span):not(.p-disabled):not(
+    .p-highlight
+  ):hover {
+  background: var(--mk-surface-3);
+}
+html[data-design]
+  body
+  .p-datepicker
+  :is(.p-monthpicker-month, .p-yearpicker-year, td > span).p-highlight {
+  background: var(--mk-primary);
+  color: var(--mk-on-primary);
+}
+html[data-design] body .p-datepicker table td.p-datepicker-today > span:not(.p-highlight) {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+html[data-design] body .p-datepicker .p-datepicker-buttonbar {
+  border-color: var(--mk-border);
+}
+html[data-design] body .p-multiselect.p-component .p-multiselect-token,
+html[data-design] body .p-tag.p-component {
+  border-radius: var(--mk-action-radius);
+}
+html[data-design] body .p-checkbox.p-component .p-checkbox-box {
+  border-radius: var(--mk-radius-xs);
+}
+html[data-design] body .p-checkbox:not(.p-disabled):has(input:focus-visible) .p-checkbox-box {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: 2px;
+}
+/* Keep a switch recognisable while its track/knob reflects the chosen geometry. */
+html[data-design="balance"] body .p-inputswitch .p-inputswitch-slider,
+html[data-design="balance"] body .p-inputswitch .p-inputswitch-slider::before {
+  border-radius: var(--mk-radius-sm);
+}
+html[data-design="precision"] body .p-inputswitch .p-inputswitch-slider,
+html[data-design="precision"] body .p-inputswitch .p-inputswitch-slider::before {
+  border-radius: var(--mk-radius-xs);
+}
+html[data-design] body .p-calendar-w-btn .p-datepicker-trigger {
+  border-radius: 0;
+  border-start-end-radius: var(--mk-radius-sm);
+  border-end-end-radius: var(--mk-radius-sm);
+}
+html[data-design] body .p-inputnumber-buttons-stacked .p-inputnumber-input {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+html[data-design] body .p-inputnumber-buttons-stacked .p-inputnumber-button {
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+html[data-design] body .p-inputnumber-buttons-stacked .p-inputnumber-button-up {
+  border-start-end-radius: var(--mk-radius-sm);
+}
+html[data-design] body .p-inputnumber-buttons-stacked .p-inputnumber-button-down {
+  border-end-end-radius: var(--mk-radius-sm);
+}
+
+/* Feedback, identity and loading components use semantic colours, never Lara's
+   hard-coded indigo/green surfaces (especially visible after a dark-mode switch). */
+html[data-design] body :is(.p-message, .p-inline-message, .p-toast-message) {
+  --notice-tone: var(--mk-info);
+  --notice-soft: var(--mk-info-soft);
+}
+html[data-design]
+  body
+  :is(.p-message-success, .p-inline-message-success, .p-toast-message-success) {
+  --notice-tone: var(--mk-success);
+  --notice-soft: var(--mk-success-soft);
+}
+html[data-design] body :is(.p-message-warn, .p-inline-message-warn, .p-toast-message-warn) {
+  --notice-tone: var(--mk-warning);
+  --notice-soft: var(--mk-warning-soft);
+}
+html[data-design] body :is(.p-message-error, .p-inline-message-error, .p-toast-message-error) {
+  --notice-tone: var(--mk-danger);
+  --notice-soft: var(--mk-danger-soft);
+}
+html[data-design]
+  body
+  :is(.p-message.p-component, .p-inline-message.p-component, .p-toast .p-toast-message) {
+  background: color-mix(in srgb, var(--notice-tone) 10%, var(--mk-surface));
+  color: var(--mk-text);
+  border: 1px solid color-mix(in srgb, var(--notice-tone) 40%, var(--mk-border));
+  border-inline-start: 4px solid var(--notice-tone);
+  border-radius: var(--mk-radius-sm);
+}
+html[data-design] body :is(.p-message-icon, .p-inline-message-icon, .p-toast-message-icon) {
+  color: var(--notice-tone);
+}
+html[data-design] body .p-tooltip .p-tooltip-text {
+  background: var(--mk-text);
+  color: var(--mk-surface);
+  border-radius: var(--mk-radius-xs);
+}
+html[data-design] body .p-tooltip.p-tooltip-top .p-tooltip-arrow {
+  border-top-color: var(--mk-text);
+}
+html[data-design] body .p-tooltip.p-tooltip-bottom .p-tooltip-arrow {
+  border-bottom-color: var(--mk-text);
+}
+html[data-design] body .p-tooltip.p-tooltip-left .p-tooltip-arrow {
+  border-left-color: var(--mk-text);
+}
+html[data-design] body .p-tooltip.p-tooltip-right .p-tooltip-arrow {
+  border-right-color: var(--mk-text);
+}
+html[data-design] body .p-password-panel .p-password-meter {
+  background: var(--mk-surface-3);
+  border-radius: var(--mk-radius-xs);
+}
+html[data-design] body .p-password-panel .p-password-strength {
+  border-radius: var(--mk-radius-xs);
+}
+html[data-design] body .p-password-panel .p-password-strength.weak {
+  background: var(--mk-danger);
+}
+html[data-design] body .p-password-panel .p-password-strength.medium {
+  background: var(--mk-warning);
+}
+html[data-design] body .p-password-panel .p-password-strength.strong {
+  background: var(--mk-success);
+}
+html[data-design] body .p-overlaypanel .p-overlaypanel-close {
+  background: var(--mk-primary);
+  color: var(--mk-on-primary);
+}
+html[data-design] body .p-avatar.p-component:not(.p-avatar-circle) {
+  border-radius: var(--mk-radius-sm);
+}
+html[data-design] body .p-avatar.p-component {
+  background: var(--mk-primary-soft);
+  color: var(--mk-primary);
+}
+html[data-design] body .p-skeleton.p-component {
+  background: var(--mk-surface-3);
+  border-radius: var(--mk-radius-sm);
+}
+html[data-design] body .p-skeleton.p-component::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--mk-text) 7%, transparent),
+    transparent
+  );
+}
+html[data-design] body .p-dialog .p-dialog-footer {
+  background: var(--mk-surface);
+  color: var(--mk-text);
+  border-color: var(--mk-border);
+  border-end-start-radius: var(--mk-radius-lg);
+  border-end-end-radius: var(--mk-radius-lg);
+}
+
+/* Product compositions inherit spacing as well as corners. */
+html[data-design] body :is(.erp-form__row, .mk-facts, .erp-lines) {
+  gap: var(--mk-panel-pad);
+}
+html[data-design]
+  body
+  :is(
+    .erp-lines__row,
+    .mk-picture,
+    .mk-attach__item,
+    .mk-reorder-list__item,
+    .erp-draft-bar,
+    .erp-document-trail
+  ) {
+  border-radius: var(--mk-radius);
+}
+html[data-design="precision"] body .erp-form__actions {
+  border-block-start: 1px solid var(--mk-border);
+}
+html[data-design="canvas"] body :is(.mk-facts > div, .mk-created__rows > div) {
+  padding: var(--mk-space-3);
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface-2);
+}
+
+@media (max-width: 700px) {
+  html[data-design] body .mk-grid__toolbar {
+    flex-wrap: wrap;
+  }
+  html[data-design] body :is(.p-selectbutton, .p-paginator) {
+    max-inline-size: 100%;
+  }
+}
+.mk-component-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-5);
+  min-inline-size: 0;
+}
+.mk-gallery-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mk-space-3);
+}
+.mk-component-gallery .p-treetable-wrapper {
+  overflow-x: auto;
+}
