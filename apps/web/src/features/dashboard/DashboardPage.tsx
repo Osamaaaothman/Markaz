@@ -1,12 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Button } from "primereact/button";
-import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { formatMoney } from "../../shared/lib/money";
 import { AnimatedMoney } from "../../shared/ui/AnimatedMoney";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { MonthlyChart } from "./MonthlyChart";
+import { ModuleTiles } from "./ModuleTiles";
+import { QuickActions } from "./QuickActions";
+import { Sparkline } from "./Sparkline";
+import { Reveal } from "../../shared/ui/Reveal";
+import { CompositionDonut } from "./CompositionDonut";
+import { ActivityPulse, type PulseBar } from "./ActivityPulse";
 import { useDashboard } from "./use-dashboard";
 import { localizedName } from "../../shared/lib/localized-name";
 
@@ -20,6 +24,8 @@ interface Kpi {
   readonly overduePercent?: number;
   readonly to: string;
   readonly icon: string;
+  // Revenue of the last months, drawn as a small trend line under the figure.
+  readonly spark?: readonly number[];
 }
 
 interface Attention {
@@ -46,7 +52,6 @@ const share = (overdue: string, total: string): number => (Number(total) > 0 ? (
 export function DashboardPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { can } = usePermissions();
   const { data: currentUser } = useCurrentUser();
   const { data, isPending, isError, refetch } = useDashboard();
 
@@ -97,7 +102,15 @@ export function DashboardPage(): React.JSX.Element {
     });
   }
   if (data.sales) {
-    kpis.push({ key: "sales", label: t("dashboard.kpi.sales"), amount: data.sales.thisMonthNet, hint: t("dashboard.kpi.salesHint"), to: "/sales/invoices", icon: "pi pi-chart-line" });
+    kpis.push({
+      key: "sales",
+      label: t("dashboard.kpi.sales"),
+      amount: data.sales.thisMonthNet,
+      hint: t("dashboard.kpi.salesHint"),
+      to: "/sales/invoices",
+      icon: "pi pi-chart-line",
+      ...(data.monthly ? { spark: data.monthly.map((m) => Number(m.revenue)) } : {}),
+    });
   }
   if (data.stock) {
     kpis.push({ key: "stock", label: t("dashboard.kpi.stock"), amount: data.stock.value, to: "/inventory/stock-levels", icon: "pi pi-box" });
@@ -123,16 +136,21 @@ export function DashboardPage(): React.JSX.Element {
     attention.push({ key: "quotes", text: t("dashboard.attention.quotations", { count: data.sales.openQuotations }), to: "/sales/quotations", icon: "pi pi-file-edit" });
   }
 
-  const actions = [
-    { key: "invoice", label: t("dashboard.actions.invoice"), icon: "pi pi-receipt", to: "/sales/invoices/new", allowed: can("sales_invoice:create") },
-    { key: "receipt", label: t("dashboard.actions.receipt"), icon: "pi pi-arrow-down-left", to: "/payments/receipts/new", allowed: can("customer_receipt:create") },
-    { key: "po", label: t("dashboard.actions.purchaseOrder"), icon: "pi pi-shopping-cart", to: "/purchasing/orders/new", allowed: can("purchase_order:create") },
-    { key: "supplierInvoice", label: t("dashboard.actions.supplierInvoice"), icon: "pi pi-file", to: "/purchasing/invoices/new", allowed: can("supplier_invoice:create") },
-    { key: "journal", label: t("dashboard.actions.journal"), icon: "pi pi-book", to: "/accounting/journal-entries", allowed: can("journal_entry:create") },
-  ].filter((a) => a.allowed);
-
   const today = new Intl.DateTimeFormat(i18n.language, { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${data.asOf}T00:00:00Z`));
   const name = currentUser?.email.split("@")[0] ?? "";
+  const roleNames = currentUser?.roles.map((r) => r.name).join(" · ") ?? "";
+
+  // Every pending count this user may see, in one ranked strip — see ActivityPulse. A bar appears only
+  // for a count the API actually sent (the same permission gate as the KPIs and the attention list
+  // above), so this never shows a queue the user has no right to read.
+  const pulseBars: PulseBar[] = [
+    ...(data.purchasing ? [{ key: "approvals" as const, label: t("dashboard.pulse.approvals"), icon: "pi pi-verified", count: data.purchasing.pendingApprovals, to: "/purchasing/orders" }] : []),
+    ...(data.purchasing ? [{ key: "requests" as const, label: t("dashboard.pulse.requests"), icon: "pi pi-inbox", count: data.purchasing.pendingRequests, to: "/purchasing/review" }] : []),
+    ...(data.purchasing ? [{ key: "purchaseOrders" as const, label: t("dashboard.pulse.purchaseOrders"), icon: "pi pi-shopping-cart", count: data.purchasing.openOrders, to: "/purchasing/orders" }] : []),
+    ...(data.sales ? [{ key: "quotations" as const, label: t("dashboard.pulse.quotations"), icon: "pi pi-file-edit", count: data.sales.openQuotations, to: "/sales/quotations" }] : []),
+    ...(data.sales ? [{ key: "salesOrders" as const, label: t("dashboard.pulse.salesOrders"), icon: "pi pi-shopping-bag", count: data.sales.openOrders, to: "/sales/orders" }] : []),
+    ...(data.stock ? [{ key: "reorder" as const, label: t("dashboard.pulse.reorder"), icon: "pi pi-exclamation-triangle", count: data.stock.belowReorder, to: "/inventory/stock-levels" }] : []),
+  ];
 
   return (
     <div className="erp-page erp-page--wide erp-dashboard">
@@ -141,15 +159,9 @@ export function DashboardPage(): React.JSX.Element {
           <h1 className="mk-hero__title">{t("dashboard.hello", { name })}</h1>
           <p className="mk-hero__sub">
             {currentUser ? localizedName({ name: currentUser.companyName, nameAr: currentUser.companyNameAr }, i18n.language) : ""} · {today}
+            {roleNames ? <span className="mk-hero__role">{t("dashboard.roleLabel", { role: roleNames })}</span> : null}
           </p>
         </div>
-        {actions.length > 0 ? (
-          <div className="mk-hero__actions">
-            {actions.map((a) => (
-              <Button key={a.key} label={a.label} icon={a.icon} onClick={() => void navigate(a.to)} />
-            ))}
-          </div>
-        ) : null}
       </section>
 
       {kpis.length === 0 && attention.length === 0 && !data.monthly ? <p className="erp-page__empty">{t("dashboard.nothingToShow")}</p> : null}
@@ -168,21 +180,30 @@ export function DashboardPage(): React.JSX.Element {
               <span className="erp-kpi__label">{k.label}</span>
               <span className="erp-kpi__value">{k.amount === null ? "—" : <AnimatedMoney amount={k.amount} currency={cur} />}</span>
               {k.hint ? <span className="erp-kpi__hint">{k.hint}</span> : null}
+              {k.spark ? <Sparkline values={k.spark} /> : null}
             </button>
           ))}
         </div>
       ) : null}
 
-      <div className="erp-dashboard__grid">
+      <ModuleTiles />
+
+      <QuickActions />
+
+      <div className="mk-bento">
         {data.monthly ? (
-          <section className="erp-card">
+          <Reveal className="erp-card mk-bento__wide">
             <h2 className="erp-card__title">{t("dashboard.chart.title")}</h2>
             <MonthlyChart months={data.monthly} currency={cur} />
-          </section>
+          </Reveal>
         ) : null}
 
+        <CompositionDonut receivables={data.receivables?.total} payables={data.payables?.total} cash={data.cash?.balance} currency={cur} />
+
+        <ActivityPulse bars={pulseBars} onNavigate={(to) => void navigate(to)} />
+
         {data.purchasing || data.stock || data.receivables || data.payables || data.sales ? (
-          <section className="erp-card">
+          <section className="erp-card mk-bento__wide">
             <h2 className="erp-card__title">{t("dashboard.attention.title")}</h2>
             {attention.length === 0 ? (
               <p className="erp-card__empty">

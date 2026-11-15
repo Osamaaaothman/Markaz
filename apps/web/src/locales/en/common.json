@@ -130,7 +130,28 @@
     "subtitle": "Here's a quick look at {{companyName}}.",
     "companyLabel": "Company",
     "hello": "Hello, {{name}}",
+    "roleLabel": "{{role}}",
     "nothingToShow": "Your role has no dashboard reports yet. Use the menu to get to your work.",
+    "sections": {
+      "title": "Go to a section",
+      "count": "{{count}} screens"
+    },
+    "quickActions": {
+      "title": "Quick actions"
+    },
+    "composition": {
+      "title": "Money position",
+      "caption": "Share by amount"
+    },
+    "pulse": {
+      "title": "Where the work is waiting",
+      "approvals": "Purchase orders awaiting approval",
+      "requests": "Purchase requests pending",
+      "purchaseOrders": "Purchase orders open",
+      "quotations": "Quotations open",
+      "salesOrders": "Sales orders open",
+      "reorder": "Items below reorder point"
+    },
     "kpi": {
       "receivables": "Owed to you",
       "payables": "You owe",

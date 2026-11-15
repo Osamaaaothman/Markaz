@@ -130,7 +130,28 @@
     "subtitle": "نظرة سريعة على {{companyName}}.",
     "companyLabel": "الشركة",
     "hello": "مرحباً، {{name}}",
+    "roleLabel": "{{role}}",
     "nothingToShow": "لا توجد تقارير للوحة التحكم لدورك بعد. استخدم القائمة للوصول إلى عملك.",
+    "sections": {
+      "title": "اذهب إلى قسم",
+      "count": "{{count}} شاشة"
+    },
+    "quickActions": {
+      "title": "إجراءات سريعة"
+    },
+    "composition": {
+      "title": "الوضع المالي",
+      "caption": "حصة كل بند"
+    },
+    "pulse": {
+      "title": "أين ينتظر العمل",
+      "approvals": "أوامر شراء بانتظار الاعتماد",
+      "requests": "طلبات شراء بانتظار القرار",
+      "purchaseOrders": "أوامر شراء مفتوحة",
+      "quotations": "عروض أسعار مفتوحة",
+      "salesOrders": "أوامر بيع مفتوحة",
+      "reorder": "أصناف تحت نقطة إعادة الطلب"
+    },
     "kpi": {
       "receivables": "مستحق لك",
       "payables": "مستحق عليك",

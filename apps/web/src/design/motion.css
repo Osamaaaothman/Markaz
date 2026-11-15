@@ -161,8 +161,66 @@
 
 /* ---- staggered entrance: set --i on a child (0, 1, 2 ...) ---- */
 .mk-stagger > * {
-  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+  /* backwards, not both: nothing is left applied afterwards, so a hover transform on the child still works */
+  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) backwards;
   animation-delay: calc(var(--i, 0) * 60ms + 60ms);
+}
+
+/* ---- chart and launcher motion ---- */
+@keyframes mk-tile-pop {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mk-bar-rise {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes mk-donut-spin {
+  from {
+    opacity: 0;
+    transform: rotate(-110deg) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* a registered number, so the donut slices can sweep open instead of just appearing */
+@property --mk-p {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@keyframes mk-arc-sweep {
+  from {
+    --mk-p: 0;
+  }
+  to {
+    --mk-p: 1;
+  }
+}
+
+@keyframes mk-wipe {
+  from {
+    clip-path: inset(-20% 100% -20% 0);
+  }
+  to {
+    clip-path: inset(-20% 0 -20% 0);
+  }
 }
 
 /* ---- skeleton shimmer ---- */

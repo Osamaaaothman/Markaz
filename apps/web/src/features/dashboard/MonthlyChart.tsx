@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Money } from "@erp/shared";
 import { formatMoney } from "../../shared/lib/money";
+import { AnimatedMoney } from "../../shared/ui/AnimatedMoney";
 import type { MonthlyResult } from "./use-dashboard";
 
 const W = 580;
@@ -118,15 +119,21 @@ export function MonthlyChart({ months, currency }: { months: readonly MonthlyRes
       <div className="erp-chart-summary">
         <div>
           <span>{t("dashboard.chartExtra.totalRevenue")}</span>
-          <strong>{formatMoney(totalRevenue.toDecimalString(4), currency)}</strong>
+          <strong>
+            <AnimatedMoney amount={totalRevenue.toDecimalString(4)} currency={currency} />
+          </strong>
         </div>
         <div>
           <span>{t("dashboard.chartExtra.totalExpense")}</span>
-          <strong>{formatMoney(totalExpense.toDecimalString(4), currency)}</strong>
+          <strong>
+            <AnimatedMoney amount={totalExpense.toDecimalString(4)} currency={currency} />
+          </strong>
         </div>
         <div>
           <span>{t("dashboard.chartExtra.netResult")}</span>
-          <strong>{formatMoney(totalNet.toDecimalString(4), currency)}</strong>
+          <strong>
+            <AnimatedMoney amount={totalNet.toDecimalString(4)} currency={currency} />
+          </strong>
         </div>
       </div>
     </figure>
