@@ -185,6 +185,17 @@ try {
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2),
           `${lang}/${style}/${mode}: mobile overflow`,
         );
+        await page.getByRole("button", { name: copy.ds.gallery.toast, exact: true }).click();
+        await page.locator(".p-toast-message").waitFor();
+        assert(
+          await page.locator(".p-toast-message").evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            return bounds.left >= 0 && bounds.right <= innerWidth;
+          }),
+          "Mobile toast fits the viewport",
+        );
+        await page.locator(".p-toast-icon-close").click();
+        await page.locator(".p-toast-message").waitFor({ state: "hidden" });
         await page.getByRole("button", { name: copy.ds.gallery.created, exact: true }).click();
         assert(
           await dialog.evaluate((element) => element.getBoundingClientRect().width <= innerWidth),
