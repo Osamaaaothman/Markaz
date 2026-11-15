@@ -212,13 +212,13 @@ export function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: Su
             <Column header={t("purchasing.invoices.origQty")} align="right" style={{ width: "6rem" }} body={(r: ReturnLineRow) => r.quantity} />
             <Column
               header={t("purchasing.invoices.returnQty")}
-              style={{ width: "8rem" }}
+              style={{ width: "12rem" }}
               body={(r: ReturnLineRow, opt) => (
                 <InputText
                   disabled={!rows[opt.rowIndex]?.included}
                   dir="ltr"
                   value={rows[opt.rowIndex]?.returnQty ?? ""}
-                  style={{ width: "100%" }}
+                  style={{ width: "100%", minWidth: "6rem" }}
                   onChange={(e) => updateRow(opt.rowIndex, { returnQty: e.target.value })}
                   className={rows[opt.rowIndex]?.included && !validReturnQuantity(rows[opt.rowIndex]?.returnQty ?? "", r.returnableQuantity) ? "p-invalid" : ""}
                 />

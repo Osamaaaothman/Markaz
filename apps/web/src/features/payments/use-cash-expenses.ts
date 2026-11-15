@@ -1,5 +1,5 @@
 import { newId } from "@erp/shared";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../shared/api/client";
 import { usePermissions } from "../../shared/auth/use-permissions";
 
@@ -17,9 +17,34 @@ export interface CashExpenseSummary {
   readonly reference: string | null;
 }
 
+export interface CashExpenseLineDetail {
+  readonly id: string;
+  readonly expenseAccountId: string;
+  readonly expenseAccountCode: string;
+  readonly expenseAccountName: string;
+  readonly expenseAccountNameAr: string | null;
+  readonly amount: string;
+  readonly costCenterRef: string | null;
+  readonly description: string | null;
+}
+
+export interface CashExpenseDetail extends CashExpenseSummary {
+  readonly journalEntryId: string;
+  readonly lines: readonly CashExpenseLineDetail[];
+}
+
 interface Page<T> {
   readonly data: readonly T[];
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
+}
+
+export function useCashExpense(id: string) {
+  const { can } = usePermissions();
+  return useQuery({
+    queryKey: ["cashExpense", id],
+    queryFn: async () => (await apiClient.get<CashExpenseDetail>(`/v1/cash-expenses/${id}`)).data,
+    enabled: id !== "" && can("cash_expense:read"),
+  });
 }
 
 export function useCashExpenses() {

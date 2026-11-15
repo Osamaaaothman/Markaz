@@ -57,6 +57,12 @@ export class DocumentDraftsController {
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id)) throw new BadRequestException("Invalid draft id");
     return mapError(this.drafts.save(id, dto.kind, dto.version, dto.payload, actor));
   }
+  @Delete() @HttpCode(200) @AuthenticatedOnly() async discardAll(
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<{ count: number }> {
+    return { count: await mapError(this.drafts.discardAll(actor, correlationId)) };
+  }
   @Delete(":id") @HttpCode(204) @AuthenticatedOnly() discard(
     @Param("id") id: string,
     @Body() dto: VersionDto,

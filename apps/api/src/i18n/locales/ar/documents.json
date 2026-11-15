@@ -197,6 +197,20 @@
       "OTHER": "أخرى"
     }
   },
+  "cashExpense": {
+    "title": "سند مصروف نقدي",
+    "number": "الرقم",
+    "date": "التاريخ",
+    "bankAccount": "الحساب",
+    "expenseAccount": "حساب المصروف",
+    "costCenter": "مركز التكلفة",
+    "description": "البيان",
+    "reference": "المرجع",
+    "amount": "المبلغ",
+    "total": "الإجمالي",
+    "inWords": "المبلغ كتابةً",
+    "computerGenerated": "هذا مستند صادر من النظام ولا يحتاج إلى توقيع يدوي."
+  },
   "purchaseOrder": {
     "title": "أمر شراء",
     "number": "الرقم",

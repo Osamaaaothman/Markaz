@@ -17,6 +17,7 @@ import { formatMoney } from "../../shared/lib/money";
 import { CreatedDialog, type CreatedInfo } from "../../shared/ui/CreatedDialog";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { useStockLevels, type StockLevelEntry } from "../inventory/use-stock-levels";
 import { useAllWarehouses } from "../inventory/use-warehouses";
 import { OrderStatusTag } from "./StatusTags";
 import { useOrderAction, usePurchaseOrder, useReceiveOrder, type PurchaseOrderDetail, type PurchaseOrderLine } from "./use-purchasing";
@@ -37,6 +38,11 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { can } = usePermissions();
   const { data: order, isPending, isError, refetch } = usePurchaseOrder(id);
+  // On-hand stock in the order's warehouse, so an approver can see a line that would be approved
+  // against little or no stock. Fetched for the warehouse and matched per item here; the endpoint
+  // has no item filter and the hook is a no-op for users without stock:read.
+  const stockQuery = useStockLevels({ warehouseId: order?.warehouseId ?? null, belowReorderOnly: false });
+  const stockLevels = stockQuery.isError ? undefined : stockQuery.data;
   const approve = useOrderAction(id, "approve");
   const reject = useOrderAction(id, "reject");
   const cancel = useOrderAction(id, "cancel");
@@ -56,6 +62,10 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
   }
 
   const canReceive = order.status === "APPROVED" || order.status === "PARTIALLY_RECEIVED";
+  // The stock column goes with the approve/reject buttons: it is only useful while the order waits
+  // for approval, and only when the order names a warehouse to check.
+  const showStock = order.status === "PENDING_APPROVAL" && Boolean(order.warehouseId);
+  const stockByItem = new Map<string, StockLevelEntry>((stockLevels ?? []).map((s) => [s.itemId, s]));
   const actionError = approve.isError || reject.isError || cancel.isError;
   const totalGross = Money.of(order.totalAmount, order.currency).add(Money.of(order.totalTax, order.currency));
 
@@ -126,6 +136,19 @@ export function PurchaseOrderDetailPage(): React.JSX.Element {
         <Column header={t("inventory.items.displayName")} body={(l: PurchaseOrderLine) => localizedName({ name: l.itemName, nameAr: l.itemNameAr }, i18n.language)} />
         <Column header={t("purchasing.quantity")} align="right" body={(l: PurchaseOrderLine) => `${l.quantity} ${l.unit}`} />
         <Column header={t("purchasing.received")} align="right" body={(l: PurchaseOrderLine) => l.receivedQuantity} />
+        {showStock ? (
+          <Column
+            header={t("purchasing.orders.currentStock")}
+            align="right"
+            style={{ width: "9rem" }}
+            body={(l: PurchaseOrderLine) => {
+              const entry = stockByItem.get(l.itemId);
+              // No row from /v1/stock-levels means nothing recorded for this item in this warehouse.
+              if (!entry) return <strong className="erp-field__warning">—</strong>;
+              return entry.belowReorderPoint ? <strong className="erp-field__warning">{entry.quantity}</strong> : entry.quantity;
+            }}
+          />
+        ) : null}
         <Column header={t("purchasing.unitPrice")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.unitPrice, order.currency)} />
         <Column header={t("purchasing.total")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.lineTotal, order.currency)} />
         <Column header={t("purchasing.invoices.tax")} align="right" body={(l: PurchaseOrderLine) => formatMoney(l.taxAmount, order.currency)} />

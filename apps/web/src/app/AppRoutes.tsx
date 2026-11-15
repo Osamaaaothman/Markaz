@@ -65,6 +65,7 @@ const SettleReceiptsPage = lazy(() => import("../features/payments/SettlePage").
 const SettleSupplierPage = lazy(() => import("../features/payments/SettlePage").then((module) => ({ default: module.SettleSupplierPage })));
 const CashExpensesPage = lazy(() => import("../features/payments/CashExpensesPage").then((module) => ({ default: module.CashExpensesPage })));
 const CashExpenseFormPage = lazy(() => import("../features/payments/CashExpenseFormPage").then((module) => ({ default: module.CashExpenseFormPage })));
+const CashExpenseDetailPage = lazy(() => import("../features/payments/CashExpenseDetailPage").then((module) => ({ default: module.CashExpenseDetailPage })));
 const AgingPage = lazy(() => import("../features/payments/AgingPage").then((module) => ({ default: module.AgingPage })));
 const PartyStatementPage = lazy(() => import("../features/payments/PartyStatementPage").then((module) => ({ default: module.PartyStatementPage })));
 const UsersPage = lazy(() => import("../features/settings/UsersPage").then((module) => ({ default: module.UsersPage })));
@@ -240,6 +241,7 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={["cash_expense:read"]} />}>
             <Route path="/payments/cash-expenses" element={<CashExpensesPage />} />
+            <Route path="/payments/cash-expenses/:id" element={<CashExpenseDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={["cash_expense:create"]} />}>
             <Route path="/payments/cash-expenses/new" element={<CashExpenseFormPage />} />

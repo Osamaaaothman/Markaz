@@ -831,6 +831,7 @@
       "receive": "Receive goods",
       "cancel": "Cancel order",
       "waitingApproval": "This order is above the approval limit. It can be received only after someone with the right approves it.",
+      "currentStock": "Current stock",
       "actionError": "That action could not be completed. The order may have changed; reload and try again.",
       "backToList": "Back to orders",
       "receiveTitle": "Receive goods",
@@ -1092,7 +1093,13 @@
       },
       "statusHint": "Status follows the balance after linked vouchers and notes. Counts and filters cover loaded invoices; load more for remaining results.",
       "actualDeliveryDate": "Supply date",
-      "actualDeliveryDateHint": "Enter the actual date goods were supplied or the service was provided; it may differ from the invoice date. Required for standard tax invoices."
+      "actualDeliveryDateHint": "Enter the actual date goods were supplied or the service was provided; it may differ from the invoice date. Required for standard tax invoices.",
+      "paymentMethod": "Payment method",
+      "paymentMethods": {
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank transfer",
+        "CARD": "Card"
+      }
     },
     "item": "Item (or service)",
     "priceLocked": "Price is fixed by the linked sales order."
@@ -2443,6 +2450,8 @@
     "save": "Save draft now",
     "discard": "Discard draft",
     "confirmDiscard": "Discard this draft? Posted documents will not be affected.",
+    "deleteAll": "Delete all drafts",
+    "confirmDeleteAll": "Delete all your saved drafts? Posted documents will not be affected.",
     "empty": "No saved drafts.",
     "kinds": {
       "quotation": "Quotation",

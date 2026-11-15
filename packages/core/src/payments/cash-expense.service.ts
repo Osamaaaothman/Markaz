@@ -63,6 +63,25 @@ export interface CashExpenseSummary {
   readonly reference: string | null;
 }
 
+// One posted expense line, as shown on the voucher: which expense account it hit, how much, and
+// the cost centre the posting was tagged with (kept as the label frozen at posting time).
+export interface CashExpenseLineDetail {
+  readonly id: string;
+  readonly expenseAccountId: string;
+  readonly expenseAccountCode: string;
+  readonly expenseAccountName: string;
+  readonly expenseAccountNameAr: string | null;
+  readonly amount: string;
+  readonly costCenterRef: string | null;
+  readonly description: string | null;
+}
+
+// A cash expense with everything needed to print it: the summary row plus its posted lines.
+export interface CashExpenseDetail extends CashExpenseSummary {
+  readonly journalEntryId: string;
+  readonly lines: readonly CashExpenseLineDetail[];
+}
+
 export interface CashExpenseListQuery {
   readonly cursor?: string | undefined;
   readonly limit?: string | undefined;
@@ -211,6 +230,35 @@ export class CashExpenseService {
 
     await this.audit.log({ actorId: actor.id, action: "cash_expense.posted", entityType: "CashExpense", entityId: result.id, after: { ...result }, correlationId });
     return result;
+  }
+
+  async get(id: string, companyId: string): Promise<CashExpenseDetail | null> {
+    const row = await this.prisma.cashExpense.findFirst({
+      where: { id, companyId },
+      include: {
+        cashAccount: { select: { code: true, name: true, nameAr: true } },
+        _count: { select: { lines: true } },
+        lines: {
+          orderBy: { id: "asc" },
+          include: { expenseAccount: { select: { code: true, name: true, nameAr: true } } },
+        },
+      },
+    });
+    if (!row) return null;
+    return {
+      ...toSummary(row),
+      journalEntryId: row.journalEntryId,
+      lines: row.lines.map((line) => ({
+        id: line.id,
+        expenseAccountId: line.expenseAccountId,
+        expenseAccountCode: line.expenseAccount.code,
+        expenseAccountName: line.expenseAccount.name,
+        expenseAccountNameAr: line.expenseAccount.nameAr,
+        amount: line.amount.toFixed(4),
+        costCenterRef: line.costCenterRef,
+        description: line.description,
+      })),
+    };
   }
 
   async list(companyId: string, query: CashExpenseListQuery): Promise<CashExpenseListPage> {

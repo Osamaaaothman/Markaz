@@ -31,6 +31,7 @@ export function DraftsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation(),
     qc = useQueryClient();
   const [discarding, setDiscarding] = useState<DraftRow | null>(null);
+  const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const drafts = useQuery({
     queryKey: ["documentDrafts"],
     queryFn: async () => (await apiClient.get<DraftRow[]>("/v1/document-drafts")).data,
@@ -40,6 +41,13 @@ export function DraftsPage(): React.JSX.Element {
       apiClient.delete(`/v1/document-drafts/${draft.id}`, { data: { version: draft.version } }),
     onSuccess: () => {
       setDiscarding(null);
+      void qc.invalidateQueries({ queryKey: ["documentDrafts"] });
+    },
+  });
+  const deleteAll = useMutation({
+    mutationFn: async () => (await apiClient.delete<{ count: number }>("/v1/document-drafts")).data,
+    onSuccess: () => {
+      setConfirmingDeleteAll(false);
       void qc.invalidateQueries({ queryKey: ["documentDrafts"] });
     },
   });
@@ -58,6 +66,14 @@ export function DraftsPage(): React.JSX.Element {
         />
       ) : null}
       {drafts.data?.length === 0 ? <p>{t("drafts.empty")}</p> : null}
+      {(drafts.data ?? []).length > 0 ? (
+        <Button
+          label={t("drafts.deleteAll")}
+          severity="danger"
+          outlined
+          onClick={() => setConfirmingDeleteAll(true)}
+        />
+      ) : null}
       {(drafts.data ?? []).map((draft) => (
         <div className="erp-draft-bar" key={draft.id}>
           <Link to={`${DRAFT_ROUTES[draft.kind] ?? "/documents/drafts"}?draft=${draft.id}`}>
@@ -92,6 +108,24 @@ export function DraftsPage(): React.JSX.Element {
             onClick={() => {
               if (discarding) discard.mutate(discarding);
             }}
+          />
+        </div>
+      </Dialog>
+      <Dialog
+        visible={confirmingDeleteAll}
+        onHide={() => setConfirmingDeleteAll(false)}
+        header={t("drafts.deleteAll")}
+        className="erp-dialog"
+        modal
+      >
+        <p>{t("drafts.confirmDeleteAll")}</p>
+        <div className="erp-form__actions">
+          <Button label={t("actions.cancel")} text onClick={() => setConfirmingDeleteAll(false)} />
+          <Button
+            label={t("drafts.deleteAll")}
+            severity="danger"
+            loading={deleteAll.isPending}
+            onClick={() => deleteAll.mutate()}
           />
         </div>
       </Dialog>

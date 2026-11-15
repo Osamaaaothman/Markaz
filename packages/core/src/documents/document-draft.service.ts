@@ -48,18 +48,23 @@ export class DocumentDraftService {
     )
       throw new DocumentDraftError("DRAFT_FORBIDDEN");
   }
-  async list(actor: DraftActor) {
+  // The kinds the actor may still create — and therefore the only kinds `list` and
+  // `discardAll` are allowed to see or touch. One shared filter keeps the two in step.
+  private async allowedKinds(actor: DraftActor): Promise<string[]> {
     const allowed = await Promise.all(
       Object.entries(DRAFT_RESOURCES).map(async ([kind, resource]) =>
         (await this.permissions.can(actor.id, "create", resource, actor.companyId)) ? kind : null,
       ),
     );
+    return allowed.filter((k): k is string => k !== null);
+  }
+  async list(actor: DraftActor) {
     return this.prisma.documentDraft.findMany({
       where: {
         companyId: actor.companyId,
         userId: actor.id,
         deletedAt: null,
-        kind: { in: allowed.filter((k): k is string => k !== null) },
+        kind: { in: await this.allowedKinds(actor) },
       },
       select: { id: true, kind: true, version: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
@@ -129,5 +134,29 @@ export class DocumentDraftService {
       entityId: id,
       correlationId,
     });
+  }
+  // Bulk discard of the actor's own drafts, scoped exactly like `list`: same company,
+  // same owner, same permission-filtered kinds. One updateMany (so one tombstone per
+  // row at one timestamp, version bumped) and ONE audit row for the whole call —
+  // the entity is the actor's draft set, hence entityId is the actor's user id.
+  async discardAll(actor: DraftActor, correlationId: string): Promise<number> {
+    const changed = await this.prisma.documentDraft.updateMany({
+      where: {
+        companyId: actor.companyId,
+        userId: actor.id,
+        deletedAt: null,
+        kind: { in: await this.allowedKinds(actor) },
+      },
+      data: { deletedAt: new Date(), version: { increment: 1 } },
+    });
+    await this.audit.log({
+      actorId: actor.id,
+      action: "document_draft.discarded_all",
+      entityType: "DocumentDraft",
+      entityId: actor.id,
+      after: { count: changed.count },
+      correlationId,
+    });
+    return changed.count;
   }
 }

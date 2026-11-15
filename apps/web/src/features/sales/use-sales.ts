@@ -331,6 +331,8 @@ export interface CreateSalesInvoicePayload {
   readonly lines: readonly SalesLinePayload[];
   // Required only when the company has more than one active ZATCA issuing unit.
   readonly egsUnitId?: string;
+  // UNCL4461: 10=cash, 42=bank transfer, 48=card. Backend defaults to "42" if omitted.
+  readonly paymentMeansCode?: string;
 }
 
 function invalidateAfterPosting(qc: ReturnType<typeof useQueryClient>): void {

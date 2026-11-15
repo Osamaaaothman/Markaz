@@ -88,6 +88,9 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const { data: complianceOverview } = useComplianceOverview();
   const activeEgsUnits = useMemo(() => (complianceOverview?.egsUnits ?? []).filter((u) => u.isActive), [complianceOverview]);
   const [egsUnitId, setEgsUnitId] = useState("");
+  // UNCL4461 payment means code for the ZATCA XML (10=cash, 42=bank transfer, 48=card);
+  // invoice-only, defaulting to bank transfer like the backend column.
+  const [paymentMeansCode, setPaymentMeansCode] = useState("42");
 
 
 
@@ -101,8 +104,8 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const [secondDate, setSecondDate] = useState<Date | null>(null); // valid until / due date
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<readonly LineState[]>([]);
-  const draft = useDocumentDraft(mode === "quotation" ? "quotation" : mode === "order" ? "sales_order" : "sales_invoice", { customerId, date, secondDate, actualDeliveryDate, notes, lines, egsUnitId, orderId }, (saved) => {
-    setCustomerId(saved.customerId); setDate(saved.date); setSecondDate(saved.secondDate); setActualDeliveryDate(saved.actualDeliveryDate ?? null); setNotes(saved.notes); setLines(saved.lines); setEgsUnitId(saved.egsUnitId); setRestoredOrderId(saved.orderId);
+  const draft = useDocumentDraft(mode === "quotation" ? "quotation" : mode === "order" ? "sales_order" : "sales_invoice", { customerId, date, secondDate, actualDeliveryDate, notes, lines, egsUnitId, paymentMeansCode, orderId }, (saved) => {
+    setCustomerId(saved.customerId); setDate(saved.date); setSecondDate(saved.secondDate); setActualDeliveryDate(saved.actualDeliveryDate ?? null); setNotes(saved.notes); setLines(saved.lines); setEgsUnitId(saved.egsUnitId); setPaymentMeansCode(saved.paymentMeansCode ?? "42"); setRestoredOrderId(saved.orderId);
   }, customerId !== "" || notes !== "" || lines.some((l) => l.itemId || l.description || l.unitPrice));
   const createQuotation = useCreateQuotation(draft.id);
   const createOrder = useCreateSalesOrder(draft.id);
@@ -226,7 +229,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
     if (mode === "quotation") createQuotation.mutate({ ...common, quotationDate: dateIso, ...(secondIso ? { validUntil: secondIso } : {}) }, { onSuccess: done });
     else if (mode === "order") createOrder.mutate({ ...common, orderDate: dateIso }, { onSuccess: done });
-    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(actualDeliveryDate ? { actualDeliveryDate: toDateOnlyIsoString(actualDeliveryDate) } : {}), ...(secondIso ? { dueDate: secondIso } : {}), ...(egsUnitId ? { egsUnitId } : {}) }, { onSuccess: done });
+    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(actualDeliveryDate ? { actualDeliveryDate: toDateOnlyIsoString(actualDeliveryDate) } : {}), ...(secondIso ? { dueDate: secondIso } : {}), ...(egsUnitId ? { egsUnitId } : {}), paymentMeansCode }, { onSuccess: done });
   };
 
   const err = (mutation.error as { response?: { status?: number; data?: { error?: { code?: string; details?: { lineNumber?: number }[] } } } } | null)?.response;
@@ -269,6 +272,21 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             <Calendar inputId="sdSupplyDate" value={actualDeliveryDate} onChange={(e) => setActualDeliveryDate((e.value as Date | null) ?? null)} dateFormat="yy-mm-dd" showButtonBar />
             <small className="erp-field__hint">{t("sales.invoices.actualDeliveryDateHint")}</small>
           </div> : null}
+          {mode === "invoice" ? (
+            <div className="erp-field">
+              <label htmlFor="sdPaymentMethod">{t("sales.invoices.paymentMethod")}</label>
+              <Dropdown
+                inputId="sdPaymentMethod"
+                value={paymentMeansCode}
+                onChange={(e) => setPaymentMeansCode(e.value as string)}
+                options={[
+                  { value: "10", label: t("sales.invoices.paymentMethods.CASH") },
+                  { value: "42", label: t("sales.invoices.paymentMethods.BANK_TRANSFER") },
+                  { value: "48", label: t("sales.invoices.paymentMethods.CARD") },
+                ]}
+              />
+            </div>
+          ) : null}
           {egsUnitChoiceNeeded ? (
             <div className="erp-field">
               <label htmlFor="sdEgsUnit">{t("sales.invoices.egsUnit")}</label>

@@ -195,6 +195,10 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
         </div>
         <div className="erp-form__row">
           <div className="erp-field">
+            <label htmlFor="payMethod">{t("payments.method")}</label>
+            <Dropdown inputId="payMethod" value={method} onChange={(e) => edit(() => { setMethod(e.value as PaymentMethod); setCashAccountId(""); })} options={PAYMENT_METHODS.map((m) => ({ label: t(`payments.methods.${m}`), value: m }))} />
+          </div>
+          <div className="erp-field">
             <label htmlFor="payBank">{t(method === "CASH" ? "payments.cashAccount" : "payments.bankOnly")}</label>
             <Dropdown
               inputId="payBank"
@@ -207,10 +211,6 @@ function PaymentForm({ direction }: { direction: PaymentDirection }): React.JSX.
               emptyMessage={t("payments.noCashAccounts")}
             />
             {!accountsLoading && bankAccounts.length === 0 ? <small className="erp-field__hint">{t(accountsError ? "status.error" : "payments.noCashAccounts")}</small> : null}
-          </div>
-          <div className="erp-field">
-            <label htmlFor="payMethod">{t("payments.method")}</label>
-            <Dropdown inputId="payMethod" value={method} onChange={(e) => edit(() => { setMethod(e.value as PaymentMethod); setCashAccountId(""); })} options={PAYMENT_METHODS.map((m) => ({ label: t(`payments.methods.${m}`), value: m }))} />
           </div>
           <div className="erp-field">
             <label htmlFor="payRef">{t("payments.reference")}</label>
