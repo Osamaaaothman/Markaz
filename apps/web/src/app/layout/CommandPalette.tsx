@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useThemeStore } from "../../shared/theme/theme-store";
+import { CREATE_ACTIONS } from "./create-actions";
 import { NAV_ITEMS } from "./NavConfig";
 import { useLayoutStore } from "./layout-store";
 
@@ -14,18 +15,6 @@ interface Command {
   readonly section: "pages" | "create" | "settings";
   readonly run: () => void;
 }
-
-// Things people create every day, each gated by the same permission the page behind it needs.
-const CREATE_ACTIONS: readonly { id: string; labelKey: string; to: string; icon: string; permission: string }[] = [
-  { id: "new-sales-invoice", labelKey: "dashboard.actions.invoice", to: "/sales/invoices/new", icon: "pi pi-receipt", permission: "sales_invoice:create" },
-  { id: "new-receipt", labelKey: "dashboard.actions.receipt", to: "/payments/receipts/new", icon: "pi pi-arrow-down-left", permission: "customer_receipt:create" },
-  { id: "new-supplier-payment", labelKey: "payments.newPayment", to: "/payments/supplier/new", icon: "pi pi-arrow-up-right", permission: "supplier_payment:create" },
-  { id: "new-quotation", labelKey: "sales.quotations.new", to: "/sales/quotations/new", icon: "pi pi-file-edit", permission: "quotation:create" },
-  { id: "new-sales-order", labelKey: "sales.orders.new", to: "/sales/orders/new", icon: "pi pi-shopping-bag", permission: "sales_order:create" },
-  { id: "new-po", labelKey: "dashboard.actions.purchaseOrder", to: "/purchasing/orders/new", icon: "pi pi-shopping-cart", permission: "purchase_order:create" },
-  { id: "new-supplier-invoice", labelKey: "dashboard.actions.supplierInvoice", to: "/purchasing/invoices/new", icon: "pi pi-file", permission: "supplier_invoice:create" },
-  { id: "new-goods-receipt", labelKey: "nav.goodsReceipt", to: "/inventory/goods-receipts/new", icon: "pi pi-download", permission: "goods_receipt:create" },
-];
 
 // A keyboard-first launcher (Ctrl+K or "/"): jump to any screen, start any document, flip a setting.
 // Matches what the user can see — a screen they may not open is never offered.
