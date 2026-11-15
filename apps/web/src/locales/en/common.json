@@ -135,7 +135,9 @@
     "sections": {
       "title": "Go to a section",
       "count": "{{count}} screens",
-      "sound": "Page sound"
+      "sound": "Page sound",
+      "pin": "Pin {{name}} to the top",
+      "unpin": "Unpin {{name}}"
     },
     "notes": {
       "approvals": "{{count}} awaiting approval",

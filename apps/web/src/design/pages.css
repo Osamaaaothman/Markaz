@@ -850,6 +850,43 @@ html[dir="rtl"] .mk-tiles {
   --mk-tile-soft: var(--mk-danger-soft);
 }
 
+/* the pin star: pinned books come first on the shelf */
+.mk-tile__pin {
+  position: absolute;
+  z-index: 5;
+  inset-block-start: 0.35rem;
+  inset-inline-start: calc(var(--mk-spine) + 0.3rem);
+  display: grid;
+  place-items: center;
+  inline-size: 1.7rem;
+  block-size: 1.7rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mk-text-subtle);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: color var(--mk-dur-fast) ease, transform var(--mk-dur) var(--mk-ease-spring), background-color var(--mk-dur-fast) ease;
+}
+
+.mk-tile__pin:hover,
+.mk-tile__pin:focus-visible {
+  background: color-mix(in srgb, var(--mk-accent) 18%, transparent);
+  color: var(--mk-accent);
+  outline: none;
+  transform: scale(1.15);
+}
+
+.mk-tile__pin.is-pinned {
+  color: var(--mk-accent);
+}
+
+.mk-tile__pin.is-pinned i {
+  animation: mk-pop 0.5s var(--mk-ease-spring) both;
+}
+
 /* a sticky note on a book: work is waiting in that section */
 .mk-tile__note {
   position: absolute;

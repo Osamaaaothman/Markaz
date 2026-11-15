@@ -135,7 +135,9 @@
     "sections": {
       "title": "اذهب إلى قسم",
       "count": "{{count}} شاشة",
-      "sound": "صوت الصفحات"
+      "sound": "صوت الصفحات",
+      "pin": "ثبّت {{name}} في الأعلى",
+      "unpin": "إلغاء تثبيت {{name}}"
     },
     "notes": {
       "approvals": "{{count}} بانتظار الاعتماد",

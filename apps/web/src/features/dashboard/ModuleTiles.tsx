@@ -33,6 +33,26 @@ const ACCENTS = ["a", "b", "c", "d", "e", "f"] as const;
 // How many page names fit on the inner page before the rest collapse into a "+N".
 const SHOWN_PAGES = 3;
 
+const PIN_KEY = "markaz-pinned-books";
+
+// Pinned books are a per-browser convenience, so storage is wrapped and a failure just means nothing is pinned.
+function readPins(): string[] {
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(PIN_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePins(pins: readonly string[]): void {
+  try {
+    window.localStorage.setItem(PIN_KEY, JSON.stringify(pins));
+  } catch {
+    // storage blocked: the pins last for this visit only
+  }
+}
+
 // One ledger book per part of the app this signed-in user may actually open, standing on a shelf: the
 // sidebar's own groups, each collapsed into a single book, plus any ungrouped page (today only first-run
 // setup). The bookmark ribbon shows how many screens the book holds and a sticky note flags work waiting
@@ -46,6 +66,13 @@ export function ModuleTiles({ notes }: { readonly notes: Readonly<Record<string,
   const navigate = useNavigate();
   const { canAny } = usePermissions();
   const [sound, setSound] = useState(readSoundPreference);
+  const [pins, setPins] = useState<string[]>(readPins);
+
+  const togglePin = (key: string): void => {
+    const next = pins.includes(key) ? pins.filter((k) => k !== key) : [...pins, key];
+    setPins(next);
+    writePins(next);
+  };
 
   // A saved "on" can only start making sound after the first click or key press on the page.
   useEffect(() => {
@@ -95,6 +122,13 @@ export function ModuleTiles({ notes }: { readonly notes: Readonly<Record<string,
     return [...standaloneSections, ...groupSections];
   }, [canAny, t]);
 
+  // Each book keeps its own colour; pinned ones then move to the front, in the order they were pinned.
+  const ordered = useMemo(() => {
+    const coloured = sections.map((s, i) => ({ ...s, accent: ACCENTS[i % ACCENTS.length] }));
+    const pinned = pins.flatMap((key) => coloured.filter((s) => s.key === key));
+    return [...pinned, ...coloured.filter((s) => !pins.includes(s.key))];
+  }, [sections, pins]);
+
   if (sections.length === 0) return null;
 
   return (
@@ -106,15 +140,16 @@ export function ModuleTiles({ notes }: { readonly notes: Readonly<Record<string,
         </button>
       </div>
       <div className="mk-tiles">
-        {sections.map((s, index) => {
+        {ordered.map((s, index) => {
           const label = t(s.labelKey);
           const screens = t("dashboard.sections.count", { count: s.count });
           const note = notes[s.key];
           const more = s.count - s.pages.length;
+          const pinned = pins.includes(s.key);
           return (
             <div key={s.key} className="mk-slot" style={{ "--i": index } as React.CSSProperties}>
               <div
-                className={`mk-tile mk-tile--${ACCENTS[index % ACCENTS.length]}`}
+                className={`mk-tile mk-tile--${s.accent}`}
                 role="group"
                 aria-label={label}
                 onMouseEnter={() => sound && playPaper()}
@@ -129,6 +164,17 @@ export function ModuleTiles({ notes }: { readonly notes: Readonly<Record<string,
                   <i />
                   <i />
                 </span>
+
+                <button
+                  type="button"
+                  className={`mk-tile__pin${pinned ? " is-pinned" : ""}`}
+                  aria-pressed={pinned}
+                  title={t(pinned ? "dashboard.sections.unpin" : "dashboard.sections.pin", { name: label })}
+                  aria-label={t(pinned ? "dashboard.sections.unpin" : "dashboard.sections.pin", { name: label })}
+                  onClick={() => togglePin(s.key)}
+                >
+                  <i className={pinned ? "pi pi-star-fill" : "pi pi-star"} aria-hidden="true" />
+                </button>
 
                 <span className="mk-tile__inside">
                   {s.pages.map((page, n) => (
