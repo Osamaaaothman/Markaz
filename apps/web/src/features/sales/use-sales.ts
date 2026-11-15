@@ -251,6 +251,7 @@ export interface SalesInvoiceSummary {
   readonly customerNameAr: string | null;
   readonly originalInvoiceId: string | null;
   readonly invoiceDate: string;
+  readonly actualDeliveryDate?: string | null;
   readonly dueDate: string | null;
   readonly currency: string;
   readonly totalNet: string;
@@ -322,6 +323,7 @@ export function useSalesInvoice(id: string) {
 }
 
 export interface CreateSalesInvoicePayload {
+  readonly actualDeliveryDate?: string;
   readonly customerId: string;
   readonly invoiceDate: string;
   readonly dueDate?: string;

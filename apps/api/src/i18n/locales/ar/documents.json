@@ -131,7 +131,8 @@
     "taxRate": "الضريبة %",
     "tax": "الضريبة",
     "total": "الإجمالي",
-    "inWords": "المبلغ كتابةً"
+    "inWords": "المبلغ كتابةً",
+    "actualDeliveryDate": "تاريخ التوريد"
   },
   "quotation": {
     "title": "عرض سعر",

@@ -1,8 +1,9 @@
+import { SalesInvoiceIssueError } from "@erp/core";
 import { QuotationEmailError, QuotationEmailService } from "./quotation-email.service.js";
 import { EmailHistoryQueryDto } from "./dto/email-history-query.dto.js";
 import { newId } from "@erp/shared";
 import { OptionalIdempotencyKey } from "../common/idempotency-key.decorator.js";
-import { BadRequestException, Body, ConflictException, Controller, Get, HttpException, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
+import { UnprocessableEntityException, BadRequestException, Body, ConflictException, Controller, Get, HttpException, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
   QuotationService,
@@ -77,6 +78,7 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
   try {
     return await work;
   } catch (error) {
+    if (error instanceof SalesInvoiceIssueError) throw new UnprocessableEntityException({ code: error.code, message: error.message });
     if (error instanceof UnmappedAccountError) throw new BadRequestException(error.message);
     if (!(error instanceof SalesError)) throw error;
     const body = { message: error.message, code: error.code, ...(error.lineNumber !== undefined ? { lineNumber: error.lineNumber } : {}) };
@@ -373,6 +375,7 @@ export class SalesController {
         {
           customerId: dto.customerId,
           invoiceDate: new Date(dto.invoiceDate),
+          ...(dto.actualDeliveryDate !== undefined ? { actualDeliveryDate: new Date(dto.actualDeliveryDate) } : {}),
           ...(dto.dueDate !== undefined ? { dueDate: new Date(dto.dueDate) } : {}),
           ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
           ...(dto.egsUnitId !== undefined ? { egsUnitId: dto.egsUnitId } : {}),

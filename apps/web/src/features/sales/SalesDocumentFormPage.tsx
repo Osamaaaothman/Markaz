@@ -1,3 +1,4 @@
+import { complianceIssueErrorKey } from "../compliance/issue-error-key";
 import { useDocumentDraft } from "../documents/use-document-draft";
 import { DraftBar } from "../documents/DraftBar";
 import { StockHint } from "../inventory/StockHint";
@@ -96,11 +97,12 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
   const [customerId, setCustomerId] = useState("");
   const [date, setDate] = useState<Date>(new Date());
+  const [actualDeliveryDate, setActualDeliveryDate] = useState<Date | null>(null);
   const [secondDate, setSecondDate] = useState<Date | null>(null); // valid until / due date
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<readonly LineState[]>([]);
-  const draft = useDocumentDraft(mode === "quotation" ? "quotation" : mode === "order" ? "sales_order" : "sales_invoice", { customerId, date, secondDate, notes, lines, egsUnitId, orderId }, (saved) => {
-    setCustomerId(saved.customerId); setDate(saved.date); setSecondDate(saved.secondDate); setNotes(saved.notes); setLines(saved.lines); setEgsUnitId(saved.egsUnitId); setRestoredOrderId(saved.orderId);
+  const draft = useDocumentDraft(mode === "quotation" ? "quotation" : mode === "order" ? "sales_order" : "sales_invoice", { customerId, date, secondDate, actualDeliveryDate, notes, lines, egsUnitId, orderId }, (saved) => {
+    setCustomerId(saved.customerId); setDate(saved.date); setSecondDate(saved.secondDate); setActualDeliveryDate(saved.actualDeliveryDate ?? null); setNotes(saved.notes); setLines(saved.lines); setEgsUnitId(saved.egsUnitId); setRestoredOrderId(saved.orderId);
   }, customerId !== "" || notes !== "" || lines.some((l) => l.itemId || l.description || l.unitPrice));
   const createQuotation = useCreateQuotation(draft.id);
   const createOrder = useCreateSalesOrder(draft.id);
@@ -224,13 +226,13 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
     if (mode === "quotation") createQuotation.mutate({ ...common, quotationDate: dateIso, ...(secondIso ? { validUntil: secondIso } : {}) }, { onSuccess: done });
     else if (mode === "order") createOrder.mutate({ ...common, orderDate: dateIso }, { onSuccess: done });
-    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(secondIso ? { dueDate: secondIso } : {}), ...(egsUnitId ? { egsUnitId } : {}) }, { onSuccess: done });
+    else createInvoice.mutate({ ...common, invoiceDate: dateIso, ...(actualDeliveryDate ? { actualDeliveryDate: toDateOnlyIsoString(actualDeliveryDate) } : {}), ...(secondIso ? { dueDate: secondIso } : {}), ...(egsUnitId ? { egsUnitId } : {}) }, { onSuccess: done });
   };
 
   const err = (mutation.error as { response?: { status?: number; data?: { error?: { code?: string; details?: { lineNumber?: number }[] } } } } | null)?.response;
   const errCode = err?.data?.error?.code;
   const errLine = err?.data?.error?.details?.[0]?.lineNumber;
-  const errKey = mutation.isError ? (errCode && KNOWN_ERRORS.has(errCode) ? `sales.errors.${errCode}` : err?.status === 400 ? "sales.errors.badRequest" : "sales.errors.generic") : null;
+  const errKey = mutation.isError ? (complianceIssueErrorKey(errCode) ?? (errCode && KNOWN_ERRORS.has(errCode) ? `sales.errors.${errCode}` : err?.status === 400 ? "sales.errors.badRequest" : "sales.errors.generic")) : null;
 
   const prefix = `sales.${mode === "quotation" ? "quotations" : mode === "order" ? "orders" : "invoices"}`;
 
@@ -262,6 +264,11 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
               <Calendar inputId="sdSecond" value={secondDate} onChange={(e) => setSecondDate((e.value as Date | null) ?? null)} dateFormat="yy-mm-dd" showButtonBar />
             </div>
           ) : null}
+          {mode === "invoice" ? <div className="erp-field">
+            <label htmlFor="sdSupplyDate">{t("sales.invoices.actualDeliveryDate")}</label>
+            <Calendar inputId="sdSupplyDate" value={actualDeliveryDate} onChange={(e) => setActualDeliveryDate((e.value as Date | null) ?? null)} dateFormat="yy-mm-dd" showButtonBar />
+            <small className="erp-field__hint">{t("sales.invoices.actualDeliveryDateHint")}</small>
+          </div> : null}
           {egsUnitChoiceNeeded ? (
             <div className="erp-field">
               <label htmlFor="sdEgsUnit">{t("sales.invoices.egsUnit")}</label>

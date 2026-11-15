@@ -62,6 +62,7 @@ export interface SalesInvoiceLineInput extends SalesLineInput {
 export interface CreateSalesInvoiceInput {
   readonly customerId: string;
   readonly invoiceDate: Date;
+  readonly actualDeliveryDate?: Date | undefined;
   readonly dueDate?: Date | undefined;
   readonly notes?: string | undefined;
   readonly lines: readonly SalesInvoiceLineInput[];
@@ -129,6 +130,7 @@ export interface SalesInvoiceSummary {
   readonly customerNameAr: string | null;
   readonly originalInvoiceId: string | null;
   readonly invoiceDate: string;
+  readonly actualDeliveryDate?: string | null;
   readonly dueDate: string | null;
   readonly currency: string;
   readonly totalNet: string;
@@ -203,6 +205,7 @@ function toSummary(row: InvoiceRow, outstanding: Prisma.Decimal | null): SalesIn
     customerNameAr: row.customer.nameAr,
     originalInvoiceId: row.originalInvoiceId,
     invoiceDate: dateOnly(row.invoiceDate),
+    actualDeliveryDate: row.actualDeliveryDate ? dateOnly(row.actualDeliveryDate) : null,
     dueDate: row.dueDate ? dateOnly(row.dueDate) : null,
     currency: row.currency,
     totalNet: row.totalNet.toFixed(4),
@@ -224,12 +227,32 @@ function toSummary(row: InvoiceRow, outstanding: Prisma.Decimal | null): SalesIn
 //
 // Linked credit notes reverse original revenue and VAT and restore stock at its historical cost.
 // Unlinked credit notes remain financial adjustments.
+export class SalesInvoiceIssueError extends Error {
+  constructor(readonly code: string) {
+    super("Invoice data must be corrected before issue");
+    this.name = "SalesInvoiceIssueError";
+  }
+}
+
+export interface SalesInvoiceIssueContext {
+  readonly companyId: string;
+  readonly customerId: string;
+  readonly egsUnitId: string | null;
+  readonly documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
+  readonly actualDeliveryDate?: Date | undefined;
+}
+
+// Composition supplies the applicable compliance validation. It runs inside the posting
+// transaction before accounting, numbering, stock or outbox effects; Core has no country rules.
+export type SalesInvoiceIssueValidator = (tx: TransactionClient, input: SalesInvoiceIssueContext) => Promise<void>;
+
 export class SalesInvoiceService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly engine: IAccountingEngine,
     private readonly accountMappings: AccountMappingService,
     private readonly audit: IAuditLogger,
+    private readonly beforeIssue?: SalesInvoiceIssueValidator,
   ) {}
 
   async createInvoice(
@@ -255,6 +278,7 @@ export class SalesInvoiceService {
           totalGross: previous.totalGross.toFixed(4),
         };
       const egsUnitId = await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId);
+      await this.beforeIssue?.(tx, { companyId: actor.companyId, customerId: input.customerId, egsUnitId, documentType: "INVOICE", actualDeliveryDate: input.actualDeliveryDate });
       const lines = await resolveSalesLines(tx, actor.companyId, input.lines);
 
       // ── order lines: lock, check the remaining quantity ──
@@ -451,6 +475,7 @@ export class SalesInvoiceService {
           customerId: input.customerId,
           salesOrderId: orderIds.length === 1 ? (orderIds[0] ?? null) : null,
           invoiceDate: withCurrentTime(input.invoiceDate),
+          actualDeliveryDate: input.actualDeliveryDate ?? null,
           dueDate: input.dueDate ?? input.invoiceDate,
           currency,
           totalNet: totals.net,
@@ -611,6 +636,7 @@ export class SalesInvoiceService {
       const egsUnitId = input.egsUnitId
         ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId)
         : original.egsUnitId;
+      await this.beforeIssue?.(tx, { companyId: actor.companyId, customerId: original.customerId, egsUnitId, documentType: "CREDIT_NOTE" });
       const shortfalls = await tx.inventoryShortfall.findMany({
         where: {
           companyId: actor.companyId,
@@ -970,6 +996,7 @@ export class SalesInvoiceService {
       const egsUnitId = input.egsUnitId
         ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId)
         : original.egsUnitId;
+      await this.beforeIssue?.(tx, { companyId: actor.companyId, customerId: original.customerId, egsUnitId, documentType: "DEBIT_NOTE" });
 
       const lines = await resolveSalesLines(
         tx,

@@ -44,6 +44,7 @@ const INVOICE_SELECT = {
   documentType: true,
   number: true,
   invoiceDate: true,
+  actualDeliveryDate: true,
   paymentMeansCode: true,
   currency: true,
   totalNet: true,
@@ -126,7 +127,7 @@ function certificateBodyBase64(certificatePem: string): string {
   return certificatePem.replace(/-----(BEGIN|END) CERTIFICATE-----/g, "").replace(/\s/g, "");
 }
 
-function sellerParty(company: InvoiceForZatca["company"]): ZatcaParty {
+export function sellerParty(company: InvoiceForZatca["company"]): ZatcaParty {
   return {
     partyIdentification: company.crNumber ? { schemeId: company.crNumberScheme ?? "CRN", id: company.crNumber } : undefined,
     address: {
@@ -143,7 +144,7 @@ function sellerParty(company: InvoiceForZatca["company"]): ZatcaParty {
   };
 }
 
-function buyerParty(customer: PartyRow): ZatcaParty {
+export function buyerParty(customer: PartyRow): ZatcaParty {
   return {
     partyIdentification: customer.commercialRegistration
       ? { schemeId: "CRN", id: customer.commercialRegistration }
@@ -259,6 +260,7 @@ export class ZatcaInvoiceMapper implements ZatcaSubmissionParamsLoader {
         uuid: invoice.id,
         issueDate: issueTimestamp.slice(0, 10),
         issueTime: issueTimestamp.slice(11),
+        actualDeliveryDate: invoice.actualDeliveryDate?.toISOString().slice(0, 10),
         currency: invoice.currency,
         icv: chain.icv.toString(),
         previousInvoiceHash: chain.previousInvoiceHash,

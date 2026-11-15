@@ -171,3 +171,6 @@ for setup, verified signature conventions, renewal behavior and authoritative re
   discount/charge, self-billing, export, summary, nominal-supply and advance-payment
   scenarios are outside the current product scope.
 - EGS units share their company's national address; there is no per-EGS address override.
+
+
+`invoiceIssueProblems` checks the known seller/buyer identity, address and supply-date rules before posting through the API composition hook. It is a local readiness check, not proof of authority acceptance. Standard sales invoices now carry an explicit supply date through to XML; no date is inferred for historic records. See [the recovery and validation notes](../../../docs/COMPLIANCE-FEEDBACK-AND-TRAIL.md) for rollout and rejected-document limitations.

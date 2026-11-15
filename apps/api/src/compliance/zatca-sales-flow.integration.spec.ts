@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SalesInvoiceIssueGuard } from "./sales-invoice-issue.guard.js";
 import { ZatcaInvoiceMapper } from "./zatca-invoice-mapper.js";
 import { ComplianceAdminService } from "./compliance-admin.service.js";
 import { salesInvoiceToPdfHtml } from "../sales/exports/sales-invoice-export.js";
@@ -45,7 +46,7 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
   const prisma = new PrismaClient();
   const audit = new PrismaAuditLogger(prisma);
   const mappings = new AccountMappingService(prisma, audit);
-  const sales = new SalesInvoiceService(prisma, new PrismaAccountingEngine(prisma, new PrismaNumberingService()), mappings, audit);
+  const sales = new SalesInvoiceService(prisma, new PrismaAccountingEngine(prisma, new PrismaNumberingService()), mappings, audit, new SalesInvoiceIssueGuard().validate);
   const companyId = newId();
   const actor = { id: "zatca-flow-test", companyId };
   const now = new Date();
@@ -110,6 +111,39 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
     180_000,
   );
 
+  it("blocks invalid issuance data before any accounting, numbering, stock or outbox effect", async () => {
+    const egs = await admin.createEgsUnit({ name: "Pre-issue validation", businessCategory: "Retail", invoiceTypes: "1100", environment: "sandbox" }, actor, newId());
+    await prisma.egsUnit.update({ where: { id: egs.id }, data: { status: "ACTIVE" } });
+    const customer = await prisma.party.create({ data: { id: newId(), ref: newId(), companyId, name: "Invalid customer", kind: "CUSTOMER", vatNumber: "123456789012345", streetName: "King Road", buildingNumber: "1234", district: "Olaya", city: "Riyadh", postalCode: "12345", countryCode: "SA" } });
+    const snapshot = async () => ({
+      invoices: await prisma.salesInvoice.count({ where: { companyId } }),
+      journals: await prisma.journalEntry.count({ where: { companyId } }),
+      stock: await prisma.stockMovement.count({ where: { companyId } }),
+      outbox: await prisma.outboxMessage.count({ where: { companyId } }),
+      series: await prisma.documentNumberSeries.findMany({ where: { companyId }, orderBy: { id: "asc" } }),
+    });
+    const before = await snapshot();
+    const input = { customerId: customer.id, invoiceDate: now, egsUnitId: egs.id, lines: [{ description: "Readiness service", quantity: "1", unitPrice: "100", taxCodeId }] };
+    const expectBlocked = async (code: string): Promise<void> => {
+      await expect(sales.createInvoice(input, actor, newId(), newId())).rejects.toMatchObject({ code });
+      expect(await snapshot()).toEqual(before);
+    };
+    await expectBlocked("COMPLIANCE_BUYER_VAT_INVALID");
+    await prisma.party.update({ where: { id: customer.id }, data: { vatNumber: "399999999800003", commercialRegistration: "bad" } });
+    await expectBlocked("COMPLIANCE_BUYER_CR_INVALID");
+    await prisma.party.update({ where: { id: customer.id }, data: { commercialRegistration: "1010010000", postalCode: "123" } });
+    await expectBlocked("COMPLIANCE_BUYER_ADDRESS_INVALID");
+    await prisma.party.update({ where: { id: customer.id }, data: { postalCode: "12345" } });
+    await expectBlocked("COMPLIANCE_SUPPLY_DATE_REQUIRED");
+    const invoice = await sales.createInvoice({ ...input, actualDeliveryDate: new Date("2026-11-15") }, actor, newId(), newId());
+    expect((await sales.get(companyId, invoice.id)).actualDeliveryDate).toBe("2026-11-15");
+    await prisma.party.update({ where: { id: customer.id }, data: { vatNumber: "bad" } });
+    const afterInvoice = await snapshot();
+    await expect(sales.createCreditNote({ originalInvoiceId: invoice.id, creditDate: now, lines: input.lines }, actor, newId(), newId())).rejects.toMatchObject({ code: "COMPLIANCE_BUYER_VAT_INVALID" });
+    await expect(sales.createDebitNote({ originalInvoiceId: invoice.id, debitDate: now, lines: input.lines }, actor, newId(), newId())).rejects.toMatchObject({ code: "COMPLIANCE_BUYER_VAT_INVALID" });
+    expect(await snapshot()).toEqual(afterInvoice);
+  });
+
   async function runSalesFlow({ simplified, environment, validateWithSdk = false }: { simplified: boolean; environment: "sandbox" | "simulation"; validateWithSdk?: boolean }): Promise<void> {
     const egs = await admin.createEgsUnit({ name: `Test ${environment} ${simplified}`, businessCategory: "Retail", invoiceTypes: "1100", environment }, actor, newId());
     await prisma.egsUnit.update({ where: { id: egs.id }, data: { status: "ACTIVE" } });
@@ -118,12 +152,13 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
     await prisma.egsCredential.create({ data: { id: newId(), companyId, egsUnitId: egs.id, status: "ACTIVE", privateKeyCiphertext: encrypted(validateWithSdk ? readFileSync(sdkKey, "utf8") : privateKey), productionCsidCiphertext: encrypted(validateWithSdk ? readFileSync(sdkCert, "utf8") : cert), productionSecretCiphertext: encrypted("synthetic-secret"), complianceCsidCiphertext: encrypted("not-a-production-certificate") } });
     const customer = await prisma.party.create({ data: { id: newId(), ref: newId(), companyId, name: "Test customer", nameAr: "عميل تجريبي", kind: "COMPANY", ...(simplified ? {} : { vatNumber: "399999999800003", streetName: "King Road", buildingNumber: "1234", district: "Olaya", city: "Riyadh", postalCode: "12345", countryCode: "SA" }) } });
     const line = { description: "خدمة اختبار", quantity: "1", unitPrice: "100", taxCodeId };
-    const invoice = await sales.createInvoice({ customerId: customer.id, invoiceDate: now, egsUnitId: egs.id, lines: [line] }, actor, newId(), newId());
+    const invoice = await sales.createInvoice({ customerId: customer.id, invoiceDate: now, actualDeliveryDate: new Date("2026-11-15"), egsUnitId: egs.id, lines: [line] }, actor, newId(), newId());
     expect((await admin.invoiceStatuses(companyId, [invoice.id]))[invoice.id]?.status).toBe("NOT_SUBMITTED");
     expect((await admin.invoices(companyId, { status: "NOT_SUBMITTED", environment })).data.some((row) => row.salesInvoiceId === invoice.id)).toBe(true);
     await admin.resubmit(companyId, invoice.id, actor, newId());
     expect(enqueued).toContain(invoice.id);
     const original = await sales.get(companyId, invoice.id);
+    expect(original.actualDeliveryDate).toBe("2026-11-15");
     const credit = await sales.createCreditNote({ originalInvoiceId: invoice.id, creditDate: now, notes: "استرجاع تجريبي", lines: [{ ...line, originalLineId: original.lines[0]!.id, unitPrice: "100" }] }, actor, newId(), newId());
     const debit = await sales.createDebitNote({ originalInvoiceId: invoice.id, debitDate: now, notes: "تعديل تجريبي", lines: [{ ...line, unitPrice: "20" }] }, actor, newId(), newId());
     const authority = new EchoAuthority();
@@ -134,6 +169,7 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
       const outbox = await prisma.outboxMessage.findFirstOrThrow({ where: { companyId, topic: `zatca-submission-${egs.id}`, payload: { path: ["salesInvoiceId"], equals: document.id } } });
       const mapped = await mapper.load({ companyId, correlationId: outbox.correlationId, outboxMessageId: outbox.id, payload: outbox.payload });
       expect(mapped.credentials.secret).toBe("synthetic-secret");
+      if (index === 0) expect(mapped.buildInvoiceInput({ icv: 1n, previousInvoiceHash: "test" }).actualDeliveryDate).toBe("2026-11-15");
       await submitter.submit(mapped);
       const stored = await prisma.zatcaInvoiceRecord.findUniqueOrThrow({ where: { salesInvoiceId: document.id } });
       if (validateWithSdk) {
@@ -145,6 +181,7 @@ describeWithDb("Sales to ZATCA — posted invoice, return and debit note", () =>
           writeFileSync(path, stored.signedXml!, "utf8");
           // Validate the actual persisted XML before the synthetic authority response changes it.
           const result = await runSdkValidation({ sdkDir: sdkRoot, xmlPath: path, previousInvoiceHash: stored.previousInvoiceHash });
+          expect(result.output).not.toContain("BR-KSA-15");
           expect({ document: documentType, verdict: result.verdict, exitCode: result.exitCode, output: result.verdict === "PASSED" && result.exitCode === 0 ? "" : result.output })
             .toEqual({ document: documentType, verdict: "PASSED", exitCode: 0, output: "" });
         } finally { rmSync(dir, { recursive: true, force: true }); }

@@ -5,6 +5,7 @@ const DATE_FIELDS = new Set([
   "orderDate",
   "expectedDate",
   "invoiceDate",
+  "actualDeliveryDate",
   "dueDate",
   "entryDate",
   "postingDate",

@@ -36,3 +36,5 @@ export { runSdkValidation, findSdkJar } from "./validation/sdk-validator.js";
 export { checkInvoiceConsistency } from "./validation/invoice-consistency.js";
 export { verifySignedInvoice, stripSignatureElements } from "./validation/signed-invoice-verifier.js";
 export * from "./onboarding/compliance-samples.js";
+
+export * from "./validation/invoice-issue-readiness.js";

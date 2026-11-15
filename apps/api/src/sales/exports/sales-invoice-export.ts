@@ -56,6 +56,7 @@ export async function salesInvoiceToPdfHtml(params: {
   const metaRows = [
     [t("salesInvoice.number"), invoice.number],
     [t("salesInvoice.date"), invoice.invoiceDate],
+    ...(invoice.actualDeliveryDate ? [[t("salesInvoice.actualDeliveryDate"), invoice.actualDeliveryDate]] : []),
     ...(invoice.dueDate ? [[t("salesInvoice.dueDate"), invoice.dueDate]] : []),
   ]
     .map(([k, v]) => `<tr><th>${escapeHtml(k ?? "")}</th><td>${escapeHtml(v ?? "")}</td></tr>`)
