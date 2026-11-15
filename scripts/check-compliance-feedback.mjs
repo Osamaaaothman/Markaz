@@ -232,6 +232,16 @@ try {
         assert(await retry.isDisabled(), "A late server rejection refreshes readiness");
         assert.equal(await page.locator(".p-toast-message-success").count(), 0);
         assert.equal(queued, 2);
+        issue = "CERTIFICATE_SELLER_MISMATCH";
+        await page.reload({ waitUntil: "networkidle" });
+        await page
+          .getByText(copy.compliance.submissionIssue.CERTIFICATE_SELLER_MISMATCH, { exact: true })
+          .waitFor();
+        assert(
+          await retry.isDisabled(),
+          "A provider rejection blocks further submissions with the same credentials",
+        );
+        assert.equal(queued, 2);
         await context.close();
       }
   assert.deepEqual(errors, []);

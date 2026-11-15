@@ -378,6 +378,15 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     expect(JSON.stringify(record)).not.toContain("secret content");
     expect(JSON.stringify(record)).not.toContain("<Invoice>");
 
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId }, data: {
+      status: "REJECTED", validationErrors: ["ZATCA rejected the request (HTTP 400)"],
+      lastResponse: { code: "CLIENT_ERROR", status: 400, body: { secret: "never-return-response", validationResults: { errorMessages: [{ code: "certificate-permissions", message: "Seller VAT mismatch" }], warningMessages: [] } } },
+    } });
+    const rejected = await service.invoiceRecord(companyId, salesInvoiceId);
+    expect(rejected!.errors).toEqual(["certificate-permissions: Seller VAT mismatch"]);
+    expect(rejected!.canResubmit).toBe(false);
+    expect(JSON.stringify(rejected)).not.toContain("never-return-response");
+
     // Cross-tenant: another company gets null, not someone else's record.
     expect(await service.invoiceRecord(otherCompanyId, salesInvoiceId)).toBeNull();
   });
@@ -409,6 +418,15 @@ describeIfReady("ComplianceAdminService — real database, scripted ZATCA transp
     expect(await readyService.resubmit(companyId, first, actor, newId())).toEqual({ status: "QUEUED" });
     expect(enqueue).toHaveBeenCalledTimes(1);
     expect(enqueue).toHaveBeenCalledWith(first, egs.id);
+    await prisma.zatcaInvoiceRecord.update({ where: { salesInvoiceId: first }, data: {
+      status: "REJECTED", lastResponse: { body: { validationResults: { errorMessages: [{ code: "certificate-permissions", message: "Seller VAT mismatch" }] } } },
+    } });
+    expect(await readyService.submissionReadiness(companyId, next)).toMatchObject({ canSubmit: false, issue: "CERTIFICATE_SELLER_MISMATCH" });
+    await expect(readyService.resubmit(companyId, next, actor, newId())).rejects.toMatchObject({ code: "SUBMISSION_BLOCKED" });
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    await prisma.egsCredential.update({ where: { egsUnitId: egs.id }, data: { updatedAt: new Date(Date.now() + 1000) } });
+    expect((await readyService.submissionReadiness(companyId, next)).issue).not.toBe("CERTIFICATE_SELLER_MISMATCH");
+
   });
 
   it("resubmit throws SUBMISSION_NOT_WIRED when no Resubmitter is configured (the current, deliberate state)", async () => {

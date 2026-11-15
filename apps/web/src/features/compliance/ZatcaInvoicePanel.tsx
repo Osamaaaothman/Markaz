@@ -64,6 +64,7 @@ export function ZatcaInvoicePanel({ salesInvoiceId }: { readonly salesInvoiceId:
           {record.warnings.length ? <ul className="erp-field__hint">{record.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul> : null}
           {record.errors.length ? <ul role="alert" className="erp-auth-card__error">{record.errors.map((error, index) => <li key={index}>{error}</li>)}</ul> : null}
           {record.errors.some((error) => error.startsWith("SIGNATURE_INVALID:")) ? <p role="note" className="compliance-test-notice">{t(environment === "sandbox" ? "compliance.invoicePanel.sandboxSignatureInvalid" : "compliance.invoicePanel.signatureInvalid")}</p> : null}
+          {environment === "sandbox" && record.errors.some((error) => error.startsWith("certificate-permissions:")) ? <p role="note" className="compliance-test-notice">{t("compliance.invoicePanel.sandboxSellerMismatch")}</p> : null}
           {record.qrImageDataUrl ? <figure style={{ marginInline: 0 }}>
             <img src={record.qrImageDataUrl} alt={t("compliance.invoicePanel.qr")} width={280} height={280} style={{ maxWidth: "100%", height: "auto", imageRendering: "pixelated" }} />
             <figcaption>{t(`compliance.invoicePanel.qrSource.${record.qrSource}`)}</figcaption>

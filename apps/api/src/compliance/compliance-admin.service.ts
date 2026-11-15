@@ -22,6 +22,7 @@ import {
   buildSandboxDataQrBase64,
   invoiceQrArtifact,
   validationMessages,
+  providerValidationMessages,
   type ComplianceSample,
   type OnboardingService,
   type ZatcaEnvironment,
@@ -411,6 +412,7 @@ export class ComplianceAdminService {
     } });
     if (!row) return null;
     const artifact = invoiceQrArtifact(row.signedXml, row.clearedXml);
+    const providerFeedback = providerValidationMessages(row.lastResponse);
     const dataPreviewQrCode = artifact ? null : buildSandboxDataQrBase64(row.egsUnit.environment, {
       sellerName: row.salesInvoice.company.nameAr || row.salesInvoice.company.name,
       vatNumber: row.salesInvoice.company.vatNumber ?? "",
@@ -435,8 +437,8 @@ export class ComplianceAdminService {
       uuid: row.uuid,
       icv: row.icv.toString(),
       attempts: row.attempts,
-      warnings: asStringArray(row.validationWarnings),
-      errors: asStringArray(row.validationErrors),
+      warnings: [...new Set([...asStringArray(row.validationWarnings), ...providerFeedback.warnings])],
+      errors: providerFeedback.errors.length ? providerFeedback.errors : asStringArray(row.validationErrors),
       hasSignedXml: row.signedXml !== null,
       hasClearedXml: row.clearedXml !== null,
       qrCode: artifact?.qr ?? null,

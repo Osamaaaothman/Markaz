@@ -216,7 +216,7 @@ export class OnboardingService {
   }
 
   // Returns only a safe diagnosis. Key material remains inside the compliance pack.
-  async submissionCredentialIssue(companyId: string, egsUnitId: string): Promise<"CREDENTIALS_MISSING" | "CERTIFICATE_INVALID" | "CERTIFICATE_KEY_MISMATCH" | "CERTIFICATE_EXPIRED" | null> {
+  async submissionCredentialIssue(companyId: string, egsUnitId: string): Promise<"CREDENTIALS_MISSING" | "CERTIFICATE_INVALID" | "CERTIFICATE_KEY_MISMATCH" | "CERTIFICATE_EXPIRED" | "CERTIFICATE_SELLER_MISMATCH" | null> {
     const credential = await this.prisma.egsCredential.findFirst({ where: { companyId, egsUnitId } });
     if (!credential?.privateKeyCiphertext || !credential.productionCsidCiphertext || !credential.productionSecretCiphertext) return "CREDENTIALS_MISSING";
     try {
@@ -224,10 +224,16 @@ export class OnboardingService {
       const key = createPrivateKey(toPem(decryptText(credential.privateKeyCiphertext, this.encryptionKey), "EC PRIVATE KEY"));
       if (!certificate.checkPrivateKey(key)) return "CERTIFICATE_KEY_MISMATCH";
       if (Date.parse(certificate.validFrom) > Date.now() || Date.parse(certificate.validTo) <= Date.now()) return "CERTIFICATE_EXPIRED";
-      return null;
     } catch {
       return "CERTIFICATE_INVALID";
     }
+    // Do not send more documents after the provider rejected this credential's seller identity.
+    // A later credential update makes the old rejection historical, without editing its record.
+    const rejected = await this.prisma.zatcaInvoiceRecord.findFirst({ where: {
+      companyId, egsUnitId, status: "REJECTED", updatedAt: { gte: credential.updatedAt },
+      lastResponse: { path: ["body", "validationResults", "errorMessages"], array_contains: [{ code: "certificate-permissions" }] },
+    }, select: { id: true } });
+    return rejected ? "CERTIFICATE_SELLER_MISMATCH" : null;
   }
 
   private async loadCredential(egsUnitId: string) {
