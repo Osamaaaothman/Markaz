@@ -14,6 +14,7 @@ This file explains the rules behind it. The stack stays **PrimeReact** — we re
 | `design/pages.css` | Login, dashboard, KPI cards, forms, line grids. |
 | `design/motion.css` | Keyframes: stagger-in, chart growth, ring fill, logo draw-in. |
 | `design/directions.css` | Optional Balance, Canvas and Precision geometry, navigation and restrained motion; selected via `html[data-design]`. |
+| `design/component-directions.css` | Shared production coverage for table variants, icon/segmented buttons, fields, portalled overlays, calendars, messages and composed forms. Loaded last to defeat variant-specific Lara rules. |
 | `design/direction-palettes.css` | The original Balance green, Canvas gold and Precision blue palettes, in light/dark versions, independent of geometry. |
 | `shared/theme/DirectionPicker.tsx` | Instant design selection in the topbar and Interface settings. |
 | `shared/ui/ChoiceSelect.tsx` | Themed PrimeReact selection popup shared by the app and redesign preview toolbars. |
@@ -30,7 +31,7 @@ This file explains the rules behind it. The stack stays **PrimeReact** — we re
 4. **Numbers are tabular, money is exact.** Count-up animations end on the exact decimal string from the server; the animation is cosmetic and never rounds. Money is never a float.
 5. **Charts are hand-drawn SVG**, no chart library. They draw left-to-right in both languages; labels around them follow the page direction.
 6. **Motion is optional.** Every animation is disabled under `prefers-reduced-motion`. Duration tokens: fast 120 ms, base 220 ms, slow 480 ms.
-7. **Density.** Comfortable (default) and compact, toggled in the topbar, stored per browser. Table row padding comes from `--mk-row-pad-*`.
+7. **Density.** Each direction defines its control height and table spacing through `--mk-control-h` and `--mk-row-pad-*`, including tables that pass `size="small"`, `stripedRows` or `showGridlines`.
 8. **Every user-visible string is an i18n key** in both `en` and `ar` (parity is checked in the gate).
 9. **Dark mode is a full token set**, not an inversion. Check both on every new screen.
 
@@ -60,6 +61,27 @@ fixture review of its actual shell, settings and component reference, open
 `http://127.0.0.1:5186/appearance.html` using the dedicated redesign preview server.
 This separate HTML entry is excluded from the normal application build.
 
+The operational component gallery on `/design-system` uses the real `DataGrid`,
+`TreeTable`, `ChoiceSelect`, `LineField`, `PermissionButton`, `CreatedDialog`,
+`CopyId`, `EmptyState` and upload-progress presentation. Its samples only change
+local React state. It also covers every PrimeReact visual family imported by the
+production application, including body portals; new runtime controls should be
+added here alongside their shared styling.
+
+`scripts/check-interface-styles.mjs` starts the built isolated preview and checks
+computed table, control and overlay styles in all three directions, both locales
+and both modes, including mobile layouts. It verifies preserved form input,
+search, column filters, pagination, reload persistence and palette independence.
+CI builds the preview and runs this browser gate. Run locally with:
+
+```sh
+npx vite build --config apps/web/vite.redesign.config.ts
+node scripts/check-interface-styles.mjs
+```
+
+PrimeReact's locale is synchronized through `shared/prime/PrimeProvider.tsx`;
+changing only the legacy global locale does not update the provider's controls.
+
 Ink `--mk-ink-*` (shell, hero), Forest `--mk-brand-*` (primary), Brass `--mk-brass-*` (centre dot, revenue/expense pairing). Flat colour only: no gradients, glows or decorative patterns. Semantic colours (`--mk-danger`, `--mk-warn`, `--mk-success`, `--mk-info`) are separate from the brand set.
 
 ## Logo
@@ -68,6 +90,6 @@ An open ring with a brass dot at its centre ("markaz" = centre). Ink tile, green
 
 ## Known gaps
 
-- Column show/hide and a per-table toolbar are not built yet; tables have sticky headers, density and CSV/PDF export.
+- Lists use `DataGrid` search, column filters, remembered column visibility and pagination. Report tables retain their report-specific totals and exports.
 - The UI font is IBM Plex Sans Arabic (OFL), self-hosted through @fontsource, weights 400-700, Arabic and Latin subsets.
-- Totals bars on document forms are inline with the form, not yet pinned; the actions bar is sticky.
+- Totals and form actions are sticky; tables wider than the available space scroll within their own wrapper.

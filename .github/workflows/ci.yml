@@ -79,6 +79,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Interface style browser regression
+        run: |
+          npx vite build --config apps/web/vite.redesign.config.ts
+          node scripts/check-interface-styles.mjs
+
       - name: Test
         run: npm run test
 

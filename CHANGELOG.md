@@ -5,6 +5,15 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Complete interface style coverage (2026-11-15)
+
+- Apply Balance, Canvas and Precision to small/gridlined tables, account trees,
+  rounded/icon/segmented actions, pagination, popup menus, calendars and feedback.
+- Add an operational component gallery using the application's shared controls
+  and a browser regression gate covering locales, modes, mobile and palettes.
+- Synchronize PrimeReact provider locale so portal and control labels follow the
+  active language. No database migrations or financial behavior changes.
+
 ### Combined production release (2026-11-15)
 
 - Add company-scoped cost centers, projects and departments to expense lines and
