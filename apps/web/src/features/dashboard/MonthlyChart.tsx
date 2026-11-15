@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Money } from "@erp/shared";
 import { formatMoney } from "../../shared/lib/money";
+import { AnimatedMoney } from "../../shared/ui/AnimatedMoney";
 import type { MonthlyResult } from "./use-dashboard";
 
 const W = 580;
@@ -73,6 +74,12 @@ export function MonthlyChart({ months, currency }: { months: readonly MonthlyRes
             </g>
           ))}
 
+          {Array.from({ length: months.length + 1 }, (_, i) => (
+            <line key={`rule-${i}`} x1={PAD.left + i * slot} x2={PAD.left + i * slot} y1={PAD.top} y2={PAD.top + PLOT_H} className="erp-chart__rule" />
+          ))}
+          <line x1={PAD.left - 3} x2={PAD.left - 3} y1={PAD.top} y2={PAD.top + PLOT_H} className="erp-chart__margin" />
+          <line x1={PAD.left} x2={PAD.left} y1={PAD.top} y2={PAD.top + PLOT_H} className="erp-chart__margin" />
+
           {months.map((m, i) => (
             <g key={m.month} className="erp-chart__col" onMouseEnter={() => setHover(i)}>
               <rect className="erp-chart__hit" x={centerX(i) - slot / 2} y={PAD.top} width={slot} height={PLOT_H + PAD.bottom} rx={8} />
@@ -118,15 +125,21 @@ export function MonthlyChart({ months, currency }: { months: readonly MonthlyRes
       <div className="erp-chart-summary">
         <div>
           <span>{t("dashboard.chartExtra.totalRevenue")}</span>
-          <strong>{formatMoney(totalRevenue.toDecimalString(4), currency)}</strong>
+          <strong>
+            <AnimatedMoney amount={totalRevenue.toDecimalString(4)} currency={currency} />
+          </strong>
         </div>
         <div>
           <span>{t("dashboard.chartExtra.totalExpense")}</span>
-          <strong>{formatMoney(totalExpense.toDecimalString(4), currency)}</strong>
+          <strong>
+            <AnimatedMoney amount={totalExpense.toDecimalString(4)} currency={currency} />
+          </strong>
         </div>
         <div>
           <span>{t("dashboard.chartExtra.netResult")}</span>
-          <strong>{formatMoney(totalNet.toDecimalString(4), currency)}</strong>
+          <strong>
+            <AnimatedMoney amount={totalNet.toDecimalString(4)} currency={currency} />
+          </strong>
         </div>
       </div>
     </figure>

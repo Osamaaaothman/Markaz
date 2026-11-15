@@ -161,8 +161,117 @@
 
 /* ---- staggered entrance: set --i on a child (0, 1, 2 ...) ---- */
 .mk-stagger > * {
-  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) both;
+  /* backwards, not both: nothing is left applied afterwards, so a hover transform on the child still works */
+  animation: mk-rise var(--mk-dur-slow) var(--mk-ease) backwards;
   animation-delay: calc(var(--i, 0) * 60ms + 60ms);
+}
+
+/* ---- chart and launcher motion ---- */
+@keyframes mk-tile-pop {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mk-bar-rise {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes mk-donut-spin {
+  from {
+    opacity: 0;
+    transform: rotate(-110deg) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* a registered number, so the donut slices can sweep open instead of just appearing */
+@property --mk-p {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@keyframes mk-arc-sweep {
+  from {
+    --mk-p: 0;
+  }
+  to {
+    --mk-p: 1;
+  }
+}
+
+@keyframes mk-wipe {
+  from {
+    clip-path: inset(-20% 100% -20% 0);
+  }
+  to {
+    clip-path: inset(-20% 0 -20% 0);
+  }
+}
+
+@keyframes mk-ribbon-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes mk-ribbon-swing {
+  0% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(10deg);
+  }
+  55% {
+    transform: rotate(-7deg);
+  }
+  80% {
+    transform: rotate(3deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+
+/* a rubber stamp pressed onto the page: lands from above, a touch too big and tilted, then settles */
+@keyframes mk-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.7) rotate(-14deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mk-note-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) rotate(8deg) scale(0.8);
+  }
 }
 
 /* ---- skeleton shimmer ---- */
@@ -179,8 +288,7 @@
   overflow: visible;
 }
 
-.mk-logo__ring,
-.mk-logo__tail {
+.mk-logo__ring {
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
 }
@@ -189,12 +297,6 @@
 .mk-logo--loop .mk-logo__ring {
   --mk-len: 1;
   animation: mk-draw 0.8s var(--mk-ease) 0.1s both;
-}
-
-.mk-logo--intro .mk-logo__tail,
-.mk-logo--loop .mk-logo__tail {
-  --mk-len: 1;
-  animation: mk-draw 0.55s var(--mk-ease) 0.78s both;
 }
 
 .mk-logo__dot {
@@ -217,10 +319,6 @@
 
 .mk-logo--loop .mk-logo__ring {
   animation: mk-draw 1.4s var(--mk-ease) 0.1s infinite alternate;
-}
-
-.mk-logo--loop .mk-logo__tail {
-  animation: mk-draw 1.4s var(--mk-ease) 0.5s infinite alternate;
 }
 
 @keyframes mk-shine {

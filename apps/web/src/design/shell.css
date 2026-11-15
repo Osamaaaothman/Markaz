@@ -153,9 +153,9 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   box-shadow: none;
 }
 
-.erp-sidebar__brand {
-  padding: var(--mk-space-1) var(--mk-space-2);
-  color: var(--mk-side-text-strong);
+/* the company card now sits at the very top of the rail */
+.erp-sidebar__head {
+  display: flex;
 }
 
 /* search / command palette entry */
@@ -359,10 +359,11 @@ html[dir="rtl"] .erp-sidebar__group-chevron--folded {
   transform: rotate(90deg);
 }
 
-/* footer: company card + collapse */
+/* footer: collapse button */
 .erp-sidebar__footer {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--mk-space-2);
 }
 
@@ -495,12 +496,6 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
   font-size: 1.25rem;
 }
 
-.erp-sidebar--collapsed .erp-sidebar__brand {
-  display: grid;
-  place-items: center;
-  padding-inline: 0;
-}
-
 .erp-sidebar--collapsed .erp-sidebar__link {
   justify-content: center;
   padding-inline: 0;
@@ -544,6 +539,28 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
 
 .erp-topbar__spacer {
   flex: 1;
+}
+
+/* the product's own mark and name at the start of the bar; on a phone only the emblem is kept */
+.erp-topbar__brand {
+  flex-shrink: 0;
+  padding-inline-end: var(--mk-space-3);
+  border-inline-end: 1px solid var(--mk-border);
+  color: var(--mk-text);
+}
+
+.erp-topbar__brand .mk-brand__name {
+  font-size: 1.1rem;
+}
+
+.erp-topbar__brand .mk-brand__tagline {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  .erp-topbar__brand .mk-brand__text {
+    display: none;
+  }
 }
 
 .erp-breadcrumb {

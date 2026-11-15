@@ -11,9 +11,10 @@ export interface LogoProps {
   readonly className?: string;
 }
 
-// The Markaz emblem: an open ring with a brass dot at its centre — "markaz" means centre. Ink tile, green
-// stroke, brass centre. Drawn with an SVG stroke (pathLength = 1) so the ring can be animated as if drawn in,
-// then the dot drops into the middle and a shine passes.
+// The Markaz emblem: four corner brackets framing a brass square at the centre — "markaz" means centre.
+// Matches the official brand mark (markaz-brand/svg/markaz-mark-*.svg, app-icon-rounded-1024.svg): green
+// tile, cream frame, brass centre. Each bracket is drawn with an SVG stroke (pathLength = 1) so the frame
+// can be animated as if drawn in, then the centre square pops in and a shine passes.
 // The emblem itself never mirrors in right-to-left (a logo is not text direction).
 export function LogoMark({ size = 40, animate = false, className = "" }: Pick<LogoProps, "size" | "animate" | "className">): React.JSX.Element {
   const uid = useId().replace(/:/g, "");
@@ -40,11 +41,16 @@ export function LogoMark({ size = 40, animate = false, className = "" }: Pick<Lo
         </linearGradient>
       </defs>
       <g clipPath={`url(#${uid}-clip)`}>
-        <rect width="64" height="64" fill="#1b1a17" />
-        {/* an open ring: closed all round except a gap on the right, like the opening of the letter meem */}
-        <path className="mk-logo__ring" d="M45.24 39.04 A15 15 0 1 1 45.24 24.96" fill="none" stroke="#7fc4a3" strokeWidth="6.4" strokeLinecap="round" pathLength="1" />
-        {/* the centre */}
-        <circle className="mk-logo__dot" cx="32" cy="32" r="4.8" fill="#c9aa5c" />
+        <rect width="64" height="64" fill="#1C5A40" />
+        {/* four corner brackets framing the centre, like the brand's registration-mark "meem" */}
+        <g transform="translate(16 16) scale(0.6667)">
+          <path className="mk-logo__ring" d="M6 21V6H21" fill="none" stroke="#ECE9E1" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="butt" pathLength="1" />
+          <path className="mk-logo__ring" d="M27 6H42V21" fill="none" stroke="#ECE9E1" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="butt" pathLength="1" />
+          <path className="mk-logo__ring" d="M42 27V42H27" fill="none" stroke="#ECE9E1" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="butt" pathLength="1" />
+          <path className="mk-logo__ring" d="M21 42H6V27" fill="none" stroke="#ECE9E1" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="butt" pathLength="1" />
+          {/* the centre */}
+          <rect className="mk-logo__dot" x="18" y="18" width="12" height="12" fill="#C9AA5C" />
+        </g>
         <rect className="mk-logo__shine" x="-40" y="-10" width="30" height="90" fill={`url(#${uid}-shine)`} transform="skewX(-18)" />
       </g>
       <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="15.25" fill="none" stroke="#fff" strokeOpacity="0.1" strokeWidth="1.5" />
