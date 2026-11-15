@@ -9,7 +9,9 @@ Review those actual components locally at `http://127.0.0.1:5186/appearance.html
 That page renders the real shell, settings and component reference with disabled
 queries and fixture cache data. It creates no authentication tokens and makes no
 business changes. Neither HTML preview is included in the ordinary app build.
-The implementation is local; it has not been deployed to production.
+The initial switcher shipped in the combined production release (#36). The
+follow-up component coverage uses the same stylesheet and real controls in
+`appearance.html` and the application's `/design-system` route.
 
 ## Run and build
 
@@ -125,7 +127,7 @@ text when switching. Mobile checks at 390px covered all three layouts, English,
 dark mode and mobile navigation. No browser errors or warnings were recorded.
 Screenshot: `output/redesign-qa/appearance-switcher.png`.
 
-Production rollout remains a separate task.
+Production rollout is verified separately from these isolated fixture checks.
 
 Colour/layout refinement: the application now stores style and palette separately.
 All 15 palettes (including the six original direction colours) are available on

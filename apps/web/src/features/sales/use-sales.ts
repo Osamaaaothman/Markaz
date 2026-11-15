@@ -62,7 +62,15 @@ export function useQuotations(status: QuotationStatus | null) {
   return useInfiniteQuery({
     queryKey: ["quotations", "list", status],
     queryFn: async ({ pageParam }) =>
-      (await apiClient.get<Page<QuotationSummary>>("/v1/quotations", { params: { limit: "50", ...(status ? { status } : {}), ...(pageParam ? { cursor: pageParam } : {}) } })).data,
+      (
+        await apiClient.get<Page<QuotationSummary>>("/v1/quotations", {
+          params: {
+            limit: "50",
+            ...(status ? { status } : {}),
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
+        })
+      ).data,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
     staleTime: 10_000,
@@ -91,7 +99,12 @@ export function useCreateQuotation(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
-    mutationFn: async (payload: CreateQuotationPayload) => (await apiClient.post<QuotationSummary>("/v1/quotations", payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
+    mutationFn: async (payload: CreateQuotationPayload) =>
+      (
+        await apiClient.post<QuotationSummary>("/v1/quotations", payload, {
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
+        })
+      ).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["quotations"] }),
   });
 }
@@ -99,7 +112,8 @@ export function useCreateQuotation(submissionKey?: string) {
 export function useQuotationAction(id: string, action: "reject" | "cancel" | "convert") {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => (await apiClient.post<{ id: string }>(`/v1/quotations/${id}/${action}`, {})).data,
+    mutationFn: async () =>
+      (await apiClient.post<{ id: string }>(`/v1/quotations/${id}/${action}`, {})).data,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["quotations"] });
       void qc.invalidateQueries({ queryKey: ["salesOrders"] });
@@ -118,7 +132,12 @@ export interface QuotationEmailPreview {
 export function usePreviewQuotationEmail(id: string) {
   return useMutation({
     meta: { feedback: "silent" },
-    mutationFn: async (language: "en" | "ar") => (await apiClient.post<QuotationEmailPreview>(`/v1/quotations/${id}/email/preview`, { language })).data,
+    mutationFn: async (language: "en" | "ar") =>
+      (
+        await apiClient.post<QuotationEmailPreview>(`/v1/quotations/${id}/email/preview`, {
+          language,
+        })
+      ).data,
   });
 }
 
@@ -126,7 +145,12 @@ export function useSendQuotationEmail(id: string, submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { successKey: "feedback.sent" },
-    mutationFn: async (payload: { to: string; language: "en" | "ar" }) => (await apiClient.post<{ sentAt: string }>(`/v1/quotations/${id}/email/send`, payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
+    mutationFn: async (payload: { to: string; language: "en" | "ar" }) =>
+      (
+        await apiClient.post<{ sentAt: string }>(`/v1/quotations/${id}/email/send`, payload, {
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
+        })
+      ).data,
     onSettled: () => qc.invalidateQueries({ queryKey: ["quotationEmails", id] }),
   });
 }
@@ -159,7 +183,15 @@ export function useSalesOrders(status: SalesOrderStatus | null) {
   return useInfiniteQuery({
     queryKey: ["salesOrders", "list", status],
     queryFn: async ({ pageParam }) =>
-      (await apiClient.get<Page<SalesOrderSummary>>("/v1/sales-orders", { params: { limit: "50", ...(status ? { status } : {}), ...(pageParam ? { cursor: pageParam } : {}) } })).data,
+      (
+        await apiClient.get<Page<SalesOrderSummary>>("/v1/sales-orders", {
+          params: {
+            limit: "50",
+            ...(status ? { status } : {}),
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
+        })
+      ).data,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
     staleTime: 10_000,
@@ -187,7 +219,12 @@ export function useCreateSalesOrder(submissionKey?: string) {
   const qc = useQueryClient();
   return useMutation({
     meta: { feedback: "dialog" },
-    mutationFn: async (payload: CreateSalesOrderPayload) => (await apiClient.post<{ id: string; number: string }>("/v1/sales-orders", payload, { headers: { "Idempotency-Key": submissionKey ?? newId() } })).data,
+    mutationFn: async (payload: CreateSalesOrderPayload) =>
+      (
+        await apiClient.post<{ id: string; number: string }>("/v1/sales-orders", payload, {
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
+        })
+      ).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["salesOrders"] }),
   });
 }
@@ -195,7 +232,8 @@ export function useCreateSalesOrder(submissionKey?: string) {
 export function useCancelSalesOrder(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => (await apiClient.post<{ id: string }>(`/v1/sales-orders/${id}/cancel`, {})).data,
+    mutationFn: async () =>
+      (await apiClient.post<{ id: string }>(`/v1/sales-orders/${id}/cancel`, {})).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["salesOrders"] }),
   });
 }
@@ -203,6 +241,8 @@ export function useCancelSalesOrder(id: string) {
 // ── Invoices and credit notes ─────────────────────────────────────────────────
 
 export interface SalesInvoiceSummary {
+  readonly settlementStatus: "OPEN" | "PARTIAL" | "SETTLED" | "OVERDUE" | "RECORDED";
+  readonly outstandingAmount: string | null;
   readonly id: string;
   readonly documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
   readonly number: string;
@@ -258,7 +298,11 @@ export function useSalesInvoices(documentType: "INVOICE" | "CREDIT_NOTE" | "DEBI
     queryFn: async ({ pageParam }) =>
       (
         await apiClient.get<Page<SalesInvoiceSummary>>("/v1/sales-invoices", {
-          params: { limit: "50", ...(documentType ? { documentType } : {}), ...(pageParam ? { cursor: pageParam } : {}) },
+          params: {
+            limit: "50",
+            ...(documentType ? { documentType } : {}),
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
         })
       ).data,
     initialPageParam: undefined as string | undefined,
@@ -303,10 +347,14 @@ export function useCreateSalesInvoice(submissionKey?: string) {
     meta: { feedback: "dialog" },
     mutationFn: async (payload: CreateSalesInvoicePayload) =>
       (
-        await apiClient.post<{ id: string; number: string; totalGross: string }>("/v1/sales-invoices", payload, {
-          // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine submission.
-          headers: { "Idempotency-Key": submissionKey ?? newId() },
-        })
+        await apiClient.post<{ id: string; number: string; totalGross: string }>(
+          "/v1/sales-invoices",
+          payload,
+          {
+            // docs/04-DATA-MODEL-RULES.md §6: a fresh Idempotency-Key per genuine submission.
+            headers: { "Idempotency-Key": submissionKey ?? newId() },
+          },
+        )
       ).data,
     onSuccess: () => invalidateAfterPosting(qc),
   });
@@ -315,7 +363,14 @@ export function useCreateSalesInvoice(submissionKey?: string) {
 export interface CreditNotePayload {
   readonly creditDate: string;
   readonly notes?: string;
-  readonly lines: readonly { readonly originalLineId?: string; readonly warehouseId?: string; readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string }[];
+  readonly lines: readonly {
+    readonly originalLineId?: string;
+    readonly warehouseId?: string;
+    readonly description: string;
+    readonly quantity: string;
+    readonly unitPrice: string;
+    readonly taxCodeId: string;
+  }[];
 }
 
 export function useCreateCreditNote(invoiceId: string, submissionKey?: string) {
@@ -324,9 +379,13 @@ export function useCreateCreditNote(invoiceId: string, submissionKey?: string) {
     meta: { feedback: "dialog" },
     mutationFn: async (payload: CreditNotePayload) =>
       (
-        await apiClient.post<{ id: string; number: string }>(`/v1/sales-invoices/${invoiceId}/credit-notes`, payload, {
-          headers: { "Idempotency-Key": submissionKey ?? newId() },
-        })
+        await apiClient.post<{ id: string; number: string }>(
+          `/v1/sales-invoices/${invoiceId}/credit-notes`,
+          payload,
+          {
+            headers: { "Idempotency-Key": submissionKey ?? newId() },
+          },
+        )
       ).data,
     onSuccess: () => invalidateAfterPosting(qc),
   });
@@ -335,7 +394,12 @@ export function useCreateCreditNote(invoiceId: string, submissionKey?: string) {
 export interface DebitNotePayload {
   readonly debitDate: string;
   readonly notes?: string;
-  readonly lines: readonly { readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly taxCodeId: string }[];
+  readonly lines: readonly {
+    readonly description: string;
+    readonly quantity: string;
+    readonly unitPrice: string;
+    readonly taxCodeId: string;
+  }[];
 }
 
 export function useCreateDebitNote(invoiceId: string) {
@@ -343,9 +407,13 @@ export function useCreateDebitNote(invoiceId: string) {
   return useMutation({
     mutationFn: async (payload: DebitNotePayload) =>
       (
-        await apiClient.post<{ id: string; number: string }>(`/v1/sales-invoices/${invoiceId}/debit-notes`, payload, {
-          headers: { "Idempotency-Key": newId() },
-        })
+        await apiClient.post<{ id: string; number: string }>(
+          `/v1/sales-invoices/${invoiceId}/debit-notes`,
+          payload,
+          {
+            headers: { "Idempotency-Key": newId() },
+          },
+        )
       ).data,
     onSuccess: () => invalidateAfterPosting(qc),
   });

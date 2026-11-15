@@ -1,0 +1,161 @@
+/* Operational invoice selection and document history use the active direction tokens. */
+.mk-status-tabs,
+.mk-selection-actions,
+.mk-document-section-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.mk-status-tabs {
+  border-block-end: 1px solid var(--mk-border);
+  padding-block-end: 0.75rem;
+}
+.mk-status-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-action-radius, var(--mk-radius-sm));
+  background: var(--mk-surface);
+  color: var(--mk-text-muted);
+  cursor: pointer;
+  font: inherit;
+}
+.mk-status-tabs button[aria-pressed="true"] {
+  background: var(--mk-primary-soft);
+  border-color: var(--mk-primary);
+  color: var(--mk-primary);
+}
+.mk-status-tabs button:focus-visible {
+  outline: 2px solid var(--mk-primary);
+  outline-offset: 2px;
+}
+.mk-status-tabs button span {
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+}
+.mk-selection-actions {
+  padding: 0.35rem 0.65rem;
+  background: var(--mk-primary-soft);
+  border-radius: var(--mk-radius-sm);
+}
+.mk-document-section-header {
+  justify-content: space-between;
+  margin-block-end: 1rem;
+}
+.mk-document-section-header p {
+  margin: 0;
+  flex: 1 1 15rem;
+}
+.mk-document-flow,
+.mk-event-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mk-document-flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+}
+.mk-document-flow > li {
+  display: flex;
+  gap: 0.85rem;
+  padding: var(--mk-panel-pad, 1rem);
+  min-width: 0;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  background: var(--mk-surface);
+}
+.mk-document-flow > .mk-document-flow__current {
+  border-color: var(--mk-primary);
+  background: var(--mk-primary-soft);
+}
+.mk-document-flow__body {
+  min-width: 0;
+  flex: 1;
+}
+.mk-document-flow__icon,
+.mk-event-timeline__marker {
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.3rem;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-surface-3);
+  color: var(--mk-primary);
+}
+.mk-document-flow__heading,
+.mk-document-flow__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.mk-document-flow__heading {
+  font-size: 0.8rem;
+  color: var(--mk-text-muted);
+  margin-block-end: 0.6rem;
+}
+.mk-document-flow__meta {
+  margin-block-start: 0.75rem;
+  color: var(--mk-text-muted);
+  font-size: 0.8rem;
+}
+.mk-document-flow a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--mk-primary);
+  overflow-wrap: anywhere;
+}
+.mk-document-flow a .pi {
+  font-size: 0.7em;
+}
+.mk-document-flow__relations {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-block-start: 0.75rem;
+  padding-block-start: 0.65rem;
+  border-block-start: 1px solid var(--mk-border);
+  font-size: 0.8rem;
+}
+.mk-document-flow__relations > span:first-child {
+  color: var(--mk-text-muted);
+}
+.mk-event-timeline > li {
+  display: flex;
+  gap: 1rem;
+  position: relative;
+  padding-block-end: 1.5rem;
+}
+.mk-event-timeline > li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 1.1rem;
+  top: 2.3rem;
+  bottom: 0;
+  border-inline-start: 1px solid var(--mk-border-strong);
+}
+.mk-event-timeline__body {
+  min-width: 0;
+  flex: 1;
+}
+.mk-event-timeline__body > p {
+  margin: 0.35rem 0;
+  color: var(--mk-text-muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.mk-document-history .p-tabview-panels {
+  padding-inline: 0;
+}
+.mk-document-history .p-tabview-nav-link {
+  gap: 0.5rem;
+}

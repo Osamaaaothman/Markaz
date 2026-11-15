@@ -79,6 +79,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Interface style browser regression
+        run: |
+          npx vite build --config apps/web/vite.redesign.config.ts
+          node scripts/check-interface-styles.mjs
+          node scripts/check-document-interface.mjs
+
+      - name: Interface review screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interface-theme-review
+          path: output/interface-theme-qa/
+          if-no-files-found: ignore
+
       - name: Test
         run: npm run test
 

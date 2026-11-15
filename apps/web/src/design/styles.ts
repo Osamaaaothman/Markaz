@@ -17,3 +17,5 @@ import "./pages.css";
 import "./motion.css";
 import "./auth-life.css";
 import "./directions.css";
+import "./component-directions.css";
+import "./document-history.css";

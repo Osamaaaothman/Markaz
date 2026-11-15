@@ -1,18 +1,40 @@
 import { invoiceAuditSnapshot } from "../audit/invoice-audit-snapshot.js";
+import { loadOutstanding } from "../payments/outstanding.js";
+import { invoiceSettlementStatus, type InvoiceSettlementStatus } from "./invoice-settlement.js";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
-import type { IAccountingEngine, IAuditLogger, JournalLineInput, TransactionClient } from "../contracts.js";
+import type {
+  IAccountingEngine,
+  IAuditLogger,
+  JournalLineInput,
+  TransactionClient,
+} from "../contracts.js";
 import { companyCurrency } from "../accounting/company-currency.util.js";
 import { findOpenFiscalPeriod, fiscalYearKeyFor } from "../accounting/fiscal-period.util.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
 import { lockStockRow } from "../inventory/stock-row.repo.js";
 import { averageUnitCost } from "../inventory/weighted-average.util.js";
-import { issueStock, receiveStock, recordSettlements, settlementJournalLines, type CostSettlement } from "../inventory/provisional-cost.repo.js";
+import {
+  issueStock,
+  receiveStock,
+  recordSettlements,
+  settlementJournalLines,
+  type CostSettlement,
+} from "../inventory/provisional-cost.repo.js";
 import { returnShare } from "../inventory/return-amount.util.js";
 import { writeOutboxMessage } from "../outbox/outbox-writer.js";
 import { allocateDocumentNumber } from "../reference.js";
 import type { SalesActor } from "./quotation.service.js";
-import { SalesError, blankToNull, dateOnly, lockCustomer, resolveEgsUnitId, resolveSalesLines, totalsOf, type SalesLineInput } from "./sales-lines.js";
+import {
+  SalesError,
+  blankToNull,
+  dateOnly,
+  lockCustomer,
+  resolveEgsUnitId,
+  resolveSalesLines,
+  totalsOf,
+  type SalesLineInput,
+} from "./sales-lines.js";
 
 // Keeps the user-chosen date (determines fiscal period / what appears on the document) but
 // replaces the time component with the current wall-clock time so ZATCA issueTime is non-zero
@@ -20,7 +42,12 @@ import { SalesError, blankToNull, dateOnly, lockCustomer, resolveEgsUnitId, reso
 function withCurrentTime(date: Date): Date {
   const now = new Date();
   const result = new Date(date);
-  result.setUTCHours(now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds());
+  result.setUTCHours(
+    now.getUTCHours(),
+    now.getUTCMinutes(),
+    now.getUTCSeconds(),
+    now.getUTCMilliseconds(),
+  );
   return result;
 }
 
@@ -92,6 +119,8 @@ export interface SalesInvoiceResult {
 }
 
 export interface SalesInvoiceSummary {
+  readonly settlementStatus: InvoiceSettlementStatus;
+  readonly outstandingAmount: string | null;
   readonly id: string;
   readonly documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
   readonly number: string;
@@ -156,8 +185,16 @@ export interface SalesInvoiceListPage {
 
 type InvoiceRow = Prisma.SalesInvoiceGetPayload<{ include: { customer: true } }>;
 
-function toSummary(row: InvoiceRow): SalesInvoiceSummary {
+function toSummary(row: InvoiceRow, outstanding: Prisma.Decimal | null): SalesInvoiceSummary {
   return {
+    settlementStatus: invoiceSettlementStatus(
+      row.documentType,
+      row.totalGross,
+      outstanding,
+      row.dueDate ? dateOnly(row.dueDate) : null,
+      dateOnly(new Date()),
+    ),
+    outstandingAmount: outstanding?.toFixed(4) ?? null,
     id: row.id,
     documentType: row.documentType as "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE",
     number: row.number,
@@ -203,81 +240,177 @@ export class SalesInvoiceService {
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
       await lockCustomer(tx, actor.companyId, input.customerId);
-      const previous = await tx.salesInvoice.findFirst({ where: { companyId: actor.companyId, documentType: "INVOICE", journalEntry: { idempotencyKey } } });
-      if (previous) return { id: previous.id, number: previous.number, journalEntryId: previous.journalEntryId, totalGross: previous.totalGross.toFixed(4) };
+      const previous = await tx.salesInvoice.findFirst({
+        where: {
+          companyId: actor.companyId,
+          documentType: "INVOICE",
+          journalEntry: { idempotencyKey },
+        },
+      });
+      if (previous)
+        return {
+          id: previous.id,
+          number: previous.number,
+          journalEntryId: previous.journalEntryId,
+          totalGross: previous.totalGross.toFixed(4),
+        };
       const egsUnitId = await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId);
       const lines = await resolveSalesLines(tx, actor.companyId, input.lines);
 
       // ── order lines: lock, check the remaining quantity ──
-      const orderLineIds = [...new Set(input.lines.flatMap((l) => (l.salesOrderLineId ? [l.salesOrderLineId] : [])))];
+      const orderLineIds = [
+        ...new Set(input.lines.flatMap((l) => (l.salesOrderLineId ? [l.salesOrderLineId] : []))),
+      ];
       if (orderLineIds.length > 0) {
         await tx.$queryRaw`SELECT l.id FROM sales_order_lines l JOIN sales_orders o ON o.id = l.sales_order_id WHERE l.id = ANY(${orderLineIds}::text[]) AND o.company_id = ${actor.companyId} ORDER BY l.id FOR UPDATE OF l`;
       }
-      const orderLines = await tx.salesOrderLine.findMany({ where: { id: { in: orderLineIds }, salesOrder: { companyId: actor.companyId } }, include: { salesOrder: true } });
+      const orderLines = await tx.salesOrderLine.findMany({
+        where: { id: { in: orderLineIds }, salesOrder: { companyId: actor.companyId } },
+        include: { salesOrder: true },
+      });
       const orderLineById = new Map(orderLines.map((l) => [l.id, l]));
       const claimed = new Map<string, Prisma.Decimal>();
       input.lines.forEach((line, index) => {
         if (!line.salesOrderLineId) return;
         const orderLine = orderLineById.get(line.salesOrderLineId);
         const lineNumber = index + 1;
-        if (!orderLine || orderLine.salesOrder.companyId !== actor.companyId) throw new SalesError("ORDER_LINE_NOT_FOUND", "An order line was not found", lineNumber);
-        if (orderLine.salesOrder.customerId !== input.customerId) throw new SalesError("CUSTOMER_MISMATCH", "An order line belongs to a different customer", lineNumber);
-        if (orderLine.salesOrder.status === "CANCELLED" || orderLine.salesOrder.status === "INVOICED") {
+        if (!orderLine || orderLine.salesOrder.companyId !== actor.companyId)
+          throw new SalesError("ORDER_LINE_NOT_FOUND", "An order line was not found", lineNumber);
+        if (orderLine.salesOrder.customerId !== input.customerId)
+          throw new SalesError(
+            "CUSTOMER_MISMATCH",
+            "An order line belongs to a different customer",
+            lineNumber,
+          );
+        if (
+          orderLine.salesOrder.status === "CANCELLED" ||
+          orderLine.salesOrder.status === "INVOICED"
+        ) {
           throw new SalesError("INVALID_STATE", "That sales order is closed", lineNumber);
         }
-        if (!orderLine.unitPrice.equals(line.unitPrice) || orderLine.itemId !== (line.itemId ?? null) || orderLine.taxCodeId !== line.taxCodeId) {
-          throw new SalesError("ORDER_LINE_MISMATCH", "An invoice must retain its order line's item, price and tax code", lineNumber);
+        if (
+          !orderLine.unitPrice.equals(line.unitPrice) ||
+          orderLine.itemId !== (line.itemId ?? null) ||
+          orderLine.taxCodeId !== line.taxCodeId
+        ) {
+          throw new SalesError(
+            "ORDER_LINE_MISMATCH",
+            "An invoice must retain its order line's item, price and tax code",
+            lineNumber,
+          );
         }
         const quantity = new Prisma.Decimal(line.quantity);
         const used = (claimed.get(orderLine.id) ?? new Prisma.Decimal(0)).plus(quantity);
         claimed.set(orderLine.id, used);
         if (used.greaterThan(orderLine.quantity.minus(orderLine.invoicedQuantity))) {
-          throw new SalesError("OVER_INVOICED", "More than the quantity still to invoice on the order", lineNumber);
+          throw new SalesError(
+            "OVER_INVOICED",
+            "More than the quantity still to invoice on the order",
+            lineNumber,
+          );
         }
       });
 
       // ── stock lines: take the goods out at weighted-average cost ──
       const invoiceId = newId();
-      const costByLine = new Map<number, { unitCost: Prisma.Decimal; value: Prisma.Decimal; warehouseId: string }>();
+      const costByLine = new Map<
+        number,
+        { unitCost: Prisma.Decimal; value: Prisma.Decimal; warehouseId: string }
+      >();
       for (const line of lines) {
         const input_ = input.lines[line.lineNumber - 1]!;
         if (line.itemId === null) continue;
-        if (!input_.warehouseId) throw new SalesError("WAREHOUSE_REQUIRED", "A line with an item needs a warehouse", line.lineNumber);
-        const warehouse = await tx.warehouse.findFirst({ where: { id: input_.warehouseId, companyId: actor.companyId, isActive: true }, select: { id: true } });
-        if (!warehouse) throw new SalesError("WAREHOUSE_NOT_FOUND", "A warehouse on the invoice was not found", line.lineNumber);
+        if (!input_.warehouseId)
+          throw new SalesError(
+            "WAREHOUSE_REQUIRED",
+            "A line with an item needs a warehouse",
+            line.lineNumber,
+          );
+        const warehouse = await tx.warehouse.findFirst({
+          where: { id: input_.warehouseId, companyId: actor.companyId, isActive: true },
+          select: { id: true },
+        });
+        if (!warehouse)
+          throw new SalesError(
+            "WAREHOUSE_NOT_FOUND",
+            "A warehouse on the invoice was not found",
+            line.lineNumber,
+          );
         const stock = await lockStockRow(tx, actor.companyId, line.itemId, warehouse.id);
-        const referenceCost = stock.state.quantity.greaterThan(0) ? averageUnitCost(stock.state) : stock.lastUnitCost;
+        const referenceCost = stock.state.quantity.greaterThan(0)
+          ? averageUnitCost(stock.state)
+          : stock.lastUnitCost;
         // Linked prices were agreed earlier. A cost change cannot invalidate that agreement.
         if (!input_.salesOrderLineId && referenceCost && line.unitPrice.lessThan(referenceCost)) {
-          throw new SalesError("BELOW_COST", "Unit price is below the current reference cost", line.lineNumber);
+          throw new SalesError(
+            "BELOW_COST",
+            "Unit price is below the current reference cost",
+            line.lineNumber,
+          );
         }
-        const issued = await issueStock(tx, { companyId: actor.companyId, itemId: line.itemId, warehouseId: warehouse.id }, line.quantity,
-          { type: "sales_invoice", id: invoiceId, lineNumber: line.lineNumber }, await this.accountMappings.resolve(tx, actor.companyId, "COST_OF_GOODS_SOLD"));
-        costByLine.set(line.lineNumber, { unitCost: issued.unitCost, value: issued.value, warehouseId: warehouse.id });
+        const issued = await issueStock(
+          tx,
+          { companyId: actor.companyId, itemId: line.itemId, warehouseId: warehouse.id },
+          line.quantity,
+          { type: "sales_invoice", id: invoiceId, lineNumber: line.lineNumber },
+          await this.accountMappings.resolve(tx, actor.companyId, "COST_OF_GOODS_SOLD"),
+        );
+        costByLine.set(line.lineNumber, {
+          unitCost: issued.unitCost,
+          value: issued.value,
+          warehouseId: warehouse.id,
+        });
       }
-      const totalCost = [...costByLine.values()].reduce((sum, c) => sum.plus(c.value), new Prisma.Decimal(0));
+      const totalCost = [...costByLine.values()].reduce(
+        (sum, c) => sum.plus(c.value),
+        new Prisma.Decimal(0),
+      );
 
       const totals = totalsOf(lines);
-      if (totals.gross.isZero()) throw new SalesError("ZERO_DOCUMENT", "An invoice with nothing to pay cannot be posted");
+      if (totals.gross.isZero())
+        throw new SalesError("ZERO_DOCUMENT", "An invoice with nothing to pay cannot be posted");
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.invoiceDate);
-      if (!period) throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the invoice date");
+      if (!period)
+        throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the invoice date");
       const currency = await companyCurrency(tx, actor.companyId);
 
       // ── journal ──
-      const revenueByAccount = await this.revenueByAccount(tx, actor.companyId, lines, input.lines.map((l) => l.revenueAccountId));
+      const revenueByAccount = await this.revenueByAccount(
+        tx,
+        actor.companyId,
+        lines,
+        input.lines.map((l) => l.revenueAccountId),
+      );
       const journalLines: JournalLineInput[] = [
-        { accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"), debit: totals.gross.toFixed(4), description: "Sales invoice" },
+        {
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"),
+          debit: totals.gross.toFixed(4),
+          description: "Sales invoice",
+        },
       ];
       for (const [accountId, amount] of revenueByAccount) {
-        if (!amount.isZero()) journalLines.push({ accountId, credit: amount.toFixed(4), description: "Sales revenue" });
+        if (!amount.isZero())
+          journalLines.push({ accountId, credit: amount.toFixed(4), description: "Sales revenue" });
       }
       if (!totals.tax.isZero()) {
-        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"), credit: totals.tax.toFixed(4), description: "Output VAT" });
+        journalLines.push({
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"),
+          credit: totals.tax.toFixed(4),
+          description: "Output VAT",
+        });
       }
       if (!totalCost.isZero()) {
-        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "COST_OF_GOODS_SOLD"), debit: totalCost.toFixed(4), description: "Cost of goods sold" });
-        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY"), credit: totalCost.toFixed(4), description: "Cost of goods sold" });
+        journalLines.push({
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "COST_OF_GOODS_SOLD"),
+          debit: totalCost.toFixed(4),
+          description: "Cost of goods sold",
+        });
+        journalLines.push({
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY"),
+          credit: totalCost.toFixed(4),
+          description: "Cost of goods sold",
+        });
       }
 
       const posting = await this.engine.postEntry(
@@ -300,7 +433,13 @@ export class SalesInvoiceService {
 
       // The ledger numbers its entries under the source document type; the invoice has its own series.
       const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.invoiceDate);
-      const number = await allocateDocumentNumber(tx, actor.companyId, "sales_invoice_no", "INV", fiscalYear);
+      const number = await allocateDocumentNumber(
+        tx,
+        actor.companyId,
+        "sales_invoice_no",
+        "INV",
+        fiscalYear,
+      );
       const orderIds = [...new Set(orderLines.map((l) => l.salesOrderId))];
 
       await tx.salesInvoice.create({
@@ -387,18 +526,42 @@ export class SalesInvoiceService {
 
       // ── order counters and status ──
       for (const [lineId, quantity] of claimed) {
-        await tx.salesOrderLine.update({ where: { id: lineId }, data: { invoicedQuantity: { increment: quantity } } });
+        await tx.salesOrderLine.update({
+          where: { id: lineId },
+          data: { invoicedQuantity: { increment: quantity } },
+        });
       }
       for (const orderId of orderIds) {
-        const all = await tx.salesOrderLine.findMany({ where: { salesOrderId: orderId }, select: { quantity: true, invoicedQuantity: true } });
+        const all = await tx.salesOrderLine.findMany({
+          where: { salesOrderId: orderId },
+          select: { quantity: true, invoicedQuantity: true },
+        });
         const done = all.every((l) => l.invoicedQuantity.greaterThanOrEqualTo(l.quantity));
-        await tx.salesOrder.update({ where: { id: orderId }, data: { status: done ? "INVOICED" : "PARTIALLY_INVOICED", version: { increment: 1 } } });
+        await tx.salesOrder.update({
+          where: { id: orderId },
+          data: { status: done ? "INVOICED" : "PARTIALLY_INVOICED", version: { increment: 1 } },
+        });
       }
 
-      return { id: invoiceId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
+      return {
+        id: invoiceId,
+        number,
+        journalEntryId: posting.journalEntryId,
+        totalGross: totals.gross.toFixed(4),
+      };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "sales_invoice.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales") }, correlationId });
+    await this.audit.log({
+      actorId: actor.id,
+      action: "sales_invoice.posted",
+      entityType: "SalesInvoice",
+      entityId: result.id,
+      after: {
+        ...result,
+        ...(await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales")),
+      },
+      correlationId,
+    });
     return result;
   }
 
@@ -411,21 +574,49 @@ export class SalesInvoiceService {
     const result = await this.prisma.$transaction(async (tx) => {
       // Invoice tables are immutable for the runtime role; serialize returns without UPDATE privileges.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.companyId + ":sales-return:" + input.originalInvoiceId}, 0))::text`;
-      const original = await tx.salesInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId }, include: { lines: { include: { returnLines: true } } } });
+      const original = await tx.salesInvoice.findFirst({
+        where: { id: input.originalInvoiceId, companyId: actor.companyId },
+        include: { lines: { include: { returnLines: true } } },
+      });
       if (!original) throw new SalesError("NOT_FOUND", "Invoice not found");
-      const previous = await tx.journalEntry.findUnique({ where: { companyId_idempotencyKey: { companyId: actor.companyId, idempotencyKey } } });
+      const previous = await tx.journalEntry.findUnique({
+        where: { companyId_idempotencyKey: { companyId: actor.companyId, idempotencyKey } },
+      });
       if (previous) {
-        const note = await tx.salesInvoice.findFirst({ where: { journalEntryId: previous.id, originalInvoiceId: original.id, companyId: actor.companyId, documentType: "CREDIT_NOTE" } });
-        if (!note) throw new SalesError("INVALID_RETURN", "Submission key belongs to a different document");
-        return { id: note.id, number: note.number, journalEntryId: previous.id, totalGross: note.totalGross.toFixed(4) };
+        const note = await tx.salesInvoice.findFirst({
+          where: {
+            journalEntryId: previous.id,
+            originalInvoiceId: original.id,
+            companyId: actor.companyId,
+            documentType: "CREDIT_NOTE",
+          },
+        });
+        if (!note)
+          throw new SalesError("INVALID_RETURN", "Submission key belongs to a different document");
+        return {
+          id: note.id,
+          number: note.number,
+          journalEntryId: previous.id,
+          totalGross: note.totalGross.toFixed(4),
+        };
       }
-      if (original.documentType !== "INVOICE") throw new SalesError("NOT_AN_INVOICE", "A credit note can only be raised against an invoice");
+      if (original.documentType !== "INVOICE")
+        throw new SalesError(
+          "NOT_AN_INVOICE",
+          "A credit note can only be raised against an invoice",
+        );
       await lockCustomer(tx, actor.companyId, original.customerId);
       // A credit note inherits the original invoice's issuing unit by default -- it is the same
       // legal document lineage, not a fresh choice -- unless the caller explicitly overrides it.
-      const egsUnitId = input.egsUnitId ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId) : original.egsUnitId;
+      const egsUnitId = input.egsUnitId
+        ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId)
+        : original.egsUnitId;
       const shortfalls = await tx.inventoryShortfall.findMany({
-        where: { companyId: actor.companyId, sourceDocumentType: "sales_invoice", sourceDocumentId: original.id },
+        where: {
+          companyId: actor.companyId,
+          sourceDocumentType: "sales_invoice",
+          sourceDocumentId: original.id,
+        },
         include: { settlements: true },
       });
 
@@ -433,84 +624,197 @@ export class SalesInvoiceService {
       const seen = new Set<string>();
       const sources = input.lines.map((line) => {
         if (!linked) {
-          if (line.warehouseId !== undefined) throw new SalesError("INVALID_RETURN", "A warehouse requires an original stock invoice line");
+          if (line.warehouseId !== undefined)
+            throw new SalesError(
+              "INVALID_RETURN",
+              "A warehouse requires an original stock invoice line",
+            );
           return null;
         }
         const source = original.lines.find((l) => l.id === line.originalLineId);
-        if (!source || seen.has(source.id)) throw new SalesError("INVALID_RETURN", "Choose distinct lines from the original invoice");
+        if (!source || seen.has(source.id))
+          throw new SalesError("INVALID_RETURN", "Choose distinct lines from the original invoice");
         seen.add(source.id);
         const quantity = new Prisma.Decimal(line.quantity);
-        const returned = source.returnLines.reduce((sum, l) => sum.plus(l.quantity), new Prisma.Decimal(0));
-        if (!quantity.isFinite() || quantity.decimalPlaces() > 4 || !quantity.greaterThan(0) || quantity.plus(returned).greaterThan(source.quantity)) {
-          throw new SalesError("OVER_RETURN", "The return quantity exceeds the remaining invoice quantity");
+        const returned = source.returnLines.reduce(
+          (sum, l) => sum.plus(l.quantity),
+          new Prisma.Decimal(0),
+        );
+        if (
+          !quantity.isFinite() ||
+          quantity.decimalPlaces() > 4 ||
+          !quantity.greaterThan(0) ||
+          quantity.plus(returned).greaterThan(source.quantity)
+        ) {
+          throw new SalesError(
+            "OVER_RETURN",
+            "The return quantity exceeds the remaining invoice quantity",
+          );
         }
-        if (!source.itemId && line.warehouseId !== undefined) throw new SalesError("INVALID_RETURN", "Service returns cannot move stock");
-        const warehouseId = source.itemId ? line.warehouseId ?? source.warehouseId : null;
-        if (source.itemId && !warehouseId) throw new SalesError("WAREHOUSE_REQUIRED", "Choose a warehouse for returned goods");
-        const corrections = shortfalls.filter((s) => s.lineNumber === source.lineNumber).flatMap((s) => s.settlements)
-          .reduce((sum, s) => sum.plus(s.actualValue.minus(s.estimatedValue)), new Prisma.Decimal(0));
-        const restored = source.returnLines.reduce((sum, l) => sum.plus(l.costValue), new Prisma.Decimal(0));
+        if (!source.itemId && line.warehouseId !== undefined)
+          throw new SalesError("INVALID_RETURN", "Service returns cannot move stock");
+        const warehouseId = source.itemId ? (line.warehouseId ?? source.warehouseId) : null;
+        if (source.itemId && !warehouseId)
+          throw new SalesError("WAREHOUSE_REQUIRED", "Choose a warehouse for returned goods");
+        const corrections = shortfalls
+          .filter((s) => s.lineNumber === source.lineNumber)
+          .flatMap((s) => s.settlements)
+          .reduce(
+            (sum, s) => sum.plus(s.actualValue.minus(s.estimatedValue)),
+            new Prisma.Decimal(0),
+          );
+        const restored = source.returnLines.reduce(
+          (sum, l) => sum.plus(l.costValue),
+          new Prisma.Decimal(0),
+        );
         const remainingCost = source.costValue.plus(corrections).minus(restored);
-        if (remainingCost.lessThan(0)) throw new SalesError("INVALID_RETURN", "Settled return cost requires review");
-        return { source, quantity, returned, warehouseId, cost: returnShare(remainingCost, source.quantity.minus(returned), new Prisma.Decimal(0), quantity) };
+        if (remainingCost.lessThan(0))
+          throw new SalesError("INVALID_RETURN", "Settled return cost requires review");
+        return {
+          source,
+          quantity,
+          returned,
+          warehouseId,
+          cost: returnShare(
+            remainingCost,
+            source.quantity.minus(returned),
+            new Prisma.Decimal(0),
+            quantity,
+          ),
+        };
       });
       // The form supplies a calendar date; the original also carries its time of issuance.
       // A return on the same day is valid even when its input is midnight.
-      if (linked && dateOnly(input.creditDate) < dateOnly(original.invoiceDate)) throw new SalesError("INVALID_RETURN", "Return date cannot precede the invoice");
-      const lines = linked ? sources.map((entry, index) => {
-        const { source, quantity, returned } = entry!;
-        return { itemId: source.itemId, description: source.description, quantity, unitPrice: source.unitPrice,
-          taxCodeId: source.taxCodeId, taxRate: source.taxRate,
-          net: returnShare(source.netAmount, source.quantity, returned, quantity),
-          tax: returnShare(source.taxAmount, source.quantity, returned, quantity), lineNumber: index + 1 };
-      }) : await resolveSalesLines(tx, actor.companyId, input.lines);
+      if (linked && dateOnly(input.creditDate) < dateOnly(original.invoiceDate))
+        throw new SalesError("INVALID_RETURN", "Return date cannot precede the invoice");
+      const lines = linked
+        ? sources.map((entry, index) => {
+            const { source, quantity, returned } = entry!;
+            return {
+              itemId: source.itemId,
+              description: source.description,
+              quantity,
+              unitPrice: source.unitPrice,
+              taxCodeId: source.taxCodeId,
+              taxRate: source.taxRate,
+              net: returnShare(source.netAmount, source.quantity, returned, quantity),
+              tax: returnShare(source.taxAmount, source.quantity, returned, quantity),
+              lineNumber: index + 1,
+            };
+          })
+        : await resolveSalesLines(tx, actor.companyId, input.lines);
       const totals = totalsOf(lines);
-      if (totals.gross.isZero()) throw new SalesError("ZERO_DOCUMENT", "A credit note with nothing to credit cannot be posted");
+      if (totals.gross.isZero())
+        throw new SalesError(
+          "ZERO_DOCUMENT",
+          "A credit note with nothing to credit cannot be posted",
+        );
 
       // Credits already raised against this invoice, plus this one, never exceed the invoice.
       // Scoped to CREDIT_NOTE: a debit note (below) also sets originalInvoiceId, and must not count here.
       const credited = await tx.salesInvoice.aggregate({
-        where: { companyId: actor.companyId, originalInvoiceId: original.id, documentType: "CREDIT_NOTE" },
+        where: {
+          companyId: actor.companyId,
+          originalInvoiceId: original.id,
+          documentType: "CREDIT_NOTE",
+        },
         _sum: { totalGross: true },
       });
       const already = credited._sum.totalGross ?? new Prisma.Decimal(0);
       if (already.plus(totals.gross).greaterThan(original.totalGross)) {
-        throw new SalesError("CREDIT_EXCEEDS_INVOICE", "The credit notes would be worth more than the invoice");
+        throw new SalesError(
+          "CREDIT_EXCEEDS_INVOICE",
+          "The credit notes would be worth more than the invoice",
+        );
       }
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.creditDate);
-      if (!period) throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the credit note date");
+      if (!period)
+        throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the credit note date");
       const currency = linked ? original.currency : await companyCurrency(tx, actor.companyId);
 
-      const revenueByAccount = await this.revenueByAccount(tx, actor.companyId, lines, input.lines.map((l, i) => linked ? sources[i]!.source.revenueAccountId ?? undefined : l.revenueAccountId));
+      const revenueByAccount = await this.revenueByAccount(
+        tx,
+        actor.companyId,
+        lines,
+        input.lines.map((l, i) =>
+          linked ? (sources[i]!.source.revenueAccountId ?? undefined) : l.revenueAccountId,
+        ),
+      );
       const journalLines: JournalLineInput[] = [];
       for (const [accountId, amount] of revenueByAccount) {
-        if (!amount.isZero()) journalLines.push({ accountId, debit: amount.toFixed(4), description: "Credit note: revenue" });
+        if (!amount.isZero())
+          journalLines.push({
+            accountId,
+            debit: amount.toFixed(4),
+            description: "Credit note: revenue",
+          });
       }
       if (!totals.tax.isZero()) {
-        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"), debit: totals.tax.toFixed(4), description: "Credit note: output VAT" });
+        journalLines.push({
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"),
+          debit: totals.tax.toFixed(4),
+          description: "Credit note: output VAT",
+        });
       }
-      journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"), credit: totals.gross.toFixed(4), description: "Credit note" });
+      journalLines.push({
+        accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"),
+        credit: totals.gross.toFixed(4),
+        description: "Credit note",
+      });
 
       // Restore historical cost into the selected destination, never the selling price.
-      const destinationIds = [...new Set(sources.flatMap((entry) => entry?.warehouseId ? [entry.warehouseId] : []))];
-      const destinations = await tx.warehouse.findMany({ where: { id: { in: destinationIds }, companyId: actor.companyId, isActive: true }, select: { id: true } });
-      if (destinations.length !== destinationIds.length) throw new SalesError("WAREHOUSE_NOT_FOUND", "Choose an active warehouse belonging to this company");
-      const stockReturns = sources.filter((entry) => entry?.source.itemId && entry.warehouseId)
-        .sort((a, b) => (a!.source.itemId! + a!.warehouseId!).localeCompare(b!.source.itemId! + b!.warehouseId!));
+      const destinationIds = [
+        ...new Set(sources.flatMap((entry) => (entry?.warehouseId ? [entry.warehouseId] : []))),
+      ];
+      const destinations = await tx.warehouse.findMany({
+        where: { id: { in: destinationIds }, companyId: actor.companyId, isActive: true },
+        select: { id: true },
+      });
+      if (destinations.length !== destinationIds.length)
+        throw new SalesError(
+          "WAREHOUSE_NOT_FOUND",
+          "Choose an active warehouse belonging to this company",
+        );
+      const stockReturns = sources
+        .filter((entry) => entry?.source.itemId && entry.warehouseId)
+        .sort((a, b) =>
+          (a!.source.itemId! + a!.warehouseId!).localeCompare(b!.source.itemId! + b!.warehouseId!),
+        );
       let restoredCost = new Prisma.Decimal(0);
       const costSettlements: CostSettlement[] = [];
       for (const entry of stockReturns) {
         const { source, quantity, cost, warehouseId } = entry!;
-        costSettlements.push(...await receiveStock(tx, { companyId: actor.companyId, itemId: source.itemId!, warehouseId: warehouseId! }, quantity, cost,
-          { type: "sales_invoice", id: original.id, lineNumber: source.lineNumber }));
+        costSettlements.push(
+          ...(await receiveStock(
+            tx,
+            { companyId: actor.companyId, itemId: source.itemId!, warehouseId: warehouseId! },
+            quantity,
+            cost,
+            { type: "sales_invoice", id: original.id, lineNumber: source.lineNumber },
+          )),
+        );
         restoredCost = restoredCost.plus(cost);
       }
       if (restoredCost.greaterThan(0)) {
-        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY"), debit: restoredCost.toFixed(4), description: "Sales return: stock restored" });
-        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "COST_OF_GOODS_SOLD"), credit: restoredCost.toFixed(4), description: "Sales return: cost reversed" });
+        journalLines.push({
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY"),
+          debit: restoredCost.toFixed(4),
+          description: "Sales return: stock restored",
+        });
+        journalLines.push({
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "COST_OF_GOODS_SOLD"),
+          credit: restoredCost.toFixed(4),
+          description: "Sales return: cost reversed",
+        });
       }
-      if (costSettlements.length) journalLines.push(...settlementJournalLines(costSettlements, await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY")));
+      if (costSettlements.length)
+        journalLines.push(
+          ...settlementJournalLines(
+            costSettlements,
+            await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY"),
+          ),
+        );
 
       const noteId = newId();
       const posting = await this.engine.postEntry(
@@ -531,10 +835,23 @@ export class SalesInvoiceService {
         tx,
       );
 
-      await recordSettlements(tx, costSettlements, { type: "sales_credit_note", id: noteId }, posting.journalEntryId, actor.id, correlationId);
+      await recordSettlements(
+        tx,
+        costSettlements,
+        { type: "sales_credit_note", id: noteId },
+        posting.journalEntryId,
+        actor.id,
+        correlationId,
+      );
 
       const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.creditDate);
-      const number = await allocateDocumentNumber(tx, actor.companyId, "sales_credit_note_no", "CN", fiscalYear);
+      const number = await allocateDocumentNumber(
+        tx,
+        actor.companyId,
+        "sales_credit_note_no",
+        "CN",
+        fiscalYear,
+      );
       await tx.salesInvoice.create({
         data: {
           id: noteId,
@@ -569,7 +886,9 @@ export class SalesInvoiceService {
               itemId: sources[l.lineNumber - 1]?.source.itemId ?? null,
               warehouseId: sources[l.lineNumber - 1]?.warehouseId ?? null,
               costValue: sources[l.lineNumber - 1]?.cost ?? new Prisma.Decimal(0),
-              revenueAccountId: linked ? sources[l.lineNumber - 1]!.source.revenueAccountId : input.lines[l.lineNumber - 1]?.revenueAccountId ?? null,
+              revenueAccountId: linked
+                ? sources[l.lineNumber - 1]!.source.revenueAccountId
+                : (input.lines[l.lineNumber - 1]?.revenueAccountId ?? null),
               lineNumber: l.lineNumber,
             })),
           },
@@ -583,16 +902,46 @@ export class SalesInvoiceService {
           correlationId,
         });
       }
-      if (stockReturns.length) await tx.stockMovement.createMany({ data: stockReturns.map((entry) => {
-        const { source, quantity, cost, warehouseId } = entry!;
-        return { id: newId(), companyId: actor.companyId, itemId: source.itemId!, warehouseId: warehouseId!,
-          movementType: "RETURN", quantity, unitCost: cost.div(quantity).toDecimalPlaces(4), value: cost,
-          sourceDocumentType: "sales_credit_note", sourceDocumentId: noteId, journalEntryId: posting.journalEntryId, actorId: actor.id, correlationId };
-      }) });
-      return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
+      if (stockReturns.length)
+        await tx.stockMovement.createMany({
+          data: stockReturns.map((entry) => {
+            const { source, quantity, cost, warehouseId } = entry!;
+            return {
+              id: newId(),
+              companyId: actor.companyId,
+              itemId: source.itemId!,
+              warehouseId: warehouseId!,
+              movementType: "RETURN",
+              quantity,
+              unitCost: cost.div(quantity).toDecimalPlaces(4),
+              value: cost,
+              sourceDocumentType: "sales_credit_note",
+              sourceDocumentId: noteId,
+              journalEntryId: posting.journalEntryId,
+              actorId: actor.id,
+              correlationId,
+            };
+          }),
+        });
+      return {
+        id: noteId,
+        number,
+        journalEntryId: posting.journalEntryId,
+        totalGross: totals.gross.toFixed(4),
+      };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "sales_credit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales") }, correlationId });
+    await this.audit.log({
+      actorId: actor.id,
+      action: "sales_credit_note.posted",
+      entityType: "SalesInvoice",
+      entityId: result.id,
+      after: {
+        ...result,
+        ...(await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales")),
+      },
+      correlationId,
+    });
     return result;
   }
 
@@ -607,45 +956,88 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const original = await tx.salesInvoice.findFirst({ where: { id: input.originalInvoiceId, companyId: actor.companyId } });
+      const original = await tx.salesInvoice.findFirst({
+        where: { id: input.originalInvoiceId, companyId: actor.companyId },
+      });
       if (!original) throw new SalesError("NOT_FOUND", "Invoice not found");
-      if (original.documentType !== "INVOICE") throw new SalesError("NOT_AN_INVOICE", "A debit note can only be raised against an invoice");
+      if (original.documentType !== "INVOICE")
+        throw new SalesError(
+          "NOT_AN_INVOICE",
+          "A debit note can only be raised against an invoice",
+        );
       await lockCustomer(tx, actor.companyId, original.customerId);
       // Same inheritance rule as a credit note (above): defaults to the original invoice's unit.
-      const egsUnitId = input.egsUnitId ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId) : original.egsUnitId;
+      const egsUnitId = input.egsUnitId
+        ? await resolveEgsUnitId(tx, actor.companyId, input.egsUnitId)
+        : original.egsUnitId;
 
       const lines = await resolveSalesLines(
         tx,
         actor.companyId,
-        input.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, taxCodeId: l.taxCodeId })),
+        input.lines.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          taxCodeId: l.taxCodeId,
+        })),
       );
       const totals = totalsOf(lines);
-      if (totals.gross.isZero()) throw new SalesError("ZERO_DOCUMENT", "A debit note with nothing to debit cannot be posted");
+      if (totals.gross.isZero())
+        throw new SalesError(
+          "ZERO_DOCUMENT",
+          "A debit note with nothing to debit cannot be posted",
+        );
 
       // Debit notes already raised against this invoice, plus this one, never exceed the invoice —
       // the same symmetric rule as credit notes (above) and the purchasing debit note (D8).
       const debited = await tx.salesInvoice.aggregate({
-        where: { companyId: actor.companyId, originalInvoiceId: original.id, documentType: "DEBIT_NOTE" },
+        where: {
+          companyId: actor.companyId,
+          originalInvoiceId: original.id,
+          documentType: "DEBIT_NOTE",
+        },
         _sum: { totalGross: true },
       });
       const already = debited._sum.totalGross ?? new Prisma.Decimal(0);
       if (already.plus(totals.gross).greaterThan(original.totalGross)) {
-        throw new SalesError("DEBIT_EXCEEDS_INVOICE", "The debit notes would be worth more than the invoice");
+        throw new SalesError(
+          "DEBIT_EXCEEDS_INVOICE",
+          "The debit notes would be worth more than the invoice",
+        );
       }
 
       const period = await findOpenFiscalPeriod(tx, actor.companyId, input.debitDate);
-      if (!period) throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the debit note date");
+      if (!period)
+        throw new SalesError("NO_OPEN_PERIOD", "No open fiscal period covers the debit note date");
       const currency = await companyCurrency(tx, actor.companyId);
 
-      const revenueByAccount = await this.revenueByAccount(tx, actor.companyId, lines, input.lines.map((l) => l.revenueAccountId));
+      const revenueByAccount = await this.revenueByAccount(
+        tx,
+        actor.companyId,
+        lines,
+        input.lines.map((l) => l.revenueAccountId),
+      );
       const journalLines: JournalLineInput[] = [
-        { accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"), debit: totals.gross.toFixed(4), description: "Debit note" },
+        {
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_RECEIVABLE"),
+          debit: totals.gross.toFixed(4),
+          description: "Debit note",
+        },
       ];
       for (const [accountId, amount] of revenueByAccount) {
-        if (!amount.isZero()) journalLines.push({ accountId, credit: amount.toFixed(4), description: "Debit note: revenue" });
+        if (!amount.isZero())
+          journalLines.push({
+            accountId,
+            credit: amount.toFixed(4),
+            description: "Debit note: revenue",
+          });
       }
       if (!totals.tax.isZero()) {
-        journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"), credit: totals.tax.toFixed(4), description: "Debit note: output VAT" });
+        journalLines.push({
+          accountId: await this.accountMappings.resolve(tx, actor.companyId, "VAT_OUTPUT"),
+          credit: totals.tax.toFixed(4),
+          description: "Debit note: output VAT",
+        });
       }
 
       const noteId = newId();
@@ -668,7 +1060,13 @@ export class SalesInvoiceService {
       );
 
       const fiscalYear = await fiscalYearKeyFor(tx, actor.companyId, input.debitDate);
-      const number = await allocateDocumentNumber(tx, actor.companyId, "sales_debit_note_no", "SDN", fiscalYear);
+      const number = await allocateDocumentNumber(
+        tx,
+        actor.companyId,
+        "sales_debit_note_no",
+        "SDN",
+        fiscalYear,
+      );
       await tx.salesInvoice.create({
         data: {
           id: noteId,
@@ -713,10 +1111,25 @@ export class SalesInvoiceService {
           correlationId,
         });
       }
-      return { id: noteId, number, journalEntryId: posting.journalEntryId, totalGross: totals.gross.toFixed(4) };
+      return {
+        id: noteId,
+        number,
+        journalEntryId: posting.journalEntryId,
+        totalGross: totals.gross.toFixed(4),
+      };
     });
 
-    await this.audit.log({ actorId: actor.id, action: "sales_debit_note.posted", entityType: "SalesInvoice", entityId: result.id, after: { ...result, ...await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales") }, correlationId });
+    await this.audit.log({
+      actorId: actor.id,
+      action: "sales_debit_note.posted",
+      entityType: "SalesInvoice",
+      entityId: result.id,
+      after: {
+        ...result,
+        ...(await invoiceAuditSnapshot(this.prisma, actor.companyId, result.id, "sales")),
+      },
+      correlationId,
+    });
     return result;
   }
 
@@ -735,22 +1148,50 @@ export class SalesInvoiceService {
     });
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
-    return { data: page.map(toSummary), pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null } };
+    const invoiceIds = page.filter((row) => row.documentType === "INVOICE").map((row) => row.id);
+    const balances = invoiceIds.length
+      ? await loadOutstanding(this.prisma, companyId, "SALES", { ids: invoiceIds })
+      : [];
+    const byId = new Map(balances.map((row) => [row.id, row.outstanding]));
+    return {
+      data: page.map((row) => toSummary(row, byId.get(row.id) ?? null)),
+      pageInfo: { hasMore, nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null },
+    };
   }
 
   async get(companyId: string, id: string): Promise<SalesInvoiceDetail> {
     const row = await this.prisma.salesInvoice.findFirst({
       where: { id, companyId },
-      include: { customer: true, lines: { orderBy: { lineNumber: "asc" }, include: { returnLines: true, warehouse: { select: { name: true, nameAr: true } } } } },
+      include: {
+        customer: true,
+        lines: {
+          orderBy: { lineNumber: "asc" },
+          include: { returnLines: true, warehouse: { select: { name: true, nameAr: true } } },
+        },
+      },
     });
     if (!row) throw new SalesError("NOT_FOUND", "Invoice not found");
+    const balance =
+      row.documentType === "INVOICE"
+        ? ((await loadOutstanding(this.prisma, companyId, "SALES", { ids: [id] }))[0]
+            ?.outstanding ?? null)
+        : null;
     const outstanding = await this.prisma.inventoryShortfall.findMany({
-      where: { companyId, sourceDocumentType: "sales_invoice", sourceDocumentId: id, remainingQuantity: { gt: 0 } },
+      where: {
+        companyId,
+        sourceDocumentType: "sales_invoice",
+        sourceDocumentId: id,
+        remainingQuantity: { gt: 0 },
+      },
       select: { costKnown: true },
     });
     return {
-      ...toSummary(row),
-      stockCostStatus: outstanding.some((s) => !s.costKnown) ? "PENDING" : outstanding.length ? "PROVISIONAL" : "FINAL",
+      ...toSummary(row, balance),
+      stockCostStatus: outstanding.some((s) => !s.costKnown)
+        ? "PENDING"
+        : outstanding.length
+          ? "PROVISIONAL"
+          : "FINAL",
       notes: row.notes,
       customerVatNumber: row.customer.vatNumber,
       customerPhone: row.customer.phone,
@@ -772,7 +1213,9 @@ export class SalesInvoiceService {
         warehouseId: l.warehouseId,
         warehouseName: l.warehouse?.name ?? null,
         warehouseNameAr: l.warehouse?.nameAr ?? null,
-        returnableQuantity: l.quantity.minus(l.returnLines.reduce((sum, r) => sum.plus(r.quantity), new Prisma.Decimal(0))).toFixed(4),
+        returnableQuantity: l.quantity
+          .minus(l.returnLines.reduce((sum, r) => sum.plus(r.quantity), new Prisma.Decimal(0)))
+          .toFixed(4),
         description: l.description,
         quantity: l.quantity.toFixed(4),
         unitPrice: l.unitPrice.toFixed(4),
@@ -801,8 +1244,18 @@ export class SalesInvoiceService {
       let accountId: string;
       if (override) {
         const account = accountById.get(override);
-        if (!account) throw new SalesError("ACCOUNT_NOT_FOUND", "A revenue account on the document was not found", line.lineNumber);
-        if (!account.isPostable) throw new SalesError("ACCOUNT_NOT_POSTABLE", "A revenue account on the document is a group, not a postable account", line.lineNumber);
+        if (!account)
+          throw new SalesError(
+            "ACCOUNT_NOT_FOUND",
+            "A revenue account on the document was not found",
+            line.lineNumber,
+          );
+        if (!account.isPostable)
+          throw new SalesError(
+            "ACCOUNT_NOT_POSTABLE",
+            "A revenue account on the document is a group, not a postable account",
+            line.lineNumber,
+          );
         accountId = account.id;
       } else {
         defaultAccountId ??= await this.accountMappings.resolve(tx, companyId, "SALES_REVENUE");

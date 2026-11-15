@@ -5,6 +5,23 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Complete interface style coverage (2026-11-15)
+
+- Apply Balance, Canvas and Precision to small/gridlined tables, account trees,
+  rounded/icon/segmented actions, pagination, popup menus, calendars and feedback.
+- Add an operational component gallery using the application's shared controls
+  and a browser regression gate covering locales, modes, mobile and palettes.
+- Synchronize PrimeReact provider locale so portal and control labels follow the
+  active language.
+- Add sales invoice settlement status and outstanding balances from the existing
+  receipt/credit/debit-note balance calculation, plus loaded-row status filters,
+  page checkboxes and selected CSV export. No posting calculation changes.
+- Replace the collapsed document list with linked document cards and a permission-
+  checked Activity tab that opens existing recorded audit details on invoice,
+  voucher and other document pages. Remove Precision's secondary navigation bar.
+- Fix wide-table sticky headers intercepting the first row's controls. Gate the
+  actual invoice/voucher routes with browser checks. No database migrations.
+
 ### Combined production release (2026-11-15)
 
 - Add company-scoped cost centers, projects and departments to expense lines and

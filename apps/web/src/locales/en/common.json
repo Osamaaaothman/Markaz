@@ -1079,7 +1079,17 @@
       "openOriginal": "Open the invoice",
       "downloadPdf": "Download PDF",
       "customerDetails": "Buyer details",
-      "customerAddress": "Buyer address"
+      "customerAddress": "Buyer address",
+      "settlement": "Settlement status",
+      "outstanding": "Outstanding",
+      "settlementStates": {
+        "OPEN": "Unsettled",
+        "PARTIAL": "Partly settled",
+        "SETTLED": "Settled",
+        "OVERDUE": "Overdue",
+        "RECORDED": "Posted"
+      },
+      "statusHint": "Status follows the balance after linked vouchers and notes. Counts and filters cover loaded invoices; load more for remaining results."
     },
     "item": "Item (or service)",
     "priceLocked": "Price is fixed by the linked sales order."
@@ -1198,7 +1208,11 @@
     "empty": "No cost centers; add them in the directory",
     "legacy": "Previous reference",
     "duplicate": "This code is already in use",
-    "kinds": { "COST_CENTER": "Cost center", "PROJECT": "Project", "DEPARTMENT": "Department" }
+    "kinds": {
+      "COST_CENTER": "Cost center",
+      "PROJECT": "Project",
+      "DEPARTMENT": "Department"
+    }
   },
   "cashExpenses": {
     "title": "Cash Expenses",
@@ -1389,7 +1403,38 @@
     "kbdPalette": "Open the command palette",
     "kbdSlash": "Open it from anywhere that is not a text field",
     "kbdEnter": "Next field in a document line; the last field adds a line",
-    "kbdEsc": "Close a dialog or the palette"
+    "kbdEsc": "Close a dialog or the palette",
+    "gallery": {
+      "title": "Operational components",
+      "note": "The same controls used across the application, with local sample data. Change the design or palette in the topbar to compare them without clearing your input.",
+      "actions": "Action variants and permissions",
+      "success": "Success action",
+      "warning": "Warning action",
+      "info": "Information action",
+      "danger": "Danger action",
+      "secondary": "Secondary action",
+      "large": "Large action",
+      "fields": "Additional form controls",
+      "quantity": "Quantity",
+      "password": "Password",
+      "multiselect": "Multiple choices",
+      "notes": "Notes",
+      "readonly": "Read-only reference",
+      "choice": "Sample choice",
+      "grid": "Shared grid: search, filters, columns and pagination",
+      "tree": "Expandable account tree",
+      "accounts": "Accounts",
+      "overlays": "Popups, feedback and identity",
+      "popover": "Open popover",
+      "created": "Show result dialog",
+      "toast": "Show notification",
+      "tooltip": "Hover or focus for a hint",
+      "avatar": "Sample profile",
+      "localOnly": "Sample only — no record has been saved",
+      "feedback": "Messages",
+      "empty": "Empty state",
+      "files": "Files and progress"
+    }
   },
   "exportProgress": {
     "preparing": "Preparing the file…",
@@ -1408,7 +1453,12 @@
     "resetColumns": "Show all columns",
     "matches": "{{shown}} of {{total}} rows",
     "noMatch": "Nothing matches your search.",
-    "report": "⁦{first}–{last}⁩ of {totalRecords}"
+    "report": "⁦{first}–{last}⁩ of {totalRecords}",
+    "selectPage": "Select current page rows",
+    "selectRow": "Select {{number}}",
+    "selected": "{{count}} selected",
+    "exportSelected": "Export selected CSV",
+    "clearSelection": "Clear selection"
   },
   "attachments": {
     "saving": "Saving…",
@@ -1483,11 +1533,19 @@
     "directionPalette": "Use this style’s original colours",
     "originalLook": "Existing style",
     "recommended": "Recommended",
-    "moduleNavigation": "Workspace sections",
     "directions": {
-      "balance": { "name": "Balance", "description": "Anchored navigation, gently squared controls and connected metrics. Clear and practical for everyday work." },
-      "canvas": { "name": "Canvas", "description": "Floating navigation, rounded cards and generous space. A calm, spacious workspace." },
-      "precision": { "name": "Precision", "description": "An icon rail, section shortcuts, square edges and dense tables. Built for frequent users." }
+      "balance": {
+        "name": "Balance",
+        "description": "Anchored navigation, gently squared controls and connected metrics. Clear and practical for everyday work."
+      },
+      "canvas": {
+        "name": "Canvas",
+        "description": "Floating navigation, rounded cards and generous space. A calm, spacious workspace."
+      },
+      "precision": {
+        "name": "Precision",
+        "description": "An expandable icon rail, square edges and dense tables. Built for frequent users."
+      }
     },
     "title": "Interface",
     "subtitle": "Personal display preferences, kept on this device only.",
@@ -2410,7 +2468,12 @@
       "VOIDED": "Reversed",
       "RECEIPT": "Receipt",
       "PAYMENT": "Payment"
-    }
+    },
+    "activity": "Activity",
+    "activityHint": "Recorded events for this document, with the user, time and change details.",
+    "noActivity": "No recorded activity for this document",
+    "relatedDocuments": "Related documents",
+    "current": "Current document"
   },
   "primeAria": {
     "collapseRow": "Collapse row",
@@ -2431,7 +2494,10 @@
     "removeLabel": "Remove",
     "filterConstraint": "Filter constraint",
     "filterOperator": "Filter operator",
-    "listLabel": "Options list"
+    "listLabel": "Options list",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "jumpToPageDropdownLabel": "Rows per page"
   },
   "returns": {
     "salesTitle": "Sales returns",

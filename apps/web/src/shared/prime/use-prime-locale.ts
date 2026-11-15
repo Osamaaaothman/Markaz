@@ -1,6 +1,6 @@
 import arCommon from "../../locales/ar/common.json";
-import { useEffect } from "react";
-import { addLocale, locale } from "primereact/api";
+import { useContext, useEffect } from "react";
+import { addLocale, locale, PrimeReactContext } from "primereact/api";
 import { useTranslation } from "react-i18next";
 
 // PrimeReact ships English strings only. Arabic text for the parts we use: the column filter menu, the date
@@ -10,8 +10,34 @@ addLocale("ar", {
   dayNames: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
   dayNamesShort: ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"],
   dayNamesMin: ["ح", "ن", "ث", "ر", "خ", "ج", "س"],
-  monthNames: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
-  monthNamesShort: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
+  monthNames: [
+    "يناير",
+    "فبراير",
+    "مارس",
+    "أبريل",
+    "مايو",
+    "يونيو",
+    "يوليو",
+    "أغسطس",
+    "سبتمبر",
+    "أكتوبر",
+    "نوفمبر",
+    "ديسمبر",
+  ],
+  monthNamesShort: [
+    "يناير",
+    "فبراير",
+    "مارس",
+    "أبريل",
+    "مايو",
+    "يونيو",
+    "يوليو",
+    "أغسطس",
+    "سبتمبر",
+    "أكتوبر",
+    "نوفمبر",
+    "ديسمبر",
+  ],
   today: "اليوم",
   clear: "مسح",
   apply: "تطبيق",
@@ -62,7 +88,10 @@ addLocale("ar", {
 
 export function usePrimeLocale(): void {
   const { i18n } = useTranslation();
+  const { setLocale } = useContext(PrimeReactContext);
   useEffect(() => {
-    locale(i18n.language === "ar" ? "ar" : "en");
-  }, [i18n.language]);
+    const language = i18n.language.startsWith("ar") ? "ar" : "en";
+    locale(language);
+    setLocale?.(language);
+  }, [i18n.language, setLocale]);
 }

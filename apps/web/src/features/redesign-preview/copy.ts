@@ -69,8 +69,8 @@ export const copy: Record<string, readonly [string, string]> = {
     "زوايا 18px · قائمة عائمة · كروت منفصلة",
   ],
   precisionShape: [
-    "Square edges · icon rail · horizontal modules",
-    "زوايا مستقيمة · شريط أيقونات · أقسام أفقية",
+    "Square edges · icon rail · compact tables",
+    "زوايا مستقيمة · شريط أيقونات · جداول مكثّفة",
   ],
   language: ["العربية", "English"],
   dark: ["Dark mode", "الوضع الداكن"],

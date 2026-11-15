@@ -1,10 +1,24 @@
-import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { Checkbox } from "primereact/checkbox";
 import { FilterMatchMode } from "primereact/api";
-import { DataTable, type DataTableFilterMeta, type DataTableRowClickEvent, type DataTableValueArray } from "primereact/datatable";
+import {
+  DataTable,
+  type DataTableFilterMeta,
+  type DataTableRowClickEvent,
+  type DataTableSelectionMultipleChangeEvent,
+  type DataTableValueArray,
+} from "primereact/datatable";
 import { InputText } from "primereact/inputtext";
 import { OverlayPanel } from "primereact/overlaypanel";
 import { EmptyState, type EmptyStateAction } from "./EmptyState";
@@ -19,6 +33,11 @@ export interface DataGridProps {
   readonly size?: "small" | "normal" | "large";
   readonly selectionMode?: "single";
   readonly onRowClick?: (event: DataTableRowClickEvent) => void;
+  readonly rowSelection?: {
+    readonly ids: readonly string[];
+    readonly onChange: (ids: string[]) => void;
+    readonly labelField: string;
+  };
   // Extra filter controls (a status dropdown, a date range) drawn next to the search box.
   readonly toolbar?: React.ReactNode;
   readonly searchable?: boolean;
@@ -122,16 +141,37 @@ interface FilteredColumn {
 function filteredColumnsOf(columns: readonly React.ReactNode[]): FilteredColumn[] {
   return columns.flatMap((child) => {
     if (!isValidElement(child)) return [];
-    const props = child.props as { filter?: boolean; field?: string; filterMatchMode?: FilterMatchMode };
-    return props.filter && props.field ? [{ field: props.field, matchMode: props.filterMatchMode ?? FilterMatchMode.CONTAINS }] : [];
+    const props = child.props as {
+      filter?: boolean;
+      field?: string;
+      filterMatchMode?: FilterMatchMode;
+    };
+    return props.filter && props.field
+      ? [{ field: props.field, matchMode: props.filterMatchMode ?? FilterMatchMode.CONTAINS }]
+      : [];
   });
 }
 
 function emptyFilters(columns: readonly FilteredColumn[]): DataTableFilterMeta {
-  return Object.fromEntries(columns.map(({ field, matchMode }) => [field, { value: null, matchMode }]));
+  return Object.fromEntries(
+    columns.map(({ field, matchMode }) => [field, { value: null, matchMode }]),
+  );
 }
 
-export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, className = "", children, emptyMessage, emptyIcon, emptyAction, ...rest }: DataGridProps): React.JSX.Element {
+export function DataGrid({
+  value,
+  toolbar,
+  rowSelection,
+  selectionMode,
+  searchable = true,
+  pageSize = 25,
+  className = "",
+  children,
+  emptyMessage,
+  emptyIcon,
+  emptyAction,
+  ...rest
+}: DataGridProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const [first, setFirst] = useState(0);
@@ -145,7 +185,8 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
     const table = root.current?.querySelector<HTMLElement>(".p-datatable-table");
     const wrapper = root.current?.querySelector<HTMLElement>(".p-datatable-wrapper");
     if (!table || !wrapper || typeof ResizeObserver === "undefined") return;
-    const measure = (): void => setOverflowing(table.scrollWidth > (root.current?.clientWidth ?? 0) + 1);
+    const measure = (): void =>
+      setOverflowing(table.scrollWidth > (root.current?.clientWidth ?? 0) + 1);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(table);
@@ -155,23 +196,42 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
 
   const columns = useMemo(() => Children.toArray(children), [children]);
   const filteredColumns = useMemo(() => filteredColumnsOf(columns), [columns]);
-  const headers = useMemo(() => columns.map(headerOf).filter((h): h is string => h !== null), [columns]);
+  const headers = useMemo(
+    () => columns.map(headerOf).filter((h): h is string => h !== null),
+    [columns],
+  );
   const toggleable = headers.length >= MIN_TOGGLEABLE;
   // The column titles identify the table: two screens never share the same set of titles.
   const storageKey = `mk-cols:${headers.join("|")}`;
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => readHidden(storageKey));
-  const visible = toggleable ? columns.filter((child) => !hidden.has(headerOf(child) ?? "\u0000")) : columns;
+  const visible = toggleable
+    ? columns.filter((child) => !hidden.has(headerOf(child) ?? "\u0000"))
+    : columns;
   // A column filter stays a plain contains-box: no match-mode picker, no extra rules.
   const shown = visible.map((child) =>
     isValidElement(child) && (child.props as { filter?: boolean }).filter
-      ? cloneElement(child as React.ReactElement<Record<string, unknown>>, { showFilterMatchModes: false, showFilterOperator: false, showAddButton: false, filterPlaceholder: t("table.filterPlaceholder") })
+      ? cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+          showFilterMatchModes: false,
+          showFilterOperator: false,
+          showAddButton: false,
+          filterPlaceholder: t("table.filterPlaceholder"),
+        })
       : child,
   );
   const hasFilters = filteredColumns.length > 0;
 
-  const indexed = useMemo(() => (value ?? []).map((row) => ({ row, text: haystack(row) })), [value]);
+  const indexed = useMemo(
+    () => (value ?? []).map((row) => ({ row, text: haystack(row) })),
+    [value],
+  );
   const needle = query.trim().toLocaleLowerCase();
-  const filtered = useMemo(() => (needle ? indexed.filter((entry) => entry.text.includes(needle)).map((entry) => entry.row) : (value ?? [])), [indexed, needle, value]);
+  const filtered = useMemo(
+    () =>
+      needle
+        ? indexed.filter((entry) => entry.text.includes(needle)).map((entry) => entry.row)
+        : (value ?? []),
+    [indexed, needle, value],
+  );
   const [filters, setFilters] = useState<DataTableFilterMeta>(() => emptyFilters(filteredColumns));
   // Rows left after the column filters too, as reported by the table itself.
   const [afterFilters, setAfterFilters] = useState<number | null>(null);
@@ -198,6 +258,7 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setFirst(0);
+                  rowSelection?.onChange([]);
                 }}
                 placeholder={t("table.search")}
                 aria-label={t("table.search")}
@@ -223,7 +284,10 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
                   {headers.map((header, index) => (
                     <li key={`${header}-${index}`}>
                       <label>
-                        <Checkbox checked={!hidden.has(header)} onChange={(e) => toggleColumn(header, Boolean(e.checked))} />
+                        <Checkbox
+                          checked={!hidden.has(header)}
+                          onChange={(e) => toggleColumn(header, Boolean(e.checked))}
+                        />
                         <span>{header}</span>
                       </label>
                     </li>
@@ -244,7 +308,11 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
               </OverlayPanel>
             </>
           ) : null}
-          <span className="mk-grid__count">{needle || total !== (value?.length ?? 0) ? t("table.matches", { shown: total, total: value?.length ?? 0 }) : t("table.rowCount", { total })}</span>
+          <span className="mk-grid__count">
+            {needle || total !== (value?.length ?? 0)
+              ? t("table.matches", { shown: total, total: value?.length ?? 0 })
+              : t("table.rowCount", { total })}
+          </span>
         </div>
       ) : null}
 
@@ -254,6 +322,23 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
       <DataTable
         key={`${[...hidden].sort().join("|")}:${i18n.language}`}
         {...rest}
+        {...(rowSelection
+          ? {
+              selectionMode: "checkbox" as const,
+              selection: filtered.filter((row) =>
+                rowSelection.ids.includes(rowId(row) ?? ""),
+              ) as DataTableValueArray,
+              onSelectionChange: (
+                event: DataTableSelectionMultipleChangeEvent<DataTableValueArray>,
+              ) =>
+                rowSelection.onChange(
+                  event.value.map(rowId).filter((id): id is string => id !== null),
+                ),
+              dataKey: "id",
+              selectionPageOnly: true,
+              selectionAriaLabel: rowSelection.labelField,
+            }
+          : { selectionMode })}
         value={filtered as unknown as DataTableValueArray}
         className={className.includes("erp-table") ? className : `erp-table ${className}`.trim()}
         filters={hasFilters ? filters : undefined}
@@ -261,13 +346,18 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
         onFilter={(e) => {
           setFilters(e.filters);
           setFirst(0);
+          rowSelection?.onChange([]);
         }}
         onValueChange={(rows) => setAfterFilters(hasFilters ? rows.length : null)}
         emptyMessage={
           needle ? (
             <EmptyState icon="pi pi-search" title={t("table.noMatch")} />
           ) : (
-            <EmptyState icon={emptyIcon} title={emptyMessage ?? t("status.empty")} action={emptyAction && emptyAction.allowed !== false ? emptyAction : undefined} />
+            <EmptyState
+              icon={emptyIcon}
+              title={emptyMessage ?? t("status.empty")}
+              action={emptyAction && emptyAction.allowed !== false ? emptyAction : undefined}
+            />
           )
         }
         paginator={showPaginator}
@@ -281,8 +371,17 @@ export function DataGrid({ value, toolbar, searchable = true, pageSize = 25, cla
         paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
         currentPageReportTemplate={t("table.report")}
       >
+        {rowSelection ? (
+          <Column key="mk-selection" selectionMode="multiple" style={{ width: "3rem" }} />
+        ) : null}
         {shown}
-        {rowId(value?.[0]) !== null ? <Column key="mk-copy-id" style={{ width: "3.5rem" }} body={(row: object) => (rowId(row) ? <CopyIdButton id={rowId(row) as string} /> : null)} /> : null}
+        {rowId(value?.[0]) !== null ? (
+          <Column
+            key="mk-copy-id"
+            style={{ width: "3.5rem" }}
+            body={(row: object) => (rowId(row) ? <CopyIdButton id={rowId(row) as string} /> : null)}
+          />
+        ) : null}
       </DataTable>
     </div>
   );
