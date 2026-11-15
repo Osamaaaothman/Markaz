@@ -18,8 +18,7 @@
   },
   "app": {
     "name": "Markaz",
-    "tagline": "Accounting, done right",
-    "preparing": "Preparing your data…"
+    "tagline": "Accounting, done right"
   },
   "nav": {
     "dashboard": "Dashboard",
