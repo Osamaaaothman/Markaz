@@ -1,12 +1,60 @@
 .compliance-test-notice {
-  padding: var(--mk-space-4);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--mk-space-1) var(--mk-space-2);
+  margin-block-end: var(--mk-space-4);
+  padding: var(--mk-space-3) var(--mk-space-4);
   border: 1px solid var(--mk-warning);
   border-inline-start-width: 4px;
   border-radius: var(--mk-radius-sm);
   color: var(--mk-warning);
   background: var(--mk-warning-soft);
   font-weight: 600;
-  line-height: 1.7;
+  line-height: 1.5;
+}
+
+/* header row of an .erp-card: title on one side, status tags on the other */
+.erp-card__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--mk-space-2);
+  margin-block-end: var(--mk-space-3);
+}
+
+.erp-card__header .erp-card__title {
+  margin: 0;
+  flex-grow: 1;
+}
+
+/* label/value pairs, two columns: label muted + narrow, value flexible */
+.erp-detail-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--mk-space-4);
+  row-gap: var(--mk-space-2);
+  margin-block: 0 var(--mk-space-4);
+}
+
+.erp-detail-grid dt {
+  color: var(--mk-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.erp-detail-grid dd {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .erp-detail-grid {
+    grid-template-columns: 1fr;
+    row-gap: var(--mk-space-1);
+  }
+  .erp-detail-grid dd {
+    margin-block-end: var(--mk-space-2);
+  }
 }
 
 .compliance-invoice-filters {
