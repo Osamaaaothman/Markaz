@@ -514,21 +514,8 @@ html[dir="rtl"] .mk-tiles {
   animation-delay: calc(var(--i, 0) * 55ms + 80ms);
 }
 
-/* the plank each book stands on; neighbouring planks meet to read as one shelf */
 .mk-slot {
   position: relative;
-}
-
-.mk-slot::after {
-  content: "";
-  position: absolute;
-  inset-inline: -8px;
-  inset-block-end: -10px;
-  block-size: 8px;
-  border: 1px solid var(--mk-border-strong);
-  border-radius: 3px;
-  background: var(--mk-surface-3);
-  box-shadow: var(--mk-shadow-xs);
 }
 
 .mk-tile {
