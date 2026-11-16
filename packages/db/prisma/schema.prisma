@@ -108,6 +108,7 @@ model Company {
   quotations              Quotation[]
   salesOrders             SalesOrder[]
   salesInvoices           SalesInvoice[]
+  goodsDeliveryNotes      GoodsDeliveryNote[]
   payments                Payment[]
   cashExpenses            CashExpense[]
   costCenters             CostCenter[]
@@ -458,6 +459,7 @@ model Party {
   quotations       Quotation[]
   salesOrders      SalesOrder[]
   salesInvoices    SalesInvoice[]
+  goodsDeliveryNotes GoodsDeliveryNote[]
   payments         Payment[]
   employees        Employee[]
 
@@ -743,6 +745,7 @@ model Item {
   quotationLines       QuotationLine[]
   salesOrderLines      SalesOrderLine[]
   salesInvoiceLines    SalesInvoiceLine[]
+  goodsDeliveryNoteLines GoodsDeliveryNoteLine[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -1366,13 +1369,16 @@ model SalesOrder {
   lines         SalesOrderLine[]
   quotations    Quotation[]
   salesInvoices SalesInvoice[]
+  deliveryNotes GoodsDeliveryNote[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
   @@map("sales_orders")
 }
 
-// invoicedQuantity is the only mutable column; the database backstops 0 <= invoiced <= ordered.
+// invoicedQuantity and deliveredQuantity are the only mutable columns; the database backstops
+// 0 <= invoiced <= ordered and 0 <= delivered <= ordered. Delivery is a paperwork record only
+// (docs/01-OPEN-DECISIONS.md E1 still holds: stock leaves at invoice, not at delivery note).
 model SalesOrderLine {
   id               String  @id
   salesOrderId     String  @map("sales_order_id")
@@ -1382,15 +1388,66 @@ model SalesOrderLine {
   unitPrice        Decimal @map("unit_price") @db.Decimal(19, 4)
   taxCodeId        String  @map("tax_code_id")
   invoicedQuantity Decimal @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
+  deliveredQuantity Decimal @default(0) @map("delivered_quantity") @db.Decimal(19, 4)
   lineNumber       Int     @map("line_number")
 
-  salesOrder   SalesOrder         @relation(fields: [salesOrderId], references: [id])
-  item         Item?              @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  taxCode      TaxCode            @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
-  invoiceLines SalesInvoiceLine[]
+  salesOrder        SalesOrder              @relation(fields: [salesOrderId], references: [id])
+  item               Item?                   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  taxCode            TaxCode                 @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
+  invoiceLines       SalesInvoiceLine[]
+  deliveryNoteLines  GoodsDeliveryNoteLine[]
 
   @@index([salesOrderId])
   @@map("sales_order_lines")
+}
+
+// A storekeeper's handover record, printed before the sales invoice — no prices, no amounts, no
+// stock movement and no journal entry (docs/01-OPEN-DECISIONS.md E1: goods still leave stock and
+// COGS still posts only at the invoice). One sales order may have several delivery notes
+// (partial deliveries); deliveredQuantity on the order line is the running total.
+model GoodsDeliveryNote {
+  submissionKey String? @map("submission_key")
+  @@unique([companyId, submissionKey])
+  id            String   @id
+  companyId     String   @map("company_id")
+  number        String
+  salesOrderId  String   @map("sales_order_id")
+  customerId    String   @map("customer_id")
+  deliveryDate  DateTime @map("delivery_date") @db.Date
+  // Typed at entry; the storekeeper's own signature is a blank line on the printed note, not
+  // captured digitally (the app has no e-signature capability).
+  driverName    String?  @map("driver_name")
+  receiverName  String?  @map("receiver_name")
+  notes         String?
+  createdBy     String   @map("created_by")
+  correlationId String   @map("correlation_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  company    Company                 @relation(fields: [companyId], references: [id])
+  customer   Party                   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  salesOrder SalesOrder              @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
+  lines      GoodsDeliveryNoteLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, salesOrderId])
+  @@map("goods_delivery_notes")
+}
+
+model GoodsDeliveryNoteLine {
+  id                  String  @id
+  goodsDeliveryNoteId String  @map("goods_delivery_note_id")
+  salesOrderLineId    String  @map("sales_order_line_id")
+  itemId              String? @map("item_id")
+  description         String
+  quantity            Decimal @db.Decimal(19, 4)
+  lineNumber          Int     @map("line_number")
+
+  goodsDeliveryNote GoodsDeliveryNote @relation(fields: [goodsDeliveryNoteId], references: [id])
+  salesOrderLine    SalesOrderLine    @relation(fields: [salesOrderLineId], references: [id], onDelete: Restrict)
+  item              Item?             @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([goodsDeliveryNoteId])
+  @@map("goods_delivery_note_lines")
 }
 
 // A posted sales document: an INVOICE, or a CREDIT_NOTE against one. Amounts are always positive;
