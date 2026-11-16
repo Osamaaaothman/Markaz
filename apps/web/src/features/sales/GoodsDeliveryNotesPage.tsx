@@ -22,6 +22,7 @@ import {
   useGoodsDeliveryNotes,
   useSalesOrder,
   useSalesOrders,
+  type GoodsDeliveryNoteLineView,
   type GoodsDeliveryNoteSummary,
   type SalesLineView,
   type SalesOrderSummary,
@@ -151,8 +152,8 @@ export function GoodsDeliveryNoteDetailPage(): React.JSX.Element {
       {note.notes ? <p>{note.notes}</p> : null}
 
       <DataGrid value={[...note.lines]} className="erp-table" stripedRows showGridlines size="small">
-        <Column header={t("inventory.items.displayName")} body={(l) => (l.itemCode ? `${l.itemCode} — ${localizedName({ name: l.itemName ?? l.description, nameAr: l.itemNameAr }, i18n.language)}` : l.description)} />
-        <Column header={t("purchasing.quantity")} align="right" body={(l) => l.quantity} />
+        <Column header={t("inventory.items.displayName")} body={(l: GoodsDeliveryNoteLineView) => (l.itemCode ? `${l.itemCode} — ${localizedName({ name: l.itemName ?? l.description, nameAr: l.itemNameAr }, i18n.language)}` : l.description)} />
+        <Column header={t("purchasing.quantity")} align="right" body={(l: GoodsDeliveryNoteLineView) => l.quantity} />
       </DataGrid>
 
       <div className="erp-form__actions">
