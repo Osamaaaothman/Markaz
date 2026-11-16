@@ -47,7 +47,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
   const setViewId = (id: string | null): void => { setParams((previous) => { const next = new URLSearchParams(previous); if (id) next.set("view", id); else next.delete("view"); return next; }); };
   const [created, setCreated] = useState<CreatedInfo | null>(null);
 
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseRequests(status);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = usePurchaseRequests(status);
   const requests = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
@@ -85,7 +85,7 @@ export function PurchaseRequestsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(row: PurchaseRequestSummary) => <span className="coa-code">{row.number}</span>} />
             <Column header={t("purchasing.date")} style={{ width: "8rem" }} body={(row: PurchaseRequestSummary) => formatCalendarDate(row.createdAt, i18n.language)} />
             <Column header={t("created.warehouse")} body={(row: PurchaseRequestSummary) => (row.warehouseName ? localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language) : "—")} />
@@ -105,11 +105,6 @@ export function PurchaseRequestsPage(): React.JSX.Element {
               )}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
 

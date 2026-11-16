@@ -76,7 +76,7 @@ export function StockMovementsPage(): React.JSX.Element {
     ...(to ? { to: toDateOnlyIsoString(to) } : {}),
   };
 
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useInfiniteQuery({
     queryKey: ["stockMovements", filters],
     queryFn: async ({ pageParam }) =>
       (await apiClient.get<Page>("/v1/stock-movements", { params: { ...filters, limit: "50", ...(pageParam ? { cursor: pageParam } : {}) } })).data,
@@ -167,7 +167,7 @@ export function StockMovementsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} searchable={false} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} value={rows} searchable={false} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("inventory.movements.exportRow")} style={{ width: "9rem" }} body={(r: MovementEntry) => <Button type="button" icon="pi pi-download" text label={t("inventory.movements.exportRow")} onClick={() => { setExportError(false); setSelectedMovement(r); }} />} />
             <Column header={t("inventory.movements.date")} style={{ width: "9rem" }} body={(r: MovementEntry) => formatCalendarDate(r.date, i18n.language)} />
             <Column header={t("inventory.items.code")} style={{ width: "9rem" }} body={(r: MovementEntry) => <span className="coa-code">{r.itemCode}</span>} />
@@ -185,11 +185,6 @@ export function StockMovementsPage(): React.JSX.Element {
             <Column header={t("inventory.movements.unitCost")} align="right" body={(r: MovementEntry) => formatMoney(r.unitCost, currency)} />
             <Column header={t("inventory.stockLevels.value")} align="right" body={(r: MovementEntry) => formatMoney(r.value, currency)} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
       <Dialog header={t("inventory.movements.exportRow")} visible={selectedMovement !== null} onHide={() => setSelectedMovement(null)} className="erp-dialog" modal>

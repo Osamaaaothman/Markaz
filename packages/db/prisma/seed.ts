@@ -109,6 +109,8 @@ const PERMISSION_CATALOG = [
   { code: "sales_order:create", description: "Create a sales order" },
   { code: "sales_order:read", description: "View sales orders" },
   { code: "sales_order:cancel", description: "Cancel a sales order with nothing invoiced" },
+  { code: "sales_delivery_note:create", description: "Record a goods delivery note against a sales order" },
+  { code: "sales_delivery_note:read", description: "View goods delivery notes" },
   { code: "sales_invoice:create", description: "Post a sales invoice" },
   { code: "sales_invoice:read", description: "View sales invoices and credit notes" },
   { code: "credit_note:create", description: "Post a credit note against an invoice" },
@@ -161,10 +163,10 @@ const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly str
     supplier_invoice: "*", debit_note: "*", party: ["read", "create", "update"], item: "*", warehouse: ["read"], stock: ["read"], attachment: ["read", "create"],
   },
   Warehouse: {
-    item: "*", warehouse: "*", stock: "*", goods_receipt: "*", stock_issue: "*", stock_count: "*", attachment: ["read", "create"],
+    item: "*", warehouse: "*", stock: "*", goods_receipt: "*", stock_issue: "*", stock_count: "*", sales_delivery_note: "*", attachment: ["read", "create"],
   },
   Sales: {
-    quotation: "*", sales_order: "*", sales_invoice: "*", credit_note: "*", debit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], warehouse: ["read"], stock: ["read"], attachment: ["read", "create"],
+    quotation: "*", sales_order: "*", sales_delivery_note: "*", sales_invoice: "*", credit_note: "*", debit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], warehouse: ["read"], stock: ["read"], attachment: ["read", "create"],
   },
   "Human resources": {
     employee: "*", payroll_run: "*", salary_advance: "*", end_of_service: "*", allowance_type: "*", hr_payment: "*", party: ["read"], attachment: ["read", "create"],

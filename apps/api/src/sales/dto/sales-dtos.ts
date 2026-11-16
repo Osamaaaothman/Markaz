@@ -258,6 +258,62 @@ export class SalesOrdersQueryDto {
   customerId?: string;
 }
 
+export class GoodsDeliveryNoteLineDto {
+  @IsString()
+  salesOrderLineId!: string;
+
+  @IsDecimalString({ positive: true })
+  quantity!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  description?: string;
+}
+
+export class CreateGoodsDeliveryNoteDto {
+  @IsString()
+  salesOrderId!: string;
+
+  @IsDateString()
+  deliveryDate!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  driverName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  receiverName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => GoodsDeliveryNoteLineDto)
+  lines!: GoodsDeliveryNoteLineDto[];
+}
+
+export class GoodsDeliveryNotesQueryDto {
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @IsString()
+  limit?: string;
+
+  @IsOptional()
+  @IsString()
+  salesOrderId?: string;
+}
+
 export class SalesInvoicesQueryDto {
   @IsOptional()
   @IsString()

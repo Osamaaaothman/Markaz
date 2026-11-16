@@ -170,6 +170,20 @@ export class PurchasingController {
     return this.orders.list(actor.companyId, query);
   }
 
+  // Receiving desk for the warehouse keeper: open orders only, gated on the receive permission so a
+  // keeper needs no purchase-order access.
+  @Get("goods-receiving/orders")
+  @RequirePermission("goods_receipt", "create")
+  listReceivableOrders(@CurrentUser() actor: CurrentUserPayload, @Query() query: PurchaseOrdersQueryDto): Promise<PurchaseOrderListPage> {
+    return this.orders.list(actor.companyId, { cursor: query.cursor, limit: query.limit, receivable: true });
+  }
+
+  @Get("goods-receiving/orders/:id")
+  @RequirePermission("goods_receipt", "create")
+  getReceivableOrder(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<PurchaseOrderDetail> {
+    return this.mapOrderErrors(this.orders.get(actor.companyId, id));
+  }
+
   @Get("purchase-orders/:id")
   @RequirePermission("purchase_order", "read")
   getOrder(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<PurchaseOrderDetail> {

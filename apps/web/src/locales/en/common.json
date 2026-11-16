@@ -57,6 +57,7 @@
     "taxCodes": "Tax codes",
     "quotations": "Quotations",
     "salesOrders": "Sales orders",
+    "deliveryNotes": "Delivery notes",
     "salesInvoices": "Sales invoices",
     "payments": "Payments",
     "receipts": "Receipt vouchers",
@@ -69,6 +70,7 @@
     "company": "Company",
     "employees": "Employees",
     "payrollRuns": "Payroll runs",
+    "goodsReceiving": "Goods receiving",
     "goodsReturns": "Purchase returns",
     "purchaseReview": "Purchase review",
     "allowanceTypes": "Allowance types",
@@ -797,6 +799,7 @@
     }
   },
   "purchasing": {
+    "receiving": { "title": "Goods receiving", "subtitle": "Receive goods against open purchase orders.", "empty": "No approved orders are waiting for goods." },
     "title": "Purchasing",
     "status": "Status",
     "allStatuses": "All statuses",
@@ -1070,6 +1073,7 @@
       "newSubtitle": "Choose the customer, then what was ordered and the agreed prices.",
       "date": "Order date",
       "createInvoice": "Create invoice",
+      "createDeliveryNote": "Create delivery note",
       "cancel": "Cancel order",
       "back": "Back",
       "status": {
@@ -1078,6 +1082,18 @@
         "INVOICED": "Invoiced",
         "CANCELLED": "Cancelled"
       }
+    },
+    "deliveryNotes": {
+      "title": "Goods delivery notes",
+      "subtitle": "A storekeeper's handover record printed before the invoice — no prices, no stock movement.",
+      "new": "New delivery note",
+      "date": "Delivery date",
+      "driverName": "Driver's name",
+      "receiverName": "Receiver's name",
+      "notes": "Notes",
+      "deliverNow": "Deliver now",
+      "post": "Save delivery note",
+      "nothingOutstanding": "Everything on this order has already been delivered."
     },
     "invoices": {
       "title": "Sales invoices",
@@ -1498,7 +1514,10 @@
     "selectRow": "Select {{number}}",
     "selected": "{{count}} selected",
     "exportSelected": "Export selected CSV",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "loadingRest": "Loading the rest of the list… ({{count}} so far)",
+    "capped": "Showing the first {{count}} rows. Use the filters to narrow the list.",
+    "loadFailed": "Could not load the rest of the list."
   },
   "attachments": {
     "saving": "Saving…",
@@ -1869,6 +1888,7 @@
   "documents": {
     "journalEntry": "View journal entry",
     "purchaseOrder": "Purchase order",
+    "salesOrder": "Sales order",
     "reducesInvoice": "Reduces invoice",
     "outstanding": "Still owed",
     "item": "Item / account",
@@ -2689,5 +2709,24 @@
       "DELAYED": "Delivery delayed",
       "COMPLAINED": "Spam complaint"
     }
+  },
+  "pwa": {
+    "install": {
+      "title": "Install Markaz as an app",
+      "body": "Open Markaz straight from your home screen or desktop, in its own window, and be ready for notifications later.",
+      "iosBody": "Add Markaz to your home screen to open it like an app.",
+      "iosStepShare": "Tap the Share button in the Safari toolbar.",
+      "iosStepAdd": "Choose \"Add to Home Screen\", then tap Add.",
+      "action": "Install",
+      "later": "Not now",
+      "gotIt": "Got it",
+      "close": "Close"
+    }
+  },
+  "offline": {
+    "title": "You are offline.",
+    "body": "You can keep reading the pages you opened before. Changes are turned off until the connection returns.",
+    "blocked": "You are offline. This action needs a connection, so nothing was saved. Try again when you are back online.",
+    "notSaved": "You are offline and this page was not opened before, so it is not available yet."
   }
 }

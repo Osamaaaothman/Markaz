@@ -201,6 +201,7 @@ export class SalesOrderService {
           netAmount: net.toFixed(4),
           taxAmount: net.times(l.taxCode.rate).div(100).toDecimalPlaces(4).toFixed(4),
           invoicedQuantity: l.invoicedQuantity.toFixed(4),
+          deliveredQuantity: l.deliveredQuantity.toFixed(4),
         };
       }),
     };

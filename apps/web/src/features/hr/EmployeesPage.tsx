@@ -53,7 +53,7 @@ export function EmployeesPage(): React.JSX.Element {
   const [allowanceRows, setAllowanceRows] = useState<readonly AllowanceRow[]>([]);
 
   const debouncedQuery = useDebouncedValue(query);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useEmployees({ q: debouncedQuery, includeInactive });
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useEmployees({ q: debouncedQuery, includeInactive });
   const employees = data?.pages.flatMap((page) => page.data) ?? [];
   const createEmployee = useCreateEmployee();
   const provisionMissing = useProvisionMissingEmployeeAccounts();
@@ -141,7 +141,7 @@ export function EmployeesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid searchable={false} value={employees} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} onRowClick={(e) => void navigate(`/hr/employees/${(e.data as EmployeeSummary).id}`)} selectionMode="single">
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} searchable={false} value={employees} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} onRowClick={(e) => void navigate(`/hr/employees/${(e.data as EmployeeSummary).id}`)} selectionMode="single">
             <Column header={t("hr.employees.name")} body={(row: EmployeeSummary) => <span className="coa-name">{i18n.language === "ar" && row.nameAr ? row.nameAr : row.name}</span>} />
             <Column header={t("hr.employees.nationality")} style={{ width: "8rem" }} body={(row: EmployeeSummary) => (row.isSaudi ? t("hr.employees.saudi") : t("hr.employees.expat"))} />
             <Column header={t("hr.employees.basicSalary")} style={{ width: "10rem" }} body={(row: EmployeeSummary) => <span className="coa-amount">{formatMoney(row.basicSalary, currency)}</span>} />
@@ -152,11 +152,6 @@ export function EmployeesPage(): React.JSX.Element {
               body={(row: EmployeeSummary) => <Tag value={row.isActive ? t("inventory.warehouses.active") : t("inventory.warehouses.inactive")} severity={row.isActive ? "success" : "warning"} />}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
 

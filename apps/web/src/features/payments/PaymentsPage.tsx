@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { Tag } from "primereact/tag";
@@ -26,7 +25,7 @@ function PaymentsPage({ direction }: { direction: PaymentDirection }): React.JSX
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const navigate = useNavigate();
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePayments(direction);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = usePayments(direction);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
   const isReceipts = direction === "RECEIPT";
@@ -67,7 +66,7 @@ function PaymentsPage({ direction }: { direction: PaymentDirection }): React.JSX
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("customer_receipt:create"), label: t("payments.newReceipt"), onClick: () => void navigate("/payments/receipts/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} emptyAction={{ allowed: can("customer_receipt:create"), label: t("payments.newReceipt"), onClick: () => void navigate("/payments/receipts/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: PaymentSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/payments/${r.id}`)}>{r.number}</button>} />
             <Column header={t("payments.direction")} style={{ width: "10rem" }} body={(r: PaymentSummary) => <Tag value={t(`payments.directions.${r.direction}`)} severity={r.direction === "RECEIPT" ? "success" : "info"} />} />
             <Column header={t("payments.party")} body={(r: PaymentSummary) => localizedName({ name: r.partyName, nameAr: r.partyNameAr }, i18n.language)} />
@@ -78,11 +77,6 @@ function PaymentsPage({ direction }: { direction: PaymentDirection }): React.JSX
             <Column header={t("payments.onAccount")} align="right" body={(r: PaymentSummary) => formatMoney(Money.of(r.amount, r.currency).subtract(Money.of(r.allocated, r.currency)).toDecimalString(4), r.currency)} />
             <Column header="" style={{ width: "4rem" }} body={(r: PaymentSummary) => <AttachmentsButton ownerType="PAYMENT" ownerId={r.id} label={r.number} />} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
     </div>

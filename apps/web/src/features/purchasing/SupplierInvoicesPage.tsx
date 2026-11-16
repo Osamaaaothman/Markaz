@@ -29,7 +29,7 @@ export function SupplierInvoicesPage({ returnsOnly = false }: { returnsOnly?: bo
   const { can } = usePermissions();
   const navigate = useNavigate();
   const [type, setType] = useState<"INVOICE" | "DEBIT_NOTE" | null>(null);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSupplierInvoices(returnsOnly ? "DEBIT_NOTE" : type);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useSupplierInvoices(returnsOnly ? "DEBIT_NOTE" : type);
   const invoices = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
@@ -68,7 +68,7 @@ export function SupplierInvoicesPage({ returnsOnly = false }: { returnsOnly?: bo
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: !returnsOnly && can("supplier_invoice:create"), label: t("purchasing.invoices.new"), onClick: () => void navigate("/purchasing/invoices/new") }} value={invoices} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} emptyAction={{ allowed: !returnsOnly && can("supplier_invoice:create"), label: t("purchasing.invoices.new"), onClick: () => void navigate("/purchasing/invoices/new") }} value={invoices} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SupplierInvoiceSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/purchasing/invoices/${r.id}`)}>{r.number}</button>} />
             <Column header={t("purchasing.invoices.documentType")} style={{ width: "10rem" }} body={(r: SupplierInvoiceSummary) => <Tag value={t(`purchasing.invoices.types.${r.documentType}`)} severity={r.documentType === "INVOICE" ? "info" : "warning"} />} />
             <Column header={t("purchasing.invoices.supplierInvoiceNumber")} style={{ width: "12rem" }} body={(r: SupplierInvoiceSummary) => r.supplierInvoiceNumber ?? "—"} />
@@ -88,11 +88,6 @@ export function SupplierInvoicesPage({ returnsOnly = false }: { returnsOnly?: bo
               )}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
 
@@ -212,7 +207,7 @@ export function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: Su
             <Column header={t("purchasing.invoices.origQty")} align="right" style={{ width: "6rem" }} body={(r: ReturnLineRow) => r.quantity} />
             <Column
               header={t("purchasing.invoices.returnQty")}
-              style={{ width: "12rem" }}
+              style={{ width: "10rem" }}
               body={(r: ReturnLineRow, opt) => (
                 <InputText
                   disabled={!rows[opt.rowIndex]?.included}

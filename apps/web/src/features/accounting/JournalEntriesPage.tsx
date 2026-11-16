@@ -26,7 +26,7 @@ export function JournalEntriesPage(): React.JSX.Element {
     ...(filterRange.from ? { from: toDateOnlyIsoString(filterRange.from) } : {}),
     ...(filterRange.to ? { to: toDateOnlyIsoString(filterRange.to) } : {}),
   };
-  const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useJournalEntries(filter);
+  const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError, refetch } = useJournalEntries(filter);
   const [draftParams, setDraftParams] = useSearchParams();
   const [formVisible, setFormVisible] = useState(draftParams.has("draft"));
   const closeForm = (): void => { setFormVisible(false); setDraftParams((previous) => { const next = new URLSearchParams(previous); next.delete("draft"); return next; }, { replace: true }); };
@@ -97,7 +97,7 @@ export function JournalEntriesPage(): React.JSX.Element {
         <p className="erp-page__empty">{t("status.empty")}</p>
       ) : (
         <>
-          <DataGrid
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }}
             value={entries}
             className="erp-table erp-table--clickable-rows"
             stripedRows
@@ -133,17 +133,6 @@ export function JournalEntriesPage(): React.JSX.Element {
             />
             <Column header="" style={{ width: "4rem" }} body={(row: JournalEntrySummary) => <AttachmentsButton ownerType="JOURNAL_ENTRY" ownerId={row.id} label={row.number} />} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button
-                label={t("actions.loadMore")}
-                text
-                onClick={() => void fetchNextPage()}
-                loading={isFetchingNextPage}
-                icon="pi pi-chevron-down"
-              />
-            </div>
-          ) : null}
         </>
       )}
 
