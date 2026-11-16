@@ -79,6 +79,18 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
               <small>{currentUser.companyDefaultCurrency}</small>
             </span>
           </div>
+          {variant === "desktop" ? (
+            <button
+              type="button"
+              className="erp-sidebar__collapse"
+              onClick={toggleSidebar}
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
+              data-pr-tooltip={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
+            >
+              <i className="pi pi-angle-double-left" aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -169,19 +181,6 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
         })}
       </ul>
 
-      <div className="erp-sidebar__footer">
-        {variant === "desktop" ? (
-          <button
-            type="button"
-            className="erp-sidebar__collapse"
-            onClick={toggleSidebar}
-            aria-label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
-            data-pr-tooltip={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
-          >
-            <i className="pi pi-angle-double-left" aria-hidden="true" />
-          </button>
-        ) : null}
-      </div>
     </nav>
   );
 }

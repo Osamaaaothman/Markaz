@@ -1344,6 +1344,7 @@
     }
   },
   "shell": {
+    "back": "رجوع",
     "profile": "ملفك الشخصي",
     "profileRole": "الرتبة",
     "profileCanDo": "ما يمكنك فعله",

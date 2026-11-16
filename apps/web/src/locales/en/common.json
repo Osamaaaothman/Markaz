@@ -1344,6 +1344,7 @@
     }
   },
   "shell": {
+    "back": "Go back",
     "profile": "Your profile",
     "profileRole": "Role",
     "profileCanDo": "What you can do",
