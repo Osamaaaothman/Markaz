@@ -33,8 +33,13 @@ export function renderReportShell(params: {
   readonly sellerDetailLines?: readonly string[];
   // Extra CSS appended after the shell's own (a dense table for a report with many columns).
   readonly extraCss?: string;
+  // "classic" (default) keeps every existing report/voucher/invoice PDF exactly as it is.
+  // "clean" is an opt-in, purely visual skin — flat neutral borders instead of the dark-green
+  // table headers — scoped under .doc-clean so it never touches a caller that omits it.
+  readonly variant?: "classic" | "clean";
 }): string {
   const dir = params.language === "ar" ? "rtl" : "ltr";
+  const variant = params.variant ?? "classic";
   return `<!doctype html>
 <html lang="${params.language}" dir="${dir}">
 <head>
@@ -105,10 +110,39 @@ export function renderReportShell(params: {
   .report-main .sinv-header { break-inside: avoid; }
   .report-main .bill-from-block { border: 1px solid #dbe3de; padding: 10pt 12pt; border-radius: 5pt; }
   .party-detail { display: block; font-size: 8.5pt; line-height: 1.7; overflow-wrap: anywhere; color: #52645b; }
+  /* ---- "clean" skin: flat neutral palette, thin borders, no colored fills ---- */
+  .doc-clean { color: #1c1d21; }
+  .doc-clean h1 { color: #1c1d21; font-size: 17pt; }
+  .doc-clean .company-head { border-block-end: 1px solid #e3e4e8; }
+  .doc-clean .company-head .company-name { color: #1c1d21; }
+  .doc-clean .seller-details span { color: #8b8d93; }
+  .doc-clean .subtitle { color: #8b8d93; }
+  .doc-clean .bill-to-block, .doc-clean .bill-from-block { border-color: #e3e4e8; }
+  .doc-clean .bill-to-label { color: #8b8d93; }
+  .doc-clean .bill-to-name { color: #1c1d21; }
+  .doc-clean table.inv-meta th { color: #8b8d93; }
+  .doc-clean table.inv-meta td { color: #1c1d21; }
+  .doc-clean table[class$="-lines"] th, .doc-clean table.inv-lines th {
+    background: #fff; color: #8b8d93; border-color: #e3e4e8; font-weight: 600; border-block-end: 1px solid #1c1d21;
+  }
+  .doc-clean table[class$="-lines"] td, .doc-clean table.inv-lines td { border-color: #eef0f3; background: #fff; }
+  .doc-clean table[class$="-lines"] tbody tr:nth-child(even) td, .doc-clean table.inv-lines tbody tr:nth-child(even) td { background: #fff; }
+  .doc-clean table[class$="-totals"] th, .doc-clean table[class$="-totals"] td,
+  .doc-clean table.inv-totals th, .doc-clean table.inv-totals td { background: #fff; color: #1c1d21; border-color: #eef0f3; }
+  .doc-clean table[class$="-totals"] .grand-total th, .doc-clean table[class$="-totals"] .grand-total td,
+  .doc-clean table.inv-totals .grand-total th, .doc-clean table.inv-totals .grand-total td {
+    background: #fff; color: #1c1d21; border-block-start: 1.5pt solid #1c1d21; border-block-end: none; font-size: 11pt;
+  }
+  .doc-clean table.rec-total th, .doc-clean table.rec-total td { background: #fff; color: #1c1d21; }
+  .doc-clean .amount-words { background: #f7f7f9; border-inline-start-color: #1c1d21; color: #1c1d21; }
+  .doc-clean .invoice-compliance { border-block-start: 1px solid #e3e4e8; }
+  .doc-clean .invoice-qr { width: 100pt; height: 100pt; }
+  .doc-clean .zatca-caption { font-size: 7.5pt; color: #8b8d93; line-height: 1.5; margin-block-start: 5pt; }
+  .doc-clean .zatca-caption .en { direction: ltr; display: block; }
 </style>
 </head>
 <body>
-<div class="report-main">
+<div class="report-main${variant === "clean" ? " doc-clean" : ""}">
 ${renderCompanyLetterhead(params)}
 <h1>${escapeHtml(params.title)}</h1>
 ${params.subtitle ? `<p class="subtitle">${escapeHtml(params.subtitle)}</p>` : ""}
