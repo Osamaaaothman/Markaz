@@ -107,6 +107,8 @@ export interface PurchaseOrderListQuery {
   readonly limit?: string | undefined;
   readonly status?: PurchaseOrderStatus | undefined;
   readonly supplierId?: string | undefined;
+  // Only orders that can still be received against (APPROVED or PARTIALLY_RECEIVED).
+  readonly receivable?: boolean | undefined;
 }
 
 export interface PurchaseOrderListPage {
@@ -279,7 +281,7 @@ export class PurchaseOrderService {
     const rows = await this.prisma.purchaseOrder.findMany({
       where: {
         companyId,
-        ...(query.status ? { status: query.status } : {}),
+        ...(query.receivable ? { status: { in: ["APPROVED", "PARTIALLY_RECEIVED"] as PurchaseOrderStatus[] } } : query.status ? { status: query.status } : {}),
         ...(query.supplierId ? { supplierId: query.supplierId } : {}),
       },
       include: { supplier: true, warehouse: true, _count: { select: { lines: true } } },

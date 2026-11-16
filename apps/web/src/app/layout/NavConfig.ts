@@ -58,6 +58,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/review", labelKey: "nav.purchaseReview", icon: "pi pi-check-square", permissions: ["purchase_request:review"], groupKey: "nav.groups.purchasing", badge: "review" },
   { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing", badge: "orders" },
+  { to: "/purchasing/receiving", labelKey: "nav.goodsReceiving", icon: "pi pi-download", permissions: ["goods_receipt:create"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/returns", labelKey: "nav.goodsReturns", icon: "pi pi-replay", permissions: ["supplier_invoice:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/invoices", labelKey: "nav.supplierInvoices", icon: "pi pi-receipt", permissions: ["supplier_invoice:read"], groupKey: "nav.groups.purchasing" },
   { to: "/sales/quotations", labelKey: "nav.quotations", icon: "pi pi-file-edit", permissions: ["quotation:read"], groupKey: "nav.groups.sales" },

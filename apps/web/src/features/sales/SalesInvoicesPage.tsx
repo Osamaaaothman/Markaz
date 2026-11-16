@@ -793,7 +793,7 @@ function SalesReturnDialog({
             />
             <Column
               header={t("purchasing.invoices.returnQty")}
-              style={{ width: "8rem" }}
+              style={{ width: "10rem" }}
               body={(r: SalesReturnLineRow, opt) => (
                 <InputText
                   disabled={!rows[opt.rowIndex]?.included}

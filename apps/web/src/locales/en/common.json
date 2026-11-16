@@ -69,6 +69,7 @@
     "company": "Company",
     "employees": "Employees",
     "payrollRuns": "Payroll runs",
+    "goodsReceiving": "Goods receiving",
     "goodsReturns": "Purchase returns",
     "purchaseReview": "Purchase review",
     "allowanceTypes": "Allowance types",
@@ -797,6 +798,7 @@
     }
   },
   "purchasing": {
+    "receiving": { "title": "Goods receiving", "subtitle": "Receive goods against open purchase orders.", "empty": "No approved orders are waiting for goods." },
     "title": "Purchasing",
     "status": "Status",
     "allStatuses": "All statuses",
