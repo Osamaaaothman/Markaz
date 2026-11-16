@@ -90,18 +90,10 @@ html:is([data-design="balance"], [data-design="precision"]) .erp-sidebar__icon {
   font-size: 1rem;
   background: transparent;
 }
+/* margin-inline-start, font-size and the collapsed/active overrides used to repeat values
+   that shell.css's own base now already uses — removed, not just this rule's concern. */
 html:is([data-design="balance"], [data-design="precision"]) .erp-sidebar__link {
-  margin-inline-start: 0.5rem;
-  font-size: 0.875rem;
   gap: 0.5rem;
-}
-html:is([data-design="balance"], [data-design="precision"])
-  .erp-sidebar--collapsed
-  .erp-sidebar__link {
-  margin-inline-start: 0;
-}
-html:is([data-design="balance"], [data-design="precision"]) .erp-sidebar__link--active {
-  box-shadow: none;
 }
 html[data-design="balance"] .erp-kpis {
   gap: 1px;

@@ -1,170 +1,12 @@
 /* ============================================================================
-   Ledger shell — the sidebar and top bar in the same language as the home page books.
+   Ledger shell — the top bar in the same language as the home page books.
    Flat colour and tokens only, so every theme, light/dark mode and the three directions (Balance, Canvas,
    Precision) follow it. Loaded after directions.css; selectors carry `body` to win over their rules.
-   The sidebar is the spine of a ledger (cloth strip with stitches on the start side); headings are ruled
-   plates; each entry is a ledger line with a ringed stamp icon; the current page is marked with a filled
-   stamp and a margin bar. The top bar is the sheet header with a double rule under it.
+   The top bar is the sheet header with a double rule under it. The sidebar's own ledger styling
+   (the spine, ruled headings, ringed stamp icons) now lives directly in shell.css — it never had a
+   competing base rule to win against, so the `html body` specificity override it used here was only
+   ever needed for the top bar, which still shares selectors with shell.css's un-ledgered defaults.
    ============================================================================ */
-
-/* ---------- sidebar: the spine ---------- */
-
-html body .erp-sidebar {
-  padding-inline-start: calc(var(--mk-space-3) + 0.7rem);
-  border-color: var(--mk-border-strong);
-}
-
-html body .erp-sidebar::before {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  inline-size: 0.6rem;
-  background: var(--mk-primary);
-}
-
-html body .erp-sidebar::after {
-  content: "";
-  position: absolute;
-  inset-block: 0.9rem;
-  inset-inline-start: 0.27rem;
-  border-inline-start: 2px dashed color-mix(in srgb, var(--mk-surface) 70%, transparent);
-  pointer-events: none;
-}
-
-html body .erp-sidebar--collapsed {
-  padding-inline-start: calc(var(--mk-space-2) + 0.6rem);
-}
-
-/* the company card: a label plate ruled twice above and below */
-html body .erp-sidebar__company {
-  position: relative;
-  padding: 0.6rem 0.3rem;
-  border: 0;
-  border-block: 1px solid var(--mk-primary);
-  border-radius: 0;
-  background: transparent;
-}
-
-html body .erp-sidebar__company::before,
-html body .erp-sidebar__company::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  border-block-start: 1px solid color-mix(in srgb, var(--mk-primary) 50%, transparent);
-  pointer-events: none;
-}
-
-html body .erp-sidebar__company::before {
-  inset-block-start: 2px;
-}
-
-html body .erp-sidebar__company::after {
-  inset-block-end: 2px;
-}
-
-/* search: a ruled line, not a box */
-html body .erp-sidebar__search {
-  border: 0;
-  border-block-end: 1px solid var(--mk-border-strong);
-  border-radius: 0;
-  background: transparent;
-  padding-inline: 0.3rem;
-}
-
-html body .erp-sidebar__search:hover {
-  border-block-end-color: var(--mk-primary);
-}
-
-/* section headings: ruled plates with a ringed stamp icon */
-html body .erp-sidebar__group {
-  position: relative;
-  margin-block-end: 0.55rem;
-  padding: 0.45rem 0.25rem;
-  border-radius: 0;
-  border-block-end: 1px solid color-mix(in srgb, var(--mk-primary) 45%, transparent);
-  letter-spacing: 0.01em;
-}
-
-html body .erp-sidebar__group::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: -4px;
-  border-block-end: 1px solid color-mix(in srgb, var(--mk-primary) 22%, transparent);
-  pointer-events: none;
-}
-
-html body .erp-sidebar__group:hover {
-  background: transparent;
-}
-
-html body .erp-sidebar__group-icon {
-  display: inline-grid;
-  place-items: center;
-  inline-size: 1.55rem;
-  block-size: 1.55rem;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  font-size: 0.72rem;
-}
-
-/* entries: ledger lines with a ringed stamp icon */
-html body .erp-sidebar__link {
-  margin-block: 0;
-  padding: 0.3rem 0.45rem;
-  border-radius: 0;
-  border-block-end: 1px solid var(--mk-side-border);
-  border-inline-start: 3px solid transparent;
-}
-
-html body .erp-sidebar__icon {
-  inline-size: 2.1rem;
-  block-size: 2.1rem;
-  border: 1.5px solid var(--mk-side-border);
-  border-radius: 50%;
-  background: transparent;
-  font-size: 1rem;
-}
-
-html body .erp-sidebar__link:hover {
-  background: var(--mk-primary-soft);
-  color: var(--mk-side-text-strong);
-}
-
-html body .erp-sidebar__link:hover .erp-sidebar__icon {
-  border-color: var(--mk-primary);
-  background: transparent;
-  color: var(--mk-primary);
-}
-
-/* the current page: margin bar, tinted line, and its stamp pressed solid */
-html body .erp-sidebar__link--active,
-html body .erp-sidebar__link--active:hover {
-  background: var(--mk-primary-soft);
-  border-inline-start-color: var(--mk-primary);
-  color: var(--mk-primary);
-  font-weight: 700;
-  box-shadow: none;
-}
-
-html body .erp-sidebar__link--active .erp-sidebar__icon,
-html body .erp-sidebar__link--active:hover .erp-sidebar__icon {
-  border-color: var(--mk-primary);
-  background: var(--mk-primary);
-  color: var(--mk-on-primary);
-  animation: mk-stamp 0.6s var(--mk-ease-spring) both;
-}
-
-html body .erp-sidebar--collapsed .erp-sidebar__link {
-  border-inline-start-width: 0;
-}
-
-html body .erp-sidebar__collapse {
-  border-radius: 50%;
-  border-color: var(--mk-border-strong);
-  background: transparent;
-}
 
 /* ---------- top bar: the sheet header ---------- */
 
@@ -228,12 +70,6 @@ html body .erp-topbar__lang {
 html body .erp-topbar__search {
   border-color: var(--mk-border-strong);
   border-block-end-width: 2px;
-}
-
-@media (max-width: 899px) {
-  html body .erp-sidebar--mobile-drawer {
-    padding-inline-start: calc(var(--mk-space-3) + 0.7rem);
-  }
 }
 
 /* the page-name plate keeps its width; the search pill gives way first */

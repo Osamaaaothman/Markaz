@@ -139,12 +139,36 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   gap: var(--mk-space-3);
   height: 100%;
   padding: var(--mk-space-4) var(--mk-space-3) var(--mk-space-3);
+  padding-inline-start: calc(var(--mk-space-3) + 0.7rem);
   color: var(--mk-side-text);
   background: var(--mk-side-bg);
-  border: 1px solid var(--mk-side-border);
+  border: 1px solid var(--mk-border-strong);
   border-radius: var(--mk-radius-lg);
   box-shadow: var(--mk-shadow-md);
   overflow: hidden;
+}
+
+/* the spine: a coloured strip down the start edge, with a dashed stitch line beside it */
+.erp-sidebar::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 0.6rem;
+  background: var(--mk-primary);
+}
+
+.erp-sidebar::after {
+  content: "";
+  position: absolute;
+  inset-block: 0.9rem;
+  inset-inline-start: 0.27rem;
+  border-inline-start: 2px dashed color-mix(in srgb, var(--mk-surface) 70%, transparent);
+  pointer-events: none;
+}
+
+.erp-sidebar--collapsed {
+  padding-inline-start: calc(var(--mk-space-2) + 0.6rem);
 }
 
 .erp-sidebar--mobile-drawer {
@@ -158,17 +182,18 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   display: flex;
 }
 
-/* search / command palette entry */
+/* search / command palette entry: a ruled line, not a box */
 .erp-sidebar__search {
   display: flex;
   align-items: center;
   gap: 0.65rem;
   inline-size: 100%;
   block-size: 2.9rem;
-  padding-inline: 0.9rem;
-  border: 1px solid transparent;
-  border-radius: var(--mk-radius);
-  background: var(--mk-side-tile);
+  padding-inline: 0.3rem;
+  border: 0;
+  border-block-end: 1px solid var(--mk-border-strong);
+  border-radius: 0;
+  background: transparent;
   color: var(--mk-side-muted);
   font: inherit;
   font-size: 0.95rem;
@@ -180,6 +205,7 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 .erp-sidebar__search:hover {
   border-color: var(--mk-border-strong);
   color: var(--mk-side-text-strong);
+  border-block-end-color: var(--mk-primary);
 }
 
 .erp-sidebar__search .erp-sidebar__label {
@@ -218,7 +244,10 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 }
 
 .erp-sidebar__link {
-  margin-inline-start: 1.7rem;
+  /* Was 1.7rem: it left every row's start edge sitting well short of the section
+     heading above it (which spans the full rail width), wasting a visible strip and
+     making the row's icon look pushed-in rather than aligned with its heading. */
+  margin-inline-start: 0.5rem;
 }
 
 /* Keep the original compact rows; long names must not crowd icons or badges. */
@@ -247,12 +276,15 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  margin-block: 2px;
-  padding: 0.35rem 0.5rem;
-  border-radius: var(--mk-radius);
+  margin-block: 0;
+  padding: 0.3rem 0.45rem;
+  border-radius: 0;
+  border-block-end: 1px solid var(--mk-side-border);
+  border-inline-start: 3px solid transparent;
   color: var(--mk-side-text);
   text-decoration: none;
-  font-size: 0.97rem;
+  /* Was 0.97rem — a touch smaller reads as a compact ledger line, not a button label. */
+  font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
   transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, box-shadow var(--mk-dur) ease;
@@ -262,39 +294,43 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  border-radius: var(--mk-radius-sm);
-  background: var(--mk-side-tile);
+  inline-size: 2.1rem;
+  block-size: 2.1rem;
+  border: 1.5px solid var(--mk-side-border);
+  border-radius: 50%;
+  background: transparent;
   color: var(--mk-side-text);
-  font-size: 1.2rem;
+  font-size: 1rem;
   transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease, transform var(--mk-dur) var(--mk-ease);
 }
 
 .erp-sidebar__link:hover {
-  background: var(--mk-side-hover);
+  background: var(--mk-primary-soft);
   color: var(--mk-side-text-strong);
 }
 
 .erp-sidebar__link:hover .erp-sidebar__icon {
-  background: var(--mk-primary-soft);
+  border-color: var(--mk-primary);
+  background: transparent;
   color: var(--mk-primary);
   transform: scale(1.06);
 }
 
 .erp-sidebar__link--active,
 .erp-sidebar__link--active:hover {
-  background: var(--mk-side-active-bg);
-  color: var(--mk-side-active-text);
-  font-weight: 600;
-  box-shadow: 0 8px 18px -8px var(--mk-primary-ring);
+  background: var(--mk-primary-soft);
+  border-inline-start-color: var(--mk-primary);
+  color: var(--mk-primary);
+  font-weight: 700;
+  box-shadow: none;
 }
 
 .erp-sidebar__link--active .erp-sidebar__icon,
 .erp-sidebar__link--active:hover .erp-sidebar__icon {
-  background: rgb(255 255 255 / 0.2);
-  color: var(--mk-side-active-text);
-  transform: none;
+  border-color: var(--mk-primary);
+  background: var(--mk-primary);
+  color: var(--mk-on-primary);
+  animation: mk-stamp 0.6s var(--mk-ease-spring) both;
 }
 
 /* section headings */
@@ -303,29 +339,41 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 }
 
 .erp-sidebar__group {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--mk-space-2);
   width: 100%;
-  margin-block-end: var(--mk-space-1);
-  padding: 0.5rem 0.6rem;
+  margin-block-end: 0.55rem;
+  padding: 0.45rem 0.25rem;
   border: 0;
+  border-block-end: 1px solid color-mix(in srgb, var(--mk-primary) 45%, transparent);
   background: none;
   color: var(--mk-side-group);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   cursor: pointer;
-  border-radius: var(--mk-radius-sm);
+  border-radius: 0;
   transition: color var(--mk-dur-fast) ease, background-color var(--mk-dur-fast) ease;
+}
+
+/* a second, fainter rule just under the heading's own border — the "ruled plate" look */
+.erp-sidebar__group::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -4px;
+  border-block-end: 1px solid color-mix(in srgb, var(--mk-primary) 22%, transparent);
+  pointer-events: none;
 }
 
 .erp-sidebar__group:hover {
   color: var(--mk-side-group);
-  background: var(--mk-side-hover);
+  background: transparent;
 }
 
 .erp-sidebar__group-title {
@@ -336,8 +384,14 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 }
 
 .erp-sidebar__group-icon {
+  display: inline-grid;
+  place-items: center;
   flex-shrink: 0;
-  font-size: 1rem;
+  inline-size: 1.55rem;
+  block-size: 1.55rem;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.72rem;
 }
 
 .erp-sidebar__group-chevron {
@@ -368,15 +422,35 @@ html[dir="rtl"] .erp-sidebar__group-chevron--folded {
 }
 
 .erp-sidebar__company {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--mk-side-border);
-  border-radius: var(--mk-radius);
-  background: var(--mk-side-card);
+  padding: 0.6rem 0.3rem;
+  border: 0;
+  border-block: 1px solid var(--mk-primary);
+  border-radius: 0;
+  background: transparent;
+}
+
+/* a ruled plate: a second, fainter line just inside each border */
+.erp-sidebar__company::before,
+.erp-sidebar__company::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  border-block-start: 1px solid color-mix(in srgb, var(--mk-primary) 50%, transparent);
+  pointer-events: none;
+}
+
+.erp-sidebar__company::before {
+  inset-block-start: 2px;
+}
+
+.erp-sidebar__company::after {
+  inset-block-end: 2px;
 }
 
 .erp-sidebar__company .erp-sidebar__label {
@@ -417,9 +491,9 @@ html[dir="rtl"] .erp-sidebar__group-chevron--folded {
   inline-size: 2.75rem;
   block-size: 2.75rem;
   font-size: 1.1rem;
-  border: 1px solid var(--mk-side-border);
-  border-radius: var(--mk-radius);
-  background: var(--mk-side-card);
+  border: 1px solid var(--mk-border-strong);
+  border-radius: 50%;
+  background: transparent;
   color: var(--mk-side-text);
   cursor: pointer;
   transition: background-color var(--mk-dur-fast) ease, color var(--mk-dur-fast) ease;
@@ -500,6 +574,7 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
   justify-content: center;
   padding-inline: 0;
   margin-inline-start: 0;
+  border-inline-start-width: 0;
 }
 
 .erp-sidebar--collapsed .erp-sidebar__footer {
