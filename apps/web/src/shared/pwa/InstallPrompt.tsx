@@ -15,6 +15,7 @@ export function InstallPrompt(): React.JSX.Element | null {
   const { t } = useTranslation();
   const deferred = usePwaInstallStore((state) => state.deferred);
   const installed = usePwaInstallStore((state) => state.installed);
+  const manualOpen = usePwaInstallStore((state) => state.manualOpen);
   const [ready, setReady] = useState(false);
   const [hidden, setHidden] = useState(() => isStandalone() || wasRecentlyDismissed());
   const [busy, setBusy] = useState(false);
@@ -25,16 +26,18 @@ export function InstallPrompt(): React.JSX.Element | null {
     return () => window.clearTimeout(timer);
   }, []);
 
-  if (hidden || installed || !ready || (!deferred && !iosGuide)) return null;
+  if (installed || isStandalone() || (!manualOpen && (hidden || !ready || (!deferred && !iosGuide)))) return null;
 
   const dismiss = (): void => {
     rememberDismissed();
     setHidden(true);
+    usePwaInstallStore.getState().closeInstall();
   };
 
   const install = async (): Promise<void> => {
     if (!deferred) return;
     setBusy(true);
+    usePwaInstallStore.getState().setDeferred(null);
     try {
       await deferred.prompt();
       const choice = await deferred.userChoice;
@@ -42,6 +45,9 @@ export function InstallPrompt(): React.JSX.Element | null {
       usePwaInstallStore.getState().setDeferred(null);
       if (choice.outcome === "dismissed") rememberDismissed();
       setHidden(true);
+      usePwaInstallStore.getState().closeInstall();
+    } catch {
+      // Keep the manual instructions available if the browser cannot open its prompt.
     } finally {
       setBusy(false);
     }
@@ -57,7 +63,7 @@ export function InstallPrompt(): React.JSX.Element | null {
       <div className="mk-install__text">
         <h2 id="mk-install-title" className="mk-install__title">{t("pwa.install.title")}</h2>
         <p id="mk-install-body" className="mk-install__body">
-          {manual ? t("pwa.install.iosBody") : t("pwa.install.body")}
+          {manual ? t("pwa.install.iosBody") : deferred ? t("pwa.install.body") : t("pwa.install.browserGuide")}
         </p>
         {manual ? (
           <ol className="mk-install__steps">

@@ -86,6 +86,7 @@ jobs:
           node scripts/check-document-interface.mjs
           node scripts/check-compliance-feedback.mjs
           node scripts/check-invoice-preflight.mjs
+          node scripts/check-editable-quantities.mjs
 
       - name: Interface review screenshots and results
         if: always()

@@ -328,8 +328,8 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 .erp-sidebar__link--active .erp-sidebar__icon,
 .erp-sidebar__link--active:hover .erp-sidebar__icon {
   border-color: var(--mk-primary);
-  background: var(--mk-primary);
-  color: var(--mk-on-primary);
+  background: transparent;
+  color: var(--mk-primary);
   animation: mk-stamp 0.6s var(--mk-ease-spring) both;
 }
 
