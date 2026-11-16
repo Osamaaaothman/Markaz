@@ -3,6 +3,7 @@ export * from "./clock.js";
 export * from "./money.js";
 export * from "./account-colors.js";
 export * from "./tafqeet.js";
+export * from "./secret-box.js";
 
 // Date/timezone helpers and shared Result/error types land alongside the code that
 // first needs them (M2+) — not before.
