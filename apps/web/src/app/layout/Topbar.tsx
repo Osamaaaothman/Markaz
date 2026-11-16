@@ -13,6 +13,8 @@ import { NAV_ITEMS } from "./NavConfig";
 import { useLayoutStore } from "./layout-store";
 import { localizedName } from "../../shared/lib/localized-name";
 import { groupPermissionsByResource } from "../../features/settings/permission-labels";
+import { usePwaInstallStore } from "../../shared/pwa/pwa-install-store";
+import { isStandalone } from "../../shared/pwa/install-state";
 
 function initialsOf(email: string): string {
   return email.slice(0, 2).toUpperCase();
@@ -35,6 +37,7 @@ export function Topbar(): React.JSX.Element {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const profileRef = useRef<OverlayPanel>(null);
+  const installed = usePwaInstallStore((state) => state.installed) || isStandalone();
   const mode = useThemeStore((state) => state.mode);
   const toggleTheme = useThemeStore((state) => state.toggle);
   const clearAuth = useAuthStore((state) => state.clear);
@@ -174,6 +177,18 @@ export function Topbar(): React.JSX.Element {
         </ul>
 
         <div className="erp-profile__actions">
+          <button
+            type="button"
+            className="erp-profile__action"
+            disabled={installed}
+            onClick={() => {
+              profileRef.current?.hide();
+              usePwaInstallStore.getState().openInstall();
+            }}
+          >
+            <i className={`pi ${installed ? "pi-check-circle" : "pi-download"}`} aria-hidden="true" />
+            {t(installed ? "pwa.install.installed" : "pwa.install.action")}
+          </button>
           <button
             type="button"
             className="erp-profile__action"

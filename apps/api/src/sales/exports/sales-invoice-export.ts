@@ -106,6 +106,7 @@ export async function salesInvoiceToPdfHtml(params: {
     title,
     subtitle: "",
     extraCss,
+    variant: "clean",
     bodyHtml: `
 ${params.compliance && params.compliance.environment !== "production" ? `<div class="compliance-notice">${escapeHtml(t("compliance.testNotice"))} — ${escapeHtml(t(`compliance.environment.${params.compliance.environment}`))}</div>` : ""}
 <div class="inv-header">
@@ -129,7 +130,10 @@ ${params.compliance && params.compliance.environment !== "production" ? `<div cl
 <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur, params.language))}</p>
 ${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
 ${params.compliance ? `<div class="invoice-compliance">
+<div>
 ${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : ""}
+<p class="zatca-caption"><span class="en">${escapeHtml(t("compliance.zatcaQrCaptionEn"))}</span>${escapeHtml(t("compliance.zatcaQrCaptionAr"))}</p>
+</div>
 <div><p>${escapeHtml(t("compliance.status"))}: ${escapeHtml(t(`compliance.statuses.${params.compliance.status}`))}</p>
 ${isDataPreview ? `<p><strong>${escapeHtml(t("compliance.dataPreviewNotice"))}</strong></p>` : ""}
 ${!qrImage ? `<p>${escapeHtml(t("compliance.qrUnavailable"))}</p>` : ""}

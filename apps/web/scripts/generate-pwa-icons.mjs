@@ -13,7 +13,7 @@ const OUT_DIR = resolve(__dirname, '..', 'public', 'icons');
 
 const VIEWBOX = 64;
 const SS = 4; // 4x4 supersampling
-const GREEN = [0x1c, 0x5a, 0x40];
+const BLACK = [0x1b, 0x1a, 0x17];
 const CREAM = [0xf8, 0xf6, 0xf1];
 const BRASS = [0xc9, 0xaa, 0x5c];
 const WHITE = [0xff, 0xff, 0xff];
@@ -70,7 +70,7 @@ function glyphPoint(px, py, glyphScale) {
  */
 function render(opts) {
   const { size, tile = true, radius = 0, glyphScale = 1, monochrome = false } = opts;
-  const bg = opts.bg ?? GREEN;
+  const bg = opts.bg ?? BLACK;
   const glyph = monochrome ? WHITE : CREAM;
   const accent = monochrome ? WHITE : BRASS;
 
@@ -208,7 +208,7 @@ function encodePng(width, height, rgba) {
 // ---------------------------------------------------------------------------
 
 const outputs = [
-  // Standard "any" icons: rounded green tile, 14-unit corner radius.
+  // Standard "any" icons: rounded black tile, 14-unit corner radius.
   { name: 'icon-192.png', png: render({ size: 192, tile: true, radius: 14 }) },
   { name: 'icon-512.png', png: render({ size: 512, tile: true, radius: 14 }) },
   // Maskable: full-bleed tile, glyph scaled to 0.72 inside the safe zone.

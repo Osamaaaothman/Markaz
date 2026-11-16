@@ -10,6 +10,9 @@ interface PwaInstallState {
   // Set when the browser says the app can be installed (Chromium/Edge/Android). Null elsewhere.
   readonly deferred: BeforeInstallPromptEvent | null;
   readonly installed: boolean;
+  readonly manualOpen: boolean;
+  readonly openInstall: () => void;
+  readonly closeInstall: () => void;
   readonly setDeferred: (event: BeforeInstallPromptEvent | null) => void;
   readonly markInstalled: () => void;
 }
@@ -17,6 +20,9 @@ interface PwaInstallState {
 export const usePwaInstallStore = create<PwaInstallState>((set) => ({
   deferred: null,
   installed: false,
+  manualOpen: false,
+  openInstall: () => set({ manualOpen: true }),
+  closeInstall: () => set({ manualOpen: false }),
   setDeferred: (deferred) => set({ deferred }),
   markInstalled: () => set({ deferred: null, installed: true }),
 }));

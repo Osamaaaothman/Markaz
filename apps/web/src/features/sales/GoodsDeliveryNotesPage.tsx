@@ -217,17 +217,19 @@ export function GoodsDeliveryNoteFormPage(): React.JSX.Element {
 
   if (isPending || !order) return <PageSkeleton />;
 
-  const deliverableLines = order.lines.filter((l) => outstanding(l) !== "0");
-  const chosen = order.lines.flatMap((l) => {
-    const quantity = quantities[l.id] ?? "";
+  // Editable values belong to the row: PrimeReact memoizes cells against row data.
+  const deliverableLines = order.lines.filter((l) => outstanding(l) !== "0").map((l) => ({
+    ...l,
+    deliveryQuantity: quantities[l.id] ?? outstanding(l),
+  }));
+  const chosen = deliverableLines.flatMap((l) => {
+    const quantity = l.deliveryQuantity;
     return QTY.test(quantity) && /[1-9]/.test(quantity) ? [{ salesOrderLineId: l.id, quantity }] : [];
   });
-  const hasBadInput = order.lines.some((l) => {
-    const q = quantities[l.id] ?? "";
+  const hasBadInput = deliverableLines.some((l) => {
+    const q = l.deliveryQuantity;
     return q !== "" && q !== "0" && !QTY.test(q);
   });
-
-  const initialFor = (lineId: string): string => quantities[lineId] ?? outstanding(order.lines.find((l) => l.id === lineId)!);
 
   return (
     <div className="erp-page">
@@ -261,16 +263,19 @@ export function GoodsDeliveryNoteFormPage(): React.JSX.Element {
         {deliverableLines.length === 0 ? (
           <p className="erp-page__error">{t("sales.deliveryNotes.nothingOutstanding")}</p>
         ) : (
-          <DataTable value={[...deliverableLines]} className="erp-table" size="small" showGridlines>
+          <DataTable value={deliverableLines} dataKey="id" className="erp-table" size="small" showGridlines>
             <Column header={t("sales.description")} body={(l: SalesLineView) => l.description} />
             <Column header={t("purchasing.outstanding")} align="right" style={{ width: "8rem" }} body={(l: SalesLineView) => outstanding(l)} />
             <Column
               header={t("sales.deliveryNotes.deliverNow")}
               style={{ width: "10rem" }}
-              body={(l: SalesLineView) => (
+              body={(l: (typeof deliverableLines)[number]) => (
                 <InputText
                   dir="ltr"
-                  value={initialFor(l.id)}
+                  inputMode="decimal"
+                  aria-label={`${t("sales.deliveryNotes.deliverNow")}: ${l.description}`}
+                  style={{ width: "100%", minWidth: "6rem" }}
+                  value={l.deliveryQuantity}
                   onChange={(e) => setQuantities((prev) => ({ ...prev, [l.id]: e.target.value }))}
                 />
               )}

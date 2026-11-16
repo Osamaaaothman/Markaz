@@ -202,8 +202,39 @@ try {
       path: fileURLToPath(new URL(`${lang}-invoice-preflight-desktop.png`, out)),
       fullPage: true,
     });
+    // Reduced motion must remove a closed calendar, not leave an invisible portal
+    // at its desktop coordinates where it can expand the mobile page.
+    await page.locator(".p-datepicker").first().waitFor({ state: "detached", timeout: 5000 });
     await page.setViewportSize({ width: 390, height: 844 });
-    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
+    // CI runs this right after a full monorepo build on a shared, loaded runner; a one-shot
+    // assert right after the resize flaked there even though layout settles well under this
+    // locally (same race check-interface-styles.mjs already guards against). The assertion
+    // itself stays exactly as strict — this only gives the reflow time to actually finish.
+    await page
+      .waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 2, null, { timeout: 15000 })
+      .catch(async (error) => {
+        console.error(
+          lang,
+          await page.evaluate(() => ({
+            width: innerWidth,
+            documentWidth: document.documentElement.scrollWidth,
+            elements: [...document.querySelectorAll("body *")]
+              .filter((element) => {
+                const rect = element.getBoundingClientRect();
+                return rect.width > 0 && (rect.right > innerWidth + 2 || rect.left < -2);
+              })
+              .map((element) => ({
+                tag: element.tagName,
+                className: element.className,
+                width: element.getBoundingClientRect().width,
+                right: element.getBoundingClientRect().right,
+                text: element.textContent.slice(0, 80),
+              }))
+              .slice(0, 20),
+          })),
+        );
+        throw error;
+      });
     await supply.scrollIntoViewIfNeeded();
     await page.screenshot({
       path: fileURLToPath(new URL(`${lang}-invoice-preflight-mobile.png`, out)),
