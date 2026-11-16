@@ -38,7 +38,7 @@ export function SalesOrdersPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [status, setStatus] = useState<SalesOrderStatus | null>(null);
   const [convertOpen, setConvertOpen] = useState(false);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSalesOrders(status);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useSalesOrders(status);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
   return (
@@ -82,18 +82,13 @@ export function SalesOrdersPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("sales_order:create"), label: t("sales.orders.new"), onClick: () => void navigate("/sales/orders/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/orders/${(e.data as SalesOrderSummary).id}`)}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} emptyAction={{ allowed: can("sales_order:create"), label: t("sales.orders.new"), onClick: () => void navigate("/sales/orders/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => void navigate(`/sales/orders/${(e.data as SalesOrderSummary).id}`)}>
             <Column field="number" filter header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: SalesOrderSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("sales.customer")} body={(r: SalesOrderSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("sales.orders.date")} style={{ width: "9rem" }} body={(r: SalesOrderSummary) => formatCalendarDate(r.orderDate, i18n.language)} />
             <Column header={t("purchasing.invoices.gross")} align="right" style={{ width: "11rem" }} body={(r: SalesOrderSummary) => formatMoney(r.totalGross, r.currency)} />
             <Column field="status" filter filterMatchMode="equals" filterElement={selectFilter(Object.keys(SEVERITY).map((v) => ({ label: t(`sales.orders.status.${v}`), value: v })), t("table.filterPlaceholder"))} header={t("purchasing.status")} style={{ width: "11rem" }} body={(r: SalesOrderSummary) => <Tag value={t(`sales.orders.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
       <ConvertQuotationDialog visible={convertOpen} onHide={() => setConvertOpen(false)} />
@@ -181,6 +176,7 @@ export function SalesOrderDetailPage(): React.JSX.Element {
         <div className="erp-page__header-actions">
           <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/sales-orders/${order.id}/pdf`, { lang: i18n.language }, order.number, "print")} />
           <Tag value={t(`sales.orders.status.${order.status}`)} severity={SEVERITY[order.status]} />
+          {order.status !== "CANCELLED" ? <PermissionButton allowed={can("sales_delivery_note:create")} label={t("sales.orders.createDeliveryNote")} icon="pi pi-send" outlined onClick={() => void navigate(`/sales/delivery-notes/new?order=${order.id}`)} /> : null}
           {canInvoice ? <PermissionButton allowed={can("sales_invoice:create")} label={t("sales.orders.createInvoice")} icon="pi pi-receipt" onClick={() => void navigate(`/sales/invoices/new?order=${order.id}`)} /> : null}
           {order.status === "OPEN" ? (
             <PermissionButton allowed={can("sales_order:cancel")} label={t("sales.orders.cancel")} icon="pi pi-ban" severity="secondary" outlined loading={cancel.isPending} onClick={() => cancel.mutate(undefined, { onSuccess: () => void navigate("/sales/orders") })} />

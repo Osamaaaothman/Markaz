@@ -25,7 +25,7 @@ export function PurchaseRequestReviewPage(): React.JSX.Element {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const accept = useAcceptPurchaseRequest();
 
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseRequests(view);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = usePurchaseRequests(view);
   const requests = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
@@ -62,7 +62,7 @@ export function PurchaseRequestReviewPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }}
             value={requests}
             className="erp-table"
             stripedRows
@@ -104,11 +104,6 @@ export function PurchaseRequestReviewPage(): React.JSX.Element {
               )}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
 

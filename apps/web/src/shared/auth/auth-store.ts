@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { queryClient } from "../api/query-client";
+import { deletePersistedCache } from "../offline/persisted-cache-db";
 import { tokenPrincipal } from "./token-principal";
 
 // docs/08-FRONTEND-I18N-RULES.md §2: "Server data never goes into Zustand" — this
@@ -30,6 +31,8 @@ export const useAuthStore = create<AuthState>()(
       clear: () => {
         set({ accessToken: null, refreshToken: null });
         queryClient.clear();
+        // ...and the copy saved on this device for offline use.
+        void deletePersistedCache();
       },
     }),
     { name: "erp-auth" },

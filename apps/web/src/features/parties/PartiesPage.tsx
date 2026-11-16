@@ -1,7 +1,6 @@
 import { ImportButton } from "../../shared/ui/imports/ImportButton";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataGrid } from "../../shared/ui/DataGrid";
 import { TabView, TabPanel } from "primereact/tabview";
@@ -45,7 +44,7 @@ function PartiesTab({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const debouncedQuery = useDebouncedValue(query);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useParties({
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useParties({
     q: debouncedQuery,
     kind,
     includeInactive,
@@ -101,7 +100,7 @@ function PartiesTab({
         </div>
       ) : (
         <>
-          <DataGrid
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }}
             searchable={false}
             value={parties}
             className="erp-table"
@@ -162,17 +161,6 @@ function PartiesTab({
             />
             <Column header="" style={{ width: "4rem" }} body={(row: PartySummary) => <AttachmentsButton ownerType="PARTY" ownerId={row.id} label={row.name} />} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button
-                label={t("actions.loadMore")}
-                text
-                onClick={() => void fetchNextPage()}
-                loading={isFetchingNextPage}
-                icon="pi pi-chevron-down"
-              />
-            </div>
-          ) : null}
         </>
       )}
 

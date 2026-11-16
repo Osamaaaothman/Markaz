@@ -177,6 +177,22 @@
     "inWords": "المبلغ كتابةً",
     "computerGenerated": "هذا مستند صادر من النظام ولا يحتاج إلى توقيع يدوي."
   },
+  "deliveryNote": {
+    "title": "سند تسليم بضاعة",
+    "number": "الرقم",
+    "date": "التاريخ",
+    "to": "إلى",
+    "salesOrder": "أمر البيع",
+    "description": "البيان",
+    "quantity": "الكمية",
+    "notes": "ملاحظات",
+    "driverName": "اسم السائق",
+    "receiverName": "اسم المستلم",
+    "storekeeperSignature": "توقيع أمين المخزن",
+    "signature": "التوقيع",
+    "noPrices": "هذا السند يبيّن الكميات فقط ولا يتضمن أسعارًا أو مبالغ.",
+    "computerGenerated": "هذا مستند صادر من النظام."
+  },
   "document": {
     "issuedBy": "أصدره",
     "issuedAt": "وقت الإصدار"

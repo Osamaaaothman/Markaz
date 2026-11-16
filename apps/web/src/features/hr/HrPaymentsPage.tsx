@@ -36,7 +36,7 @@ export function HrPaymentsPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = usePermissions();
   const navigate = useNavigate();
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useHrPayments();
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useHrPayments();
   const { data: payables } = useHrPayables();
   const [dialog, setDialog] = useState<HrPaymentKind | null>(null);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
@@ -85,18 +85,13 @@ export function HrPaymentsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("hr.payments.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("hr.payments.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "12rem" }} body={(r: HrPaymentSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/hr/payments/${r.id}`)}>{r.number}</button>} />
             <Column header={t("hr.payments.kind")} style={{ width: "11rem" }} body={(r: HrPaymentSummary) => <Tag value={t(`hr.payments.kinds.${r.kind}`)} severity={r.kind === "SALARY" ? "success" : r.kind === "GOSI" ? "info" : "warning"} />} />
             <Column header={t("payments.date")} style={{ width: "9rem" }} body={(r: HrPaymentSummary) => formatCalendarDate(r.paymentDate, i18n.language)} />
             <Column header={t("hr.payments.for")} body={(r: HrPaymentSummary) => (r.payrollRunNumber ?? (r.employeeName ? localizedName({ name: r.employeeName, nameAr: r.employeeNameAr }, i18n.language) : "—"))} />
             <Column header={t("payments.amount")} align="right" style={{ width: "12rem" }} body={(r: HrPaymentSummary) => <strong>{formatMoney(r.amount, r.currency)}</strong>} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
 

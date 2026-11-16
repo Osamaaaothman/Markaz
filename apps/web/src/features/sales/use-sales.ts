@@ -19,6 +19,7 @@ export interface SalesLineView {
   readonly netAmount: string;
   readonly taxAmount: string;
   readonly invoicedQuantity?: string;
+  readonly deliveredQuantity?: string;
 }
 
 export interface SalesLinePayload {
@@ -235,6 +236,103 @@ export function useCancelSalesOrder(id: string) {
     mutationFn: async () =>
       (await apiClient.post<{ id: string }>(`/v1/sales-orders/${id}/cancel`, {})).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["salesOrders"] }),
+  });
+}
+
+// ── Goods delivery notes ─────────────────────────────────────────────────────
+// A storekeeper's handover record printed before the invoice: no prices, no stock movement
+// (docs/01-OPEN-DECISIONS.md E1). Optional, not a gate before invoicing.
+
+export interface GoodsDeliveryNoteLineView {
+  readonly id: string;
+  readonly salesOrderLineId: string;
+  readonly itemId: string | null;
+  readonly itemCode: string | null;
+  readonly itemName: string | null;
+  readonly itemNameAr: string | null;
+  readonly description: string;
+  readonly quantity: string;
+}
+
+export interface GoodsDeliveryNoteSummary {
+  readonly id: string;
+  readonly number: string;
+  readonly salesOrderId: string;
+  readonly salesOrderNumber: string;
+  readonly customerId: string;
+  readonly customerName: string;
+  readonly customerNameAr: string | null;
+  readonly deliveryDate: string;
+  readonly driverName: string | null;
+  readonly receiverName: string | null;
+  readonly lineCount: number;
+}
+
+export interface GoodsDeliveryNoteDetail extends GoodsDeliveryNoteSummary {
+  readonly notes: string | null;
+  readonly createdBy: string;
+  readonly lines: readonly GoodsDeliveryNoteLineView[];
+}
+
+export function useGoodsDeliveryNotes(salesOrderId: string | null) {
+  const { can } = usePermissions();
+  return useInfiniteQuery({
+    queryKey: ["goodsDeliveryNotes", "list", salesOrderId],
+    queryFn: async ({ pageParam }) =>
+      (
+        await apiClient.get<Page<GoodsDeliveryNoteSummary>>("/v1/goods-delivery-notes", {
+          params: {
+            limit: "50",
+            ...(salesOrderId ? { salesOrderId } : {}),
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
+        })
+      ).data,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
+    staleTime: 10_000,
+    enabled: can("sales_delivery_note:read"),
+  });
+}
+
+export function useGoodsDeliveryNote(id: string | null) {
+  return useQuery({
+    queryKey: ["goodsDeliveryNotes", "detail", id],
+    queryFn: async () => (await apiClient.get<GoodsDeliveryNoteDetail>(`/v1/goods-delivery-notes/${id}`)).data,
+    enabled: id !== null && id !== "",
+    staleTime: 10_000,
+  });
+}
+
+export interface GoodsDeliveryNoteLinePayload {
+  readonly salesOrderLineId: string;
+  readonly quantity: string;
+  readonly description?: string;
+}
+
+export interface CreateGoodsDeliveryNotePayload {
+  readonly salesOrderId: string;
+  readonly deliveryDate: string;
+  readonly driverName?: string;
+  readonly receiverName?: string;
+  readonly notes?: string;
+  readonly lines: readonly GoodsDeliveryNoteLinePayload[];
+}
+
+export function useCreateGoodsDeliveryNote(submissionKey?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { feedback: "dialog" },
+    mutationFn: async (payload: CreateGoodsDeliveryNotePayload) =>
+      (
+        await apiClient.post<{ id: string; number: string }>("/v1/goods-delivery-notes", payload, {
+          headers: { "Idempotency-Key": submissionKey ?? newId() },
+        })
+      ).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["goodsDeliveryNotes"] });
+      void qc.invalidateQueries({ queryKey: ["salesOrders"] });
+    },
   });
 }
 

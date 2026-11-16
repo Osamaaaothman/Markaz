@@ -2,6 +2,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../auth/auth-store";
 import { createSessionRefresher } from "../auth/refresh-session";
 import { tokenPrincipal } from "../auth/token-principal";
+import { isOffline, isReadMethod, OfflineError } from "../offline/offline-error";
 
 // Same-origin /api/... in both dev (vite.config.ts proxy) and production
 // (docker/web.nginx.conf) — the frontend never needs to know the API's real
@@ -12,6 +13,12 @@ export const apiClient = axios.create({ baseURL: "/api" });
 // response interceptor below, or a failed refresh would recursively try to
 // refresh again.
 const refreshClient = axios.create({ baseURL: "/api" });
+
+// Offline, nothing but reads leaves the browser (src/shared/offline/offline-error.ts for why).
+apiClient.interceptors.request.use((config) => {
+  if (isOffline() && !isReadMethod(config.method)) throw new OfflineError();
+  return config;
+});
 
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
