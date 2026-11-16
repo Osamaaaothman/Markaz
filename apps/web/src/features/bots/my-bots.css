@@ -1,0 +1,137 @@
+/* "My chat bots" — one card per company bot connection the signed-in user can link.
+   Every spacing rule uses logical properties so the page mirrors correctly in RTL. */
+
+.my-bots__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.my-bots__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-block-end: 0.9rem;
+}
+
+.my-bots__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.my-bots__title {
+  margin: 0;
+}
+
+.my-bots__handle {
+  color: var(--mk-text-muted);
+  font-size: 0.9rem;
+}
+
+.my-bots__section {
+  margin-block-start: 1rem;
+  border-block-start: 1px solid var(--mk-border);
+  padding-block-start: 1rem;
+}
+
+.my-bots__section-title {
+  margin: 0 0 0.8rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.my-bots__subsection-title {
+  margin: 1rem 0 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.my-bots__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.8rem;
+  margin-block-end: 0.8rem;
+}
+
+.my-bots__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-inline-size: 9rem;
+}
+
+.my-bots__field label,
+.my-bots__switch label {
+  font-size: 0.85rem;
+  color: var(--mk-text-muted);
+}
+
+.my-bots__switches {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.my-bots__switch {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.my-bots__panel {
+  margin-block-start: 0.9rem;
+  padding: 0.9rem 1rem;
+  background: var(--mk-surface-2);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+}
+
+.my-bots__panel-title {
+  margin: 0 0 0.7rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.my-bots__hint {
+  margin: 0 0 0.7rem;
+  color: var(--mk-text-muted);
+  font-size: 0.88rem;
+}
+
+.my-bots__code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-block-end: 0.7rem;
+}
+
+.my-bots__code code {
+  padding: 0.45rem 0.65rem;
+  background: var(--mk-surface-3);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+
+.my-bots__reports {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  list-style: none;
+}
+
+.my-bots__report {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-inline: 0.15rem;
+}

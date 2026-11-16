@@ -77,7 +77,9 @@
     "hrPayments": "Pay salaries and dues",
     "auditLog": "Audit log",
     "interface": "Interface",
-    "setup": "First-run setup"
+    "setup": "First-run setup",
+    "chatBots": "Chat bots",
+    "myChatBots": "My chat bots"
   },
   "actions": {
     "save": "Save",
@@ -547,7 +549,8 @@
         "aging_report": "Ageing reports",
         "party_statement": "Customer and supplier statements",
         "attachment": "Attached documents",
-        "company": "Company settings"
+        "company": "Company settings",
+        "bot_connection": "Chat bots"
       },
       "actions": {
         "create": "Create",
@@ -559,7 +562,8 @@
         "reject": "Reject",
         "approve": "Approve",
         "cancel": "Cancel",
-        "delete": "Delete"
+        "delete": "Delete",
+        "manage": "Manage"
       },
       "createUserSuccess": "User created.",
       "createUserError": "Couldn't create user.",
@@ -799,7 +803,11 @@
     }
   },
   "purchasing": {
-    "receiving": { "title": "Goods receiving", "subtitle": "Receive goods against open purchase orders.", "empty": "No approved orders are waiting for goods." },
+    "receiving": {
+      "title": "Goods receiving",
+      "subtitle": "Receive goods against open purchase orders.",
+      "empty": "No approved orders are waiting for goods."
+    },
     "title": "Purchasing",
     "status": "Status",
     "allStatuses": "All statuses",
@@ -2731,5 +2739,291 @@
     "body": "You can keep reading the pages you opened before. Changes are turned off until the connection returns.",
     "blocked": "You are offline. This action needs a connection, so nothing was saved. Try again when you are back online.",
     "notSaved": "You are offline and this page was not opened before, so it is not available yet."
+  },
+  "bots": {
+    "title": "Chat bots",
+    "subtitle": "Connect the system to Telegram or Discord: approvals with buttons, alerts, lookups, documents and scheduled reports.",
+    "setup": {
+      "keyMissingTitle": "Encryption key not configured",
+      "keyMissingBody": "Set BOT_CREDENTIALS_ENCRYPTION_KEY on the server (32 random bytes, base64) and restart. Bot tokens are never stored without it.",
+      "publicUrlMissing": "No public address is configured (BOTS_PUBLIC_API_URL). Telegram can still connect in polling mode; Discord needs a public HTTPS address.",
+      "webAppUrlMissing": "BOTS_WEB_APP_URL is not set, so messages will not include “Open in ERP” buttons."
+    },
+    "providers": {
+      "telegram": {
+        "name": "Telegram",
+        "tagline": "Private chats with buttons, files and scheduled reports."
+      },
+      "discord": {
+        "name": "Discord",
+        "tagline": "Slash commands, coloured cards, pop-up forms and private replies."
+      },
+      "comingSoon": {
+        "name": "WhatsApp · Slack · Teams",
+        "tagline": "Planned. Each is one more adapter on the same design."
+      }
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "DISABLED": "Disabled",
+      "notConnected": "Not connected",
+      "healthy": "Connection OK",
+      "unhealthy": "Connection failing",
+      "neverChecked": "Not checked yet",
+      "lastCheck": "Checked {{time}}"
+    },
+    "linkedCount": "Linked users: {{count}}",
+    "actions": {
+      "connect": "Connect",
+      "manage": "Manage",
+      "disable": "Disable",
+      "enable": "Enable",
+      "reinstall": "Re-register with the platform",
+      "delete": "Delete connection",
+      "test": "Test connection",
+      "save": "Save",
+      "cancel": "Cancel",
+      "next": "Next",
+      "back": "Back",
+      "copy": "Copy",
+      "copied": "Copied",
+      "revoke": "Revoke",
+      "add": "Add",
+      "remove": "Remove",
+      "close": "Close"
+    },
+    "connect": {
+      "title": "Connect {{provider}}",
+      "stepGuide": "Get the credentials",
+      "stepCredentials": "Enter and test",
+      "stepConfirm": "Options and confirm",
+      "transport": "How the bot receives messages",
+      "transportWebhook": "Webhook (recommended)",
+      "transportPolling": "Polling",
+      "transportWebhookHelp": "The platform calls this server directly. Needs the public HTTPS address.",
+      "transportPollingHelp": "This server asks Telegram for new messages. Works without a public address (on-premise).",
+      "testOk": "Connected to {{name}}",
+      "testFirst": "Test the connection before continuing.",
+      "dataSharingTitle": "Messages pass through the chat platform",
+      "dataSharingBody": "Everything the bot sends — amounts, customer names, documents — is carried by {{provider}}'s servers outside this deployment. Only enable it if your company accepts that.",
+      "dataSharingAccept": "I understand and accept this for my company",
+      "features": "What the bot may do",
+      "approvalCeiling": "Approval limit in chat",
+      "approvalCeilingHelp": "Purchase orders above this amount can only be approved in the system. Leave empty for no limit.",
+      "approvalCeilingInvalid": "Enter an amount such as 50000 or 50000.00.",
+      "created": "Bot connected"
+    },
+    "guide": {
+      "telegram": {
+        "step1": "Open Telegram and start a chat with @BotFather.",
+        "step2": "Send /newbot, choose a display name and a username ending in “bot”.",
+        "step3": "BotFather replies with a token like 123456789:AA… — copy it.",
+        "step4": "Optional: /setuserpic and /setdescription to brand the bot with your company."
+      },
+      "discord": {
+        "step1": "Open discord.com/developers/applications and create a New Application.",
+        "step2": "General Information: copy the Application ID and the Public Key.",
+        "step3": "Bot: reset and copy the token. Keep the Message Content intent off — it is not needed.",
+        "step4": "Optional: enter your server's ID (Guild ID) so commands appear instantly in that server.",
+        "step5": "After saving, open the invite link shown here to add the bot to your server."
+      }
+    },
+    "telegram": {
+      "fields": {
+        "botToken": {
+          "label": "Bot token",
+          "help": "From @BotFather, e.g. 123456789:AAH…"
+        }
+      }
+    },
+    "discord": {
+      "fields": {
+        "applicationId": {
+          "label": "Application ID",
+          "help": "Developer Portal → General Information"
+        },
+        "publicKey": {
+          "label": "Public key",
+          "help": "Developer Portal → General Information (64 hex characters)"
+        },
+        "botToken": {
+          "label": "Bot token",
+          "help": "Developer Portal → Bot → Reset Token"
+        },
+        "guildId": {
+          "label": "Server (guild) ID — optional",
+          "help": "Right-click your server with Developer Mode on → Copy Server ID"
+        }
+      },
+      "manualEndpoint": "Discord did not accept the address automatically. Paste the webhook address below into Developer Portal → General Information → Interactions Endpoint URL, then press “Re-register”.",
+      "invite": "Invite the bot to your server"
+    },
+    "features": {
+      "approvals": {
+        "label": "Approvals",
+        "hint": "Approve or reject purchase orders with buttons."
+      },
+      "alerts": {
+        "label": "Alerts",
+        "hint": "Approval requests, low stock, ZATCA problems."
+      },
+      "lookups": {
+        "label": "Lookups",
+        "hint": "Customers, items, invoices and cash on demand."
+      },
+      "documents": {
+        "label": "Documents",
+        "hint": "Invoice and statement PDFs sent as files."
+      },
+      "reports": {
+        "label": "Reports",
+        "hint": "Daily, weekly and monthly summaries."
+      },
+      "receipts": {
+        "label": "Receipts",
+        "hint": "Photos and PDFs attached to purchase records."
+      }
+    },
+    "tabs": {
+      "overview": "Overview",
+      "credentials": "Credentials",
+      "features": "Features",
+      "users": "Linked users",
+      "groups": "Report groups",
+      "deliveries": "Delivery log",
+      "danger": "Disable or delete"
+    },
+    "overview": {
+      "bot": "Bot",
+      "transport": "Mode",
+      "webhookUrl": "Webhook address",
+      "webhookUrlHelp": "The address the platform calls. It is set automatically when possible.",
+      "health": "Health",
+      "dataSharingAccepted": "Data-sharing notice accepted {{date}}"
+    },
+    "credentials": {
+      "hint": "Stored tokens are never shown. Type a new value only to replace one; empty fields keep what is stored.",
+      "stored": "Stored · ends with {{last4}}",
+      "storedShort": "Stored",
+      "notStored": "Not stored",
+      "saved": "Credentials replaced and the bot was re-registered"
+    },
+    "featuresSaved": "Saved",
+    "users": {
+      "empty": "No one has linked a chat account yet. Users link their own account from “My chat bots”.",
+      "user": "User",
+      "handle": "Chat account",
+      "linkedAt": "Linked",
+      "unreachable": "Unreachable",
+      "revokeConfirm": "Revoke this link? The user stops receiving messages until they link again."
+    },
+    "groups": {
+      "hint": "Send /chatid in a group or channel where the bot is a member, then register that id here. Groups receive only the reports you choose — never approvals or lookups.",
+      "chatId": "Chat ID",
+      "title": "Name",
+      "empty": "No report groups yet.",
+      "subscriptions": "Reports",
+      "addSubscription": "Add report",
+      "reportType": "Report",
+      "sendTime": "Time",
+      "weekday": "Day",
+      "language": "Language",
+      "attachPdf": "Attach receivables ageing PDF"
+    },
+    "deliveries": {
+      "empty": "Nothing sent yet.",
+      "kind": "Message",
+      "status": "Status",
+      "error": "Error",
+      "time": "Time",
+      "states": {
+        "SENT": "Sent",
+        "FAILED": "Failed",
+        "SKIPPED": "Skipped"
+      }
+    },
+    "danger": {
+      "disableHint": "Stops all messages and ignores incoming taps. Links and settings are kept.",
+      "deleteHint": "Removes the bot's commands from the platform and deletes its credentials, links and history here. The audit log keeps the record.",
+      "deleteConfirm": "Delete this bot connection? This cannot be undone."
+    },
+    "reportTypes": {
+      "DAILY_SUMMARY": "Daily summary",
+      "WEEKLY_SUMMARY": "Weekly summary",
+      "MONTHLY_SUMMARY": "Monthly summary"
+    },
+    "weekdays": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "languages": {
+      "ar": "العربية",
+      "en": "English"
+    },
+    "alertTypes": {
+      "approval_requested": "Approval requests",
+      "low_stock": "Low stock",
+      "zatca_problem": "ZATCA problems"
+    },
+    "errors": {
+      "ENCRYPTION_KEY_MISSING": "The server has no BOT_CREDENTIALS_ENCRYPTION_KEY.",
+      "UNKNOWN_PROVIDER": "Unknown platform.",
+      "CONNECTION_EXISTS": "This platform is already connected.",
+      "CONNECTION_NOT_FOUND": "Connection not found.",
+      "CREDENTIALS_INVALID": "Some credentials are missing or in the wrong format.",
+      "CONNECTION_TEST_FAILED": "The platform refused these credentials.",
+      "TRANSPORT_UNSUPPORTED": "This mode is not available for this platform.",
+      "PUBLIC_URL_MISSING": "Webhook mode needs BOTS_PUBLIC_API_URL on the server.",
+      "DATA_SHARING_NOT_ACCEPTED": "Accept the data-sharing notice first.",
+      "LINK_NOT_FOUND": "Link not found.",
+      "CONNECTION_DISABLED": "This bot is disabled.",
+      "SUBSCRIPTION_NOT_FOUND": "Report not found.",
+      "TARGET_NOT_FOUND": "Group not found.",
+      "INVALID_INPUT": "Please check the values.",
+      "PLATFORM_ERROR": "The chat platform returned an error. Try again.",
+      "UNKNOWN": "Something went wrong."
+    },
+    "testReasons": {
+      "UNAUTHORIZED": "Wrong token or key",
+      "RATE_LIMITED": "Too many attempts — wait a minute",
+      "BLOCKED": "Access denied",
+      "NOT_FOUND": "Not found",
+      "BAD_REQUEST": "The values do not belong together",
+      "TOO_LARGE": "Too large",
+      "NETWORK": "Could not reach the platform",
+      "UNSUPPORTED": "Not supported"
+    },
+    "mine": {
+      "title": "My chat bots",
+      "subtitle": "Link your Telegram or Discord account to get approvals, alerts and reports in chat.",
+      "noBots": "Your company has not connected a chat bot yet.",
+      "linked": "Linked as {{handle}}",
+      "notLinked": "Not linked",
+      "link": "Link my account",
+      "unlink": "Unlink",
+      "unlinkConfirm": "Unlink this chat account?",
+      "codeTitle": "Your link code",
+      "codeOpenTelegram": "Open in Telegram",
+      "codeTelegramHint": "Press the button (or send the command below to the bot). The code works once, for 10 minutes.",
+      "codeDiscordHint": "In Discord, send this command to the bot. The code works once, for 10 minutes.",
+      "codeExpires": "Expires {{time}}",
+      "refreshAfterLink": "I have linked it",
+      "unreachable": "The bot cannot reach you — you may have blocked it. Open the chat and send /menu.",
+      "preferences": "Preferences",
+      "language": "Message language",
+      "quietHours": "Quiet hours",
+      "quietFrom": "From",
+      "quietTo": "To",
+      "quietOff": "No quiet hours",
+      "alerts": "Alerts",
+      "reports": "Scheduled reports",
+      "noReports": "No scheduled reports.",
+      "addReport": "Schedule"
+    }
   }
 }

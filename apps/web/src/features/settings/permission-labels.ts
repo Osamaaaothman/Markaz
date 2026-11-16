@@ -37,6 +37,7 @@ const RESOURCE_ORDER = [
   "party_statement",
   "attachment",
   "company",
+  "bot_connection",
 ] as const;
 
 export function splitPermissionCode(code: string): { resource: string; action: string } {
