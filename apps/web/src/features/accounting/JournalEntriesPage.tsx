@@ -105,7 +105,7 @@ export function JournalEntriesPage(): React.JSX.Element {
             size="small"
             onRowClick={(e) => setSelectedEntryId((e.data as JournalEntrySummary).id)}
           >
-            <Column field="number" header="#" style={{ width: "8rem" }} />
+            <Column field="ledgerNumber" header="#" style={{ width: "8rem" }} />
             <Column
               field="entryDate"
               header={t("accounting.journalEntries.entryDate")}

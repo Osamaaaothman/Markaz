@@ -50,6 +50,7 @@ import { PeriodTrialBalanceQueryDto, TrialBalanceExportQueryDto } from "./dto/tr
 import { defaultTrialBalancePeriod } from "./trial-balance-period.js";
 import { IncomeStatementExportQueryDto } from "./dto/income-statement-export-query.dto.js";
 import { JournalEntriesQueryDto } from "./dto/journal-entries-query.dto.js";
+import { ledgerNumbersByEntryId } from "./ledger-number.js";
 import { CreateAccountDto } from "./dto/create-account.dto.js";
 import { UpdateAccountDto } from "./dto/update-account.dto.js";
 import { MoveAccountDto } from "./dto/move-account.dto.js";
@@ -282,10 +283,23 @@ export class AccountingController {
     const hasMore = entries.length > limit;
     const page = hasMore ? entries.slice(0, limit) : entries;
 
+    // `number` (above) is the SOURCE DOCUMENT's own number (invoice, voucher...) —
+    // docs/01-OPEN-DECISIONS.md §L: each document type has its own independent
+    // series, so two entries from different modules can show the same `number`.
+    // That is correct for traceability but makes this register — which lists every
+    // source type together — look like it has duplicate numbers. See ledger-number.ts
+    // for why `ledgerNumber` is computed here rather than stored.
+    const ledgerNumberById = await ledgerNumbersByEntryId(
+      this.prisma,
+      actor.companyId,
+      page.map((entry) => entry.id),
+    );
+
     return {
       data: page.map((entry) => ({
         id: entry.id,
         number: entry.number,
+        ledgerNumber: ledgerNumberById.get(entry.id) ?? entry.number,
         entryDate: entry.entryDate.toISOString(),
         currency: entry.currency,
         sourceDocumentType: entry.sourceDocumentType,

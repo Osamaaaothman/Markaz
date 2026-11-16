@@ -23,6 +23,9 @@ export interface FiscalPeriodSummary {
 export interface JournalEntrySummary {
   readonly id: string;
   readonly number: string;
+  // This entry's gapless position within its company + fiscal year, computed at
+  // read time — see the comment in accounting.controller.ts#listJournalEntries.
+  readonly ledgerNumber: string;
   readonly entryDate: string;
   readonly currency: string;
   readonly sourceDocumentType: string;

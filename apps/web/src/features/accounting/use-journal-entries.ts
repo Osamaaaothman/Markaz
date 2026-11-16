@@ -4,6 +4,7 @@ import { apiClient } from "../../shared/api/client";
 export interface JournalEntrySummary {
   readonly id: string;
   readonly number: string;
+  readonly ledgerNumber: string;
   readonly entryDate: string;
   readonly currency: string;
   readonly sourceDocumentType: string;
