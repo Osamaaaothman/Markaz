@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { Outlet } from "react-router-dom";
+import { InstallPrompt } from "../../shared/pwa/InstallPrompt";
 import { CommandPalette } from "./CommandPalette";
 import { ExportProgress } from "./ExportProgress";
 import { Sidebar } from "./Sidebar";
@@ -43,6 +44,7 @@ export function AppShell(): React.JSX.Element {
       </div>
       <CommandPalette />
       <ExportProgress />
+      <InstallPrompt />
     </div>
   );
 }

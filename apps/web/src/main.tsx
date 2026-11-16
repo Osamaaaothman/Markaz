@@ -3,6 +3,12 @@ import { createRoot } from "react-dom/client";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import { App } from "./App";
+import { listenForInstallPrompt } from "./shared/pwa/pwa-install-store";
+import { registerServiceWorker } from "./shared/pwa/register-service-worker";
+
+// Both before the first render: the browser fires `beforeinstallprompt` only once and may do so early.
+listenForInstallPrompt();
+registerServiceWorker();
 
 const container = document.getElementById("root");
 if (!container) {

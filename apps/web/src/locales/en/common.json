@@ -2689,5 +2689,18 @@
       "DELAYED": "Delivery delayed",
       "COMPLAINED": "Spam complaint"
     }
+  },
+  "pwa": {
+    "install": {
+      "title": "Install Markaz as an app",
+      "body": "Open Markaz straight from your home screen or desktop, in its own window, and be ready for notifications later.",
+      "iosBody": "Add Markaz to your home screen to open it like an app.",
+      "iosStepShare": "Tap the Share button in the Safari toolbar.",
+      "iosStepAdd": "Choose \"Add to Home Screen\", then tap Add.",
+      "action": "Install",
+      "later": "Not now",
+      "gotIt": "Got it",
+      "close": "Close"
+    }
   }
 }
