@@ -105,14 +105,21 @@ try {
     assert.equal(await qty.inputValue(), '25');
     assert.ok((await qty.boundingBox()).width >= 90);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'No page overflow');
-    const back = page.getByRole('button', { name: copy.shell.back, exact: true });
+    const back = page.locator('.erp-topbar').getByRole('button', { name: copy.shell.back, exact: true });
     assert.ok(await back.isVisible(), 'Back remains available on mobile');
+    // Ensure the document can scroll, then change routes through the sticky topbar.
+    await page.evaluate(() => { document.querySelector('main').style.minHeight = '2400px'; window.scrollTo(0, 600); });
+    assert.ok(await page.evaluate(() => window.scrollY > 0), 'Scrolling remains enabled');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth), 'none');
     await back.click();
     await page.waitForURL(base + '/sales/delivery-notes');
+    assert.equal(await page.evaluate(() => window.scrollY), 0, 'Direct-link fallback starts at top');
     await page.getByRole('button', { name: copy.sales.deliveryNotes.new, exact: true }).first().click();
     await page.waitForURL(base + '/sales/delivery-notes/new');
+    await page.evaluate(() => window.scrollTo(0, 600));
     await back.click();
     await page.waitForURL(base + '/sales/delivery-notes');
+    assert.equal(await page.evaluate(() => window.scrollY), 0, 'Back navigation starts at top');
     console.log(`PASS quantity editing, submitted values, profile install, sidebar: ${lang}/${direction}/${mode}`);
     await context.close();
   }

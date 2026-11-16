@@ -78,28 +78,15 @@ a:focus-visible {
   background: color-mix(in srgb, var(--mk-brand-500) 28%, transparent);
 }
 
-/* ---- scrollbars ---- */
+/* Hide the scrollbar chrome without disabling wheel, touch or keyboard scrolling. */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: var(--mk-border-strong) transparent;
+  scrollbar-width: none;
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--mk-border-strong);
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--mk-text-subtle);
-  background-clip: content-box;
-  border: 3px solid transparent;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* ---- tiny utilities the screens share ---- */

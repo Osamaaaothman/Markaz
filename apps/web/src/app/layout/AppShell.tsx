@@ -1,6 +1,6 @@
-import { Suspense } from "react";
+import { Suspense, useLayoutEffect } from "react";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { InstallPrompt } from "../../shared/pwa/InstallPrompt";
 import { OfflineBanner } from "../../shared/offline/OfflineBanner";
 import { CommandPalette } from "./CommandPalette";
@@ -18,6 +18,17 @@ export function AppShell(): React.JSX.Element {
   const mobileSidebarOpen = useLayoutStore((state) => state.mobileSidebarOpen);
   const closeMobileSidebar = useLayoutStore((state) => state.closeMobileSidebar);
   const { collapsed } = useSidebarLayout();
+  const { key: locationKey } = useLocation();
+
+  useLayoutEffect(() => {
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    return () => { window.history.scrollRestoration = previous; };
+  }, []);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [locationKey]);
 
   useLineGridKeys();
 
