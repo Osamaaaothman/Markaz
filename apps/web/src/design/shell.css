@@ -180,6 +180,18 @@ html[dir="rtl"] .erp-shell__mobile-drawer {
 /* the company card now sits at the very top of the rail */
 .erp-sidebar__head {
   display: flex;
+  align-items: center;
+  gap: var(--mk-space-2);
+  flex-shrink: 0;
+}
+
+.erp-sidebar__head > .erp-sidebar__company {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.erp-sidebar--collapsed .erp-sidebar__head {
+  flex-direction: column;
 }
 
 /* search / command palette entry: a ruled line, not a box */
@@ -413,14 +425,6 @@ html[dir="rtl"] .erp-sidebar__group-chevron--folded {
   transform: rotate(90deg);
 }
 
-/* footer: collapse button */
-.erp-sidebar__footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--mk-space-2);
-}
-
 .erp-sidebar__company {
   position: relative;
   flex: 1;
@@ -577,10 +581,6 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
   border-inline-start-width: 0;
 }
 
-.erp-sidebar--collapsed .erp-sidebar__footer {
-  flex-direction: column;
-}
-
 .erp-sidebar--collapsed .erp-sidebar__company {
   border: 0;
   background: none;
@@ -614,6 +614,18 @@ html[dir="rtl"] .erp-sidebar--collapsed .erp-sidebar__collapse i {
 
 .erp-topbar__spacer {
   flex: 1;
+}
+
+.erp-topbar__back {
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+}
+
+@media (max-width: 700px) {
+  /* Give navigation the logo's space on phones, keeping all controls reachable. */
+  .erp-topbar:has(.erp-topbar__back) > .erp-topbar__brand {
+    display: none;
+  }
 }
 
 /* the product's own mark and name at the start of the bar; on a phone only the emblem is kept */

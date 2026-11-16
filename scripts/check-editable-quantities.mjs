@@ -1,7 +1,7 @@
 // Real browser regressions with isolated API fixtures; never writes business data.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -9,6 +9,7 @@ const base = 'http://127.0.0.1:5194';
 const server = spawn(process.execPath, [root + '/node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '5194', '--strictPort'], { cwd: root + '/apps/web', stdio: 'ignore' });
 let browser;
 const errors = [];
+await mkdir(root + '/output/navigation-review', { recursive: true });
 try {
   for (let i = 0; i < 80; i++) {
     if (await fetch(base).then(r => r.ok).catch(() => false)) break;
@@ -42,6 +43,7 @@ try {
       else if (path === '/v1/purchasing/pending-counts') data = {};
       else if (path === '/v1/sales-orders/order') data = { id: 'order', number: 'SO-TEST', status: 'CONFIRMED', customerName: 'Buyer', customerNameAr: 'عميل', lines };
       else if (path === '/v1/sales-orders') data = { data: [], pageInfo: { hasMore: false, nextCursor: null } };
+      else if (path === '/v1/goods-delivery-notes') data = { data: [], pageInfo: { hasMore: false, nextCursor: null } };
       else { errors.push('Unexpected read ' + path); return route.fulfill({ status: 404, json: {} }); }
       return route.fulfill({ json: data });
     });
@@ -88,11 +90,39 @@ try {
     await page.locator('.erp-profile__actions').getByRole('button', { name: copy.pwa.install.action, exact: true }).click();
     await page.locator('.mk-install').getByRole('button', { name: copy.pwa.install.action, exact: true }).click();
     assert.equal(await page.evaluate(() => window.installCalls), 1);
+    const sidebar = page.locator('.erp-sidebar--desktop');
+    const expand = sidebar.getByRole('button', { name: copy.shell.expandSidebar, exact: true });
+    if (await expand.isVisible()) await expand.click();
+    const collapse = sidebar.getByRole('button', { name: copy.shell.collapseSidebar, exact: true });
+    assert.equal(await collapse.evaluate(el => Boolean(el.closest('.erp-sidebar__head'))), true);
+    await collapse.click();
+    await sidebar.getByRole('button', { name: copy.shell.expandSidebar, exact: true }).click();
+    if (direction === 'balance' && mode === 'light') {
+      await page.screenshot({ path: root + `/output/navigation-review/${lang}-desktop.png` });
+    }
     await page.setViewportSize({ width: 390, height: 844 });
     await qty.fill('25');
     assert.equal(await qty.inputValue(), '25');
     assert.ok((await qty.boundingBox()).width >= 90);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'No page overflow');
+    const back = page.locator('.erp-topbar').getByRole('button', { name: copy.shell.back, exact: true });
+    assert.ok(await back.isVisible(), 'Back remains available on mobile');
+    // Ensure the document can scroll, then change routes through the sticky topbar.
+    await page.evaluate(() => { document.querySelector('main').style.minHeight = '2400px'; window.scrollTo(0, 600); });
+    assert.ok(await page.evaluate(() => window.scrollY > 0), 'Scrolling remains enabled');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth), 'none');
+    await back.click();
+    await page.waitForURL(base + '/sales/delivery-notes');
+    await page.getByRole('heading', { name: copy.sales.deliveryNotes.title, exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.scrollY), 0, 'Direct-link fallback starts at top');
+    await page.getByRole('button', { name: copy.sales.deliveryNotes.new, exact: true }).first().click();
+    await page.waitForURL(base + '/sales/delivery-notes/new');
+    await page.getByRole('heading', { name: copy.sales.deliveryNotes.new, exact: true }).waitFor();
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await back.click();
+    await page.waitForURL(base + '/sales/delivery-notes');
+    await page.getByRole('heading', { name: copy.sales.deliveryNotes.title, exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.scrollY), 0, 'Back navigation starts at top');
     console.log(`PASS quantity editing, submitted values, profile install, sidebar: ${lang}/${direction}/${mode}`);
     await context.close();
   }

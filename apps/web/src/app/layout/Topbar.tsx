@@ -47,6 +47,19 @@ export function Topbar(): React.JSX.Element {
 
   const nav = currentNav(pathname);
   const isArabic = i18n.language === "ar";
+  const goBack = (): void => {
+    // React Router's index counts in-app entries, unlike history.length which can
+    // include another website. Direct links return to their section, then home.
+    const historyState: unknown = window.history.state;
+    const historyIndex = historyState && typeof historyState === "object" && "idx" in historyState
+      ? historyState.idx
+      : undefined;
+    if (typeof historyIndex === "number" && historyIndex > 0) {
+      void navigate(-1);
+    } else {
+      void navigate(nav && nav.to !== pathname ? nav.to : "/", { replace: true });
+    }
+  };
   const switchLanguage = (): void => {
     void i18n.changeLanguage(isArabic ? "en" : "ar");
   };
@@ -72,6 +85,18 @@ export function Topbar(): React.JSX.Element {
       </button>
 
       <Logo variant="full" size={36} name={t("app.name")} className="erp-topbar__brand" />
+
+      {pathname !== "/" ? (
+        <button
+          type="button"
+          className="erp-topbar__icon-button erp-topbar__back"
+          onClick={goBack}
+          aria-label={t("shell.back")}
+          title={t("shell.back")}
+        >
+          <i className={`pi ${isArabic ? "pi-arrow-right" : "pi-arrow-left"}`} aria-hidden="true" />
+        </button>
+      ) : null}
 
       <nav className="erp-breadcrumb" aria-label={t("shell.breadcrumb")}>
         {nav?.groupKey ? (
