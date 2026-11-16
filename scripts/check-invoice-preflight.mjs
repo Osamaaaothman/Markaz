@@ -202,6 +202,11 @@ try {
       path: fileURLToPath(new URL(`${lang}-invoice-preflight-desktop.png`, out)),
       fullPage: true,
     });
+    // The supply-date Calendar overlay closes on the Tab press above, but on a loaded CI
+    // runner its exit transition can still be mid-flight here — it stays absolutely
+    // positioned from the 1440px layout and widens scrollWidth once we resize to mobile.
+    // Make sure it's actually gone (not just invisible) before measuring overflow below.
+    await page.locator(".p-datepicker").first().waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
     await page.setViewportSize({ width: 390, height: 844 });
     // CI runs this right after a full monorepo build on a shared, loaded runner; a one-shot
     // assert right after the resize flaked there even though layout settles well under this
