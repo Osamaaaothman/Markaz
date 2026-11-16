@@ -34,8 +34,8 @@ import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { CompanyDocumentService } from "../documents/company-document.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "../i18n/server-i18n.js";
-import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
 import { ComplianceAdminService } from "../compliance/compliance-admin.service.js";
+import { SalesInvoicePdfService } from "./sales-invoice-pdf.service.js";
 import { quotationToPdfHtml } from "./exports/quotation-export.js";
 import { salesOrderToPdfHtml } from "./exports/sales-order-export.js";
 import { goodsDeliveryNoteToPdfHtml } from "./exports/goods-delivery-note-export.js";
@@ -142,6 +142,7 @@ export class SalesController {
     private readonly attachments: AttachmentService,
     @Inject(EMAIL_TRANSPORT) private readonly emailTransport: EmailTransport,
     private readonly compliance: ComplianceAdminService,
+    private readonly invoicePdfs: SalesInvoicePdfService,
   ) {}
 
   // Shared by the quotation PDF, preview and send endpoints: the company's own identity as it
@@ -412,53 +413,10 @@ export class SalesController {
     @Query("lang") lang?: string,
   ): Promise<void> {
     const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
-    const invoice = await mapSalesErrors(this.invoices.get(actor.companyId, id));
-    const issued = await this.prisma.salesInvoice.findFirstOrThrow({ where: { id, companyId: actor.companyId }, select: { actorId: true, createdAt: true } });
-    const issuer = await this.prisma.user.findFirst({ where: { id: issued.actorId, companyId: actor.companyId }, select: { email: true } });
-    const company = await this.prisma.company.findUniqueOrThrow({
-      where: { id: actor.companyId },
-      select: {
-        name: true,
-        nameAr: true,
-        vatNumber: true,
-        crNumber: true,
-        streetName: true,
-        additionalStreetName: true,
-        buildingNumber: true,
-        additionalNumber: true,
-        district: true,
-        city: true,
-        postalCode: true,
-        phone: true,
-      },
-    });
-    // The company logo, embedded as a data URI so the PDF never fetches anything. No logo is not an error.
-    const logo = await this.attachments.getCompanyLogo(actor.companyId).catch(() => null);
-    const logoDataUri = logo ? `data:${logo.contentType};base64,${Buffer.from(logo.bytes).toString("base64")}` : undefined;
-    const addressSeparator = language === "ar" ? "، " : ", ";
-    const sellerBuildingPart = [company.buildingNumber, company.additionalNumber].filter((p): p is string => Boolean(p?.trim())).join("-");
-    const sellerAddressParts = [company.streetName, company.additionalStreetName, company.district, company.city, company.postalCode].filter(
-      (p): p is string => Boolean(p?.trim()),
-    );
-    const sellerAddress = [sellerBuildingPart, ...sellerAddressParts].filter(Boolean).join(addressSeparator).trim() || null;
-    const pdf = await this.documents.render(actor.companyId, language,
-      await salesInvoiceToPdfHtml({
-        invoice,
-        compliance: await this.compliance.invoicePrintData(actor.companyId, id),
-        issuedBy: issuer?.email ?? null,
-        issuedAt: issued.createdAt.toISOString(),
-        language,
-        companyName: localizedCompanyName(company, language),
-        logoDataUri,
-        sellerVatNumber: company.vatNumber,
-        sellerCrNumber: company.crNumber,
-        sellerAddress,
-        sellerPhone: company.phone,
-      }),
-    );
+    const pdf = await mapSalesErrors(this.invoicePdfs.render(actor.companyId, id, language));
     res.header("Content-Type", "application/pdf");
-    res.header("Content-Disposition", `attachment; filename="${invoice.number}.pdf"`);
-    res.send(pdf);
+    res.header("Content-Disposition", `attachment; filename="${pdf.fileName}"`);
+    res.send(pdf.bytes);
   }
 
   @Post("sales-invoices")
