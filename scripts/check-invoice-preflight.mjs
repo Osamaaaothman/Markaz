@@ -202,6 +202,9 @@ try {
       path: fileURLToPath(new URL(`${lang}-invoice-preflight-desktop.png`, out)),
       fullPage: true,
     });
+    // Reduced motion must remove a closed calendar, not leave an invisible portal
+    // at its desktop coordinates where it can expand the mobile page.
+    await page.locator(".p-datepicker").first().waitFor({ state: "detached", timeout: 5000 });
     await page.setViewportSize({ width: 390, height: 844 });
     // CI runs this right after a full monorepo build on a shared, loaded runner; a one-shot
     // assert right after the resize flaked there even though layout settles well under this
