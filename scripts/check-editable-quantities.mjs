@@ -113,12 +113,15 @@ try {
     assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth), 'none');
     await back.click();
     await page.waitForURL(base + '/sales/delivery-notes');
+    await page.getByRole('heading', { name: copy.sales.deliveryNotes.title, exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.scrollY), 0, 'Direct-link fallback starts at top');
     await page.getByRole('button', { name: copy.sales.deliveryNotes.new, exact: true }).first().click();
     await page.waitForURL(base + '/sales/delivery-notes/new');
+    await page.getByRole('heading', { name: copy.sales.deliveryNotes.new, exact: true }).waitFor();
     await page.evaluate(() => window.scrollTo(0, 600));
     await back.click();
     await page.waitForURL(base + '/sales/delivery-notes');
+    await page.getByRole('heading', { name: copy.sales.deliveryNotes.title, exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.scrollY), 0, 'Back navigation starts at top');
     console.log(`PASS quantity editing, submitted values, profile install, sidebar: ${lang}/${direction}/${mode}`);
     await context.close();
