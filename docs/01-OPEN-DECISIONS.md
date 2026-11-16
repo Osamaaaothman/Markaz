@@ -1021,3 +1021,12 @@ without replacing the key or resetting ICV/PIH. Contract/integration tests cover
 failures and tenant/secret isolation. Live Simulation renewal and real acceptance remain
 unverified until an authorized portal account/OTP is available. See
 [development validation](zatca/DEVELOPMENT-VALIDATION.md) for source links and reproduction.
+
+## Chat bots integration (Telegram, Discord) — 2026-11-16
+
+Plan only, not approved: [BOTS-INTEGRATION-PLAN.md](BOTS-INTEGRATION-PLAN.md). The product
+brief lists external integrations as Tier 3, so nothing is built until D-BOT-1 (scope) is
+decided. Other open items in the plan's section 14: which platforms come first (D-BOT-2),
+one bot per company or per branch (D-BOT-3), new libraries (D-BOT-4), charts in reports
+(D-BOT-5), a ceiling on approvals from chat (D-BOT-6), and messages passing through
+Telegram/Discord servers (D-BOT-7).
