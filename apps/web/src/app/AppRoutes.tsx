@@ -58,6 +58,9 @@ const SalesInvoiceDetailPage = lazy(() => import("../features/sales/SalesInvoice
 const SalesInvoicesPage = lazy(() => import("../features/sales/SalesInvoicesPage").then((module) => ({ default: module.SalesInvoicesPage })));
 const SalesOrderDetailPage = lazy(() => import("../features/sales/SalesOrdersPage").then((module) => ({ default: module.SalesOrderDetailPage })));
 const SalesOrdersPage = lazy(() => import("../features/sales/SalesOrdersPage").then((module) => ({ default: module.SalesOrdersPage })));
+const GoodsDeliveryNotesPage = lazy(() => import("../features/sales/GoodsDeliveryNotesPage").then((module) => ({ default: module.GoodsDeliveryNotesPage })));
+const GoodsDeliveryNoteDetailPage = lazy(() => import("../features/sales/GoodsDeliveryNotesPage").then((module) => ({ default: module.GoodsDeliveryNoteDetailPage })));
+const GoodsDeliveryNoteFormPage = lazy(() => import("../features/sales/GoodsDeliveryNotesPage").then((module) => ({ default: module.GoodsDeliveryNoteFormPage })));
 const CustomerReceiptPage = lazy(() => import("../features/payments/PaymentFormPage").then((module) => ({ default: module.CustomerReceiptPage })));
 const SupplierPaymentPage = lazy(() => import("../features/payments/PaymentFormPage").then((module) => ({ default: module.SupplierPaymentPage })));
 const PaymentDetailPage = lazy(() => import("../features/payments/PaymentDetailPage").then((module) => ({ default: module.PaymentDetailPage })));
@@ -218,6 +221,13 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={["sales_order:create"]} />}>
             <Route path="/sales/orders/new" element={<SalesOrderFormPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/sales/delivery-notes")} />}>
+            <Route path="/sales/delivery-notes" element={<GoodsDeliveryNotesPage />} />
+            <Route path="/sales/delivery-notes/:id" element={<GoodsDeliveryNoteDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={["sales_delivery_note:create"]} />}>
+            <Route path="/sales/delivery-notes/new" element={<GoodsDeliveryNoteFormPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/sales/invoices")} />}>
             <Route path="/sales/invoices" element={<SalesInvoicesPage />} />

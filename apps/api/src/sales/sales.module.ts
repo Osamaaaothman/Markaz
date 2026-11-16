@@ -4,6 +4,7 @@ import { SalesInvoiceIssueGuard } from "../compliance/sales-invoice-issue.guard.
 import { ComplianceModule } from "../compliance/compliance.module.js";
 import {
   AccountMappingService,
+  GoodsDeliveryNoteService,
   PrismaAccountingEngine,
   PrismaNumberingService,
   QuotationService,
@@ -41,6 +42,11 @@ import { EMAIL_TRANSPORT, MailModule } from "../notifications/mail.module.js";
     {
       provide: SalesOrderService,
       useFactory: (prisma: PrismaService, audit: IAuditLogger) => new SalesOrderService(prisma, audit),
+      inject: [PrismaService, AUDIT_LOGGER],
+    },
+    {
+      provide: GoodsDeliveryNoteService,
+      useFactory: (prisma: PrismaService, audit: IAuditLogger) => new GoodsDeliveryNoteService(prisma, audit),
       inject: [PrismaService, AUDIT_LOGGER],
     },
     {

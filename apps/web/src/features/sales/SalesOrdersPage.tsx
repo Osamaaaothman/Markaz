@@ -179,6 +179,7 @@ export function SalesOrderDetailPage(): React.JSX.Element {
         </div>
         <div className="erp-page__header-actions">
           <Tag value={t(`sales.orders.status.${order.status}`)} severity={SEVERITY[order.status]} />
+          {order.status !== "CANCELLED" ? <PermissionButton allowed={can("sales_delivery_note:create")} label={t("sales.orders.createDeliveryNote")} icon="pi pi-send" outlined onClick={() => void navigate(`/sales/delivery-notes/new?order=${order.id}`)} /> : null}
           {canInvoice ? <PermissionButton allowed={can("sales_invoice:create")} label={t("sales.orders.createInvoice")} icon="pi pi-receipt" onClick={() => void navigate(`/sales/invoices/new?order=${order.id}`)} /> : null}
           {order.status === "OPEN" ? (
             <PermissionButton allowed={can("sales_order:cancel")} label={t("sales.orders.cancel")} icon="pi pi-ban" severity="secondary" outlined loading={cancel.isPending} onClick={() => cancel.mutate(undefined, { onSuccess: () => void navigate("/sales/orders") })} />

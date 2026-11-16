@@ -43,6 +43,7 @@ export interface SalesLineView {
   readonly taxAmount: string;
   // Sales orders only.
   readonly invoicedQuantity?: string;
+  readonly deliveredQuantity?: string;
 }
 
 export interface QuotationSummary {
