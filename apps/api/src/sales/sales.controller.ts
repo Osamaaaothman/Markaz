@@ -6,11 +6,16 @@ import { OptionalIdempotencyKey } from "../common/idempotency-key.decorator.js";
 import { UnprocessableEntityException, BadRequestException, Body, ConflictException, Controller, Get, HttpException, Inject, NotFoundException, Param, Post, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import {
+  GoodsDeliveryNoteError,
+  GoodsDeliveryNoteService,
   QuotationService,
   SalesError,
   SalesInvoiceService,
   SalesOrderService,
   UnmappedAccountError,
+  type GoodsDeliveryNoteCreated,
+  type GoodsDeliveryNoteDetail,
+  type GoodsDeliveryNoteListPage,
   type QuotationDetail,
   type QuotationListPage,
   type QuotationSummary,
@@ -32,6 +37,7 @@ import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "..
 import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
 import { ComplianceAdminService } from "../compliance/compliance-admin.service.js";
 import { quotationToPdfHtml } from "./exports/quotation-export.js";
+import { goodsDeliveryNoteToPdfHtml } from "./exports/goods-delivery-note-export.js";
 import { quotationEmailContent } from "./exports/quotation-email-template.js";
 import { localizedCompanyName } from "../common/company-name.js";
 import { EMAIL_TRANSPORT } from "../notifications/mail.module.js";
@@ -40,9 +46,11 @@ import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
   CreateDebitNoteDto,
+  CreateGoodsDeliveryNoteDto,
   CreateQuotationDto,
   CreateSalesInvoiceDto,
   CreateSalesOrderDto,
+  GoodsDeliveryNotesQueryDto,
   QuotationEmailPreviewDto,
   QuotationsQueryDto,
   SalesInvoicesQueryDto,
@@ -80,6 +88,19 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
   } catch (error) {
     if (error instanceof SalesInvoiceIssueError) throw new UnprocessableEntityException({ code: error.code, message: error.message });
     if (error instanceof UnmappedAccountError) throw new BadRequestException(error.message);
+    if (error instanceof GoodsDeliveryNoteError) {
+      const body = { message: error.message, code: error.code };
+      switch (error.code) {
+        case "NOT_FOUND":
+        case "ORDER_NOT_FOUND":
+          throw new NotFoundException(body);
+        case "ORDER_CANCELLED":
+        case "OVER_DELIVERY":
+          throw new ConflictException(body);
+        default:
+          throw new BadRequestException(body);
+      }
+    }
     if (!(error instanceof SalesError)) throw error;
     const body = { message: error.message, code: error.code, ...(error.lineNumber !== undefined ? { lineNumber: error.lineNumber } : {}) };
     switch (error.code) {
@@ -114,6 +135,7 @@ export class SalesController {
     private readonly quotationEmails: QuotationEmailService,
     private readonly quotations: QuotationService,
     private readonly orders: SalesOrderService,
+    private readonly deliveryNotes: GoodsDeliveryNoteService,
     private readonly invoices: SalesInvoiceService,
     private readonly prisma: PrismaService,
     private readonly attachments: AttachmentService,
@@ -287,6 +309,64 @@ export class SalesController {
   @RequirePermission("sales_order", "cancel")
   cancelOrder(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload, @CorrelationId() correlationId: string): Promise<SalesOrderCreated> {
     return mapSalesErrors(this.orders.cancel(id, actor, correlationId));
+  }
+
+  // ── Goods delivery notes ────────────────────────────────────────────────────
+  // A storekeeper's handover record printed before the invoice — no prices, no stock movement
+  // (docs/01-OPEN-DECISIONS.md E1). Optional, not a gate before invoicing.
+
+  @Get("goods-delivery-notes")
+  @RequirePermission("sales_delivery_note", "read")
+  listDeliveryNotes(@CurrentUser() actor: CurrentUserPayload, @Query() query: GoodsDeliveryNotesQueryDto): Promise<GoodsDeliveryNoteListPage> {
+    return this.deliveryNotes.list(actor.companyId, query);
+  }
+
+  @Get("goods-delivery-notes/:id")
+  @RequirePermission("sales_delivery_note", "read")
+  getDeliveryNote(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<GoodsDeliveryNoteDetail> {
+    return mapSalesErrors(this.deliveryNotes.getById(id, actor.companyId));
+  }
+
+  @Post("goods-delivery-notes")
+  @RequirePermission("sales_delivery_note", "create")
+  createDeliveryNote(
+    @Body() dto: CreateGoodsDeliveryNoteDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+    @OptionalIdempotencyKey() submissionKey?: string,
+  ): Promise<GoodsDeliveryNoteCreated> {
+    return mapSalesErrors(
+      this.deliveryNotes.create(
+        {
+          salesOrderId: dto.salesOrderId,
+          deliveryDate: new Date(dto.deliveryDate),
+          ...(dto.driverName !== undefined ? { driverName: dto.driverName } : {}),
+          ...(dto.receiverName !== undefined ? { receiverName: dto.receiverName } : {}),
+          ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          lines: dto.lines,
+        },
+        actor,
+        correlationId,
+        submissionKey,
+      ),
+    );
+  }
+
+  @Get("goods-delivery-notes/:id/pdf")
+  @RequirePermission("sales_delivery_note", "read")
+  async deliveryNotePdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const note = await mapSalesErrors(this.deliveryNotes.getById(id, actor.companyId));
+    const seller = await this.loadSellerContext(actor.companyId, language);
+    const pdf = await this.documents.render(actor.companyId, language, await goodsDeliveryNoteToPdfHtml({ customerDetails: await this.documents.party(actor.companyId, note.customerId), note, language, ...seller }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${note.number}.pdf"`);
+    res.send(pdf);
   }
 
   // ── Invoices and credit notes ───────────────────────────────────────────────
