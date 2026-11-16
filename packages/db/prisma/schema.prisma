@@ -38,6 +38,7 @@ model DocumentDraft {
 // §4 note: "per tenant" here means per company/branch within one customer's own
 // deployment, not a cross-customer SaaS tenant).
 model Company {
+  botConnections BotConnection[]
   quotationEmailAttempts QuotationEmailAttempt[]
   id                    String   @id
   name                  String
@@ -130,6 +131,7 @@ model Company {
 }
 
 model User {
+  botIdentityLinks BotIdentityLink[]
   documentDrafts DocumentDraft[]
   id                  String    @id
   companyId           String    @map("company_id")
@@ -2280,4 +2282,231 @@ model InventoryCostSettlement {
   @@index([shortfallId])
   @@index([companyId])
   @@index([journalEntryId])
+}
+
+// ── Chat bots (docs/BOTS-INTEGRATION-PLAN.md) ────────────────────────────────────────────────
+// One connection per chat platform per company. Credentials (bot tokens, webhook secret) live
+// only in credentials_ciphertext, AES-256-GCM with BOT_CREDENTIALS_ENCRYPTION_KEY; non-secret
+// settings (Discord application id, guild id) are in public_config.
+model BotConnection {
+  id                    String    @id
+  companyId             String    @map("company_id")
+  provider              String
+  status                String    @default("ACTIVE")
+  transport             String
+  credentialsCiphertext Bytes     @map("credentials_ciphertext")
+  publicConfig          Json      @map("public_config")
+  identity              Json?
+  enabledFeatures       String[]  @map("enabled_features")
+  // D-BOT-6: approvals above this amount are refused in chat (web only). Null = no ceiling.
+  approvalCeiling       Decimal?  @map("approval_ceiling") @db.Decimal(19, 4)
+  // D-BOT-7: message content passes through the chat platform servers; an admin must accept it.
+  dataSharingAcceptedAt DateTime  @map("data_sharing_accepted_at")
+  dataSharingAcceptedBy String    @map("data_sharing_accepted_by")
+  pollOffset            String?   @map("poll_offset")
+  lastHealthAt          DateTime? @map("last_health_at")
+  lastHealthOk          Boolean?  @map("last_health_ok")
+  lastHealthCode        String?   @map("last_health_code")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  createdBy             String    @map("created_by")
+  updatedBy             String    @map("updated_by")
+  version               Int       @default(1)
+
+  company          Company              @relation(fields: [companyId], references: [id])
+  links            BotIdentityLink[]
+  linkCodes        BotLinkCode[]
+  actionTokens     BotActionToken[]
+  sessions         BotChatSession[]
+  subscriptions    BotSubscription[]
+  broadcastTargets BotBroadcastTarget[]
+  sentMessages     BotSentMessage[]
+  deliveries       BotDeliveryLog[]
+  inboundEvents    BotInboundEvent[]
+
+  @@unique([companyId, provider])
+  @@map("bot_connections")
+}
+
+// A chat account linked to an ERP user. Every bot request runs as this user, through the same
+// permission checks as the web app. One live link per chat account and per user (partial unique
+// indexes in the migration, WHERE revoked_at IS NULL).
+model BotIdentityLink {
+  id              String    @id
+  companyId       String    @map("company_id")
+  connectionId    String    @map("connection_id")
+  userId          String    @map("user_id")
+  externalUserId  String    @map("external_user_id")
+  externalHandle  String?   @map("external_handle")
+  privateChatId   String    @map("private_chat_id")
+  language        String
+  quietHoursStart String?   @map("quiet_hours_start")
+  quietHoursEnd   String?   @map("quiet_hours_end")
+  disabledAlerts  String[]  @map("disabled_alerts")
+  unreachableAt   DateTime? @map("unreachable_at")
+  linkedAt        DateTime  @default(now()) @map("linked_at")
+  revokedAt       DateTime? @map("revoked_at")
+  revokedBy       String?   @map("revoked_by")
+  revokedReason   String?   @map("revoked_reason")
+
+  connection BotConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [userId], references: [id])
+
+  @@index([companyId, userId])
+  @@map("bot_identity_links")
+}
+
+// One-time link codes; only a SHA-256 hash is stored.
+model BotLinkCode {
+  id           String    @id
+  companyId    String    @map("company_id")
+  connectionId String    @map("connection_id")
+  userId       String    @map("user_id")
+  codeHash     String    @unique @map("code_hash")
+  language     String
+  expiresAt    DateTime  @map("expires_at")
+  usedAt       DateTime? @map("used_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  connection BotConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("bot_link_codes")
+}
+
+// Button ids are short random tokens; the real intent is stored here, so nothing a client sends
+// back is trusted as a payload, and every tap is checked against the user it was made for.
+model BotActionToken {
+  id           String    @id
+  companyId    String    @map("company_id")
+  connectionId String    @map("connection_id")
+  userId       String?   @map("user_id")
+  intent       Json
+  singleUse    Boolean   @map("single_use")
+  expiresAt    DateTime  @map("expires_at")
+  usedAt       DateTime? @map("used_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  connection BotConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("bot_action_tokens")
+}
+
+// Short-lived conversation state, e.g. "the next text from this user is the rejection reason".
+model BotChatSession {
+  id           String   @id
+  connectionId String   @map("connection_id")
+  chatId       String   @map("chat_id")
+  userId       String   @map("user_id")
+  awaiting     Json
+  expiresAt    DateTime @map("expires_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  connection BotConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, chatId, userId])
+  @@map("bot_chat_sessions")
+}
+
+// A group or channel registered by an admin to receive selected reports only.
+model BotBroadcastTarget {
+  id           String    @id
+  companyId    String    @map("company_id")
+  connectionId String    @map("connection_id")
+  chatId       String    @map("chat_id")
+  title        String
+  createdAt    DateTime  @default(now()) @map("created_at")
+  createdBy    String    @map("created_by")
+  disabledAt   DateTime? @map("disabled_at")
+
+  connection    BotConnection     @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  subscriptions BotSubscription[]
+
+  @@unique([connectionId, chatId])
+  @@map("bot_broadcast_targets")
+}
+
+// A scheduled report: to one linked user (userId) or to a broadcast target.
+model BotSubscription {
+  id                String    @id
+  companyId         String    @map("company_id")
+  connectionId      String    @map("connection_id")
+  userId            String?   @map("user_id")
+  broadcastTargetId String?   @map("broadcast_target_id")
+  reportType        String    @map("report_type")
+  sendTime          String    @map("send_time")
+  weekday           Int?
+  attachPdf         Boolean   @default(false) @map("attach_pdf")
+  language          String
+  lastPeriodKey     String?   @map("last_period_key")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         String    @map("created_by")
+  disabledAt        DateTime? @map("disabled_at")
+
+  connection      BotConnection       @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  broadcastTarget BotBroadcastTarget? @relation(fields: [broadcastTargetId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, disabledAt])
+  @@map("bot_subscriptions")
+}
+
+// Marks an alert as already sent, so the scanner never sends the same alert twice.
+model BotAlertMark {
+  companyId  String   @map("company_id")
+  alertType  String   @map("alert_type")
+  subjectKey String   @map("subject_key")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@id([companyId, alertType, subjectKey])
+  @@map("bot_alert_marks")
+}
+
+// Where a message about a record was delivered, so every copy can be updated when the record
+// changes (all approvers see the decision once one of them decides).
+model BotSentMessage {
+  id           String   @id
+  companyId    String   @map("company_id")
+  connectionId String   @map("connection_id")
+  chatId       String   @map("chat_id")
+  messageId    String   @map("message_id")
+  subjectType  String   @map("subject_type")
+  subjectId    String   @map("subject_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  connection BotConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, subjectType, subjectId])
+  @@map("bot_sent_messages")
+}
+
+// Operational delivery history for the settings page. Not the audit log.
+model BotDeliveryLog {
+  id           String   @id
+  companyId    String   @map("company_id")
+  connectionId String   @map("connection_id")
+  userId       String?  @map("user_id")
+  chatId       String?  @map("chat_id")
+  kind         String
+  status       String
+  errorCode    String?  @map("error_code")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  connection BotConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, createdAt])
+  @@map("bot_delivery_logs")
+}
+
+// Platform deliveries already handled; duplicates are acknowledged and dropped.
+model BotInboundEvent {
+  connectionId String   @map("connection_id")
+  eventId      String   @map("event_id")
+  receivedAt   DateTime @default(now()) @map("received_at")
+
+  connection BotConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@id([connectionId, eventId])
+  @@index([receivedAt])
+  @@map("bot_inbound_events")
 }

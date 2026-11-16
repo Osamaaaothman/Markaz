@@ -1021,3 +1021,26 @@ without replacing the key or resetting ICV/PIH. Contract/integration tests cover
 failures and tenant/secret isolation. Live Simulation renewal and real acceptance remain
 unverified until an authorized portal account/OTP is available. See
 [development validation](zatca/DEVELOPMENT-VALIDATION.md) for source links and reproduction.
+
+## Chat bots integration (Telegram, Discord) — 2026-11-16
+
+Design: [BOTS-INTEGRATION-PLAN.md](BOTS-INTEGRATION-PLAN.md). Code: `packages/bots`, `apps/api/src/bots`
+(README), `apps/web/src/features/bots`.
+
+- **D-BOT-1 scope — DECIDED by Osama (2026-11-16):** build it fully now, ahead of the Tier-3 slot in
+  the product brief. Credentials for live testing will follow.
+- Built with the recommended default; **Osama to confirm or change**:
+  - D-BOT-2 Telegram and Discord first; WhatsApp would be the next adapter.
+  - D-BOT-3 one bot per platform per company (unique key on `bot_connections`).
+  - D-BOT-4 no new libraries: Telegram over `fetch`, Discord over HTTP interactions + REST with
+    Ed25519 from `node:crypto`. Consequence: Discord needs a public HTTPS address; on-premise
+    without one can use Telegram (polling) only.
+  - D-BOT-5 reports are text only (no chart images).
+  - D-BOT-6 approval ceiling per connection, default **none**. This is a business control —
+    Osama should decide whether a default ceiling is wanted.
+  - D-BOT-7 an admin must tick a data-sharing acknowledgement before any bot is connected; it is
+    recorded with who and when.
+- Other choices made while building: the bot workers run inside the API process (they need the
+  same Nest-wired PDF services), `BOTS_RUNTIME=off` disables them on an HTTP-only replica; Telegram
+  group chats only answer `/chatid` and `/help`; purchase-order approvals need a confirmation tap and
+  rejections need a reason.

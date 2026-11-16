@@ -1,0 +1,260 @@
+/* Chat bots settings (docs/BOTS-INTEGRATION-PLAN.md §8). Logical properties throughout so the
+   layout mirrors correctly in Arabic. */
+
+.bots-notice {
+  display: flex;
+  gap: var(--mk-space-3);
+  align-items: flex-start;
+  margin-block-end: var(--mk-space-3);
+  padding: var(--mk-space-3) var(--mk-space-4);
+  border: 1px solid var(--mk-warning);
+  border-inline-start-width: 4px;
+  border-radius: var(--mk-radius-sm);
+  background: var(--mk-warning-soft);
+  line-height: 1.6;
+}
+
+.bots-notice--danger {
+  border-color: var(--mk-danger);
+  background: var(--mk-danger-soft, var(--mk-warning-soft));
+}
+
+.bots-notice__title {
+  margin: 0 0 var(--mk-space-1);
+  font-weight: 700;
+}
+
+.bots-providers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--mk-space-4);
+  margin-block-end: var(--mk-space-5);
+}
+
+.bots-provider {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-3);
+  padding: var(--mk-space-4);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-lg);
+  background: var(--mk-surface);
+  overflow: hidden;
+}
+
+.bots-provider::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: 4px;
+  background: var(--bots-accent, var(--mk-border));
+}
+
+.bots-provider--telegram { --bots-accent: #229ed9; }
+.bots-provider--discord { --bots-accent: #5865f2; }
+.bots-provider--soon { opacity: 0.65; }
+
+.bots-provider__head {
+  display: flex;
+  align-items: center;
+  gap: var(--mk-space-3);
+}
+
+.bots-provider__logo {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--bots-accent, var(--mk-text-muted));
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.bots-provider__name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.bots-provider__tagline {
+  margin: 0;
+  color: var(--mk-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.bots-provider__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mk-space-2);
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--mk-text-muted);
+}
+
+.bots-provider__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mk-space-2);
+  margin-block-start: auto;
+}
+
+.bots-steps {
+  display: flex;
+  gap: var(--mk-space-2);
+  margin-block-end: var(--mk-space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.bots-steps li {
+  flex: 1;
+  padding-block-end: var(--mk-space-2);
+  border-block-end: 3px solid var(--mk-border);
+  color: var(--mk-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.bots-steps li[aria-current="step"],
+.bots-steps li.is-done {
+  border-color: var(--mk-primary);
+  color: var(--mk-text, inherit);
+}
+
+.bots-guide {
+  margin: 0;
+  padding-inline-start: var(--mk-space-5);
+  line-height: 1.9;
+}
+
+.bots-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-4);
+}
+
+.bots-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-1);
+}
+
+.bots-field label {
+  font-weight: 600;
+}
+
+.bots-field__hint {
+  margin: 0;
+  color: var(--mk-text-muted);
+  font-size: 0.85rem;
+}
+
+.bots-field__error {
+  margin: 0;
+  color: var(--mk-danger);
+  font-size: 0.85rem;
+}
+
+.bots-mono {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: var(--mk-font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.bots-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--mk-space-3);
+}
+
+.bots-feature {
+  display: flex;
+  gap: var(--mk-space-3);
+  align-items: flex-start;
+  padding: var(--mk-space-3);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius-sm);
+}
+
+.bots-feature p {
+  margin: 0;
+}
+
+.bots-feature__hint {
+  color: var(--mk-text-muted);
+  font-size: 0.85rem;
+}
+
+.bots-test-ok {
+  display: flex;
+  gap: var(--mk-space-2);
+  align-items: center;
+  color: var(--mk-success);
+  font-weight: 600;
+}
+
+.bots-detail {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) 1fr;
+  gap: var(--mk-space-2) var(--mk-space-4);
+  margin: 0;
+}
+
+.bots-detail dt {
+  color: var(--mk-text-muted);
+}
+
+.bots-detail dd {
+  margin: 0;
+}
+
+.bots-copy {
+  display: flex;
+  gap: var(--mk-space-2);
+  align-items: center;
+}
+
+.bots-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mk-space-2);
+  align-items: flex-end;
+  margin-block: var(--mk-space-3);
+}
+
+.bots-danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-space-4);
+}
+
+.bots-danger__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mk-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bots-danger__row p {
+  margin: 0;
+  max-inline-size: 60ch;
+}
+
+@media (max-width: 640px) {
+  .bots-detail {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tabs wrap onto a second line on narrow screens instead of scrolling. */
+.bots-panel .p-tabview-nav {
+  flex-wrap: wrap;
+}

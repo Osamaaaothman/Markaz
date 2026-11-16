@@ -16,6 +16,7 @@ import {
 import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { SALES_ENGINE, SALES_NUMBERING } from "./sales.tokens.js";
+import { SalesInvoicePdfService } from "./sales-invoice-pdf.service.js";
 import { SalesController } from "./sales.controller.js";
 import { AttachmentsModule } from "../attachments/attachments.module.js";
 import type { EmailTransport } from "../notifications/email-transport.js";
@@ -55,6 +56,9 @@ import { EMAIL_TRANSPORT, MailModule } from "../notifications/mail.module.js";
         new SalesInvoiceService(prisma, engine, new AccountMappingService(prisma, audit), audit, guard.validate),
       inject: [PrismaService, SALES_ENGINE, AUDIT_LOGGER, SalesInvoiceIssueGuard],
     },
+    SalesInvoicePdfService,
   ],
+  // The chat bots read invoices and hand out the same invoice PDF (apps/api/src/bots).
+  exports: [SalesInvoiceService, SalesInvoicePdfService],
 })
 export class SalesModule {}
