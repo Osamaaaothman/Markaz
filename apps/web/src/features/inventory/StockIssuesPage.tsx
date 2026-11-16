@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
@@ -19,7 +18,7 @@ export function StockIssuesPage(): React.JSX.Element {
   const { can } = usePermissions();
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useStockIssues();
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useStockIssues();
   const issues = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
@@ -43,7 +42,7 @@ export function StockIssuesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("stock_issue:create"), label: t("inventory.stockIssue.title"), onClick: () => void navigate("/inventory/stock-issues/new") }} value={issues} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} emptyAction={{ allowed: can("stock_issue:create"), label: t("inventory.stockIssue.title"), onClick: () => void navigate("/inventory/stock-issues/new") }} value={issues} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "11rem" }} body={(r: StockIssueSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/inventory/stock-issues/${r.id}`)}>{r.number}</button>} />
             <Column header={t("inventory.goodsReceipt.documentDate")} style={{ width: "9rem" }} body={(r: StockIssueSummary) => formatCalendarDate(r.documentDate, i18n.language)} />
             <Column header={t("inventory.stockLevels.warehouse")} body={(r: StockIssueSummary) => localizedName({ name: r.warehouseName, nameAr: r.warehouseNameAr }, i18n.language)} />
@@ -51,11 +50,6 @@ export function StockIssuesPage(): React.JSX.Element {
             <Column header={t("inventory.stockCount.lineCount")} align="right" style={{ width: "6rem" }} body={(r: StockIssueSummary) => r.lineCount} />
             <Column header={t("documents.totalValue")} align="right" style={{ width: "11rem" }} body={(r: StockIssueSummary) => formatMoney(r.totalValue, currency)} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
     </div>

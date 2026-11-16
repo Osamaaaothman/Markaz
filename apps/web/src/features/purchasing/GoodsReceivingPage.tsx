@@ -15,7 +15,7 @@ import { useReceivableOrder, useReceivableOrders, type PurchaseOrderSummary } fr
 // order and posts what physically arrived; the order list and detail come from the receiving endpoints.
 export function GoodsReceivingPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useReceivableOrders();
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useReceivableOrders();
   const orders = data?.pages.flatMap((page) => page.data) ?? [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedInfo | null>(null);
@@ -41,7 +41,7 @@ export function GoodsReceivingPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={orders} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.receiving.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} value={orders} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.receiving.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(row: PurchaseOrderSummary) => <span className="coa-code">{row.number}</span>} />
             <Column header={t("purchasing.supplier")} body={(row: PurchaseOrderSummary) => localizedName({ name: row.supplierName, nameAr: row.supplierNameAr }, i18n.language)} />
             <Column header={t("created.warehouse")} body={(row: PurchaseOrderSummary) => (row.warehouseName ? localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language) : "—")} />
@@ -53,11 +53,6 @@ export function GoodsReceivingPage(): React.JSX.Element {
               body={(row: PurchaseOrderSummary) => <Button label={t("purchasing.orders.receive")} icon="pi pi-download" loading={selectedId === row.id && selected.isPending} onClick={() => setSelectedId(row.id)} />}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
       {selected.data ? <ReceiveDialog order={selected.data} visible onHide={() => setSelectedId(null)} onCreated={setCreated} /> : null}

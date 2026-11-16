@@ -25,7 +25,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [status, setStatus] = useState<PurchaseOrderStatus | null>(null);
   const [requestsOpen, setRequestsOpen] = useState(false);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseOrders(status);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = usePurchaseOrders(status);
   const orders = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
@@ -66,7 +66,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("purchase_order:create"), label: t("purchasing.orders.new"), onClick: () => void navigate("/purchasing/orders/new") }}
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} emptyAction={{ allowed: can("purchase_order:create"), label: t("purchasing.orders.new"), onClick: () => void navigate("/purchasing/orders/new") }}
             value={orders}
             className="erp-table"
             stripedRows
@@ -85,11 +85,6 @@ export function PurchaseOrdersPage(): React.JSX.Element {
             <Column header={t("purchasing.status")} style={{ width: "11rem" }} body={(row: PurchaseOrderSummary) => <OrderStatusTag status={row.status} />} />
             <Column header="" style={{ width: "4rem" }} body={(row: PurchaseOrderSummary) => <AttachmentsButton ownerType="PURCHASE_ORDER" ownerId={row.id} label={row.number} />} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
       {requestsOpen ? <AcceptedRequestsDialog onHide={() => setRequestsOpen(false)} /> : null}
@@ -100,7 +95,7 @@ export function PurchaseOrdersPage(): React.JSX.Element {
 function AcceptedRequestsDialog({ onHide }: { readonly onHide: () => void }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = usePurchaseRequests("ACCEPTED");
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = usePurchaseRequests("ACCEPTED");
   const requests = data?.pages.flatMap((page) => page.data).filter((request) => request.status === "ACCEPTED" && !request.purchaseOrderId) ?? [];
   const choose = (request: PurchaseRequestSummary): void => {
     onHide();
@@ -116,7 +111,7 @@ function AcceptedRequestsDialog({ onHide }: { readonly onHide: () => void }): Re
         </div>
       ) : (
         <>
-          <DataGrid value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.orders.noAcceptedRequests")} selectionMode="single" onRowClick={(event) => choose(event.data as PurchaseRequestSummary)}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} value={requests} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("purchasing.orders.noAcceptedRequests")} selectionMode="single" onRowClick={(event) => choose(event.data as PurchaseRequestSummary)}>
             <Column header={t("purchasing.number")} field="number" />
             <Column header={t("purchasing.date")} body={(row: PurchaseRequestSummary) => formatCalendarDate(row.createdAt, i18n.language)} />
             <Column header={t("created.warehouse")} body={(row: PurchaseRequestSummary) => row.warehouseName ? localizedName({ name: row.warehouseName, nameAr: row.warehouseNameAr }, i18n.language) : "—"} />
@@ -124,7 +119,6 @@ function AcceptedRequestsDialog({ onHide }: { readonly onHide: () => void }): Re
             <Column header={t("purchasing.notes")} field="notes" />
             <Column header="" body={(row: PurchaseRequestSummary) => <Button label={t("purchasing.orders.useRequest")} icon="pi pi-plus" onClick={(event) => { event.stopPropagation(); choose(row); }} />} />
           </DataGrid>
-          {hasNextPage ? <Button label={t("actions.loadMore")} text loading={isFetchingNextPage} onClick={() => void fetchNextPage()} /> : null}
         </>
       )}
     </Dialog>

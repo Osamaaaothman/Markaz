@@ -39,7 +39,7 @@ export function AuditLogPage(): React.JSX.Element {
   });
   const [open, setOpen] = useState<AuditLogEntry | null>(null);
   const { data: filters } = useAuditFilters();
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } =
     useAuditLog(filter);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
   const { when, entityName, actionName, number } = useAuditPresentation();
@@ -131,7 +131,7 @@ export function AuditLogPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }}
             value={rows}
             stripedRows
             size="small"
@@ -177,17 +177,6 @@ export function AuditLogPage(): React.JSX.Element {
               )}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button
-                label={t("actions.loadMore")}
-                text
-                onClick={() => void fetchNextPage()}
-                loading={isFetchingNextPage}
-                icon="pi pi-chevron-down"
-              />
-            </div>
-          ) : null}
         </>
       )}
       <AuditEntryDialog
