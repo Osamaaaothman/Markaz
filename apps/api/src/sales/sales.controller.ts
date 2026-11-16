@@ -32,6 +32,7 @@ import { SUPPORTED_DOCUMENT_LANGUAGES, type SupportedDocumentLanguage } from "..
 import { salesInvoiceToPdfHtml } from "./exports/sales-invoice-export.js";
 import { ComplianceAdminService } from "../compliance/compliance-admin.service.js";
 import { quotationToPdfHtml } from "./exports/quotation-export.js";
+import { salesOrderToPdfHtml } from "./exports/sales-order-export.js";
 import { quotationEmailContent } from "./exports/quotation-email-template.js";
 import { localizedCompanyName } from "../common/company-name.js";
 import { EMAIL_TRANSPORT } from "../notifications/mail.module.js";
@@ -268,6 +269,24 @@ export class SalesController {
   @RequirePermission("sales_order", "read")
   getOrder(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload): Promise<SalesOrderDetail> {
     return mapSalesErrors(this.orders.get(actor.companyId, id));
+  }
+
+  // A printable copy of the sales order, in the requested language. Not a ZATCA document.
+  @Get("sales-orders/:id/pdf")
+  @RequirePermission("sales_order", "read")
+  async orderPdf(
+    @Param("id") id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+    @Query("lang") lang?: string,
+  ): Promise<void> {
+    const language: SupportedDocumentLanguage = (SUPPORTED_DOCUMENT_LANGUAGES as readonly string[]).includes(lang ?? "") ? (lang as SupportedDocumentLanguage) : "en";
+    const order = await mapSalesErrors(this.orders.get(actor.companyId, id));
+    const seller = await this.loadSellerContext(actor.companyId, language);
+    const pdf = await this.documents.render(actor.companyId, language, await salesOrderToPdfHtml({ order, language, ...seller }));
+    res.header("Content-Type", "application/pdf");
+    res.header("Content-Disposition", `attachment; filename="${order.number}.pdf"`);
+    res.send(pdf);
   }
 
   @Post("sales-orders")

@@ -15,6 +15,7 @@ import { localizedName } from "../../shared/lib/localized-name";
 import { formatMoney } from "../../shared/lib/money";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
+import { exportReport } from "../accounting/export-report";
 import {
   useCancelSalesOrder,
   useQuotationAction,
@@ -178,6 +179,7 @@ export function SalesOrderDetailPage(): React.JSX.Element {
           <p className="erp-page__subtitle">{localizedName({ name: order.customerName, nameAr: order.customerNameAr }, i18n.language)}</p>
         </div>
         <div className="erp-page__header-actions">
+          <Button label={t("actions.print")} icon="pi pi-print" outlined onClick={() => void exportReport(`/v1/sales-orders/${order.id}/pdf`, { lang: i18n.language }, order.number, "print")} />
           <Tag value={t(`sales.orders.status.${order.status}`)} severity={SEVERITY[order.status]} />
           {canInvoice ? <PermissionButton allowed={can("sales_invoice:create")} label={t("sales.orders.createInvoice")} icon="pi pi-receipt" onClick={() => void navigate(`/sales/invoices/new?order=${order.id}`)} /> : null}
           {order.status === "OPEN" ? (
