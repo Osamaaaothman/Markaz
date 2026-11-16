@@ -212,7 +212,7 @@ export function PurchaseReturnDialog({ invoice, visible, onHide }: { invoice: Su
             <Column header={t("purchasing.invoices.origQty")} align="right" style={{ width: "6rem" }} body={(r: ReturnLineRow) => r.quantity} />
             <Column
               header={t("purchasing.invoices.returnQty")}
-              style={{ width: "12rem" }}
+              style={{ width: "10rem" }}
               body={(r: ReturnLineRow, opt) => (
                 <InputText
                   disabled={!rows[opt.rowIndex]?.included}

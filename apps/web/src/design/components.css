@@ -2331,3 +2331,37 @@ html body .p-selectbutton.mk-segmented .p-button {
   min-inline-size: 3.2rem;
   white-space: nowrap;
 }
+
+/* ---------- touch sizing: fields stay readable and tappable on phones ---------- */
+
+@media (max-width: 899px) {
+  /* 16px stops iOS from zooming on focus and keeps typed values legible */
+  html body .p-inputtext,
+  html body .p-inputtextarea,
+  html body .p-inputnumber-input,
+  html body .p-dropdown .p-dropdown-label,
+  html body .p-multiselect .p-multiselect-label,
+  html body .p-password input {
+    font-size: 1rem;
+  }
+
+  html body .p-inputtext,
+  html body .p-dropdown,
+  html body .p-multiselect {
+    min-height: 2.75rem;
+  }
+
+  /* A table that holds editable fields must not squeeze them: give it a floor width and let the wrapper
+     scroll sideways (the wrapper already has overflow-x: auto on narrow screens). */
+  html body .erp-table .p-datatable-table:has(tbody .p-inputtext, tbody .p-inputnumber, tbody .p-dropdown, tbody .p-calendar) {
+    min-width: 52rem;
+  }
+
+  html body .erp-table .p-datatable-tbody > tr > td .p-inputtext,
+  html body .erp-table .p-datatable-tbody > tr > td .p-inputnumber,
+  html body .erp-table .p-datatable-tbody > tr > td .p-dropdown,
+  html body .erp-table .p-datatable-tbody > tr > td .p-calendar {
+    min-width: 7.5rem;
+    width: 100%;
+  }
+}
