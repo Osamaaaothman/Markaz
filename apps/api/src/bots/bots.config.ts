@@ -1,4 +1,4 @@
-import { KeyEncryptionError, loadEncryptionKey } from "@erp/shared";
+import { BotKeyError, loadKey } from "./application/bot-secret-box.js";
 
 // Environment for the chat bots (docs/BOTS-INTEGRATION-PLAN.md §6.1). Everything is optional: a
 // deployment without bots boots normally and the settings page explains what is missing.
@@ -41,9 +41,9 @@ export type BotKeyStatus = { readonly ok: true; readonly key: Buffer } | { reado
 // dumped by a debugger or a careless log line.
 export function loadBotKey(): BotKeyStatus {
   try {
-    return { ok: true, key: loadEncryptionKey(BOT_KEY_ENV) };
+    return { ok: true, key: loadKey(BOT_KEY_ENV) };
   } catch (error) {
-    if (error instanceof KeyEncryptionError && (error.code === "KEY_NOT_CONFIGURED" || error.code === "KEY_WRONG_LENGTH")) {
+    if (error instanceof BotKeyError && (error.code === "KEY_NOT_CONFIGURED" || error.code === "KEY_WRONG_LENGTH")) {
       return { ok: false, code: error.code };
     }
     throw error;

@@ -6,7 +6,7 @@ import {
   type ConnectionSecrets,
   type ProviderId,
 } from "@erp/bots";
-import { decryptText, encryptText } from "@erp/shared";
+import { openText, sealText } from "./bot-secret-box.js";
 import { loadBotKey } from "../bots.config.js";
 
 // Framework-free building blocks shared by the API controllers and the in-process bot runtime.
@@ -69,12 +69,12 @@ export class BotVault {
   }
 
   seal(secrets: ConnectionSecrets): Uint8Array<ArrayBuffer> {
-    const sealed = encryptText(JSON.stringify(secrets), this.key());
+    const sealed = sealText(JSON.stringify(secrets), this.key());
     return new Uint8Array(sealed);
   }
 
   open(ciphertext: Uint8Array): ConnectionSecrets {
-    const parsed: unknown = JSON.parse(decryptText(ciphertext, this.key()));
+    const parsed: unknown = JSON.parse(openText(ciphertext, this.key()));
     if (typeof parsed !== "object" || parsed === null) throw new BotError("CREDENTIALS_INVALID", "Stored credentials are unreadable");
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(parsed)) if (typeof v === "string") out[k] = v;
