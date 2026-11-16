@@ -24,6 +24,7 @@ import type {
   InstallResult,
   OutboundFile,
   OutboundTarget,
+  PromptSpec,
   SentMessageRef,
   WebhookParseResult,
 } from "@erp/bots";
@@ -97,8 +98,8 @@ class FakeTelegram implements ChannelAdapter {
     this.log.push({ op: "send", message: caption });
     return Promise.resolve({ chatId: target.chatId, messageId: String(++this.seq) });
   }
-  sendPrompt(target: OutboundTarget, text: string): Promise<SentMessageRef> {
-    this.log.push({ op: "prompt", message: null, text });
+  sendPrompt(target: OutboundTarget, prompt: PromptSpec): Promise<SentMessageRef> {
+    this.log.push({ op: "prompt", message: null, text: prompt.title });
     return Promise.resolve({ chatId: target.chatId, messageId: String(++this.seq) });
   }
   openDirectChat(userId: string): Promise<ChatTarget> {
@@ -217,7 +218,7 @@ const silent: BotLogger = { info: () => undefined, warn: () => undefined, error:
   it("refuses everything but linking to an unlinked chat user", async () => {
     await runtime.handleInbound(connectionId, event("tg-approver", { kind: "command", name: "approvals", args: "" }), newId());
     expect(fake.last().message?.blocks[0]).toMatchObject({ type: "header", tone: "info" });
-    expect(title(fake.last().message)).toMatch(/Link your ERP account/);
+    expect(title(fake.last().message)).toMatch(/Link your account first/);
   });
 
   it("links with a one-time code, then rejects reuse of the same code", async () => {
@@ -314,6 +315,6 @@ const silent: BotLogger = { info: () => undefined, warn: () => undefined, error:
   it("ignores a revoked link", async () => {
     await connections.revokeLink(connectionId, (await db.botIdentityLink.findFirstOrThrow({ where: { connectionId, userId: outsider.id, revokedAt: null } })).id, approver, newId());
     await runtime.handleInbound(connectionId, event("tg-outsider", { kind: "command", name: "menu", args: "" }), newId());
-    expect(title(fake.last().message)).toMatch(/Link your ERP account/);
+    expect(title(fake.last().message)).toMatch(/Link your account first/);
   });
 });

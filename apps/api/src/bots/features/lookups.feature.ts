@@ -1,6 +1,7 @@
 import { SalesError } from "@erp/core";
-import type { Action } from "@erp/bots";
-import type { BotContext, BotFeature, Intent } from "../application/bot-context.js";
+import { Prisma } from "@erp/db";
+import type { Action, Field } from "@erp/bots";
+import type { BotContext, BotFeature, BotUserContext, Intent } from "../application/bot-context.js";
 import { BotNotice } from "../application/bot-runtime.js";
 import { asOfFooter, backToMenu, button, card, localizedName, openInErp, rows, todayIso, type BotServices } from "./feature-kit.js";
 
@@ -17,14 +18,34 @@ function cleanQuery(value: string | undefined): string {
   return (value ?? "").trim().slice(0, 100);
 }
 
-function resultsCard(ctx: BotContext, titleKey: string, query: string, options: Action<Intent>[]) {
+type SearchKind = "customers" | "items" | "invoices";
+
+const SEARCH_ACTION: Readonly<Record<SearchKind, string>> = { customers: "searchCustomers", items: "searchItems", invoices: "searchInvoices" };
+
+// The button that asks for a search term (a pop-up form on Discord, a reply prompt on Telegram).
+export function searchIntent(kind: SearchKind): Intent {
+  return { f: "lookups", a: SEARCH_ACTION[kind], form: kind };
+}
+
+function resultsCard(ctx: BotContext, kind: SearchKind, query: string, options: Action<Intent>[]) {
+  const again = button(ctx.t("lookups.searchAgain"), searchIntent(kind), "secondary", "search");
   if (options.length === 0) {
-    return card(ctx, [{ type: "header", tone: "neutral", icon: "search", title: ctx.t("lookups.noResults", { query }) }], rows([backToMenu(ctx)]));
+    return card(
+      ctx,
+      [
+        { type: "header", tone: "neutral", icon: "search", title: ctx.t("lookups.noResults", { query }) },
+        { type: "text", text: ctx.t("lookups.noResultsHint"), emphasis: "muted" },
+      ],
+      rows([again, backToMenu(ctx)]),
+    );
   }
   return card(
     ctx,
-    [{ type: "header", tone: "info", icon: "search", title: ctx.t(titleKey), subtitle: ctx.t("lookups.resultsFor", { query }) }],
-    rows(...options.map((o) => [o]), [backToMenu(ctx)]),
+    [
+      { type: "header", tone: "info", icon: "search", title: ctx.t(`lookups.${kind}Title`), subtitle: ctx.t("lookups.resultsFor", { query, count: options.length }) },
+      { type: "text", text: ctx.t("lookups.pickOne"), emphasis: "muted" },
+    ],
+    rows(...options.map((o) => [o]), [again, backToMenu(ctx)]),
   );
 }
 
@@ -36,7 +57,7 @@ export function createLookupsFeature(services: BotServices): BotFeature {
     await ctx.reply(
       resultsCard(
         ctx,
-        "lookups.customersTitle",
+        "customers",
         q,
         page.data.map((p) => button(localizedName(ctx, p.name, p.nameAr), { f: "lookups", a: "customer", p: { id: p.id } }, "secondary", "customer")),
       ),
@@ -50,7 +71,7 @@ export function createLookupsFeature(services: BotServices): BotFeature {
     await ctx.reply(
       resultsCard(
         ctx,
-        "lookups.itemsTitle",
+        "items",
         q,
         page.data.map((i) => button(`${i.code} · ${localizedName(ctx, i.name, i.nameAr)}`, { f: "lookups", a: "item", p: { id: i.id } }, "secondary", "stock")),
       ),
@@ -69,7 +90,7 @@ export function createLookupsFeature(services: BotServices): BotFeature {
     await ctx.reply(
       resultsCard(
         ctx,
-        "lookups.invoicesTitle",
+        "invoices",
         q,
         found.map((i) =>
           button(`${i.number} · ${localizedName(ctx, i.customer.name, i.customer.nameAr)} · ${ctx.fmt.money(i.totalGross.toFixed(4), i.currency)}`, { f: "lookups", a: "invoice", p: { id: i.id } }, "secondary", "invoice"),
@@ -95,7 +116,7 @@ export function createLookupsFeature(services: BotServices): BotFeature {
         ctx,
         [
           { type: "header", tone: "info", icon: "cash", title: ctx.t("lookups.cashTitle") },
-          { type: "fields", items: [{ label: ctx.t("lookups.cashBalance"), value: balance ? ctx.fmt.money(balance, data.currency) : ctx.t("lookups.cashNotMapped") }] },
+          { type: "fields", items: [balance ? { label: ctx.t("lookups.cashBalance"), value: ctx.fmt.money(balance, data.currency), strong: true } : { label: ctx.t("lookups.cashBalance"), value: ctx.t("lookups.cashNotMapped") }] },
           asOfFooter(ctx),
         ],
         rows(openInErp(ctx, "/accounting/balance-sheet"), [backToMenu(ctx)]),
@@ -112,12 +133,15 @@ export function createLookupsFeature(services: BotServices): BotFeature {
       invoice: async (ctx, args) => searchInvoices(ctx, cleanQuery(args)),
       cash: async (ctx) => cash(ctx),
     },
-    forms: {
-      search: (ctx) => ({
-        title: ctx.t("lookups.searchTitle"),
-        fields: [{ key: "q", label: ctx.t("lookups.searchLabel"), placeholder: ctx.t("lookups.searchPlaceholder"), multiline: false, required: true, maxLength: 100 }],
-      }),
-    },
+    forms: Object.fromEntries(
+      (["customers", "items", "invoices"] as const).map((kind) => [
+        kind,
+        (ctx: BotUserContext) => ({
+          title: ctx.t(`lookups.search.${kind}.title`),
+          fields: [{ key: "q", label: ctx.t(`lookups.search.${kind}.hint`), placeholder: ctx.t(`lookups.search.${kind}.placeholder`), multiline: false, required: true, maxLength: 100 }],
+        }),
+      ]),
+    ),
     actions: {
       searchCustomers: async (ctx, _p, fields) => searchCustomers(ctx, cleanQuery(fields["q"])),
       searchItems: async (ctx, _p, fields) => searchItems(ctx, cleanQuery(fields["q"])),
@@ -129,15 +153,16 @@ export function createLookupsFeature(services: BotServices): BotFeature {
         const party = await services.prisma.party.findFirst({ where: { id: p["id"] ?? "", companyId: ctx.connection.companyId } });
         if (!party) throw new BotNotice("lookups.notFound");
         const canStatement = await ctx.can("read", "party_statement");
-        const fields = [
-          ...(party.phone ? [{ label: ctx.t("lookups.phone"), value: party.phone }] : []),
-          ...(party.vatNumber ? [{ label: ctx.t("lookups.vat"), value: party.vatNumber }] : []),
+        const fields: Field[] = [
+          { label: ctx.t("lookups.reference"), value: party.ref, copy: true },
+          ...(party.phone ? [{ label: ctx.t("lookups.phone"), value: party.phone, copy: true }] : []),
+          ...(party.vatNumber ? [{ label: ctx.t("lookups.vat"), value: party.vatNumber, copy: true }] : []),
         ];
         if (canStatement) {
           const today = todayIso(ctx.connection.timezone);
           const statement = await services.statements.statement(ctx.connection.companyId, party.id, "SALES", new Date("2000-01-01T00:00:00Z"), new Date(`${today}T00:00:00Z`));
           const balance = statement.closingBalance;
-          fields.push({ label: ctx.t("lookups.balance"), value: ctx.fmt.money(balance, ctx.connection.currency) });
+          fields.push({ label: ctx.t("lookups.balance"), value: ctx.fmt.money(balance, ctx.connection.currency), strong: true });
           const last = statement.lines.at(-1);
           if (last) fields.push({ label: ctx.t("lookups.lastActivity"), value: `${last.number} · ${ctx.fmt.date(last.date)}` });
         }
@@ -146,7 +171,7 @@ export function createLookupsFeature(services: BotServices): BotFeature {
           card(
             ctx,
             [
-              { type: "header", tone: "info", icon: "customer", title: localizedName(ctx, party.name, party.nameAr), subtitle: party.ref },
+              { type: "header", tone: "info", icon: "customer", title: localizedName(ctx, party.name, party.nameAr), subtitle: ctx.t("lookups.customerSubtitle") },
               { type: "fields", items: fields },
               asOfFooter(ctx),
             ],
@@ -170,8 +195,12 @@ export function createLookupsFeature(services: BotServices): BotFeature {
           card(
             ctx,
             [
-              { type: "header", tone: below ? "warning" : "info", icon: "stock", title: localizedName(ctx, item.name, item.nameAr), subtitle: item.code },
-              { type: "fields", items: [{ label: ctx.t("lookups.reorderPoint"), value: `${ctx.fmt.quantity(item.reorderPoint.toFixed(4))} ${item.unit}` }] },
+              { type: "header", tone: below ? "warning" : "info", icon: "stock", title: localizedName(ctx, item.name, item.nameAr), subtitle: ctx.t("lookups.byWarehouse") },
+              { type: "fields", items: [
+                  { label: ctx.t("lookups.code"), value: item.code, copy: true },
+                  ...(canStock ? [{ label: ctx.t("lookups.onHand"), value: `${ctx.fmt.quantity(levels.reduce((sum, l) => sum.plus(l.quantity), new Prisma.Decimal(0)).toFixed(4))} ${item.unit}`, strong: true, ...(below ? { tone: "warning" as const } : {}) }] : []),
+                  { label: ctx.t("lookups.reorderPoint"), value: `${ctx.fmt.quantity(item.reorderPoint.toFixed(4))} ${item.unit}` },
+                ] },
               canStock
                 ? {
                     type: "list",
@@ -208,13 +237,14 @@ export function createLookupsFeature(services: BotServices): BotFeature {
           card(
             ctx,
             [
-              { type: "header", tone: settledTone, icon: "invoice", title: `${invoice.number}`, subtitle: localizedName(ctx, invoice.customerName, invoice.customerNameAr) },
+              { type: "header", tone: settledTone, icon: "invoice", title: localizedName(ctx, invoice.customerName, invoice.customerNameAr), subtitle: ctx.t(`lookups.documentType.${invoice.documentType}`) },
               {
                 type: "fields",
                 items: [
+                  { label: ctx.t("lookups.number"), value: invoice.number, copy: true },
                   { label: ctx.t("lookups.invoiceDate"), value: ctx.fmt.date(invoice.invoiceDate) },
                   ...(invoice.dueDate ? [{ label: ctx.t("lookups.dueDate"), value: ctx.fmt.date(invoice.dueDate) }] : []),
-                  { label: ctx.t("lookups.total"), value: ctx.fmt.money(invoice.totalGross, invoice.currency) },
+                  { label: ctx.t("lookups.total"), value: ctx.fmt.money(invoice.totalGross, invoice.currency), strong: true },
                   ...(invoice.outstandingAmount !== null ? [{ label: ctx.t("lookups.outstanding"), value: ctx.fmt.money(invoice.outstandingAmount, invoice.currency) }] : []),
                   { label: ctx.t("lookups.settlement"), value: ctx.t(`lookups.settlementStatus.${invoice.settlementStatus}`, { defaultValue: invoice.settlementStatus }), tone: settledTone },
                   ...(zatca && zatcaTone ? [{ label: ctx.t("lookups.zatca"), value: ctx.t(`lookups.zatcaStatus.${zatca.status}`, { defaultValue: zatca.status }), tone: zatcaTone }] : []),

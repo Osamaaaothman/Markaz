@@ -14,7 +14,7 @@ import {
   type WebhookParseResult,
 } from "../contract/channel-adapter.js";
 import type { ChatTarget, InboundEvent, InboundFileRef, SentMessageRef } from "../contract/inbound.js";
-import type { BotMessage, FormSpec, OutboundFile } from "../contract/ui-kit.js";
+import type { BotMessage, FormSpec, OutboundFile, PromptSpec } from "../contract/ui-kit.js";
 import { renderDiscord, renderDiscordModal } from "./discord-renderer.js";
 
 // Discord adapter over HTTP interactions + REST — no websocket gateway and no SDK
@@ -342,8 +342,8 @@ export class DiscordAdapter implements ChannelAdapter {
     return { chatId: target.chatId, messageId: sent.id };
   }
 
-  sendPrompt(target: OutboundTarget, text: string, secrets: ConnectionSecrets): Promise<SentMessageRef> {
-    return this.send(target, { direction: "ltr", blocks: [{ type: "text", text }] }, secrets);
+  sendPrompt(target: OutboundTarget, prompt: PromptSpec, secrets: ConnectionSecrets): Promise<SentMessageRef> {
+    return this.send(target, { direction: "ltr", blocks: [{ type: "header", tone: "info", icon: "search", title: prompt.title, subtitle: prompt.hint }] }, secrets);
   }
 
   async openDirectChat(userId: string, secrets: ConnectionSecrets): Promise<ChatTarget> {

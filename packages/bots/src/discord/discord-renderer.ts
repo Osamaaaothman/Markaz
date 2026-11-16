@@ -1,5 +1,5 @@
 import type { Action, BotMessage, ButtonStyle, FormSpec } from "../contract/ui-kit.js";
-import { ICON_EMOJI, TONE_COLOR, TONE_MARKER, chunk, isolate, parseHexColor, truncate } from "../render/common.js";
+import { ICON_EMOJI, TONE_COLOR, TONE_MARKER, chunk, parseHexColor, truncate } from "../render/common.js";
 
 // Discord: one embed carrying the accent colour, fields in columns, and up to five rows of
 // buttons / select menus. Limits from discord.com/developers/docs (embeds, message components).
@@ -96,7 +96,7 @@ export function renderDiscord(message: BotMessage): DiscordRendered {
         for (const f of block.items) {
           fields.push({
             name: truncate(`${f.tone ? `${TONE_MARKER[f.tone]} ` : ""}${f.label}`, FIELD_NAME),
-            value: truncate(isolate(f.value) || "—", FIELD_VALUE),
+            value: truncate(f.copy ? `\`${f.value}\`` : f.strong ? `**${escapeMarkdown(f.value)}**` : escapeMarkdown(f.value) || "—", FIELD_VALUE),
             inline: f.inline ?? true,
           });
         }
@@ -104,7 +104,7 @@ export function renderDiscord(message: BotMessage): DiscordRendered {
       case "list":
         for (const item of block.items) {
           const marker = item.icon ? ICON_EMOJI[item.icon] : item.tone ? TONE_MARKER[item.tone] : "•";
-          description.push(`${marker} **${escapeMarkdown(item.title)}**${item.detail ? ` — ${isolate(escapeMarkdown(item.detail))}` : ""}`);
+          description.push(`${marker} **${escapeMarkdown(item.title)}**${item.detail ? ` — ${escapeMarkdown(item.detail)}` : ""}`);
         }
         break;
       case "divider":

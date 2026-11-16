@@ -1,5 +1,5 @@
 import type { ChatTarget, InboundEvent, InboundFileRef, ProviderId, SentMessageRef } from "./inbound.js";
-import type { BotMessage, FormSpec, OutboundFile } from "./ui-kit.js";
+import type { BotMessage, FormSpec, OutboundFile, PromptSpec } from "./ui-kit.js";
 
 // The one contract every chat platform implements (docs/BOTS-INTEGRATION-PLAN.md §3). Adding a
 // platform means writing one of these — no change to the Bot Hub's features or to the settings UI.
@@ -127,7 +127,7 @@ export interface ChannelAdapter {
   edit(ref: SentMessageRef, message: BotMessage, secrets: ConnectionSecrets): Promise<void>;
   sendFile(target: OutboundTarget, file: OutboundFile, caption: BotMessage | null, secrets: ConnectionSecrets): Promise<SentMessageRef>;
   // Asks for free text in reply (used for forms when `capabilities.modals` is false).
-  sendPrompt(target: OutboundTarget, text: string, secrets: ConnectionSecrets): Promise<SentMessageRef>;
+  sendPrompt(target: OutboundTarget, prompt: PromptSpec, secrets: ConnectionSecrets): Promise<SentMessageRef>;
   // Opens a direct-message channel with a user (Discord needs one before it can DM). Telegram:
   // the private chat id equals the user id.
   openDirectChat(userId: string, secrets: ConnectionSecrets): Promise<ChatTarget>;

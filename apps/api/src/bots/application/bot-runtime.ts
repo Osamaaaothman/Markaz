@@ -121,6 +121,7 @@ export class BotRuntime {
         timezone: row.company.timezone,
         currency: row.company.defaultCurrency,
         companyName: row.company.name,
+        companyNameAr: row.company.nameAr,
       },
     };
   }
@@ -354,8 +355,7 @@ export class BotRuntime {
         create: { id: newId(), connectionId: ctx.connection.id, chatId: ctx.event.chat.chatId, userId: link.userId, awaiting: { tokenId, fieldKey: field.key }, expiresAt: new Date(Date.now() + SESSION_TTL_MS) },
         update: { awaiting: { tokenId, fieldKey: field.key }, expiresAt: new Date(Date.now() + SESSION_TTL_MS) },
       });
-      await ctx.toast(spec.title);
-      await ctx.adapter.sendPrompt(ctx.event.chat, `${spec.title}\n${field.label}`, ctx.secrets);
+      await ctx.adapter.sendPrompt(ctx.event.chat, { title: spec.title, hint: field.label, ...(field.placeholder ? { placeholder: field.placeholder } : {}) }, ctx.secrets);
       return;
     }
     if (token.singleUse) {

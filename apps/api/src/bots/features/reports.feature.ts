@@ -35,10 +35,10 @@ export async function buildSummary(services: BotServices, ctx: BotUserContext, t
   const money = (v: string) => ctx.fmt.money(v, data.currency);
   const fields: Field[] = [];
   if (data.sales) {
-    fields.push({ label: ctx.t("reports.salesThisMonth"), value: money(data.sales.thisMonthNet) });
+    fields.push({ label: ctx.t("reports.salesThisMonth"), value: money(data.sales.thisMonthNet), strong: true });
     fields.push({ label: ctx.t("reports.openOrders"), value: String(data.sales.openOrders) });
   }
-  if (data.cash) fields.push({ label: ctx.t("reports.cash"), value: data.cash.balance ? money(data.cash.balance) : "—" });
+  if (data.cash) fields.push({ label: ctx.t("reports.cash"), value: data.cash.balance ? money(data.cash.balance) : "—", strong: true });
   if (data.receivables) {
     fields.push({ label: ctx.t("reports.receivables"), value: money(data.receivables.total) });
     fields.push({ label: ctx.t("reports.overdue"), value: money(data.receivables.overdue), tone: new Prisma.Decimal(data.receivables.overdue).isZero() ? "success" : "danger" });
