@@ -21,6 +21,7 @@ const GoodsReceiptDetailPage = lazy(() => import("../features/inventory/GoodsRec
 const GoodsReceiptsPage = lazy(() => import("../features/inventory/GoodsReceiptsPage").then((module) => ({ default: module.GoodsReceiptsPage })));
 const StockIssueDetailPage = lazy(() => import("../features/inventory/StockIssueDetailPage").then((module) => ({ default: module.StockIssueDetailPage })));
 const StockIssuesPage = lazy(() => import("../features/inventory/StockIssuesPage").then((module) => ({ default: module.StockIssuesPage })));
+const GoodsReceivingPage = lazy(() => import("../features/purchasing/GoodsReceivingPage").then((module) => ({ default: module.GoodsReceivingPage })));
 const GoodsReceiptPage = lazy(() => import("../features/inventory/GoodsReceiptPage").then((module) => ({ default: module.GoodsReceiptPage })));
 const ItemsPage = lazy(() => import("../features/inventory/ItemsPage").then((module) => ({ default: module.ItemsPage })));
 const StockCountDetailPage = lazy(() => import("../features/inventory/StockCountDetailPage").then((module) => ({ default: module.StockCountDetailPage })));
@@ -137,6 +138,7 @@ export function AppRoutes(): React.JSX.Element {
             <Route path="/inventory/goods-receipts/:id" element={<GoodsReceiptDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={["goods_receipt:create"]} />}>
+            <Route path="/purchasing/receiving" element={<GoodsReceivingPage />} />
             <Route path="/inventory/goods-receipts/new" element={<GoodsReceiptPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/inventory/stock-issues")} />}>

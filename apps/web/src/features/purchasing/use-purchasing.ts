@@ -245,6 +245,29 @@ export function useOrderAction(id: string, action: "approve" | "reject" | "cance
   });
 }
 
+// The receiving desk: open orders for a warehouse keeper, who needs goods_receipt:create but no
+// purchase-order access.
+export function useReceivableOrders() {
+  const { can } = usePermissions();
+  return useInfiniteQuery({
+    queryKey: ["purchaseOrders", "receivable"],
+    queryFn: async ({ pageParam }) =>
+      (await apiClient.get<Page<PurchaseOrderSummary>>("/v1/goods-receiving/orders", { params: { limit: "50", ...(pageParam ? { cursor: pageParam } : {}) } })).data,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.pageInfo.nextCursor ?? undefined,
+    staleTime: 10_000,
+    enabled: can("goods_receipt:create"),
+  });
+}
+
+export function useReceivableOrder(id: string | null) {
+  return useQuery({
+    queryKey: ["purchaseOrders", "receivable", "detail", id],
+    queryFn: async () => (await apiClient.get<PurchaseOrderDetail>(`/v1/goods-receiving/orders/${id ?? ""}`)).data,
+    enabled: id !== null,
+  });
+}
+
 export interface ReceivePayload {
   readonly warehouseId: string;
   readonly documentDate: string;

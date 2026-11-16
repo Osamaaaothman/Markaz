@@ -69,6 +69,7 @@
     "company": "الشركة",
     "employees": "الموظفون",
     "payrollRuns": "تشغيلات الرواتب",
+    "goodsReceiving": "استلام البضاعة",
     "goodsReturns": "مردودات المشتريات",
     "purchaseReview": "مراجعة طلبات الشراء",
     "allowanceTypes": "أنواع البدلات",
@@ -797,6 +798,7 @@
     }
   },
   "purchasing": {
+    "receiving": { "title": "استلام البضاعة", "subtitle": "استلام البضاعة مقابل أوامر الشراء المفتوحة.", "empty": "لا توجد أوامر شراء معتمدة بانتظار الاستلام." },
     "title": "المشتريات",
     "status": "الحالة",
     "allStatuses": "كل الحالات",
