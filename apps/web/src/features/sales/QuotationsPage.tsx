@@ -44,7 +44,7 @@ export function QuotationsPage(): React.JSX.Element {
   const [params, setParams] = useSearchParams();
   const viewId = params.get("view");
   const setViewId = (id: string | null): void => { setParams((previous) => { const next = new URLSearchParams(previous); if (id) next.set("view", id); else next.delete("view"); return next; }); };
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useQuotations(status);
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useQuotations(status);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
   return (
@@ -79,7 +79,7 @@ export function QuotationsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("quotation:create"), label: t("sales.quotations.new"), onClick: () => void navigate("/sales/quotations/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => setViewId((e.data as QuotationSummary).id)}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} emptyAction={{ allowed: can("quotation:create"), label: t("sales.quotations.new"), onClick: () => void navigate("/sales/quotations/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")} selectionMode="single" onRowClick={(e) => setViewId((e.data as QuotationSummary).id)}>
             <Column field="number" filter header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: QuotationSummary) => <span className="coa-code">{r.number}</span>} />
             <Column header={t("sales.customer")} body={(r: QuotationSummary) => localizedName({ name: r.customerName, nameAr: r.customerNameAr }, i18n.language)} />
             <Column header={t("sales.quotations.date")} style={{ width: "9rem" }} body={(r: QuotationSummary) => formatCalendarDate(r.quotationDate, i18n.language)} />
@@ -87,11 +87,6 @@ export function QuotationsPage(): React.JSX.Element {
             <Column header={t("purchasing.invoices.gross")} align="right" style={{ width: "11rem" }} body={(r: QuotationSummary) => formatMoney(r.totalGross, r.currency)} />
             <Column field="status" filter filterMatchMode="equals" filterElement={selectFilter(Object.keys(SEVERITY).map((v) => ({ label: t(`sales.quotations.status.${v}`), value: v })), t("table.filterPlaceholder"))} header={t("purchasing.status")} style={{ width: "10rem" }} body={(r: QuotationSummary) => <Tag value={t(`sales.quotations.status.${r.status}`)} severity={SEVERITY[r.status]} />} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
 

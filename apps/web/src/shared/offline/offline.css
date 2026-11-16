@@ -1,0 +1,23 @@
+/* Offline notice. Logical properties only. */
+.mk-offline {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem var(--mk-space-4, 1rem);
+  color: var(--mk-warning, #b54708);
+  background: var(--mk-warning-soft, #fef0e1);
+  border-block-end: 1px solid var(--mk-warning, #b54708);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.mk-offline .pi { flex: none; }
+
+.erp-page-skeleton__offline {
+  margin: 0 0 1rem;
+  color: var(--mk-text-muted);
+  font-size: 0.9rem;
+}

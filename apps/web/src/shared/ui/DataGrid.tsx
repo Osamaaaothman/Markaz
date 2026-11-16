@@ -23,7 +23,18 @@ import { InputText } from "primereact/inputtext";
 import { OverlayPanel } from "primereact/overlaypanel";
 import { EmptyState, type EmptyStateAction } from "./EmptyState";
 
+// A list the server hands out in cursor pages. The grid itself keeps fetching the next page until the list is
+// complete, so its page numbers always cover ALL the data (100 rows at 25 per page = 4 pages) and there is no
+// separate "load more" button. `error` stops the loop (a failed page must not be retried in a tight cycle).
+export interface DataGridMore {
+  readonly hasMore: boolean;
+  readonly loading: boolean;
+  readonly error: boolean;
+  readonly onLoadMore: () => void;
+}
+
 export interface DataGridProps {
+  readonly more?: DataGridMore;
   readonly value: readonly object[] | undefined;
   readonly children: React.ReactNode;
   readonly className?: string;
@@ -48,6 +59,9 @@ export interface DataGridProps {
 }
 
 const PAGE_SIZES = [10, 25, 50, 100];
+// Safety ceiling for the automatic loading: a list this long (an audit trail, years of movements) is narrowed
+// with filters, not paged through in the browser.
+const MAX_AUTO_ROWS = 5000;
 const COPIED_MS = 1500;
 
 // Copies a row's id (its UUID) so it can be pasted into a support ticket, a URL or a search box. The click is
@@ -170,9 +184,19 @@ export function DataGrid({
   emptyMessage,
   emptyIcon,
   emptyAction,
+  more,
   ...rest
 }: DataGridProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const loadedRows = value?.length ?? 0;
+  const capped = loadedRows >= MAX_AUTO_ROWS;
+  const moreAvailable = more?.hasMore ?? false;
+  const moreLoading = more?.loading ?? false;
+  const moreError = more?.error ?? false;
+  const loadMore = more?.onLoadMore;
+  useEffect(() => {
+    if (moreAvailable && !moreLoading && !moreError && !capped) loadMore?.();
+  }, [moreAvailable, moreLoading, moreError, capped, loadedRows, loadMore]);
   const [query, setQuery] = useState("");
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(pageSize);
@@ -383,6 +407,26 @@ export function DataGrid({
           />
         ) : null}
       </DataTable>
+      {moreAvailable ? (
+        <p className="mk-grid__more" role="status">
+          {moreError ? (
+            <>
+              <i className="pi pi-exclamation-triangle" aria-hidden="true" /> {t("table.loadFailed")}{" "}
+              <button type="button" className="erp-button-link" onClick={() => loadMore?.()}>
+                {t("actions.retry")}
+              </button>
+            </>
+          ) : capped ? (
+            <>
+              <i className="pi pi-info-circle" aria-hidden="true" /> {t("table.capped", { count: loadedRows })}
+            </>
+          ) : (
+            <>
+              <i className="pi pi-spin pi-spinner" aria-hidden="true" /> {t("table.loadingRest", { count: loadedRows })}
+            </>
+          )}
+        </p>
+      ) : null}
     </div>
   );
 }

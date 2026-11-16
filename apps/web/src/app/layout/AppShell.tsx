@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { Outlet } from "react-router-dom";
 import { InstallPrompt } from "../../shared/pwa/InstallPrompt";
+import { OfflineBanner } from "../../shared/offline/OfflineBanner";
 import { CommandPalette } from "./CommandPalette";
 import { ExportProgress } from "./ExportProgress";
 import { Sidebar } from "./Sidebar";
@@ -35,6 +36,7 @@ export function AppShell(): React.JSX.Element {
       ) : null}
 
       <div className="erp-shell__main">
+        <OfflineBanner />
         <Topbar />
         <main className="erp-shell__content">
           <Suspense fallback={<PageSkeleton />}>

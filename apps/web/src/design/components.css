@@ -1462,6 +1462,15 @@ html body .mk-grid__search .p-inputtext {
   padding-inline: 2.4rem 0.9rem;
 }
 
+.mk-grid__more {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  color: var(--mk-text-muted);
+  font-size: 0.84rem;
+}
+
 .mk-grid__count {
   margin-inline-start: auto;
   color: var(--mk-text-muted);

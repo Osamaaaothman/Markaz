@@ -18,7 +18,7 @@ export function CashExpensesPage(): React.JSX.Element {
   const { can } = usePermissions();
   const [showCenters, setShowCenters] = useState(false);
   const navigate = useNavigate();
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useCashExpenses();
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = useCashExpenses();
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
 
   return (
@@ -45,7 +45,7 @@ export function CashExpensesPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid emptyAction={{ allowed: can("cash_expense:create"), label: t("cashExpenses.new"), onClick: () => void navigate("/payments/cash-expenses/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} emptyAction={{ allowed: can("cash_expense:create"), label: t("cashExpenses.new"), onClick: () => void navigate("/payments/cash-expenses/new") }} value={rows} className="erp-table" stripedRows showGridlines size="small" emptyMessage={t("status.empty")}>
             <Column header={t("purchasing.number")} style={{ width: "13rem" }} body={(r: CashExpenseSummary) => <button type="button" className="erp-button-link coa-code" onClick={() => void navigate(`/payments/cash-expenses/${r.id}`)}>{r.number}</button>} />
             <Column header={t("cashExpenses.date")} style={{ width: "9rem" }} body={(r: CashExpenseSummary) => formatCalendarDate(r.expenseDate, i18n.language)} />
             <Column header={t("cashExpenses.cashAccount")} body={(r: CashExpenseSummary) => `${r.cashAccountCode} — ${localizedName({ name: r.cashAccountName, nameAr: r.cashAccountNameAr }, i18n.language)}`} />
@@ -54,11 +54,6 @@ export function CashExpensesPage(): React.JSX.Element {
             <Column header={t("payments.reference")} body={(r: CashExpenseSummary) => r.reference ?? ""} />
             <Column header={t("created.amount")} align="right" body={(r: CashExpenseSummary) => <strong>{formatMoney(r.amount, r.currency)}</strong>} />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
       <CostCentersDialog visible={showCenters} onHide={() => setShowCenters(false)} />

@@ -67,7 +67,7 @@ export function SalesInvoicesPage({
   const [type, setType] = useState<"INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | null>(null);
   const [settlement, setSettlement] = useState<string>(ALL);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } =
     useSalesInvoices(returnsOnly ? "CREDIT_NOTE" : type);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
   const statuses = useInvoiceStatuses(rows.map((row) => row.id));
@@ -187,7 +187,7 @@ export function SalesInvoicesPage({
         </div>
       ) : (
         <>
-          <DataGrid
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }}
             key={`${type}:${settlement}`}
             emptyAction={{
               allowed: !returnsOnly && can("sales_invoice:create"),
@@ -336,17 +336,6 @@ export function SalesInvoicesPage({
               )}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button
-                label={t("actions.loadMore")}
-                text
-                onClick={() => void fetchNextPage()}
-                loading={isFetchingNextPage}
-                icon="pi pi-chevron-down"
-              />
-            </div>
-          ) : null}
         </>
       )}
     </div>

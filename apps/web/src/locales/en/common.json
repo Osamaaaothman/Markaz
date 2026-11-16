@@ -1498,7 +1498,10 @@
     "selectRow": "Select {{number}}",
     "selected": "{{count}} selected",
     "exportSelected": "Export selected CSV",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "loadingRest": "Loading the rest of the list… ({{count}} so far)",
+    "capped": "Showing the first {{count}} rows. Use the filters to narrow the list.",
+    "loadFailed": "Could not load the rest of the list."
   },
   "attachments": {
     "saving": "Saving…",
@@ -2702,5 +2705,11 @@
       "gotIt": "Got it",
       "close": "Close"
     }
+  },
+  "offline": {
+    "title": "You are offline.",
+    "body": "You can keep reading the pages you opened before. Changes are turned off until the connection returns.",
+    "blocked": "You are offline. This action needs a connection, so nothing was saved. Try again when you are back online.",
+    "notSaved": "You are offline and this page was not opened before, so it is not available yet."
   }
 }

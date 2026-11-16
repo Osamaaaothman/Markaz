@@ -35,7 +35,7 @@ export function DocumentsPage(): React.JSX.Element {
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState("");
   const [viewing, setViewing] = useState<ViewedFile | null>(null);
-  const { data, isPending, isError, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } = useAllAttachments(ownerType, applied);
+  const { data, isPending, isError, refetch, hasNextPage, fetchNextPage, isFetchingNextPage, isFetchNextPageError } = useAllAttachments(ownerType, applied);
   const rows = data?.pages.flatMap((p) => p.data) ?? [];
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" });
 
@@ -80,7 +80,7 @@ export function DocumentsPage(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <DataGrid value={rows} searchable={false} stripedRows showGridlines size="small" emptyMessage={t("attachments.empty")}>
+          <DataGrid more={{ hasMore: hasNextPage, loading: isFetchingNextPage, error: isFetchNextPageError, onLoadMore: () => void fetchNextPage() }} value={rows} searchable={false} stripedRows showGridlines size="small" emptyMessage={t("attachments.empty")}>
             <Column header={t("attachments.file")} body={(r: AttachmentSummary) => <span dir="auto">{r.originalName}</span>} />
             <Column header={t("attachments.kind")} style={{ width: "12rem" }} body={(r: AttachmentSummary) => <Tag value={t(`attachments.owners.${r.ownerType}`)} severity="secondary" className="mk-tag--plain" />} />
             <Column
@@ -111,11 +111,6 @@ export function DocumentsPage(): React.JSX.Element {
               )}
             />
           </DataGrid>
-          {hasNextPage ? (
-            <div className="erp-table-footer erp-table-footer--center">
-              <Button label={t("actions.loadMore")} text onClick={() => void fetchNextPage()} loading={isFetchingNextPage} icon="pi pi-chevron-down" />
-            </div>
-          ) : null}
         </>
       )}
       <AttachmentViewer file={viewing} onHide={() => setViewing(null)} />
