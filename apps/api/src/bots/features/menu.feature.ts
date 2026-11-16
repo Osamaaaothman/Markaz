@@ -2,7 +2,8 @@ import type { Action } from "@erp/bots";
 import type { BotContext, BotFeature, BotUserContext, FeatureMessage, Intent } from "../application/bot-context.js";
 import { BotNotice } from "../application/bot-runtime.js";
 import { ALERT_TYPES } from "./alert-types.js";
-import { backToMenu, button, card, dir, openInErp, rows, type BotServices } from "./feature-kit.js";
+import { searchIntent } from "./lookups.feature.js";
+import { backToMenu, button, card, companyName, dir, openInErp, rows, type BotServices } from "./feature-kit.js";
 
 // Main menu, help, account linking and personal settings — always on, whatever features the
 // connection has enabled.
@@ -13,9 +14,9 @@ async function menuMessage(ctx: BotUserContext): Promise<FeatureMessage> {
     if (ctx.featureEnabled(feature) && (await ctx.can(action, resource))) items.push(item);
   };
   await offer("approvals", "approve", "purchase_order", button(ctx.t("menu.approvals"), { f: "approvals", a: "list" }, "primary", "approval"));
-  await offer("lookups", "read", "party", button(ctx.t("menu.customers"), { f: "lookups", a: "searchCustomers", form: "search" }, "secondary", "customer"));
-  await offer("lookups", "read", "item", button(ctx.t("menu.items"), { f: "lookups", a: "searchItems", form: "search" }, "secondary", "stock"));
-  await offer("lookups", "read", "sales_invoice", button(ctx.t("menu.invoices"), { f: "lookups", a: "searchInvoices", form: "search" }, "secondary", "invoice"));
+  await offer("lookups", "read", "party", button(ctx.t("menu.customers"), searchIntent("customers"), "secondary", "customer"));
+  await offer("lookups", "read", "item", button(ctx.t("menu.items"), searchIntent("items"), "secondary", "stock"));
+  await offer("lookups", "read", "sales_invoice", button(ctx.t("menu.invoices"), searchIntent("invoices"), "secondary", "invoice"));
   await offer("lookups", "read", "balance_sheet", button(ctx.t("menu.cash"), { f: "lookups", a: "cash" }, "secondary", "cash"));
   if (ctx.featureEnabled("reports")) items.push(button(ctx.t("menu.dailyReport"), { f: "reports", a: "daily" }, "secondary", "report"));
   items.push(button(ctx.t("menu.settings"), { f: "menu", a: "settings" }, "secondary", "settings"));
@@ -25,7 +26,7 @@ async function menuMessage(ctx: BotUserContext): Promise<FeatureMessage> {
   return card(
     ctx,
     [
-      { type: "header", tone: "brand", icon: "menu", title: ctx.t("menu.title", { company: ctx.connection.companyName }) },
+      { type: "header", tone: "brand", icon: "menu", title: ctx.t("menu.title", { company: companyName(ctx) }) },
       { type: "text", text: ctx.t("menu.intro") },
     ],
     rows(...grid, openInErp(ctx, "/")),

@@ -48,6 +48,10 @@ export interface Field {
   readonly value: string;
   readonly tone?: Tone;
   readonly inline?: boolean;
+  // Tap-to-copy on platforms that support it (reference numbers, phones, VAT numbers).
+  readonly copy?: boolean;
+  // The figure the reader is looking for (a balance, a total).
+  readonly strong?: boolean;
 }
 
 export interface ListItem {
@@ -99,6 +103,13 @@ export interface FormField {
   readonly multiline: boolean;
   readonly required: boolean;
   readonly maxLength: number;
+}
+
+// A question the bot asks in free text (platforms without pop-up forms).
+export interface PromptSpec {
+  readonly title: string;
+  readonly hint: string;
+  readonly placeholder?: string;
 }
 
 export interface OutboundFile {

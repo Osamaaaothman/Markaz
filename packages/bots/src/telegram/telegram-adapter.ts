@@ -16,8 +16,8 @@ import {
   type WebhookParseResult,
 } from "../contract/channel-adapter.js";
 import type { ChatTarget, InboundEvent, InboundFileRef, SentMessageRef } from "../contract/inbound.js";
-import type { BotMessage, OutboundFile } from "../contract/ui-kit.js";
-import { TELEGRAM_CAPTION_LIMIT, renderTelegram } from "./telegram-renderer.js";
+import type { BotMessage, OutboundFile, PromptSpec } from "../contract/ui-kit.js";
+import { TELEGRAM_CAPTION_LIMIT, renderTelegram, renderTelegramPrompt } from "./telegram-renderer.js";
 
 // Telegram Bot API adapter. A thin typed client over fetch — no SDK dependency
 // (docs/BOTS-INTEGRATION-PLAN.md D-BOT-4). Limits below were written from the Bot API docs
@@ -201,14 +201,23 @@ export class TelegramAdapter implements ChannelAdapter {
   constructor(private readonly fetchFn: HttpFetch = (input, init) => fetch(input, init)) {}
 
   private async call<T>(secrets: ConnectionSecrets, method: string, body: Record<string, unknown> | FormData): Promise<T> {
-    let response: Response;
-    try {
-      response = await this.fetchFn(`${API_BASE}/bot${token(secrets)}/${method}`, {
+    const send = () =>
+      this.fetchFn(`${API_BASE}/bot${token(secrets)}/${method}`, {
         method: "POST",
         ...(body instanceof FormData ? { body } : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
       });
-    } catch (error) {
-      throw new AdapterError("NETWORK", `Telegram ${method} failed: ${error instanceof Error ? error.message : "network error"}`);
+    let response: Response;
+    try {
+      response = await send();
+    } catch {
+      // A dropped connection to Telegram is common and short-lived: one quick second attempt
+      // before giving up (seen in production as "fetch failed" on a reply).
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        response = await send();
+      } catch (error) {
+        throw new AdapterError("NETWORK", `Telegram ${method} failed: ${error instanceof Error ? error.message : "network error"}`);
+      }
     }
     let parsed: TelegramResponse<T>;
     try {
@@ -367,11 +376,17 @@ export class TelegramAdapter implements ChannelAdapter {
     return { chatId: target.chatId, messageId: String(sent.message_id) };
   }
 
-  async sendPrompt(target: OutboundTarget, text: string, secrets: ConnectionSecrets): Promise<SentMessageRef> {
+  async sendPrompt(target: OutboundTarget, prompt: PromptSpec, secrets: ConnectionSecrets): Promise<SentMessageRef> {
     const sent = await this.call<TgMessage>(secrets, "sendMessage", {
       chat_id: target.chatId,
-      text: text.slice(0, 4096),
-      reply_markup: { force_reply: true, selective: true },
+      text: renderTelegramPrompt(prompt),
+      parse_mode: "HTML",
+      reply_markup: {
+        force_reply: true,
+        selective: true,
+        // Shown greyed inside the user's text box.
+        ...(prompt.placeholder ? { input_field_placeholder: prompt.placeholder.slice(0, 64) } : {}),
+      },
     });
     return { chatId: target.chatId, messageId: String(sent.message_id) };
   }

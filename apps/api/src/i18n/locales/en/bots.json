@@ -26,7 +26,7 @@
   },
   "menu": {
     "title": "{{company}}",
-    "intro": "What would you like to do?",
+    "intro": "Hello 👋 What would you like to do today?",
     "approvals": "Approvals",
     "customers": "Customers",
     "items": "Items & stock",
@@ -39,7 +39,7 @@
   "help": {
     "title": "How to use this bot",
     "linked": "Use the buttons, or these commands:",
-    "notLinked": "First link your account: in the ERP open Profile → Chat bots → Link, then send the code here. Commands:"
+    "notLinked": "To start, link your account: in the system open Settings → My chat bots → Link my account, then send the code here."
   },
   "settings": {
     "title": "Your bot settings",
@@ -72,12 +72,12 @@
     "otherAccount": "This chat account is already linked to another ERP user.",
     "success": "Your account is linked",
     "unlinked": "This chat is no longer linked to your ERP account.",
-    "howTo": "Send the code from ERP → Profile → Chat bots, e.g. /link ABC…"
+    "howTo": "Send the code from Settings → My chat bots, for example /link ABC…"
   },
   "errors": {
     "privateOnly": "For privacy, use this command in a private chat with the bot.",
     "unknownCommand": "Unknown command. Send /menu to see what you can do.",
-    "notLinked": "Link your ERP account first: ERP → Profile → Chat bots → Link.",
+    "notLinked": "Link your account first: Settings → My chat bots → Link my account.",
     "useMenu": "Use the menu buttons or a command such as /menu.",
     "filesNotSupported": "Files are not enabled for this bot.",
     "featureDisabled": "This option is turned off for this bot.",
@@ -121,7 +121,7 @@
   },
   "lookups": {
     "noResults": "Nothing found for “{{query}}”",
-    "resultsFor": "Results for “{{query}}”",
+    "resultsFor": "{{count}} result(s) for “{{query}}”",
     "customersTitle": "Customers",
     "itemsTitle": "Items",
     "invoicesTitle": "Sales invoices",
@@ -129,9 +129,6 @@
     "cashTitle": "Cash position",
     "cashBalance": "Cash and bank",
     "cashNotMapped": "Not set up in account mapping",
-    "searchTitle": "Search",
-    "searchLabel": "Name, code or number",
-    "searchPlaceholder": "e.g. Noor or INV-2026",
     "notFound": "Not found.",
     "phone": "Phone",
     "vat": "VAT number",
@@ -163,6 +160,37 @@
       "FAILED_RETRYABLE": "Retrying",
       "PENDING_RETRY": "Retrying",
       "WARNING": "Accepted with warnings"
+    },
+    "searchAgain": "New search",
+    "noResultsHint": "Try part of the name, the code or the number.",
+    "pickOne": "Pick one to see the details.",
+    "search": {
+      "customers": {
+        "title": "Find a customer",
+        "hint": "Reply with the customer name, number or phone.",
+        "placeholder": "e.g. Al-Noor"
+      },
+      "items": {
+        "title": "Find an item",
+        "hint": "Reply with the item name or code.",
+        "placeholder": "e.g. ITM-0012"
+      },
+      "invoices": {
+        "title": "Find an invoice",
+        "hint": "Reply with the invoice number, or part of it.",
+        "placeholder": "e.g. INV-2026-0042"
+      }
+    },
+    "reference": "Customer no.",
+    "customerSubtitle": "Customer card",
+    "code": "Code",
+    "onHand": "On hand (all warehouses)",
+    "byWarehouse": "Stock by warehouse",
+    "number": "Number",
+    "documentType": {
+      "INVOICE": "Tax invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note"
     }
   },
   "documents": {

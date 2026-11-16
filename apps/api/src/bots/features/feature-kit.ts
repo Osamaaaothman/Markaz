@@ -61,7 +61,11 @@ export function rows(...groups: ReadonlyArray<ReadonlyArray<Action<Intent>>>): A
 }
 
 export function asOfFooter(ctx: BotUserContext): Block {
-  return { type: "footer", text: ctx.t("common.asOf", { time: ctx.fmt.dateTime(new Date()), company: ctx.connection.companyName }) };
+  return { type: "footer", text: ctx.t("common.asOf", { time: ctx.fmt.dateTime(new Date()), company: companyName(ctx) }) };
+}
+
+export function companyName(ctx: BotUserContext): string {
+  return localizedName(ctx, ctx.connection.companyName, ctx.connection.companyNameAr);
 }
 
 export function card(ctx: BotUserContext, blocks: ReadonlyArray<Block>, actions: ActionRow<Intent>[] = []): FeatureMessage {

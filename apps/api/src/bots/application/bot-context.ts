@@ -28,6 +28,7 @@ export interface ConnectionInfo {
   readonly timezone: string;
   readonly currency: string;
   readonly companyName: string;
+  readonly companyNameAr: string | null;
 }
 
 export interface LinkedUser {

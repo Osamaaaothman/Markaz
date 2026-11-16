@@ -34,6 +34,7 @@ export function approvalCard(ctx: BotUserContext, po: PurchaseOrderDetail, inter
           {
             label: ctx.t("approvals.total"),
             value: ctx.fmt.money(new Prisma.Decimal(po.totalAmount).plus(po.totalTax).toFixed(4), po.currency),
+            strong: true,
             ...(decided ? {} : { tone: "warning" as const }),
           },
           { label: ctx.t("approvals.tax"), value: ctx.fmt.money(po.totalTax, po.currency) },
