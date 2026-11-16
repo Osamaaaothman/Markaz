@@ -1,12 +1,12 @@
 # Bots Integration — Full Plan (Telegram + Discord, reusable for any platform)
 
-Status: **PLAN ONLY — nothing here is approved for implementation yet.**
-Date: 2026-11-16
+Status: **IMPLEMENTED (2026-11-16) — awaiting live tests with real bot credentials.**
+Date: 2026-11-16 · Code: `packages/bots`, `apps/api/src/bots` (see its README), `apps/web/src/features/bots`
 
-> **Scope warning (read first).** `docs/00-PRODUCT-BRIEF.md` §6 lists "external
-> integrations" under **Tier 3 (not now)**. A bot integration is an external
-> integration. This document is the design so the decision can be made with full
-> information; **no code is written until Osama decides D-BOT-1 below** (§14).
+> **Scope (2026-11-16).** `docs/00-PRODUCT-BRIEF.md` §6 lists "external integrations" under
+> Tier 3. Osama decided D-BOT-1 by asking for the full implementation now; the other decisions in
+> §14 were built with the recommended default and are listed as applied in
+> `docs/01-OPEN-DECISIONS.md` — each can still be changed.
 
 ---
 

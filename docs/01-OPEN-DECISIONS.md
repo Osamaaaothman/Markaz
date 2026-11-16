@@ -1024,9 +1024,23 @@ unverified until an authorized portal account/OTP is available. See
 
 ## Chat bots integration (Telegram, Discord) — 2026-11-16
 
-Plan only, not approved: [BOTS-INTEGRATION-PLAN.md](BOTS-INTEGRATION-PLAN.md). The product
-brief lists external integrations as Tier 3, so nothing is built until D-BOT-1 (scope) is
-decided. Other open items in the plan's section 14: which platforms come first (D-BOT-2),
-one bot per company or per branch (D-BOT-3), new libraries (D-BOT-4), charts in reports
-(D-BOT-5), a ceiling on approvals from chat (D-BOT-6), and messages passing through
-Telegram/Discord servers (D-BOT-7).
+Design: [BOTS-INTEGRATION-PLAN.md](BOTS-INTEGRATION-PLAN.md). Code: `packages/bots`, `apps/api/src/bots`
+(README), `apps/web/src/features/bots`.
+
+- **D-BOT-1 scope — DECIDED by Osama (2026-11-16):** build it fully now, ahead of the Tier-3 slot in
+  the product brief. Credentials for live testing will follow.
+- Built with the recommended default; **Osama to confirm or change**:
+  - D-BOT-2 Telegram and Discord first; WhatsApp would be the next adapter.
+  - D-BOT-3 one bot per platform per company (unique key on `bot_connections`).
+  - D-BOT-4 no new libraries: Telegram over `fetch`, Discord over HTTP interactions + REST with
+    Ed25519 from `node:crypto`. Consequence: Discord needs a public HTTPS address; on-premise
+    without one can use Telegram (polling) only.
+  - D-BOT-5 reports are text only (no chart images).
+  - D-BOT-6 approval ceiling per connection, default **none**. This is a business control —
+    Osama should decide whether a default ceiling is wanted.
+  - D-BOT-7 an admin must tick a data-sharing acknowledgement before any bot is connected; it is
+    recorded with who and when.
+- Other choices made while building: the bot workers run inside the API process (they need the
+  same Nest-wired PDF services), `BOTS_RUNTIME=off` disables them on an HTTP-only replica; Telegram
+  group chats only answer `/chatid` and `/help`; purchase-order approvals need a confirmation tap and
+  rejections need a reason.
