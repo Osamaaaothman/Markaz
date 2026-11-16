@@ -83,6 +83,7 @@ export async function goodsDeliveryNoteToPdfHtml(params: {
     title,
     subtitle: "",
     extraCss,
+    variant: "clean",
     bodyHtml: `
 <div class="inv-header">
   <div class="bill-to-block">
