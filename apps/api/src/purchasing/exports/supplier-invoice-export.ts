@@ -89,6 +89,7 @@ export async function supplierInvoiceToPdfHtml(params: {
     title,
     subtitle: "",
     extraCss,
+    variant: "clean",
     bodyHtml: `
 <div class="sinv-header">
   <div class="bill-from-block">
