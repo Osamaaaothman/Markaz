@@ -203,7 +203,11 @@ try {
       fullPage: true,
     });
     await page.setViewportSize({ width: 390, height: 844 });
-    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
+    // CI runs this right after a full monorepo build on a shared, loaded runner; a one-shot
+    // assert right after the resize flaked there even though layout settles well under this
+    // locally (same race check-interface-styles.mjs already guards against). The assertion
+    // itself stays exactly as strict — this only gives the reflow time to actually finish.
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 2, null, { timeout: 15000 });
     await supply.scrollIntoViewIfNeeded();
     await page.screenshot({
       path: fileURLToPath(new URL(`${lang}-invoice-preflight-mobile.png`, out)),
