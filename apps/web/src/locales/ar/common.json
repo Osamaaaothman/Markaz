@@ -57,6 +57,7 @@
     "taxCodes": "رموز الضريبة",
     "quotations": "عروض الأسعار",
     "salesOrders": "أوامر البيع",
+    "deliveryNotes": "سندات التسليم",
     "salesInvoices": "فواتير المبيعات",
     "payments": "المدفوعات",
     "receipts": "سندات القبض",
@@ -1070,6 +1071,7 @@
       "newSubtitle": "اختر العميل ثم ما تم طلبه والأسعار المتفق عليها.",
       "date": "تاريخ الأمر",
       "createInvoice": "إنشاء فاتورة",
+      "createDeliveryNote": "إنشاء سند تسليم",
       "cancel": "إلغاء الأمر",
       "back": "رجوع",
       "status": {
@@ -1078,6 +1080,18 @@
         "INVOICED": "مفوتر بالكامل",
         "CANCELLED": "ملغي"
       }
+    },
+    "deliveryNotes": {
+      "title": "سندات تسليم البضاعة",
+      "subtitle": "سند تسليم من أمين المخزن يُطبع قبل الفاتورة — بدون أسعار وبدون حركة مخزون.",
+      "new": "سند تسليم جديد",
+      "date": "تاريخ التسليم",
+      "driverName": "اسم السائق",
+      "receiverName": "اسم المستلم",
+      "notes": "ملاحظات",
+      "deliverNow": "التسليم الآن",
+      "post": "حفظ سند التسليم",
+      "nothingOutstanding": "تم تسليم كل ما في هذا الأمر بالفعل."
     },
     "invoices": {
       "title": "فواتير المبيعات",
@@ -1869,6 +1883,7 @@
   "documents": {
     "journalEntry": "عرض القيد المحاسبي",
     "purchaseOrder": "أمر الشراء",
+    "salesOrder": "أمر البيع",
     "reducesInvoice": "يخفّض الفاتورة",
     "outstanding": "المتبقي",
     "item": "الصنف / الحساب",

@@ -57,6 +57,7 @@
     "taxCodes": "Tax codes",
     "quotations": "Quotations",
     "salesOrders": "Sales orders",
+    "deliveryNotes": "Delivery notes",
     "salesInvoices": "Sales invoices",
     "payments": "Payments",
     "receipts": "Receipt vouchers",
@@ -1070,6 +1071,7 @@
       "newSubtitle": "Choose the customer, then what was ordered and the agreed prices.",
       "date": "Order date",
       "createInvoice": "Create invoice",
+      "createDeliveryNote": "Create delivery note",
       "cancel": "Cancel order",
       "back": "Back",
       "status": {
@@ -1078,6 +1080,18 @@
         "INVOICED": "Invoiced",
         "CANCELLED": "Cancelled"
       }
+    },
+    "deliveryNotes": {
+      "title": "Goods delivery notes",
+      "subtitle": "A storekeeper's handover record printed before the invoice — no prices, no stock movement.",
+      "new": "New delivery note",
+      "date": "Delivery date",
+      "driverName": "Driver's name",
+      "receiverName": "Receiver's name",
+      "notes": "Notes",
+      "deliverNow": "Deliver now",
+      "post": "Save delivery note",
+      "nothingOutstanding": "Everything on this order has already been delivered."
     },
     "invoices": {
       "title": "Sales invoices",
@@ -1869,6 +1883,7 @@
   "documents": {
     "journalEntry": "View journal entry",
     "purchaseOrder": "Purchase order",
+    "salesOrder": "Sales order",
     "reducesInvoice": "Reduces invoice",
     "outstanding": "Still owed",
     "item": "Item / account",
