@@ -80,7 +80,9 @@ export interface SupplierInvoiceLineDetail {
   readonly originalLineId: string | null;
   readonly returnableQuantity: string;
   readonly lineNumber: number;
-  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly kind: "PO_LINE" | "EXPENSE" | "ASSET";
+  // ASSET lines: the asset this line registered.
+  readonly fixedAssetId?: string | null;
   readonly itemCode: string | null;
   readonly itemName: string | null;
   readonly itemNameAr: string | null;
@@ -189,9 +191,10 @@ export function useInvoiceableLines(supplierId: string) {
 }
 
 export interface InvoiceLinePayload {
-  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly kind: "PO_LINE" | "EXPENSE" | "ASSET";
   readonly purchaseOrderLineId?: string;
   readonly accountId?: string;
+  readonly fixedAssetCategoryId?: string;
   readonly description?: string;
   readonly quantity: string;
   readonly unitPrice: string;
@@ -210,7 +213,7 @@ export interface InvoicePayload {
 
 export interface InvoicePreviewLine {
   readonly lineNumber: number;
-  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly kind: "PO_LINE" | "EXPENSE" | "ASSET";
   readonly description: string;
   readonly quantity: string;
   readonly unitPrice: string;

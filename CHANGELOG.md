@@ -5,6 +5,20 @@ Every breaking change and every migration is recorded here —
 
 ## [Unreleased]
 
+### Fixed assets (2026-11-19)
+
+- New fixed-assets section: categories (accounts, default life/residual, number prefix),
+  asset register (draft, capitalise, opening asset, transfer, edit details), monthly
+  depreciation runs (preview, post, reverse latest), disposal with loss, and reports
+  (register as of a date, movement, ledger reconciliation) with CSV/PDF export.
+- Depreciation is straight-line pro-rated by the day; late assets are caught up in the
+  next run; one journal line pair per asset carrying its cost center.
+- Supplier invoices gain a "fixed asset" line that posts to the category asset account
+  and registers the asset in the same transaction.
+- New account mapping keys: FIXED_ASSET_DISPOSAL_LOSS, OPENING_BALANCE_EQUITY (optional).
+- Migrations: `20261119090000_fixed_assets`, `20261119091000_fixed_asset_mapping_keys`
+  (new tables, CHECK constraints, grants, permissions for Admin and Accountant).
+
 ### Complete interface style coverage (2026-11-15)
 
 - Apply Balance, Canvas and Precision to small/gridlined tables, account trees,

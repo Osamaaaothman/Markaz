@@ -1,0 +1,113 @@
+/* Fixed assets section. Logical properties only (RTL + LTR), theme tokens only. */
+
+.fa-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  margin-block: 0.25rem 1rem;
+  border-radius: var(--mk-radius, 8px);
+  border: 1px solid var(--mk-border);
+  background: var(--mk-info-soft);
+  color: var(--mk-text);
+  font-size: var(--mk-text-sm, 0.875rem);
+  line-height: 1.5;
+}
+.fa-notice > i {
+  margin-block-start: 0.15rem;
+  color: var(--mk-info);
+}
+.fa-notice--success { background: var(--mk-success-soft); }
+.fa-notice--success > i { color: var(--mk-success); }
+.fa-notice--warning { background: var(--mk-warning-soft); }
+.fa-notice--warning > i { color: var(--mk-warning); }
+.fa-notice--danger { background: var(--mk-danger-soft); }
+.fa-notice--danger > i { color: var(--mk-danger); }
+
+.fa-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin-block-end: 1.25rem;
+}
+.fa-kpi {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-radius, 8px);
+  background: var(--mk-surface);
+}
+.fa-kpi__label {
+  display: block;
+  color: var(--mk-text-muted);
+  font-size: var(--mk-text-xs, 0.75rem);
+  margin-block-end: 0.3rem;
+}
+.fa-kpi__value {
+  font-size: var(--mk-text-lg, 1.125rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fa-kpi__value small {
+  font-size: var(--mk-text-xs, 0.75rem);
+  color: var(--mk-text-muted);
+  font-weight: 400;
+  margin-inline-start: 0.25rem;
+}
+
+.fa-progress {
+  margin-block-start: 0.5rem;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--mk-border);
+  overflow: hidden;
+}
+.fa-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--mk-primary);
+  border-radius: inherit;
+  transition: inline-size var(--mk-dur, 200ms) var(--mk-ease, ease);
+}
+
+.fa-entry {
+  margin-block: 0.75rem;
+}
+.fa-entry table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--mk-text-sm, 0.875rem);
+}
+.fa-entry th,
+.fa-entry td {
+  padding: 0.4rem 0.5rem;
+  border-block-end: 1px solid var(--mk-border);
+  text-align: start;
+}
+.fa-entry td.fa-amount,
+.fa-entry th.fa-amount {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fa-entry tfoot td {
+  font-weight: 600;
+  border-block-end: none;
+}
+
+.fa-muted {
+  color: var(--mk-text-muted);
+}
+.fa-catchup {
+  font-size: var(--mk-text-xs, 0.75rem);
+  margin-inline-start: 0.35rem;
+}
+.fa-row-projected td {
+  color: var(--mk-text-muted);
+}
+
+.fa-period-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}

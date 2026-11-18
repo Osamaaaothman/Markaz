@@ -4,6 +4,8 @@ import { LineField } from "../../shared/ui/LineField";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "../../shared/auth/use-permissions";
+import { useAssetCategories } from "../fixed-assets/use-fixed-assets";
 import { Button } from "primereact/button";
 import { Calendar } from "primereact/calendar";
 import { Checkbox } from "primereact/checkbox";
@@ -42,13 +44,17 @@ const KNOWN_ERRORS = new Set([
   "NO_OPEN_PERIOD",
   "ZERO_INVOICE",
   "EMPTY_INVOICE",
+  "ASSET_CATEGORY_NOT_FOUND",
+  "ASSET_NAME_REQUIRED",
 ]);
 
 interface LineState {
   readonly key: string;
-  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly kind: "PO_LINE" | "EXPENSE" | "ASSET";
   readonly purchaseOrderLineId: string;
   readonly accountId: string;
+  // ASSET lines: the asset category (its asset account is debited; the description names the asset).
+  readonly fixedAssetCategoryId?: string;
   readonly description: string;
   readonly quantity: string;
   readonly unitPrice: string;
@@ -68,6 +74,8 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const { data: currentUser } = useCurrentUser();
   const currency = currentUser?.companyDefaultCurrency ?? "SAR";
   const { data: taxCodes } = useTaxCodes(false);
+  const { can } = usePermissions();
+  const { data: assetCategories } = useAssetCategories();
   const { data: accounts } = useChartOfAccounts();
   const preview = usePreviewInvoice();
 
@@ -149,6 +157,10 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const addExpenseLine = (): void =>
     edit(() => setLines((prev) => [...prev, { key: nextKey(), kind: "EXPENSE", purchaseOrderLineId: "", accountId: "", description: "", quantity: "1", unitPrice: "", taxCodeId: defaultTaxId }]));
 
+  // A fixed asset bought on this invoice: posted to its category's asset account and registered as an asset.
+  const addAssetLine = (): void =>
+    edit(() => setLines((prev) => [...prev, { key: nextKey(), kind: "ASSET", purchaseOrderLineId: "", accountId: "", fixedAssetCategoryId: "", description: "", quantity: "1", unitPrice: "", taxCodeId: defaultTaxId }]));
+
   const setLine = (key: string, patch: Partial<LineState>): void => edit(() => setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l))));
   const removeLine = (key: string): void => edit(() => setLines((prev) => prev.filter((l) => l.key !== key)));
 
@@ -159,7 +171,8 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
   const meaningfulLines = lines.filter((l) => !isBlankLine(l));
 
   const lineValid = (l: LineState): boolean =>
-    DECIMAL.test(l.quantity) && /[1-9]/.test(l.quantity) && DECIMAL.test(l.unitPrice) && l.taxCodeId !== "" && (l.kind === "PO_LINE" ? l.purchaseOrderLineId !== "" : l.accountId !== "");
+    DECIMAL.test(l.quantity) && /[1-9]/.test(l.quantity) && DECIMAL.test(l.unitPrice) && l.taxCodeId !== "" &&
+    (l.kind === "PO_LINE" ? l.purchaseOrderLineId !== "" : l.kind === "ASSET" ? !!l.fixedAssetCategoryId && l.description.trim() !== "" : l.accountId !== "");
   const formValid = supplierId !== "" && number.trim() !== "" && meaningfulLines.length > 0 && meaningfulLines.every(lineValid);
 
   const payload: InvoicePayload = {
@@ -172,7 +185,11 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
     lines: meaningfulLines.map(
       (l): InvoiceLinePayload => ({
         kind: l.kind,
-        ...(l.kind === "PO_LINE" ? { purchaseOrderLineId: l.purchaseOrderLineId } : { accountId: l.accountId }),
+        ...(l.kind === "PO_LINE"
+          ? { purchaseOrderLineId: l.purchaseOrderLineId }
+          : l.kind === "ASSET"
+            ? { fixedAssetCategoryId: l.fixedAssetCategoryId ?? "" }
+            : { accountId: l.accountId }),
         ...(l.description.trim() ? { description: l.description.trim() } : {}),
         quantity: l.quantity,
         unitPrice: l.unitPrice,
@@ -258,6 +275,9 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
             filter
           />
           <Button type="button" label={t("purchasing.invoices.addExpenseLine")} icon="pi pi-plus" text onClick={addExpenseLine} disabled={!supplierId} />
+          {can("fixed_asset_category:read") ? (
+            <Button type="button" label={t("purchasing.invoices.addAssetLine")} icon="pi pi-car" text onClick={addAssetLine} disabled={!supplierId} />
+          ) : null}
         </div>
         {supplierId && invoiceable && invoiceable.length === 0 ? <p className="erp-field__hint">{t("purchasing.invoices.nothingToMatch")}</p> : null}
 
@@ -273,6 +293,22 @@ export function SupplierInvoiceFormPage(): React.JSX.Element {
                     <span className="erp-lines__account">
                       {source ? `${source.purchaseOrderNumber} · ${source.itemCode} — ${localizedName({ name: source.itemName, nameAr: source.itemNameAr }, i18n.language)}` : l.purchaseOrderLineId}
                     </span>
+                  ) : l.kind === "ASSET" ? (
+                    <>
+                      <LineField label={t("purchasing.invoices.assetCategory")}><Dropdown
+                        value={l.fixedAssetCategoryId || null}
+                        onChange={(e) => setLine(l.key, { fixedAssetCategoryId: (e.value as string | null) ?? "" })}
+                        options={(assetCategories ?? []).map((c) => ({ label: `${c.code} — ${localizedName(c, i18n.language)}`, value: c.id }))}
+                        filter
+                        placeholder={t("purchasing.invoices.assetCategory")}
+                      /></LineField>
+                      <LineField label={t("purchasing.invoices.assetName")}><InputText
+                        value={l.description}
+                        placeholder={t("purchasing.invoices.assetName")}
+                        onChange={(e) => setLine(l.key, { description: e.target.value })}
+                        className={l.description.trim() ? "" : "p-invalid"}
+                      /></LineField>
+                    </>
                   ) : (
                     <LineField label={t("purchasing.invoices.expenseAccount")}><Dropdown
                       value={l.accountId || null}
