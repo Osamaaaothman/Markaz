@@ -731,7 +731,9 @@
         "CUSTOMER_LEDGER_PARENT": "Customer accounts folder",
         "SUPPLIER_LEDGER_PARENT": "Supplier accounts folder",
         "CASH_ACCOUNTS_PARENT": "Cash accounts folder",
-        "BANK_ACCOUNTS_PARENT": "Bank accounts folder"
+        "BANK_ACCOUNTS_PARENT": "Bank accounts folder",
+        "FIXED_ASSET_DISPOSAL_LOSS": "Loss on disposal of fixed assets",
+        "OPENING_BALANCE_EQUITY": "Opening balance equity"
       },
       "keyHints": {
         "CUSTOMER_LEDGER_PARENT": "An asset folder, not a postable account. Individual customer accounts are created under it.",
@@ -759,7 +761,9 @@
         "EMPLOYEE_SALARY_PAYABLE_PARENT": "A folder account (not one that takes entries). Each new employee gets their own account inside it. Set all three employee folders, or none to keep using the company-wide accounts above.",
         "EMPLOYEE_EOSB_PARENT": "A folder account (not one that takes entries) for each employee's dues: what is owed to them besides salary (end-of-service now, leave or bonuses later). In the standard chart, \"Employees Other Dues\" (2111102) fits. Set all three employee folders, or none to keep using the company-wide accounts above.",
         "CASH_ACCOUNTS_PARENT": "An asset folder. Its active postable accounts appear for the matching payment method.",
-        "BANK_ACCOUNTS_PARENT": "An asset folder. Its active postable accounts appear for the matching payment method."
+        "BANK_ACCOUNTS_PARENT": "An asset folder. Its active postable accounts appear for the matching payment method.",
+        "FIXED_ASSET_DISPOSAL_LOSS": "Debited with the book value still left on an asset when it is scrapped or written off.",
+        "OPENING_BALANCE_EQUITY": "An equity account. Credited with the book value of an asset registered with its opening balance."
       }
     },
     "movements": {
