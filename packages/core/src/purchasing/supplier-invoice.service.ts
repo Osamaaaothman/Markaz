@@ -9,10 +9,13 @@ import { returnShare } from "../inventory/return-amount.util.js";
 import { issueStock } from "../inventory/provisional-cost.repo.js";
 import { loadOutstanding } from "../payments/outstanding.js";
 import { allocateDocumentNumber } from "../reference.js";
+import { registerAssetFromSupplierInvoice } from "../fixed-assets/index.js";
 import { expenseLineMath, invoiceTotals, poLineMath, type PoLineMath } from "./supplier-invoice.util.js";
 
 export type SupplierInvoiceErrorCode =
   | "INVALID_RETURN"
+  | "ASSET_CATEGORY_NOT_FOUND"
+  | "ASSET_NAME_REQUIRED"
   | "OVER_RETURN"
   | "WAREHOUSE_NOT_FOUND"
   | "INSUFFICIENT_STOCK"
@@ -45,9 +48,12 @@ export class SupplierInvoiceError extends Error {
 }
 
 export interface SupplierInvoiceLineInput {
-  readonly kind: "PO_LINE" | "EXPENSE";
+  // ASSET: a fixed asset bought on this invoice. Its category's asset account is debited and the asset is registered in the
+  // same transaction, named after the line description.
+  readonly kind: "PO_LINE" | "EXPENSE" | "ASSET";
   readonly purchaseOrderLineId?: string | undefined;
   readonly accountId?: string | undefined;
+  readonly fixedAssetCategoryId?: string | undefined;
   readonly description?: string | undefined;
   readonly quantity: string;
   readonly unitPrice: string;
@@ -72,7 +78,7 @@ export interface SupplierInvoiceActor {
 
 export interface InvoicePreviewLine {
   readonly lineNumber: number;
-  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly kind: "PO_LINE" | "EXPENSE" | "ASSET";
   readonly description: string;
   readonly quantity: string;
   readonly unitPrice: string;
@@ -110,7 +116,8 @@ export interface SupplierInvoiceLineDetail {
   readonly originalLineId: string | null;
   readonly returnableQuantity: string;
   readonly lineNumber: number;
-  readonly kind: "PO_LINE" | "EXPENSE";
+  readonly kind: "PO_LINE" | "EXPENSE" | "ASSET";
+  readonly fixedAssetId: string | null;
   readonly itemCode: string | null;
   readonly itemName: string | null;
   readonly itemNameAr: string | null;
@@ -214,6 +221,7 @@ interface EvaluatedLine {
   readonly po: PoLineMath | null;
   readonly poLine: { id: string; purchaseOrderId: string; invoiceable: Prisma.Decimal; orderPrice: Prisma.Decimal; description: string } | null;
   readonly account: { id: string; description: string } | null;
+  readonly assetCategory: { id: string } | null;
   readonly issue: "QTY_EXCEEDS_RECEIVED" | null;
 }
 
@@ -318,6 +326,7 @@ export class SupplierInvoiceService {
       journalLines.push({ accountId: await this.accountMappings.resolve(tx, actor.companyId, "ACCOUNTS_PAYABLE"), credit: totals.gross.toFixed(4), description: "Supplier invoice" });
 
       const invoiceId = newId();
+      const lineIds = evaluated.map(() => newId());
       const posting = await this.engine.postEntry(
         {
           companyId: actor.companyId,
@@ -362,9 +371,10 @@ export class SupplierInvoiceService {
           actorId: actor.id,
           correlationId,
           lines: {
-            create: evaluated.map((l) => ({
-              id: newId(),
+            create: evaluated.map((l, index) => ({
+              id: lineIds[index]!,
               kind: l.input.kind,
+              fixedAssetCategoryId: l.assetCategory?.id ?? null,
               purchaseOrderLineId: l.poLine?.id ?? null,
               accountId: l.account?.id ?? null,
               description: blankToNull(l.input.description),
@@ -380,6 +390,25 @@ export class SupplierInvoiceService {
           },
         },
       });
+
+      // Every ASSET line becomes one asset in the register, in service from the invoice date (the user can transfer it or
+      // edit its descriptive details afterwards). A line with quantity > 1 is one asset at the line's total cost.
+      // REVIEW: one asset per line (not per unit) is a default; confirm with the owner whether per-unit assets are wanted.
+      for (const [index, l] of evaluated.entries()) {
+        if (!l.assetCategory) continue;
+        await registerAssetFromSupplierInvoice(tx, {
+          companyId: actor.companyId,
+          actorId: actor.id,
+          categoryId: l.assetCategory.id,
+          supplierInvoiceLineId: lineIds[index]!,
+          supplierPartyId: input.supplierId,
+          name: l.account!.description,
+          invoiceDate: input.invoiceDate,
+          cost: l.net,
+          currency,
+          journalEntryId: posting.journalEntryId,
+        });
+      }
 
       // Move each order line's invoiced counter (rows are locked by evaluate).
       const invoicedByLine = new Map<string, Prisma.Decimal>();
@@ -429,6 +458,10 @@ export class SupplierInvoiceService {
       const accountById = new Map(accounts.map((a) => [a.id, a]));
 
       const linked = input.lines.some((l) => l.originalLineId !== undefined);
+      if (linked && original.lines.some((l) => l.kind === "ASSET" && input.lines.some((i) => i.originalLineId === l.id))) {
+        // The asset is in the register: it leaves through a disposal, not a purchase return.
+        throw new SupplierInvoiceError("INVALID_RETURN", "A fixed-asset line cannot be returned on a debit note; dispose of the asset instead");
+      }
       const seen = new Set<string>();
       const sources = input.lines.map((line) => {
         if (!linked) return null;
@@ -650,7 +683,7 @@ export class SupplierInvoiceService {
         paymentAllocations: { include: { payment: { select: { id: true, number: true, paymentDate: true } } } },
         lines: {
           orderBy: { lineNumber: "asc" },
-          include: { returnLines: true, account: { select: { code: true, name: true, nameAr: true } }, taxCode: { select: { code: true } }, purchaseOrderLine: { include: { item: { select: { code: true, name: true, nameAr: true } } } } },
+          include: { fixedAsset: { select: { id: true } }, returnLines: true, account: { select: { code: true, name: true, nameAr: true } }, taxCode: { select: { code: true } }, purchaseOrderLine: { include: { item: { select: { code: true, name: true, nameAr: true } } } } },
         },
       },
     });
@@ -682,7 +715,8 @@ export class SupplierInvoiceService {
         originalLineId: l.originalLineId,
         returnableQuantity: l.quantity.minus(l.returnLines.reduce((sum, r) => sum.plus(r.quantity), new Prisma.Decimal(0))).toFixed(4),
         lineNumber: l.lineNumber,
-        kind: l.kind as "PO_LINE" | "EXPENSE",
+        kind: l.kind as "PO_LINE" | "EXPENSE" | "ASSET",
+        fixedAssetId: l.fixedAsset?.id ?? null,
         itemCode: l.purchaseOrderLine?.item.code ?? null,
         itemName: l.purchaseOrderLine?.item.name ?? null,
         itemNameAr: l.purchaseOrderLine?.item.nameAr ?? null,
@@ -727,6 +761,10 @@ export class SupplierInvoiceService {
     const accounts = await tx.account.findMany({ where: { id: { in: accountIds }, companyId } });
     const accountById = new Map(accounts.map((a) => [a.id, a]));
 
+    const categoryIds = [...new Set(input.lines.flatMap((l) => (l.kind === "ASSET" && l.fixedAssetCategoryId ? [l.fixedAssetCategoryId] : [])))];
+    const categories = categoryIds.length ? await tx.fixedAssetCategory.findMany({ where: { id: { in: categoryIds }, companyId, isActive: true } }) : [];
+    const categoryById = new Map(categories.map((c) => [c.id, c]));
+
     // The same order line may appear on two invoice lines; the bound applies to the running sum.
     const claimed = new Map<string, Prisma.Decimal>();
     const evaluated: EvaluatedLine[] = input.lines.map((line, index) => {
@@ -757,7 +795,32 @@ export class SupplierInvoiceService {
           po: math,
           poLine: { id: poLine.id, purchaseOrderId: poLine.purchaseOrderId, invoiceable, orderPrice: poLine.unitPrice, description: `${poLine.item.code} ${poLine.item.name}` },
           account: null,
+          assetCategory: null,
           issue: quantity.greaterThan(invoiceable) ? "QTY_EXCEEDS_RECEIVED" : null,
+        };
+      }
+
+      if (line.kind === "ASSET") {
+        const category = line.fixedAssetCategoryId ? categoryById.get(line.fixedAssetCategoryId) : undefined;
+        if (!category) throw new SupplierInvoiceError("ASSET_CATEGORY_NOT_FOUND", "A fixed-asset category on the invoice was not found or is inactive", lineNumber);
+        const description = line.description?.trim();
+        if (!description) throw new SupplierInvoiceError("ASSET_NAME_REQUIRED", "A fixed-asset line needs a description: it becomes the asset name", lineNumber);
+        const math = expenseLineMath(quantity, unitPrice, taxCode.rate);
+        if (!math.net.greaterThan(0)) throw new SupplierInvoiceError("ZERO_INVOICE", "A fixed-asset line needs a cost above zero", lineNumber);
+        return {
+          input: line,
+          lineNumber,
+          quantity,
+          unitPrice,
+          taxCode: taxRef,
+          net: math.net,
+          tax: math.tax,
+          priceVariance: new Prisma.Decimal(0),
+          po: null,
+          poLine: null,
+          account: { id: category.assetAccountId, description },
+          assetCategory: { id: category.id },
+          issue: null,
         };
       }
 
@@ -777,6 +840,7 @@ export class SupplierInvoiceService {
         po: null,
         poLine: null,
         account: { id: account.id, description: line.description?.trim() || `${account.code} ${account.name}` },
+        assetCategory: null,
         issue: null,
       };
     });

@@ -167,6 +167,58 @@ export interface PostedAssetResult {
   readonly journalEntryId: string;
 }
 
+export interface AssetFromSupplierInvoiceInput {
+  readonly companyId: string;
+  readonly actorId: string;
+  readonly categoryId: string;
+  readonly supplierInvoiceLineId: string;
+  readonly supplierPartyId: string;
+  readonly name: string;
+  readonly invoiceDate: Date;
+  readonly cost: Prisma.Decimal;
+  readonly currency: string;
+  readonly journalEntryId: string;
+}
+
+// Called by purchasing inside the supplier invoice's own transaction, after the invoice entry (which already debited the
+// category's asset account) is posted: registers the asset as ACTIVE with the category's defaults, in service from the invoice
+// date. The invoice entry is its capitalisation entry.
+export async function registerAssetFromSupplierInvoice(tx: TransactionClient, input: AssetFromSupplierInvoiceInput): Promise<string> {
+  const category = await tx.fixedAssetCategory.findFirstOrThrow({ where: { id: input.categoryId, companyId: input.companyId } });
+  const digits = await minorUnitDigits(tx, input.currency);
+  const residual = input.cost.times(category.defaultResidualPercent).div(100).toDecimalPlaces(digits, Prisma.Decimal.ROUND_HALF_UP);
+  if (category.isDepreciable && !category.defaultUsefulLifeMonths) {
+    throw new FixedAssetError("LIFE_REQUIRED", `Category ${category.code} has no default useful life; set one before buying assets in it on an invoice`);
+  }
+  const id = newId();
+  const number = await allocateAssetNumber(tx, input.companyId, category.id, category.numberPrefix);
+  await tx.fixedAsset.create({
+    data: {
+      id,
+      companyId: input.companyId,
+      number,
+      name: input.name,
+      categoryId: category.id,
+      status: "ACTIVE",
+      acquisitionDate: input.invoiceDate,
+      inServiceDate: input.invoiceDate,
+      acquisitionCost: input.cost,
+      residualValue: residual,
+      usefulLifeMonths: category.isDepreciable ? category.defaultUsefulLifeMonths : null,
+      depreciationMethod: category.depreciationMethod,
+      currency: input.currency,
+      supplierPartyId: input.supplierPartyId,
+      sourceType: "SUPPLIER_INVOICE",
+      supplierInvoiceLineId: input.supplierInvoiceLineId,
+      capitalizationJournalEntryId: input.journalEntryId,
+      capitalizedAt: new Date(),
+      createdBy: input.actorId,
+      updatedBy: input.actorId,
+    },
+  });
+  return id;
+}
+
 const listInclude = {
   category: { select: { id: true, code: true, name: true, nameAr: true, isDepreciable: true } },
   custodian: { select: { id: true, ref: true, name: true, nameAr: true } },

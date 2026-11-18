@@ -5,6 +5,7 @@ import { PrismaAccountingEngine } from "../accounting/accounting-engine.service.
 import { PrismaNumberingService } from "../accounting/numbering.service.js";
 import { TrialBalanceService } from "../accounting/trial-balance.service.js";
 import { AccountMappingService } from "../inventory/account-mapping.service.js";
+import { SupplierInvoiceError, SupplierInvoiceService } from "../purchasing/supplier-invoice.service.js";
 import { AssetCategoryService } from "./asset-category.service.js";
 import { DepreciationRunService } from "./depreciation-run.service.js";
 import { FixedAssetDisposalService } from "./disposal.service.js";
@@ -27,6 +28,7 @@ describeIfDb("Fixed assets — real database", () => {
   const runs = new DepreciationRunService(prisma, engine, audit, () => new Date(Date.UTC(2026, 11, 31)));
   const disposals = new FixedAssetDisposalService(prisma, engine, mappings, audit);
   const reports = new FixedAssetReportsService(prisma);
+  const supplierInvoices = new SupplierInvoiceService(prisma, engine, mappings, audit);
 
   const cid = (): string => newId();
   const d = (y: number, m: number, day: number) => new Date(Date.UTC(y, m - 1, day));
@@ -294,6 +296,38 @@ describeIfDb("Fixed assets — real database", () => {
     await assets.capitalize(a.id, t.acc.bank, t.actor, cid(), newId());
     const results = await Promise.allSettled([runs.post({ periodYear: 2026, periodMonth: 1 }, t.actor, cid(), newId()), runs.post({ periodYear: 2026, periodMonth: 1 }, t.actor, cid(), newId())]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    await assertBooksAgree(t);
+  });
+  it("buys an asset on a supplier invoice: VAT to input VAT, net to the asset account, asset registered and depreciating", async () => {
+    const t = await company();
+    const payable = await prisma.account.create({ data: { id: newId(), ref: `T-AP-${t.companyId.slice(-6)}`, companyId: t.companyId, code: "2110", name: "AP", type: "LIABILITY", normalBalance: "CREDIT" } });
+    const vat = await prisma.account.create({ data: { id: newId(), ref: `T-VAT-${t.companyId.slice(-6)}`, companyId: t.companyId, code: "1170", name: "VAT in", type: "ASSET", normalBalance: "DEBIT" } });
+    await mappings.set("ACCOUNTS_PAYABLE", payable.id, t.actor, cid());
+    await mappings.set("VAT_INPUT", vat.id, t.actor, cid());
+    const tax = await prisma.taxCode.create({ data: { id: newId(), companyId: t.companyId, code: "S15", name: "Standard", rate: "15", treatment: "STANDARD" } });
+    const supplier = await prisma.party.create({ data: { id: newId(), ref: `T-SUP-${t.companyId.slice(-6)}`, companyId: t.companyId, name: "Dealer", kind: "COMPANY" } });
+    const invoice = await supplierInvoices.create(
+      { supplierId: supplier.id, supplierInvoiceNumber: "CAR-1", invoiceDate: d(2026, 1, 1), lines: [{ kind: "ASSET", fixedAssetCategoryId: t.vehicles.id, description: "Delivery van", quantity: "1", unitPrice: "12000", taxCodeId: tax.id }] },
+      t.actor,
+      cid(),
+      newId(),
+    );
+    expect(await balance(t, t.acc.vehicles)).toBeCloseTo(12000, 4);
+    expect(await balance(t, vat.id)).toBeCloseTo(1800, 4);
+    expect(await balance(t, payable.id)).toBeCloseTo(-13800, 4);
+    const detail = (await supplierInvoices.get(invoice.id, t.companyId))!;
+    const assetId = detail.lines[0]!.fixedAssetId!;
+    const asset = (await assets.get(assetId, t.companyId))!;
+    expect(asset.status).toBe("ACTIVE");
+    expect(asset.sourceType).toBe("SUPPLIER_INVOICE");
+    expect(asset.name).toBe("Delivery van");
+    expect(asset.supplierInvoiceId).toBe(invoice.id);
+    const jan = await runs.post({ periodYear: 2026, periodMonth: 1 }, t.actor, cid(), newId());
+    expect(jan.totalAmount).toBe("1019.1800");
+    // The asset leaves through a disposal, never a purchase return.
+    await expect(
+      supplierInvoices.createDebitNote({ originalInvoiceId: invoice.id, debitDate: d(2026, 2, 1), lines: [{ originalLineId: detail.lines[0]!.id, description: "return", quantity: "1", unitPrice: "12000", taxCodeId: tax.id, accountId: t.acc.vehicles }] }, t.actor, cid(), newId()),
+    ).rejects.toBeInstanceOf(SupplierInvoiceError);
     await assertBooksAgree(t);
   });
 });
