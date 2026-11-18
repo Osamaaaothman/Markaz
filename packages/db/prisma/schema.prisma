@@ -125,6 +125,10 @@ model Company {
   // M7 compliance (ZATCA)
   egsUnits EgsUnit[]
 
+  fixedAssetCategories FixedAssetCategory[]
+  fixedAssets FixedAsset[]
+  depreciationRuns DepreciationRun[]
+  fixedAssetDisposals FixedAssetDisposal[]
   @@map("companies")
   inventoryShortfalls InventoryShortfall[]
   inventoryCostSettlements InventoryCostSettlement[]
@@ -405,6 +409,10 @@ model Account {
   cashExpensesFrom              CashExpense[]            @relation("CashExpenseCash")
   legacyCashExpenses            CashExpense[]            @relation("CashExpenseLegacyExpense")
   cashExpenseLines              CashExpenseLine[]        @relation("CashExpenseLineExpenseAccount")
+  fixedAssetCategoryAssets      FixedAssetCategory[]     @relation("FixedAssetCategoryAsset")
+  fixedAssetCategoryAccumulated FixedAssetCategory[]     @relation("FixedAssetCategoryAccumulated")
+  fixedAssetCategoryExpense     FixedAssetCategory[]     @relation("FixedAssetCategoryExpense")
+  fixedAssetsFunded             FixedAsset[]             @relation("FixedAssetSourceAccount")
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
@@ -465,6 +473,7 @@ model Party {
   payments         Payment[]
   employees        Employee[]
 
+  fixedAssets FixedAsset[]
   @@unique([companyId, ref])
   @@index([companyId, kind])
   @@index([companyId, name])
@@ -542,6 +551,10 @@ model JournalEntry {
   // distinct in unique constraints, so it would not have actually blocked duplicate
   // original postings (reversalOfEntryId is NULL for all of them). Idempotency-Key
   // is the correct, working mechanism for this.
+  fixedAssetCapitalizations FixedAsset[]         @relation("FixedAssetCapitalization")
+  depreciationRuns          DepreciationRun[]    @relation("DepreciationRunEntry")
+  depreciationReversals     DepreciationRun[]    @relation("DepreciationRunReversal")
+  fixedAssetDisposals       FixedAssetDisposal[] @relation("FixedAssetDisposalEntry")
   @@unique([companyId, idempotencyKey])
   @@index([companyId, fiscalPeriodId])
   @@index([companyId, number])
@@ -1202,7 +1215,9 @@ model SupplierInvoiceLine {
 
   id                  String  @id
   supplierInvoiceId   String  @map("supplier_invoice_id")
-  kind                String // PO_LINE | EXPENSE
+  kind                String // PO_LINE | EXPENSE | ASSET
+  // ASSET lines: the category whose asset account is debited; posting the invoice creates the asset.
+  fixedAssetCategoryId String? @map("fixed_asset_category_id")
   purchaseOrderLineId String? @map("purchase_order_line_id")
   // Expense lines post straight to this account.
   accountId           String? @map("account_id")
@@ -1221,6 +1236,8 @@ model SupplierInvoiceLine {
   purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
   account           Account?           @relation(fields: [accountId], references: [id], onDelete: Restrict)
   taxCode           TaxCode            @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
+  fixedAssetCategory FixedAssetCategory? @relation(fields: [fixedAssetCategoryId], references: [id], onDelete: Restrict)
+  fixedAsset        FixedAsset?
 
   @@index([supplierInvoiceId])
   @@map("supplier_invoice_lines")
@@ -1670,6 +1687,8 @@ model CostCenter {
   expenseLines CashExpenseLine[]
   journalLines JournalEntryLine[]
 
+  fixedAssets FixedAsset[]
+  depreciationRunLines DepreciationRunLine[]
   @@unique([companyId, code])
   @@map("cost_centers")
 }
@@ -1755,6 +1774,7 @@ model Employee {
   salaryAdvances          SalaryAdvance[]
   endOfServiceSettlements EndOfServiceSettlement[]
 
+  fixedAssets FixedAsset[]
   @@unique([companyId, ref])
   @@index([companyId, isActive])
   @@index([partyId])
@@ -2282,6 +2302,212 @@ model InventoryCostSettlement {
   @@index([shortfallId])
   @@index([companyId])
   @@index([journalEntryId])
+}
+
+// ─── Fixed assets ───────────────────────────────────────────────────────────────
+// Built at the owner's request outside official Tier 1 scope (docs/01-OPEN-DECISIONS.md C.5).
+// Plan and rulings: docs/Planning/fixed-assets-plan.md. Depreciation is straight-line, daily pro-rata.
+
+// A kind of asset (vehicles, furniture...): its default life and residual, its number prefix and its three ledger accounts.
+model FixedAssetCategory {
+  id                               String   @id
+  companyId                        String   @map("company_id")
+  code                             String
+  name                             String
+  nameAr                           String?  @map("name_ar")
+  // Asset numbers in this category read <prefix>-000001 (one series per category).
+  numberPrefix                     String   @map("number_prefix")
+  depreciationMethod               String   @default("STRAIGHT_LINE") @map("depreciation_method")
+  isDepreciable                    Boolean  @default(true) @map("is_depreciable")
+  defaultUsefulLifeMonths          Int?     @map("default_useful_life_months")
+  defaultResidualPercent           Decimal  @default(0) @map("default_residual_percent") @db.Decimal(7, 4)
+  assetAccountId                   String   @map("asset_account_id")
+  accumulatedDepreciationAccountId String?  @map("accumulated_depreciation_account_id")
+  depreciationExpenseAccountId     String?  @map("depreciation_expense_account_id")
+  isActive                         Boolean  @default(true) @map("is_active")
+  createdAt                        DateTime @default(now()) @map("created_at")
+  updatedAt                        DateTime @updatedAt @map("updated_at")
+  createdBy                        String?  @map("created_by")
+  updatedBy                        String?  @map("updated_by")
+  version                          Int      @default(1)
+
+  company                        Company               @relation(fields: [companyId], references: [id])
+  assetAccount                   Account               @relation("FixedAssetCategoryAsset", fields: [assetAccountId], references: [id], onDelete: Restrict)
+  accumulatedDepreciationAccount Account?              @relation("FixedAssetCategoryAccumulated", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: Restrict)
+  depreciationExpenseAccount     Account?              @relation("FixedAssetCategoryExpense", fields: [depreciationExpenseAccountId], references: [id], onDelete: Restrict)
+  assets                         FixedAsset[]
+  supplierInvoiceLines           SupplierInvoiceLine[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, numberPrefix])
+  @@map("fixed_asset_categories")
+}
+
+// One asset in the register. DRAFT is freely editable; capitalising it posts its cost and makes the money fields final.
+model FixedAsset {
+  id                             String    @id
+  companyId                      String    @map("company_id")
+  number                         String
+  name                           String
+  nameAr                         String?   @map("name_ar")
+  description                    String?
+  categoryId                     String    @map("category_id")
+  status                         String    @default("DRAFT") // DRAFT | ACTIVE | FULLY_DEPRECIATED | DISPOSED
+  acquisitionDate                DateTime  @map("acquisition_date") @db.Date
+  inServiceDate                  DateTime  @map("in_service_date") @db.Date
+  acquisitionCost                Decimal   @map("acquisition_cost") @db.Decimal(19, 4)
+  residualValue                  Decimal   @default(0) @map("residual_value") @db.Decimal(19, 4)
+  usefulLifeMonths               Int?      @map("useful_life_months")
+  depreciationMethod             String    @default("STRAIGHT_LINE") @map("depreciation_method")
+  // OPENING assets only: depreciation already taken before this system, as at openingAsOfDate.
+  openingAccumulatedDepreciation Decimal   @default(0) @map("opening_accumulated_depreciation") @db.Decimal(19, 4)
+  openingAsOfDate                DateTime? @map("opening_as_of_date") @db.Date
+  // Derived state, written only inside the transaction that posts (or reverses) depreciation. The ledger is the truth;
+  // the reconciliation report compares the two.
+  accumulatedDepreciation        Decimal   @default(0) @map("accumulated_depreciation") @db.Decimal(19, 4)
+  depreciatedThrough             DateTime? @map("depreciated_through") @db.Date
+  currency                       String
+  supplierPartyId                String?   @map("supplier_party_id")
+  custodianEmployeeId            String?   @map("custodian_employee_id")
+  costCenterId                   String?   @map("cost_center_id")
+  location                       String?
+  serialNumber                   String?   @map("serial_number")
+  barcode                        String?
+  sourceType                     String    @default("MANUAL") @map("source_type") // MANUAL | OPENING | SUPPLIER_INVOICE
+  sourceAccountId                String?   @map("source_account_id")
+  supplierInvoiceLineId          String?   @unique @map("supplier_invoice_line_id")
+  capitalizationJournalEntryId   String?   @map("capitalization_journal_entry_id")
+  capitalizedAt                  DateTime? @map("capitalized_at")
+  createdAt                      DateTime  @default(now()) @map("created_at")
+  updatedAt                      DateTime  @updatedAt @map("updated_at")
+  createdBy                      String?   @map("created_by")
+  updatedBy                      String?   @map("updated_by")
+  version                        Int       @default(1)
+
+  company                    Company               @relation(fields: [companyId], references: [id])
+  category                   FixedAssetCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  supplier                   Party?                @relation(fields: [supplierPartyId], references: [id], onDelete: Restrict)
+  custodian                  Employee?             @relation(fields: [custodianEmployeeId], references: [id], onDelete: Restrict)
+  costCenter                 CostCenter?           @relation(fields: [costCenterId], references: [id], onDelete: Restrict)
+  sourceAccount              Account?              @relation("FixedAssetSourceAccount", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  supplierInvoiceLine        SupplierInvoiceLine?  @relation(fields: [supplierInvoiceLineId], references: [id], onDelete: Restrict)
+  capitalizationJournalEntry JournalEntry?         @relation("FixedAssetCapitalization", fields: [capitalizationJournalEntryId], references: [id])
+  depreciationLines          DepreciationRunLine[]
+  disposal                   FixedAssetDisposal?
+  transfers                  FixedAssetTransfer[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([companyId, categoryId])
+  @@index([companyId, custodianEmployeeId])
+  @@map("fixed_assets")
+}
+
+// One month of depreciation for the whole register: one balanced journal entry, a line pair per asset.
+model DepreciationRun {
+  id                     String    @id
+  companyId              String    @map("company_id")
+  number                 String
+  periodYear             Int       @map("period_year")
+  periodMonth            Int       @map("period_month")
+  runDate                DateTime  @map("run_date") @db.Date
+  currency               String
+  totalAmount            Decimal   @map("total_amount") @db.Decimal(19, 4)
+  status                 String    @default("POSTED") // POSTED | REVERSED
+  journalEntryId         String    @map("journal_entry_id")
+  reversalJournalEntryId String?   @map("reversal_journal_entry_id")
+  reversalReason         String?   @map("reversal_reason")
+  reversedAt             DateTime? @map("reversed_at")
+  reversedBy             String?   @map("reversed_by")
+  actorId                String    @map("actor_id")
+  correlationId          String    @map("correlation_id")
+  createdAt              DateTime  @default(now()) @map("created_at")
+
+  company       Company               @relation(fields: [companyId], references: [id])
+  journalEntry  JournalEntry          @relation("DepreciationRunEntry", fields: [journalEntryId], references: [id])
+  reversalEntry JournalEntry?         @relation("DepreciationRunReversal", fields: [reversalJournalEntryId], references: [id])
+  lines         DepreciationRunLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, periodYear, periodMonth])
+  @@map("depreciation_runs")
+}
+
+// Insert-only. What one run took for one asset, and where the asset stood before and after.
+model DepreciationRunLine {
+  id                         String    @id
+  companyId                  String    @map("company_id")
+  runId                      String    @map("run_id")
+  assetId                    String    @map("asset_id")
+  fromDate                   DateTime  @map("from_date") @db.Date
+  toDate                     DateTime  @map("to_date") @db.Date
+  days                       Int
+  amount                     Decimal   @db.Decimal(19, 4)
+  previousDepreciatedThrough DateTime? @map("previous_depreciated_through") @db.Date
+  previousStatus             String    @map("previous_status")
+  accumulatedAfter           Decimal   @map("accumulated_after") @db.Decimal(19, 4)
+  netBookValueAfter          Decimal   @map("net_book_value_after") @db.Decimal(19, 4)
+  costCenterId               String?   @map("cost_center_id")
+  // True when the line covers days before the run's own month (an asset brought in late).
+  isCatchUp                  Boolean   @default(false) @map("is_catch_up")
+
+  run        DepreciationRun @relation(fields: [runId], references: [id])
+  asset      FixedAsset      @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  costCenter CostCenter?     @relation(fields: [costCenterId], references: [id], onDelete: Restrict)
+
+  @@index([runId])
+  @@index([assetId])
+  @@map("depreciation_run_lines")
+}
+
+// Insert-only. Taking an asset off the register (scrapped, lost, written off): its cost and depreciation leave the ledger.
+model FixedAssetDisposal {
+  id                      String   @id
+  companyId               String   @map("company_id")
+  number                  String
+  assetId                 String   @unique @map("asset_id")
+  disposalDate            DateTime @map("disposal_date") @db.Date
+  disposalType            String   @map("disposal_type") // SCRAP | LOSS | WRITE_OFF
+  costAtDisposal          Decimal  @map("cost_at_disposal") @db.Decimal(19, 4)
+  accumulatedAtDisposal   Decimal  @map("accumulated_at_disposal") @db.Decimal(19, 4)
+  finalDepreciationAmount Decimal  @map("final_depreciation_amount") @db.Decimal(19, 4)
+  finalDepreciationDays   Int      @map("final_depreciation_days")
+  // Negative = loss. Without proceeds (asset sales wait on plan decision D-FA-5) it is minus the book value.
+  gainLoss                Decimal  @map("gain_loss") @db.Decimal(19, 4)
+  reason                  String
+  journalEntryId          String   @map("journal_entry_id")
+  actorId                 String   @map("actor_id")
+  correlationId           String   @map("correlation_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  company      Company      @relation(fields: [companyId], references: [id])
+  asset        FixedAsset   @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry @relation("FixedAssetDisposalEntry", fields: [journalEntryId], references: [id])
+
+  @@unique([companyId, number])
+  @@map("fixed_asset_disposals")
+}
+
+// Insert-only history of where an asset is, who holds it and which cost center carries it.
+model FixedAssetTransfer {
+  id                      String   @id
+  companyId               String   @map("company_id")
+  assetId                 String   @map("asset_id")
+  transferDate            DateTime @map("transfer_date") @db.Date
+  fromLocation            String?  @map("from_location")
+  toLocation              String?  @map("to_location")
+  fromCustodianEmployeeId String?  @map("from_custodian_employee_id")
+  toCustodianEmployeeId   String?  @map("to_custodian_employee_id")
+  fromCostCenterId        String?  @map("from_cost_center_id")
+  toCostCenterId          String?  @map("to_cost_center_id")
+  reason                  String?
+  actorId                 String   @map("actor_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  asset FixedAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@index([assetId])
+  @@map("fixed_asset_transfers")
 }
 
 // ── Chat bots (docs/BOTS-INTEGRATION-PLAN.md) ────────────────────────────────────────────────

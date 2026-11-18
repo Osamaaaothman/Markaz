@@ -86,7 +86,7 @@ export class AccountingController {
   async listAccounts(@CurrentUser() actor: CurrentUserPayload): Promise<AccountSummary[]> {
     const accounts = await this.prisma.account.findMany({
       where: { companyId: actor.companyId, isPostable: true, isActive: true },
-      select: { id: true, code: true, name: true, nameAr: true, type: true },
+      select: { id: true, code: true, name: true, nameAr: true, type: true, normalBalance: true },
       orderBy: { code: "asc" },
     });
     return accounts;

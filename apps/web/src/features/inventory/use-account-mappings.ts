@@ -29,6 +29,8 @@ export const ACCOUNT_MAPPING_KEYS = [
   "SUPPLIER_LEDGER_PARENT",
   "CASH_ACCOUNTS_PARENT",
   "BANK_ACCOUNTS_PARENT",
+  "FIXED_ASSET_DISPOSAL_LOSS",
+  "OPENING_BALANCE_EQUITY",
 ] as const;
 export type AccountMappingKey = (typeof ACCOUNT_MAPPING_KEYS)[number];
 

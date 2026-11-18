@@ -8,6 +8,8 @@ export interface AccountSummary {
   readonly name: string;
   readonly nameAr: string | null;
   readonly type: string;
+  // DEBIT | CREDIT. A contra account (accumulated depreciation) is type ASSET with a CREDIT balance.
+  readonly normalBalance?: string;
 }
 
 // Reference data — long staleTime (docs/08-FRONTEND-I18N-RULES.md §2).

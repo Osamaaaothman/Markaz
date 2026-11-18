@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PurchaseReturnDialog } from "./SupplierInvoicesPage";
 import { DocumentTrail } from "../documents/DocumentTrail";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
@@ -129,6 +129,12 @@ export function SupplierInvoiceDetailPage(): React.JSX.Element {
               <span>
                 <span className="coa-code">{l.accountCode}</span> {l.accountName ? localizedName({ name: l.accountName, nameAr: l.accountNameAr }, i18n.language) : ""}
                 {l.description ? ` — ${l.description}` : ""}
+                {l.kind === "ASSET" && l.fixedAssetId ? (
+                  <>
+                    {" "}
+                    <Link to={`/fixed-assets/${l.fixedAssetId}`} className="erp-button-link">{t("purchasing.invoices.openAsset")}</Link>
+                  </>
+                ) : null}
               </span>
             )
           }

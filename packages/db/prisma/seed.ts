@@ -147,6 +147,17 @@ const PERMISSION_CATALOG = [
   // M7 — ZATCA e-invoicing compliance
   { code: "compliance:read", description: "View the seller profile, EGS units and ZATCA status of invoices" },
   { code: "compliance:manage", description: "Edit the seller profile, add an EGS unit, and run onboarding (CSR, OTP, certificates) — docs/06 §5: a separately audited privilege" },
+  // Fixed assets (outside official Tier 1 scope, built at the owner's request — docs/Planning/fixed-assets-plan.md)
+  { code: "fixed_asset:read", description: "View the fixed asset register, schedules and reports" },
+  { code: "fixed_asset:create", description: "Create and edit draft fixed assets" },
+  { code: "fixed_asset:update", description: "Edit an asset's non-financial details and transfer it" },
+  { code: "fixed_asset:capitalize", description: "Post a fixed asset to the ledger (capitalise or register an opening asset)" },
+  { code: "fixed_asset:dispose", description: "Dispose of (scrap or write off) a fixed asset" },
+  { code: "fixed_asset_category:read", description: "View fixed asset categories" },
+  { code: "fixed_asset_category:manage", description: "Create and edit fixed asset categories" },
+  { code: "depreciation_run:read", description: "View depreciation runs" },
+  { code: "depreciation_run:post", description: "Post a monthly depreciation run" },
+  { code: "depreciation_run:reverse", description: "Reverse the latest depreciation run" },
 ] as const;
 
 // Roles offered on a fresh install besides Admin, so a company does not start by building them. Each maps a resource to the actions it
@@ -159,6 +170,7 @@ const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly str
     account: ["read", "create", "update"], account_mapping: "*", tax_code: "*", party: "*", payment: "*", cash_expense: "*", customer_receipt: "*", supplier_payment: "*",
     supplier_invoice: ["read"], sales_invoice: ["read"], purchase_order: ["read"], goods_receipt: ["read"], stock: ["read"], item: ["read"],
     debit_note: "*", credit_note: "*", hr_payment: "*", payroll_run: ["read"], company: ["read"], attachment: "*", compliance: ["read"],
+    fixed_asset: "*", fixed_asset_category: "*", depreciation_run: "*",
   },
   Purchasing: {
     purchase_request: ["create", "read", "reject", "review"], purchase_order: ["create", "read", "cancel"], goods_receipt: "*", goods_return: "*",

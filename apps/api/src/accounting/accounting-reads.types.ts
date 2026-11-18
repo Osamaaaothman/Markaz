@@ -4,6 +4,7 @@ export interface AccountSummary {
   readonly name: string;
   readonly nameAr: string | null;
   readonly type: string;
+  readonly normalBalance: string;
 }
 
 // Unlike AccountSummary (postable leaves only, for the journal entry account

@@ -15,8 +15,8 @@ import {
 import { IsDecimalString } from "../../common/decimal-string.validator.js";
 
 export class SupplierInvoiceLineDto {
-  @IsIn(["PO_LINE", "EXPENSE"])
-  kind!: "PO_LINE" | "EXPENSE";
+  @IsIn(["PO_LINE", "EXPENSE", "ASSET"])
+  kind!: "PO_LINE" | "EXPENSE" | "ASSET";
 
   // Required for an order line, forbidden for an expense line.
   @ValidateIf((o: SupplierInvoiceLineDto) => o.kind === "PO_LINE")
@@ -29,6 +29,12 @@ export class SupplierInvoiceLineDto {
   @IsString()
   @IsNotEmpty()
   accountId?: string;
+
+  // Required for a fixed-asset line: the category whose asset account is debited.
+  @ValidateIf((o: SupplierInvoiceLineDto) => o.kind === "ASSET")
+  @IsString()
+  @IsNotEmpty()
+  fixedAssetCategoryId?: string;
 
   @IsOptional()
   @IsString()

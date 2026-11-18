@@ -19,7 +19,9 @@ export interface SetupStatus {
 }
 
 // The mapping keys every company needs. The three per-employee folders are optional (without them payroll uses the company-wide accounts).
-const REQUIRED_KEYS = ACCOUNT_MAPPING_KEYS.filter((k) => !k.startsWith("EMPLOYEE_"));
+// Fixed-asset keys are needed only by a company that disposes of assets or registers opening ones, so setup does not demand them.
+const OPTIONAL_KEYS: ReadonlySet<string> = new Set(["FIXED_ASSET_DISPOSAL_LOSS", "OPENING_BALANCE_EQUITY"]);
+const REQUIRED_KEYS = ACCOUNT_MAPPING_KEYS.filter((k) => !k.startsWith("EMPLOYEE_") && !OPTIONAL_KEYS.has(k));
 const EMPLOYEE_KEYS = ACCOUNT_MAPPING_KEYS.filter((k) => k.startsWith("EMPLOYEE_"));
 
 import { isWpsSettingsUsable } from "../hr/wps-file.js";

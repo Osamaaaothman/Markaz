@@ -24,6 +24,7 @@ export const GROUP_ICONS: Readonly<Record<string, string>> = {
   "nav.groups.sales": "pi pi-shopping-bag",
   "nav.groups.payments": "pi pi-credit-card",
   "nav.groups.hr": "pi pi-briefcase",
+  "nav.groups.fixedAssets": "pi pi-building-columns",
   "nav.groups.documents": "pi pi-folder-open",
   "nav.groups.settings": "pi pi-cog",
 };
@@ -55,6 +56,10 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/hr/allowance-types", labelKey: "nav.allowanceTypes", icon: "pi pi-tags", permissions: ["employee:read"], groupKey: "nav.groups.hr" },
   { to: "/hr/payments", labelKey: "nav.hrPayments", icon: "pi pi-money-bill", permissions: ["hr_payment:read"], groupKey: "nav.groups.hr" },
   { to: "/hr/payroll-runs", labelKey: "nav.payrollRuns", icon: "pi pi-wallet", permissions: ["payroll_run:read"], groupKey: "nav.groups.hr" },
+  { to: "/fixed-assets", labelKey: "nav.fixedAssets", icon: "pi pi-car", permissions: ["fixed_asset:read"], groupKey: "nav.groups.fixedAssets" },
+  { to: "/fixed-assets/depreciation-runs", labelKey: "nav.depreciationRuns", icon: "pi pi-calendar-minus", permissions: ["depreciation_run:read"], groupKey: "nav.groups.fixedAssets" },
+  { to: "/fixed-assets/reports", labelKey: "nav.fixedAssetReports", icon: "pi pi-chart-pie", permissions: ["fixed_asset:read"], groupKey: "nav.groups.fixedAssets" },
+  { to: "/fixed-assets/categories", labelKey: "nav.assetCategories", icon: "pi pi-tags", permissions: ["fixed_asset_category:read"], groupKey: "nav.groups.fixedAssets" },
   { to: "/purchasing/requests", labelKey: "nav.purchaseRequests", icon: "pi pi-inbox", permissions: ["purchase_request:read"], groupKey: "nav.groups.purchasing" },
   { to: "/purchasing/review", labelKey: "nav.purchaseReview", icon: "pi pi-check-square", permissions: ["purchase_request:review"], groupKey: "nav.groups.purchasing", badge: "review" },
   { to: "/purchasing/orders", labelKey: "nav.purchaseOrders", icon: "pi pi-shopping-cart", permissions: ["purchase_order:read"], groupKey: "nav.groups.purchasing", badge: "orders" },

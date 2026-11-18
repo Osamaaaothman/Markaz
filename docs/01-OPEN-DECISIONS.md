@@ -197,6 +197,11 @@ challenged. Every one of them must be confirmed by Osama.
    other built-but-not-baseline feature: it ships, it is tested to the same bar as everything
    else, but it is not implied by "Tier 1" in scope discussions and is not required for a
    Tier-1-only customer.
+   **Fixed assets, 2026-11-19:** built at Osama's direct request on the same terms as payroll
+   (`packages/core/src/fixed-assets/`, plan and rulings in `docs/Planning/fixed-assets-plan.md`:
+   daily pro-rata straight line, one journal line pair per asset, separate disposal-loss account,
+   no asset sales until a tax-invoice path exists, net-only manual capitalisation, numbering per
+   category). Outside official Tier 1 scope.
 6. Users belong to exactly one company deployment. Cross-deployment users (e.g. an
    accounting firm managing several clients' separate installs) are **not**
    supported in Tier 1 — if they are needed, say so now, because it changes the
