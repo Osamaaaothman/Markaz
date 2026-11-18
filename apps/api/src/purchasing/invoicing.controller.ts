@@ -130,6 +130,7 @@ export class InvoicingController {
         case "ACCOUNT_NOT_FOUND":
         case "WAREHOUSE_NOT_FOUND":
         case "INVOICE_NOT_FOUND":
+        case "ASSET_CATEGORY_NOT_FOUND":
           throw new NotFoundException(body);
         case "OVER_RETURN":
         case "INSUFFICIENT_STOCK":
@@ -145,6 +146,7 @@ export class InvoicingController {
         case "NO_OPEN_PERIOD":
         case "ZERO_INVOICE":
         case "NOT_AN_INVOICE":
+        case "ASSET_NAME_REQUIRED":
           throw new BadRequestException(body);
       }
     }

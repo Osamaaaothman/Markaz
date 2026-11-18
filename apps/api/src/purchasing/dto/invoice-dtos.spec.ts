@@ -17,6 +17,12 @@ describe("supplier invoice DTO", () => {
     expect(await fieldsWithErrors(SupplierInvoiceDto, { ...base, lines: [poLine, expenseLine] })).toEqual([]);
   });
 
+  it("accepts a fixed-asset line with its category, and refuses one without", async () => {
+    const assetLine = { kind: "ASSET", fixedAssetCategoryId: "c1", description: "Van", quantity: "1", unitPrice: "1000", taxCodeId: "t1" };
+    expect(await fieldsWithErrors(SupplierInvoiceDto, { ...base, lines: [assetLine] })).toEqual([]);
+    expect(await fieldsWithErrors(SupplierInvoiceDto, { ...base, lines: [{ ...assetLine, fixedAssetCategoryId: undefined }] })).toEqual(["lines"]);
+  });
+
   it("needs the field that goes with each kind of line", async () => {
     expect(await fieldsWithErrors(SupplierInvoiceDto, { ...base, lines: [{ ...poLine, purchaseOrderLineId: undefined }] })).toEqual(["lines"]);
     expect(await fieldsWithErrors(SupplierInvoiceDto, { ...base, lines: [{ ...expenseLine, accountId: undefined }] })).toEqual(["lines"]);

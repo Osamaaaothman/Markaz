@@ -15,6 +15,7 @@ import { PaymentsModule } from "./payments/payments.module.js";
 import { DashboardModule } from "./dashboard/dashboard.module.js";
 import { PurchasingModule } from "./purchasing/purchasing.module.js";
 import { HrModule } from "./hr/hr.module.js";
+import { FixedAssetsModule } from "./fixed-assets/fixed-assets.module.js";
 import { SalesModule } from "./sales/sales.module.js";
 import { JobsModule } from "./jobs/jobs.module.js";
 import { SetupModule } from "./setup/setup.module.js";
@@ -51,6 +52,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
     InventoryModule,
     PurchasingModule,
     HrModule,
+    FixedAssetsModule,
     SalesModule,
     PaymentsModule,
     DashboardModule,

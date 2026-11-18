@@ -434,5 +434,31 @@
     "xmlNotice": "This PDF is a visual copy. Retain the original electronic XML from the invoice details.",
     "zatcaQrCaptionEn": "This QR code is encoded as per ZATCA e-invoicing requirements",
     "zatcaQrCaptionAr": "رمز الاستجابة السريعة مشفّر حسب متطلبات هيئة الزكاة والضريبة والجمارك للفوترة الإلكترونية"
+  },
+  "fixedAssets": {
+    "registerTitle": "Fixed asset register",
+    "movementTitle": "Fixed asset movement",
+    "asOf": "As of {{date}}",
+    "period": "From {{from}} to {{to}}",
+    "number": "Number",
+    "asset": "Asset",
+    "category": "Category",
+    "inService": "In service",
+    "cost": "Cost",
+    "accumulated": "Accumulated depreciation",
+    "netBookValue": "Net book value",
+    "total": "Total",
+    "movement": {
+      "costOpening": "Cost, opening",
+      "costAdditions": "Additions",
+      "costDisposals": "Disposals",
+      "costClosing": "Cost, closing",
+      "depreciationOpening": "Depreciation, opening",
+      "depreciationOnOpeningAssets": "Opening assets",
+      "depreciationCharge": "Charge for the period",
+      "depreciationOnDisposals": "On disposals",
+      "depreciationClosing": "Depreciation, closing",
+      "netBookValueClosing": "Net book value"
+    }
   }
 }

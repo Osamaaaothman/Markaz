@@ -434,5 +434,31 @@
     "xmlNotice": "هذه نسخة PDF للعرض والطباعة. احتفظ بمستند XML الإلكتروني الأصلي من تفاصيل الفاتورة.",
     "zatcaQrCaptionEn": "This QR code is encoded as per ZATCA e-invoicing requirements",
     "zatcaQrCaptionAr": "رمز الاستجابة السريعة مشفّر حسب متطلبات هيئة الزكاة والضريبة والجمارك للفوترة الإلكترونية"
+  },
+  "fixedAssets": {
+    "registerTitle": "سجل الأصول الثابتة",
+    "movementTitle": "حركة الأصول الثابتة",
+    "asOf": "كما في {{date}}",
+    "period": "من {{from}} إلى {{to}}",
+    "number": "الرقم",
+    "asset": "الأصل",
+    "category": "الفئة",
+    "inService": "بدء الاستخدام",
+    "cost": "التكلفة",
+    "accumulated": "مجمع الإهلاك",
+    "netBookValue": "صافي القيمة الدفترية",
+    "total": "الإجمالي",
+    "movement": {
+      "costOpening": "التكلفة أول المدة",
+      "costAdditions": "الإضافات",
+      "costDisposals": "الاستبعادات",
+      "costClosing": "التكلفة آخر المدة",
+      "depreciationOpening": "مجمع الإهلاك أول المدة",
+      "depreciationOnOpeningAssets": "أصول افتتاحية",
+      "depreciationCharge": "إهلاك الفترة",
+      "depreciationOnDisposals": "على المستبعد",
+      "depreciationClosing": "مجمع الإهلاك آخر المدة",
+      "netBookValueClosing": "صافي القيمة الدفترية"
+    }
   }
 }
