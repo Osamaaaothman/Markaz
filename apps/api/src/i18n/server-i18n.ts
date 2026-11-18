@@ -1,6 +1,8 @@
 import i18next, { type TFunction } from "i18next";
 import enDocuments from "./locales/en/documents.json";
 import arDocuments from "./locales/ar/documents.json";
+import enBots from "./locales/en/bots.json";
+import arBots from "./locales/ar/bots.json";
 
 // docs/08-FRONTEND-I18N-RULES.md §3 applies to server-rendered documents (email,
 // PDF) too — "no hard-coded user-facing string... only translation keys." This is
@@ -23,8 +25,8 @@ async function ensureInitialized(): Promise<void> {
   }
   initPromise ??= i18next.init({
     resources: {
-      en: { documents: enDocuments },
-      ar: { documents: arDocuments },
+      en: { documents: enDocuments, bots: enBots },
+      ar: { documents: arDocuments, bots: arBots },
     },
     lng: "en",
     fallbackLng: "en",
@@ -45,4 +47,11 @@ export async function getDocumentTranslator(
 ): Promise<TFunction> {
   await ensureInitialized();
   return i18next.getFixedT(language, "documents");
+}
+
+// Chat bot copy (docs/BOTS-INTEGRATION-PLAN.md §4.5) — its own namespace, same per-call fixed
+// translator rule as documents above.
+export async function getBotTranslator(language: SupportedDocumentLanguage): Promise<TFunction> {
+  await ensureInitialized();
+  return i18next.getFixedT(language, "bots");
 }

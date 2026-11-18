@@ -111,6 +111,8 @@ const PERMISSION_CATALOG = [
   { code: "sales_order:cancel", description: "Cancel a sales order with nothing invoiced" },
   { code: "sales_delivery_note:create", description: "Record a goods delivery note against a sales order" },
   { code: "sales_delivery_note:read", description: "View goods delivery notes" },
+  { code: "bot_connection:read", description: "View chat bot connections, linked accounts and delivery history" },
+  { code: "bot_connection:manage", description: "Connect, configure, disable and remove chat bots" },
   { code: "sales_invoice:create", description: "Post a sales invoice" },
   { code: "sales_invoice:read", description: "View sales invoices and credit notes" },
   { code: "credit_note:create", description: "Post a credit note against an invoice" },

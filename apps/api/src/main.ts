@@ -20,7 +20,8 @@ async function bootstrap(): Promise<void> {
   // starts — never on the first request that needs the missing variable.
   validateEnv(process.env);
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  // rawBody: the chat bot webhooks verify signatures over the exact bytes received (Discord Ed25519).
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, rawBody: true });
   // A bounded 200-row master-data import can exceed Express's default 100 KiB.
   app.useBodyParser("json", { limit: "1mb" });
   app.useLogger(app.get(Logger));

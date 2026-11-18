@@ -87,6 +87,8 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { RequirePermission } from "./RequirePermission";
 const DocumentsPage = lazy(() => import("../features/attachments/DocumentsPage").then((module) => ({ default: module.DocumentsPage })));
 const CompanyPage = lazy(() => import("../features/settings/CompanyPage").then((module) => ({ default: module.CompanyPage })));
+const BotsSettingsPage = lazy(() => import("../features/bots/BotsSettingsPage").then((module) => ({ default: module.BotsSettingsPage })));
+const MyBotsPage = lazy(() => import("../features/bots/MyBotsPage").then((module) => ({ default: module.MyBotsPage })));
 const InterfaceSettingsPage = lazy(() => import("../features/settings/InterfaceSettingsPage").then((module) => ({ default: module.InterfaceSettingsPage })));
 
 // The permissions a route needs come from NAV_ITEMS, so hiding a nav entry and guarding its
@@ -301,6 +303,10 @@ export function AppRoutes(): React.JSX.Element {
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/audit-log")} />}>
             <Route path="/settings/audit-log" element={<AuditLogPage />} />
           </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/settings/bots")} />}>
+            <Route path="/settings/bots" element={<BotsSettingsPage />} />
+          </Route>
+          <Route path="/settings/my-bots" element={<MyBotsPage />} />
           <Route path="/settings/interface" element={<InterfaceSettingsPage />} />
         </Route>
       </Route>

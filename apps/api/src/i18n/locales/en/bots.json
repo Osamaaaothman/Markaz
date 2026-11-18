@@ -1,0 +1,244 @@
+{
+  "commands": {
+    "menu": "Open the main menu",
+    "approvals": "Purchase orders waiting for your approval",
+    "customer": "Find a customer: balance, statement",
+    "item": "Find an item: stock per warehouse",
+    "invoice": "Find a sales invoice by number",
+    "cash": "Cash and bank balance",
+    "report": "Today's summary report",
+    "attach": "Attach a file (photo or PDF) to a record",
+    "link": "Link your ERP account with a code",
+    "unlink": "Unlink this chat from your ERP account",
+    "settings": "Language, quiet hours and alerts",
+    "chatid": "Show this chat's id (for report groups)",
+    "help": "What this bot can do",
+    "queryOption": "Name, code or number to search for",
+    "fileOption": "The photo or PDF to attach",
+    "codeOption": "The one-time code from your ERP profile"
+  },
+  "common": {
+    "openInErp": "Open in ERP",
+    "asOf": "As of {{time}} · {{company}}",
+    "previous": "Previous",
+    "next": "Next",
+    "cancel": "Cancel"
+  },
+  "menu": {
+    "title": "{{company}}",
+    "intro": "Hello 👋 What would you like to do today?",
+    "approvals": "Approvals",
+    "customers": "Customers",
+    "items": "Items & stock",
+    "invoices": "Invoices",
+    "cash": "Cash position",
+    "dailyReport": "Today's report",
+    "settings": "Settings",
+    "backToMenu": "Main menu"
+  },
+  "help": {
+    "title": "How to use this bot",
+    "linked": "Use the buttons, or these commands:",
+    "notLinked": "To start, link your account: in the system open Settings → My chat bots → Link my account, then send the code here."
+  },
+  "settings": {
+    "title": "Your bot settings",
+    "language": "Language",
+    "quietHours": "Quiet hours",
+    "quietOff": "Off",
+    "alertsHint": "Tap an alert to turn it on or off. Quiet hours hold non-urgent alerts until morning.",
+    "quietDisable": "Turn quiet hours off",
+    "quietEnable": "Quiet 22:00–07:00"
+  },
+  "alerts": {
+    "types": {
+      "approval_requested": "Approval requests",
+      "low_stock": "Low stock",
+      "zatca_problem": "ZATCA problems"
+    },
+    "lowStockLine": "{{warehouse}}: {{quantity}} left (reorder at {{reorder}})",
+    "createRequest": "Purchase requests",
+    "zatcaHint": "Fix the invoice data and resubmit from the ERP.",
+    "lowStockTitle": "Below reorder point: {{count}}",
+    "zatcaTitle": "Not accepted by ZATCA: {{count}}"
+  },
+  "chatid": {
+    "title": "Chat id",
+    "label": "Id",
+    "hint": "An admin can register this chat under Settings → Chat bots → Report groups."
+  },
+  "link": {
+    "invalid": "That code is not valid or has expired. Create a new one from your ERP profile.",
+    "otherAccount": "This chat account is already linked to another ERP user.",
+    "success": "Your account is linked",
+    "unlinked": "This chat is no longer linked to your ERP account.",
+    "howTo": "Send the code from Settings → My chat bots, for example /link ABC…"
+  },
+  "errors": {
+    "privateOnly": "For privacy, use this command in a private chat with the bot.",
+    "unknownCommand": "Unknown command. Send /menu to see what you can do.",
+    "notLinked": "Link your account first: Settings → My chat bots → Link my account.",
+    "useMenu": "Use the menu buttons or a command such as /menu.",
+    "filesNotSupported": "Files are not enabled for this bot.",
+    "featureDisabled": "This option is turned off for this bot.",
+    "expired": "This button has expired. Open it again from the menu.",
+    "notForYou": "This button belongs to another user.",
+    "alreadyUsed": "This action was already done.",
+    "generic": "Something went wrong. Please try again.",
+    "reference": "Reference: {{id}}",
+    "forbidden": "You do not have permission for this."
+  },
+  "approvals": {
+    "status": {
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled",
+      "PARTIALLY_RECEIVED": "Partially received",
+      "RECEIVED": "Received"
+    },
+    "pendingTitle": "Purchase order awaits your approval",
+    "approve": "Approve",
+    "reject": "Reject",
+    "total": "Total",
+    "tax": "Tax",
+    "lines": "Lines",
+    "orderDate": "Order date",
+    "warehouse": "Warehouse",
+    "notFound": "Purchase order not found.",
+    "alreadyDecided": "This order was already decided.",
+    "aboveCeiling": "Orders above {{limit}} must be approved in the ERP, not in chat.",
+    "none": "Nothing is waiting for your approval",
+    "listTitle": "Waiting for your approval",
+    "listHint": "Tap an order to see it and decide.",
+    "rejectTitle": "Reject purchase order",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Why is this order rejected?",
+    "confirmTitle": "Confirm approval",
+    "confirmText": "Approve {{number}} for {{total}}?",
+    "confirmYes": "Yes, approve",
+    "reasonRequired": "A reason is required to reject.",
+    "moreLines": "More lines: {{count}}"
+  },
+  "lookups": {
+    "noResults": "Nothing found for “{{query}}”",
+    "resultsFor": "{{count}} result(s) for “{{query}}”",
+    "customersTitle": "Customers",
+    "itemsTitle": "Items",
+    "invoicesTitle": "Sales invoices",
+    "queryRequired": "Type what to search for, e.g. /customer Noor",
+    "cashTitle": "Cash position",
+    "cashBalance": "Cash and bank",
+    "cashNotMapped": "Not set up in account mapping",
+    "notFound": "Not found.",
+    "phone": "Phone",
+    "vat": "VAT number",
+    "balance": "Balance",
+    "lastActivity": "Last activity",
+    "reorderPoint": "Reorder point",
+    "noStock": "No stock in any warehouse",
+    "noStockPermission": "You cannot view stock quantities.",
+    "invoiceDate": "Date",
+    "dueDate": "Due",
+    "total": "Total",
+    "outstanding": "Outstanding",
+    "settlement": "Payment",
+    "settlementStatus": {
+      "OPEN": "Unpaid",
+      "PARTIAL": "Partly paid",
+      "SETTLED": "Paid",
+      "OVERDUE": "Overdue",
+      "RECORDED": "Recorded"
+    },
+    "zatca": "ZATCA",
+    "zatcaStatus": {
+      "CLEARED": "Cleared",
+      "REPORTED": "Reported",
+      "REJECTED": "Rejected",
+      "NOT_CLEARED": "Not cleared",
+      "FAILED": "Failed",
+      "PENDING": "Pending",
+      "FAILED_RETRYABLE": "Retrying",
+      "PENDING_RETRY": "Retrying",
+      "WARNING": "Accepted with warnings"
+    },
+    "searchAgain": "New search",
+    "noResultsHint": "Try part of the name, the code or the number.",
+    "pickOne": "Pick one to see the details.",
+    "search": {
+      "customers": {
+        "title": "Find a customer",
+        "hint": "Reply with the customer name, number or phone.",
+        "placeholder": "e.g. Al-Noor"
+      },
+      "items": {
+        "title": "Find an item",
+        "hint": "Reply with the item name or code.",
+        "placeholder": "e.g. ITM-0012"
+      },
+      "invoices": {
+        "title": "Find an invoice",
+        "hint": "Reply with the invoice number, or part of it.",
+        "placeholder": "e.g. INV-2026-0042"
+      }
+    },
+    "reference": "Customer no.",
+    "customerSubtitle": "Customer card",
+    "code": "Code",
+    "onHand": "On hand (all warehouses)",
+    "byWarehouse": "Stock by warehouse",
+    "number": "Number",
+    "documentType": {
+      "INVOICE": "Tax invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note"
+    }
+  },
+  "documents": {
+    "statementPdf": "Statement PDF",
+    "invoicePdf": "Invoice PDF",
+    "invoiceCaption": "Invoice {{number}}",
+    "statementCaption": "Statement {{from}} – {{to}}"
+  },
+  "reports": {
+    "title": {
+      "DAILY_SUMMARY": "Daily summary",
+      "WEEKLY_SUMMARY": "Weekly summary",
+      "MONTHLY_SUMMARY": "Monthly summary"
+    },
+    "salesThisMonth": "Sales this month (net)",
+    "openOrders": "Open sales orders",
+    "cash": "Cash and bank",
+    "receivables": "Receivables",
+    "overdue": "Overdue",
+    "payables": "Payables",
+    "stockValue": "Stock value",
+    "belowReorder": "Items below reorder",
+    "pendingApprovals": "Pending approvals",
+    "nothingPermitted": "You do not have access to any report figures.",
+    "revenue": "Revenue",
+    "expense": "Expenses",
+    "zatca": "ZATCA (last 24 h)",
+    "zatcaCounts": "{{ok}} accepted · {{bad}} not accepted",
+    "manage": "Scheduled reports",
+    "subscriptionsTitle": "Scheduled reports",
+    "at": "at {{time}}",
+    "noSubscriptions": "You have no scheduled reports.",
+    "subscribe": {
+      "daily": "Daily at 08:00",
+      "weekly": "Weekly, Sunday 08:00",
+      "monthly": "Monthly, 1st at 08:00"
+    },
+    "stop": "Stop",
+    "subscribed": "Scheduled"
+  },
+  "receipts": {
+    "tooLarge": "This file is too large.",
+    "noRecords": "There is no purchase invoice or order you can attach this to.",
+    "chooseTitle": "Attach this file to…",
+    "chooseHint": "Pick the record. The file is stored with it in the ERP.",
+    "downloadFailed": "The file could not be downloaded. Please send it again.",
+    "unsupported": "This file type is not accepted. Send a photo or a PDF.",
+    "failed": "The file could not be attached.",
+    "attached": "File attached"
+  }
+}

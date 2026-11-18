@@ -13,6 +13,7 @@
     "test:cost-centers": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.cost-centers.config.cjs --runInBand"
   },
   "dependencies": {
+    "@erp/bots": "*",
     "@erp/compliance-zatca-sa": "*",
     "@erp/core": "*",
     "@erp/db": "*",
