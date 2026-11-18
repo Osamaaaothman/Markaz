@@ -49,6 +49,13 @@ const AllowanceTypesPage = lazy(() => import("../features/hr/AllowanceTypesPage"
 const EmployeeDetailPage = lazy(() => import("../features/hr/EmployeeDetailPage").then((module) => ({ default: module.EmployeeDetailPage })));
 const EmployeesPage = lazy(() => import("../features/hr/EmployeesPage").then((module) => ({ default: module.EmployeesPage })));
 const PayrollRunDetailPage = lazy(() => import("../features/hr/PayrollRunDetailPage").then((module) => ({ default: module.PayrollRunDetailPage })));
+const FixedAssetsPage = lazy(() => import("../features/fixed-assets/FixedAssetsPage").then((module) => ({ default: module.FixedAssetsPage })));
+const FixedAssetFormPage = lazy(() => import("../features/fixed-assets/FixedAssetFormPage").then((module) => ({ default: module.FixedAssetFormPage })));
+const FixedAssetDetailPage = lazy(() => import("../features/fixed-assets/FixedAssetDetailPage").then((module) => ({ default: module.FixedAssetDetailPage })));
+const AssetCategoriesPage = lazy(() => import("../features/fixed-assets/AssetCategoriesPage").then((module) => ({ default: module.AssetCategoriesPage })));
+const DepreciationRunsPage = lazy(() => import("../features/fixed-assets/DepreciationRunsPage").then((module) => ({ default: module.DepreciationRunsPage })));
+const DepreciationRunDetailPage = lazy(() => import("../features/fixed-assets/DepreciationRunDetailPage").then((module) => ({ default: module.DepreciationRunDetailPage })));
+const FixedAssetReportsPage = lazy(() => import("../features/fixed-assets/FixedAssetReportsPage").then((module) => ({ default: module.FixedAssetReportsPage })));
 const PayrollRunsPage = lazy(() => import("../features/hr/PayrollRunsPage").then((module) => ({ default: module.PayrollRunsPage })));
 const QuotationsPage = lazy(() => import("../features/sales/QuotationsPage").then((module) => ({ default: module.QuotationsPage })));
 const QuotationFormPage = lazy(() => import("../features/sales/SalesDocumentFormPage").then((module) => ({ default: module.QuotationFormPage })));
@@ -172,6 +179,23 @@ export function AppRoutes(): React.JSX.Element {
           <Route element={<RequirePermission anyOf={permissionsFor("/hr/payroll-runs")} />}>
             <Route path="/hr/payroll-runs" element={<PayrollRunsPage />} />
             <Route path="/hr/payroll-runs/:id" element={<PayrollRunDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/fixed-assets/categories")} />}>
+            <Route path="/fixed-assets/categories" element={<AssetCategoriesPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/fixed-assets/depreciation-runs")} />}>
+            <Route path="/fixed-assets/depreciation-runs" element={<DepreciationRunsPage />} />
+            <Route path="/fixed-assets/depreciation-runs/:id" element={<DepreciationRunDetailPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/fixed-assets/reports")} />}>
+            <Route path="/fixed-assets/reports" element={<FixedAssetReportsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/fixed-assets")} />}>
+            <Route path="/fixed-assets" element={<FixedAssetsPage />} />
+            <Route path="/fixed-assets/new" element={<FixedAssetFormPage mode="new" />} />
+            <Route path="/fixed-assets/opening" element={<FixedAssetFormPage mode="opening" />} />
+            <Route path="/fixed-assets/:id/edit" element={<FixedAssetFormPage mode="edit" />} />
+            <Route path="/fixed-assets/:id" element={<FixedAssetDetailPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/purchasing/requests")} />}>
             <Route path="/purchasing/requests" element={<PurchaseRequestsPage />} />

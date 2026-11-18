@@ -12,6 +12,10 @@ export function documentPath(kind: string, id: string): string | null {
     payment: "/payments/",
     hr_payment: "/hr/payments/",
     payroll_run: "/hr/payroll-runs/",
+    fixed_asset_capitalization: "/fixed-assets/",
+    fixed_asset_opening: "/fixed-assets/",
+    depreciation_run: "/fixed-assets/depreciation-runs/",
+    depreciation_run_reversal: "/fixed-assets/depreciation-runs/",
   };
   const dialogs: Record<string, string> = {
     quotation: "/sales/quotations",
