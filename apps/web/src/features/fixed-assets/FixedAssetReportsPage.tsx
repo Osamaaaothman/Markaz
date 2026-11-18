@@ -3,10 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Calendar } from "primereact/calendar";
 import { Column } from "primereact/column";
-import { ColumnGroup } from "primereact/columngroup";
 import { DataTable } from "primereact/datatable";
-import { Row } from "primereact/row";
-import { TabPanel, TabView } from "primereact/tabview";
 import { formatCalendarDate, toDateOnlyIsoString } from "../../shared/lib/format-date";
 import { localizedName } from "../../shared/lib/localized-name";
 import { formatAmount } from "../../shared/lib/money";
@@ -15,6 +12,7 @@ import { ExportButtons } from "../../shared/ui/ExportButtons";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { exportReport, type ExportFormat } from "../accounting/export-report";
 import "./fixed-assets.css";
+import { SectionTabs } from "./SectionTabs";
 import { useMovementReport, useReconciliationReport, useRegisterReport, type MovementReport, type ReconciliationReport, type RegisterReport } from "./use-fixed-assets";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -187,28 +185,6 @@ function MovementTab(): React.JSX.Element {
   const handleExport = (format: ExportFormat): Promise<void> =>
     exportReport("/v1/fixed-assets/reports/movement/export", { format, from, to, lang: i18n.language }, "fixed-asset-movement", format);
 
-  const headerGroup = (
-    <ColumnGroup>
-      <Row>
-        <Column header={t("fixedAssets.fields.category")} rowSpan={2} />
-        <Column header={`${t("fixedAssets.reports.costSection")} (${currency})`} colSpan={4} alignHeader="center" />
-        <Column header={`${t("fixedAssets.reports.depreciationSection")} (${currency})`} colSpan={5} alignHeader="center" />
-        <Column header={`${t("fixedAssets.reports.movement.netBookValueClosing")} (${currency})`} rowSpan={2} alignHeader="right" />
-      </Row>
-      <Row>
-        <Column header={t("fixedAssets.reports.movement.costOpening")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.costAdditions")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.costDisposals")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.costClosing")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.depreciationOpening")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.depreciationOnOpeningAssets")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.depreciationCharge")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.depreciationOnDisposals")} alignHeader="right" />
-        <Column header={t("fixedAssets.reports.movement.depreciationClosing")} alignHeader="right" />
-      </Row>
-    </ColumnGroup>
-  );
-
   const total = (key: MovementKey): React.JSX.Element => amountCell(data ? data.totals[key] : "0", currency);
 
   return (
@@ -252,18 +228,18 @@ function MovementTab(): React.JSX.Element {
       ) : data.rows.length === 0 ? (
         <EmptyState icon="pi pi-chart-pie" title={t("status.empty")} />
       ) : (
-        <DataTable value={[...data.rows]} className="erp-table" stripedRows showGridlines size="small" headerColumnGroup={headerGroup}>
+        <DataTable value={[...data.rows]} className="erp-table" stripedRows showGridlines size="small" scrollable tableStyle={{ minWidth: "78rem" }}>
           <Column header={t("fixedAssets.fields.category")} body={(r: MovementRow) => localizedName({ name: r.categoryName, nameAr: r.categoryNameAr }, i18n.language)} footer={<strong>{t("fixedAssets.reports.total")}</strong>} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.costOpening, currency)} footer={total("costOpening")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.costAdditions, currency)} footer={total("costAdditions")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.costDisposals, currency)} footer={total("costDisposals")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.costClosing, currency)} footer={total("costClosing")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.depreciationOpening, currency)} footer={total("depreciationOpening")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.depreciationOnOpeningAssets, currency)} footer={total("depreciationOnOpeningAssets")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.depreciationCharge, currency)} footer={total("depreciationCharge")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.depreciationOnDisposals, currency)} footer={total("depreciationOnDisposals")} />
-          <Column align="right" body={(r: MovementRow) => amountCell(r.depreciationClosing, currency)} footer={total("depreciationClosing")} />
-          <Column align="right" body={(r: MovementRow) => <strong>{amountCell(r.netBookValueClosing, currency)}</strong>} footer={<strong>{total("netBookValueClosing")}</strong>} />
+          <Column header={`${t("fixedAssets.reports.costSection")} · ${t("fixedAssets.reports.movement.costOpening")}`} align="right" body={(r: MovementRow) => amountCell(r.costOpening, currency)} footer={total("costOpening")} />
+          <Column header={`${t("fixedAssets.reports.costSection")} · ${t("fixedAssets.reports.movement.costAdditions")}`} align="right" body={(r: MovementRow) => amountCell(r.costAdditions, currency)} footer={total("costAdditions")} />
+          <Column header={`${t("fixedAssets.reports.costSection")} · ${t("fixedAssets.reports.movement.costDisposals")}`} align="right" body={(r: MovementRow) => amountCell(r.costDisposals, currency)} footer={total("costDisposals")} />
+          <Column header={`${t("fixedAssets.reports.costSection")} · ${t("fixedAssets.reports.movement.costClosing")}`} align="right" body={(r: MovementRow) => amountCell(r.costClosing, currency)} footer={total("costClosing")} />
+          <Column header={`${t("fixedAssets.reports.depreciationSection")} · ${t("fixedAssets.reports.movement.depreciationOpening")}`} align="right" body={(r: MovementRow) => amountCell(r.depreciationOpening, currency)} footer={total("depreciationOpening")} />
+          <Column header={`${t("fixedAssets.reports.depreciationSection")} · ${t("fixedAssets.reports.movement.depreciationOnOpeningAssets")}`} align="right" body={(r: MovementRow) => amountCell(r.depreciationOnOpeningAssets, currency)} footer={total("depreciationOnOpeningAssets")} />
+          <Column header={`${t("fixedAssets.reports.depreciationSection")} · ${t("fixedAssets.reports.movement.depreciationCharge")}`} align="right" body={(r: MovementRow) => amountCell(r.depreciationCharge, currency)} footer={total("depreciationCharge")} />
+          <Column header={`${t("fixedAssets.reports.depreciationSection")} · ${t("fixedAssets.reports.movement.depreciationOnDisposals")}`} align="right" body={(r: MovementRow) => amountCell(r.depreciationOnDisposals, currency)} footer={total("depreciationOnDisposals")} />
+          <Column header={`${t("fixedAssets.reports.depreciationSection")} · ${t("fixedAssets.reports.movement.depreciationClosing")}`} align="right" body={(r: MovementRow) => amountCell(r.depreciationClosing, currency)} footer={total("depreciationClosing")} />
+          <Column header={t("fixedAssets.reports.movement.netBookValueClosing")} align="right" body={(r: MovementRow) => <strong>{amountCell(r.netBookValueClosing, currency)}</strong>} footer={<strong>{total("netBookValueClosing")}</strong>} />
         </DataTable>
       )}
     </>
@@ -375,17 +351,15 @@ export function FixedAssetReportsPage(): React.JSX.Element {
         </div>
       </div>
 
-      <TabView activeIndex={TABS.indexOf(activeTab)} onTabChange={(e) => setTab(TABS[e.index] ?? "register")}>
-        <TabPanel header={t("fixedAssets.reports.tabs.register")}>
-          <RegisterTab />
-        </TabPanel>
-        <TabPanel header={t("fixedAssets.reports.tabs.movement")}>
-          <MovementTab />
-        </TabPanel>
-        <TabPanel header={t("fixedAssets.reports.tabs.reconciliation")}>
-          <ReconciliationTab />
-        </TabPanel>
-      </TabView>
+      <SectionTabs
+        label={t("fixedAssets.reports.title")}
+        active={activeTab}
+        onChange={setTab}
+        tabs={TABS.map((id) => ({ id, label: t(`fixedAssets.reports.tabs.${id}`) }))}
+      />
+      <div role="tabpanel">
+        {activeTab === "register" ? <RegisterTab /> : activeTab === "movement" ? <MovementTab /> : <ReconciliationTab />}
+      </div>
     </div>
   );
 }

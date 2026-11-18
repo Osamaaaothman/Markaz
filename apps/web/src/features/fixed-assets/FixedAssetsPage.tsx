@@ -15,6 +15,7 @@ import { EmptyState } from "../../shared/ui/EmptyState";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { AssetStatusTag } from "./AssetStatusTag";
+import "./fixed-assets.css";
 import { useAssetCategories, useFixedAssets, type AssetStatus, type FixedAssetSummary } from "./use-fixed-assets";
 
 const STATUSES: readonly AssetStatus[] = ["DRAFT", "ACTIVE", "FULLY_DEPRECIATED", "DISPOSED"];
@@ -129,12 +130,12 @@ export function FixedAssetsPage(): React.JSX.Element {
             <Column header={t("fixedAssets.fields.number")} style={{ width: "9rem" }} body={(r: FixedAssetSummary) => <span className="coa-code" dir="ltr">{r.number}</span>} />
             <Column header={t("fixedAssets.fields.name")} body={(r: FixedAssetSummary) => localizedName(r, i18n.language)} />
             <Column header={t("fixedAssets.fields.category")} body={(r: FixedAssetSummary) => localizedName(r.category, i18n.language)} />
-            <Column header={t("fixedAssets.fields.inServiceDate")} style={{ width: "8rem" }} body={(r: FixedAssetSummary) => <span dir="ltr">{formatCalendarDate(r.inServiceDate, i18n.language)}</span>} />
+            <Column header={t("fixedAssets.fields.inServiceDate")} style={{ width: "7.5rem" }} body={(r: FixedAssetSummary) => <span dir="ltr">{formatCalendarDate(r.inServiceDate, i18n.language)}</span>} />
             <Column header={t("fixedAssets.fields.acquisitionCost")} align="right" body={(r: FixedAssetSummary) => amount(r.acquisitionCost)} />
             <Column header={t("fixedAssets.fields.accumulatedDepreciation")} align="right" body={(r: FixedAssetSummary) => amount(r.accumulatedDepreciation)} />
             <Column header={t("fixedAssets.fields.netBookValue")} align="right" body={(r: FixedAssetSummary) => <strong>{amount(r.netBookValue)}</strong>} />
             <Column header={t("fixedAssets.fields.custodian")} body={(r: FixedAssetSummary) => (r.custodian ? localizedName(r.custodian, i18n.language) : "—")} />
-            <Column header={t("fixedAssets.fields.status")} style={{ width: "9rem" }} body={(r: FixedAssetSummary) => <AssetStatusTag status={r.status} />} />
+            <Column header={t("fixedAssets.fields.status")} style={{ width: "10rem" }} body={(r: FixedAssetSummary) => <span className="fa-nowrap"><AssetStatusTag status={r.status} /></span>} />
           </DataGrid>
           {data.total > PAGE_SIZE ? (
             <Paginator first={(page - 1) * PAGE_SIZE} rows={PAGE_SIZE} totalRecords={data.total} onPageChange={(e) => setPage(e.page + 1)} />

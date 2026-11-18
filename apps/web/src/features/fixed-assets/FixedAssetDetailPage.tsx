@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "primereact/button";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
-import { TabPanel, TabView } from "primereact/tabview";
 import { Tag } from "primereact/tag";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { formatCalendarDate } from "../../shared/lib/format-date";
@@ -16,11 +15,13 @@ import { PermissionButton } from "../../shared/ui/PermissionButton";
 import { JournalEntryLinkButton } from "../accounting/JournalEntryLinkButton";
 import { CapitalizeDialog, DisposeDialog, EditInfoDialog, TransferDialog } from "./AssetActionDialogs";
 import { AssetStatusTag } from "./AssetStatusTag";
+import { SectionTabs } from "./SectionTabs";
 import { fixedAssetErrorKey, useDeleteDraftAsset, useFixedAsset, type FixedAssetDetail, type ScheduleRow, type TransferRow } from "./use-fixed-assets";
 import "./fixed-assets.css";
 
 const MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"] as const;
 type DialogName = "capitalize" | "transfer" | "dispose" | "info" | null;
+type DetailTab = "overview" | "schedule" | "transfers";
 
 // Percent of the depreciable amount already written off, from decimal strings (display only).
 function progressPercent(a: FixedAssetDetail): number {
@@ -45,6 +46,7 @@ export function FixedAssetDetailPage(): React.JSX.Element {
   const { data: asset, isPending, isError, refetch } = useFixedAsset(id);
   const remove = useDeleteDraftAsset();
   const [dialog, setDialog] = useState<DialogName>(null);
+  const [tab, setTab] = useState<DetailTab>("overview");
 
   if (isPending) return <PageSkeleton />;
   if (isError || !asset) {
@@ -156,8 +158,18 @@ export function FixedAssetDetailPage(): React.JSX.Element {
         </div>
       </div>
 
-      <TabView>
-        <TabPanel header={t("fixedAssets.detail.tabs.overview")}>
+      <SectionTabs
+        label={t("fixedAssets.detail.tabs.overview")}
+        active={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "overview", label: t("fixedAssets.detail.tabs.overview") },
+          { id: "schedule", label: t("fixedAssets.detail.tabs.schedule") },
+          { id: "transfers", label: t("fixedAssets.detail.tabs.transfers") },
+        ]}
+      />
+      {tab === "overview" ? (
+        <div role="tabpanel">
           <h3 className="erp-form__section-title">{t("fixedAssets.detail.ledgerFacts")}</h3>
           <dl className="mk-facts">
             <div><dt>{t("fixedAssets.fields.acquisitionDate")}</dt><dd>{date(asset.acquisitionDate)}</dd></div>
@@ -189,9 +201,11 @@ export function FixedAssetDetailPage(): React.JSX.Element {
               <JournalEntryLinkButton entryId={asset.disposal.journalEntryId} />
             </div>
           ) : null}
-        </TabPanel>
+        </div>
+      ) : null}
 
-        <TabPanel header={t("fixedAssets.detail.tabs.schedule")}>
+      {tab === "schedule" ? (
+        <div role="tabpanel">
           {!asset.isDepreciable ? (
             <EmptyState icon="pi pi-minus-circle" title={t("fixedAssets.detail.noSchedule")} />
           ) : (
@@ -219,9 +233,11 @@ export function FixedAssetDetailPage(): React.JSX.Element {
               />
             </DataTable>
           )}
-        </TabPanel>
+        </div>
+      ) : null}
 
-        <TabPanel header={t("fixedAssets.detail.tabs.transfers")}>
+      {tab === "transfers" ? (
+        <div role="tabpanel">
           {asset.transfers.length === 0 ? (
             <EmptyState icon="pi pi-arrow-right-arrow-left" title={t("fixedAssets.detail.noTransfers")} />
           ) : (
@@ -233,8 +249,8 @@ export function FixedAssetDetailPage(): React.JSX.Element {
               <Column header={t("fixedAssets.transfer.reason")} body={(r: TransferRow) => r.reason ?? "—"} />
             </DataTable>
           )}
-        </TabPanel>
-      </TabView>
+        </div>
+      ) : null}
 
       <div className="erp-form__actions">
         <Button type="button" label={t("documents.backToList")} text onClick={() => void navigate("/fixed-assets")} />

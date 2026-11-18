@@ -23,6 +23,7 @@ import {
   type AssetCategoryPayload,
   type NamedRef,
 } from "./use-fixed-assets";
+import "./fixed-assets.css";
 
 interface FormState {
   readonly id: string | null;
@@ -218,7 +219,7 @@ export function AssetCategoriesPage(): React.JSX.Element {
               <span>
                 <Tag value={t(row.isActive ? "fixedAssets.categories.active" : "fixedAssets.categories.inactive")} severity={row.isActive ? "success" : "secondary"} />
                 {row.isLocked ? (
-                  <i className="pi pi-lock" title={t("fixedAssets.categories.locked")} aria-label={t("fixedAssets.categories.locked")} />
+                  <i className="pi pi-lock fa-catchup" title={t("fixedAssets.categories.locked")} aria-label={t("fixedAssets.categories.locked")} />
                 ) : null}
               </span>
             )}
