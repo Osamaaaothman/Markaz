@@ -186,6 +186,8 @@ const PRESET_ROLES: Readonly<Record<string, Readonly<Record<string, readonly str
   Sales: {
     quotation: "*", sales_order: "*", sales_delivery_note: "*", sales_invoice: "*", credit_note: "*", debit_note: "*", customer_receipt: "*", party: ["read", "create", "update"], item: ["read"], warehouse: ["read"], stock: ["read"], attachment: ["read", "create"],
   },
+  // Only the AI assistant (asking, proposing changes, low-risk auto mode); give it to whoever may use the assistant.
+  "AI assistant": { ai_assistant: "*" },
   "Human resources": {
     employee: "*", payroll_run: "*", salary_advance: "*", end_of_service: "*", allowance_type: "*", hr_payment: "*", party: ["read"], attachment: ["read", "create"],
   },
