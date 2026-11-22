@@ -67,7 +67,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
               <div className="ai-ticket__titles">
                 <span className="ai-ticket__title">{t(c.preview.titleKey, { defaultValue: t(`ai.tool.${c.tool}`, { defaultValue: c.tool }) })}</span>
                 <span className="ai-ticket__meta">
-                  <span className="ai-ticket__key">#{c.key}</span>
+                  <bdi className="ai-ticket__key" dir="ltr">#{c.key}</bdi>
                   {dependsLabel ? <span><i className="pi pi-link" aria-hidden="true" /> {t("ai.change.dependsOn", { key: dependsLabel })}</span> : null}
                   {edits[c.key] && c.status === "PROPOSED" ? <span className="ai-pill">{t("ai.change.edited")}</span> : null}
                   {c.risk === "high" ? <span className="ai-pill ai-pill--warn"><i className="pi pi-shield" aria-hidden="true" /> {t("ai.risk.high")}</span> : null}
@@ -148,6 +148,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
           </span>
           <span className="ai-dock__label">{t("ai.change.pending", { count: pending.length })}</span>
           <span className="ai-dock__spacer" />
+          <div className="ai-dock__actions">
           <button type="button" className="ai-btn ai-btn--ghost ai-btn--danger" disabled={busy} onClick={() => submit("reject")}>{t("ai.change.rejectAll")}</button>
           {decided === pending.length ? (
             <button type="button" className="ai-btn ai-btn--primary" disabled={busy} onClick={() => submit()}><i className="pi pi-send" aria-hidden="true" /> {t("ai.change.submit")}</button>
@@ -156,6 +157,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
               <i className="pi pi-check-circle" aria-hidden="true" /> {pending.some((c) => c.risk === "high") ? t("ai.change.approveLow") : t("ai.change.approveAll")}
             </button>
           )}
+          </div>
         </div>
       ) : null}
     </div>

@@ -338,16 +338,16 @@
 .ai-tickets { display: grid; gap: 0.65rem; }
 .ai-ticket {
   position: relative;
-  padding: 0.85rem 0.9rem 0.8rem;
+  padding: 0.9rem 1rem;
   border: 1px solid var(--mk-border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--mk-surface);
   box-shadow: var(--mk-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.05));
   overflow: hidden;
   animation: ai-ticket-in 0.4s cubic-bezier(0.34, 1.3, 0.64, 1) both;
   transition: border-color 0.3s, opacity 0.3s, transform 0.3s;
 }
-.ai-ticket__glow { position: absolute; inset-block: 0; inset-inline-start: 0; width: 4px; background: var(--mk-primary); transition: background 0.3s; }
+.ai-ticket__glow { position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--mk-primary); transition: background 0.3s; }
 .ai-ticket--risk-high .ai-ticket__glow { background: var(--mk-warning); }
 .ai-ticket--approve { border-color: var(--mk-success); }
 .ai-ticket--approve .ai-ticket__glow, .ai-ticket--executed .ai-ticket__glow { background: var(--mk-success); }
@@ -357,23 +357,25 @@
 .ai-ticket--rejected, .ai-ticket--skipped { opacity: 0.6; }
 .ai-ticket--rejected .ai-ticket__glow, .ai-ticket--skipped .ai-ticket__glow { background: var(--mk-border-strong, var(--mk-border)); }
 .ai-ticket--failed { border-color: var(--mk-danger); }
-.ai-ticket__head { display: flex; align-items: flex-start; gap: 0.65rem; margin-block-end: 0.7rem; }
-.ai-ticket__icon { display: grid; place-items: center; flex: none; width: 2.3rem; height: 2.3rem; border-radius: 10px; background: var(--mk-primary-soft, var(--mk-surface-2)); color: var(--mk-primary); }
+.ai-ticket__head { display: flex; align-items: center; gap: 0.7rem; margin-block-end: 0.75rem; }
+.ai-ticket__icon { display: grid; place-items: center; flex: none; width: 2.25rem; height: 2.25rem; border-radius: 8px; background: var(--mk-primary-soft, var(--mk-surface-2)); color: var(--mk-primary); }
 .ai-ticket--executed .ai-ticket__icon { background: var(--mk-success-soft); color: var(--mk-success); }
 .ai-ticket__titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
-.ai-ticket__title { font-weight: 800; font-size: 0.95rem; }
-.ai-ticket__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.55rem; font-size: 0.72rem; color: var(--mk-text-muted); }
-.ai-ticket__key { font-family: var(--mk-font-mono, monospace); }
-.ai-pill { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.05rem 0.5rem; border-radius: 999px; background: var(--mk-surface-2); font-weight: 700; }
+.ai-ticket__title { font-weight: 800; font-size: 0.92rem; line-height: 1.35; }
+.ai-ticket__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.4rem; font-size: 0.72rem; color: var(--mk-text-muted); }
+.ai-ticket__meta > span:not(.ai-pill) { display: inline-flex; align-items: center; gap: 0.25rem; }
+.ai-ticket__key { font-family: var(--mk-font-mono, monospace); font-size: 0.7rem; }
+.ai-pill { display: inline-flex; align-items: center; gap: 0.25rem; height: 1.35rem; padding: 0 0.55rem; border-radius: 999px; background: var(--mk-surface-2); font-size: 0.7rem; font-weight: 700; line-height: 1; }
+.ai-pill i, .ai-stamp i { font-size: 0.68rem; }
 .ai-pill--warn, .ai-pill--auto { background: var(--mk-warning-soft); color: var(--mk-warning); }
-.ai-stamp { display: inline-flex; align-items: center; gap: 0.3rem; flex: none; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.74rem; font-weight: 800; animation: ai-stamp 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.ai-stamp { display: inline-flex; align-items: center; gap: 0.3rem; flex: none; height: 1.6rem; padding: 0 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 800; animation: ai-stamp 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 .ai-stamp--executed { background: var(--mk-success-soft); color: var(--mk-success); }
 .ai-stamp--failed { background: var(--mk-danger-soft); color: var(--mk-danger); }
 .ai-stamp--rejected, .ai-stamp--skipped { background: var(--mk-surface-2); color: var(--mk-text-muted); }
 
-.ai-fields { display: grid; margin: 0; border: 1px solid var(--mk-border); border-radius: 10px; overflow: hidden; }
-.ai-fields__row { display: grid; grid-template-columns: minmax(95px, 36%) 1fr; gap: 0.6rem; padding: 0.45rem 0.7rem; font-size: 0.84rem; animation: ai-fade-up 0.3s ease both; }
-.ai-fields__row:nth-child(odd) { background: var(--mk-surface-2); }
+.ai-fields { display: grid; margin: 0; border: 1px solid var(--mk-border); border-radius: 8px; overflow: hidden; }
+.ai-fields__row { display: grid; grid-template-columns: minmax(95px, 36%) 1fr; gap: 0.6rem; padding: 0.5rem 0.75rem; font-size: 0.84rem; animation: ai-fade-up 0.3s ease both; }
+.ai-fields__row + .ai-fields__row { border-block-start: 1px solid var(--mk-border); }
 .ai-fields dt { color: var(--mk-text-muted); }
 .ai-fields dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; overflow-wrap: anywhere; }
 .ai-fields__before { color: var(--mk-danger); text-decoration: line-through; }
@@ -383,39 +385,41 @@
 .ai-ticket__note { display: flex; align-items: center; gap: 0.4rem; margin: 0.55rem 0 0; font-size: 0.8rem; color: var(--mk-text-muted); }
 .ai-ticket__note--warn { color: var(--mk-warning); }
 .ai-ticket__note--danger { color: var(--mk-danger); }
-.ai-ticket__open { display: inline-flex; align-items: center; gap: 0.4rem; margin-block-start: 0.6rem; padding: 0.35rem 0.75rem; border-radius: 999px; background: var(--mk-success-soft); color: var(--mk-success); font-size: 0.8rem; font-weight: 800; text-decoration: none; transition: transform 0.2s; }
+.ai-ticket__open { display: inline-flex; align-items: center; gap: 0.4rem; margin-block-start: 0.75rem; height: 2rem; padding: 0 0.85rem; border-radius: 999px; background: var(--mk-success-soft); color: var(--mk-success); font-size: 0.8rem; font-weight: 800; text-decoration: none; transition: transform 0.2s; }
 .ai-ticket__open:hover { transform: translateY(-1px); }
-.ai-ticket__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-block-start: 0.75rem; }
+.ai-ticket__foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-block-start: 0.8rem; padding-block-start: 0.75rem; border-block-start: 1px dashed var(--mk-border); }
 
-.ai-toggle2 { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 999px; background: var(--mk-surface-2); border: 1px solid var(--mk-border); isolation: isolate; }
-.ai-toggle2__thumb { position: absolute; inset-block: 3px; inset-inline-start: 3px; width: calc(50% - 3px); border-radius: 999px; opacity: 0; z-index: -1; transition: transform 0.3s cubic-bezier(0.34, 1.3, 0.64, 1), background 0.25s, opacity 0.2s; }
+.ai-toggle2 { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; height: 2rem; padding: 2px; border-radius: 999px; background: var(--mk-surface-2); border: 1px solid var(--mk-border); isolation: isolate; }
+.ai-toggle2__thumb { position: absolute; inset-block: 2px; inset-inline-start: 2px; width: calc(50% - 2px); border-radius: 999px; opacity: 0; z-index: -1; transition: transform 0.3s cubic-bezier(0.34, 1.3, 0.64, 1), background 0.25s, opacity 0.2s; }
 .ai-toggle2--reject .ai-toggle2__thumb { opacity: 1; background: var(--mk-danger); }
 .ai-toggle2--approve .ai-toggle2__thumb { opacity: 1; background: var(--mk-success); transform: translateX(100%); }
 [dir="rtl"] .ai-toggle2--approve .ai-toggle2__thumb { transform: translateX(-100%); }
-.ai-toggle2 button { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.38rem 0.85rem; border: 0; border-radius: 999px; background: transparent; color: var(--mk-text-muted); font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; transition: color 0.2s; }
+.ai-toggle2 button { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; min-width: 5.5rem; padding: 0 0.85rem; border: 0; border-radius: 999px; background: transparent; color: var(--mk-text); font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; transition: color 0.2s; }
 .ai-toggle2 button[aria-checked="true"] { color: #fff; }
+.ai-toggle2--none button:hover:not(:disabled) { background: var(--mk-surface); }
 .ai-toggle2 button:disabled { cursor: default; opacity: 0.6; }
 
-.ai-btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.9rem; border: 0; border-radius: 999px; font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; transition: transform 0.15s, background 0.2s; }
+.ai-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; height: 2rem; padding: 0 0.9rem; border: 1px solid transparent; border-radius: 999px; font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; transition: transform 0.15s, background 0.2s; }
 .ai-btn:active:not(:disabled) { transform: scale(0.96); }
 .ai-btn:disabled { opacity: 0.5; cursor: default; }
 .ai-btn--primary { background: var(--mk-primary); color: var(--mk-on-primary, #fff); }
 .ai-btn--primary:hover:not(:disabled) { background: var(--mk-primary-hover, var(--mk-primary)); }
-.ai-btn--ghost { background: transparent; color: var(--mk-text-muted); }
+.ai-btn--ghost { background: transparent; color: var(--mk-text-muted); border-color: var(--mk-border); }
 .ai-btn--ghost:hover:not(:disabled), .ai-btn--ghost.is-on { background: var(--mk-surface-2); color: var(--mk-text); }
 .ai-btn--danger:hover:not(:disabled) { color: var(--mk-danger); }
 
-.ai-edit { display: grid; gap: 0.55rem; padding: 0.7rem; border-radius: 10px; background: var(--mk-surface-2); animation: ai-fade-up 0.25s ease both; }
+.ai-edit { display: grid; gap: 0.55rem; padding: 0.75rem; border-radius: 8px; background: var(--mk-surface-2); animation: ai-fade-up 0.25s ease both; }
 .ai-edit__field { display: grid; gap: 0.25rem; font-size: 0.78rem; font-weight: 700; color: var(--mk-text-muted); }
 .ai-edit__field .p-inputtext { width: 100%; }
 .ai-edit .ai-btn { justify-self: end; }
 
-.ai-dock { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.45rem 0.5rem; border: 1px solid var(--mk-border); border-radius: 999px; background: var(--mk-surface); box-shadow: var(--mk-shadow-md, 0 8px 22px rgba(0, 0, 0, 0.1)); animation: ai-dock-in 0.4s cubic-bezier(0.34, 1.3, 0.64, 1) both; }
+.ai-dock { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; border: 1px solid var(--mk-border); border-radius: 12px; background: var(--mk-surface); box-shadow: var(--mk-shadow-md, 0 8px 22px rgba(0, 0, 0, 0.1)); animation: ai-dock-in 0.4s cubic-bezier(0.34, 1.3, 0.64, 1) both; }
 /* the progress ring is a pie chart of decided / total, not a colour gradient */
 .ai-dock__ring { --p: 0; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: conic-gradient(var(--mk-success) calc(var(--p) * 360deg), var(--mk-surface-2) 0); }
 .ai-dock__ring span { display: grid; place-items: center; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 50%; background: var(--mk-surface); font-size: 0.68rem; font-weight: 800; font-variant-numeric: tabular-nums; direction: ltr; }
 .ai-dock__label { font-size: 0.82rem; font-weight: 700; }
 .ai-dock__spacer { flex: 1; }
+.ai-dock__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; margin-inline-start: auto; }
 
 .ai-error { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid var(--mk-danger); background: var(--mk-danger-soft); color: var(--mk-danger); font-size: 0.85rem; animation: ai-fade-up 0.3s ease both; }
 
@@ -774,7 +778,7 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
   .ai-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ai-fields__row { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
   .ai-ticket__foot { flex-wrap: wrap; }
-  .ai-dock { border-radius: 18px; }
+  .ai-dock__actions { width: 100%; }
   .ai-composer { padding-inline: 0.5rem; padding-block-end: max(0.4rem, env(safe-area-inset-bottom)); }
   .ai-capsule { border-radius: 20px; padding-inline: 0.75rem 0.45rem; }
   /* 16px stops iOS Safari from zooming the page when the field is focused. */
