@@ -26,15 +26,31 @@ function suggestionKeys(pathname: string, mode: AssistantMode): string[] {
   return interactive ? ["ai.suggest.newCustomer", "ai.suggest.newEmployee", "ai.suggest.overview"] : ["ai.suggest.overview", "ai.suggest.profit", "ai.suggest.lowStock"];
 }
 
-// What the assistant is doing right now, as a single shimmering line ("Searching customers…").
+// What the assistant is doing right now, as one faint shimmering line ("Searching customers… · 4s"),
+// so a slow answer never looks frozen.
 function LiveStatus({ steps }: { steps: TimelineStep[] }): React.JSX.Element {
   const { t } = useTranslation();
+  const [started] = useState(() => Date.now());
+  const [now, setNow] = useState(started);
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const running = [...steps].reverse().find((s) => s.running);
-  const label = running ? t(`ai.tool.${running.tool}`, { defaultValue: t("ai.timeline.working") }) : t("ai.timeline.thinking");
+  const lastStep = steps[steps.length - 1];
+  const label = running
+    ? t(`ai.tool.${running.tool}`, { defaultValue: t("ai.timeline.working") })
+    : lastStep?.tool === "provider_busy"
+      ? t("ai.live.switching")
+      : steps.length > 0
+        ? t("ai.live.composing")
+        : t("ai.timeline.thinking");
+  const seconds = Math.floor((now - started) / 1000);
   return (
     <p className="ai-live" aria-live="polite">
       <span className="ai-loader" aria-hidden="true"><i /><i /><i /></span>
-      <span className="ai-live__text">{label}</span>
+      <span key={label} className="ai-live__text">{label.replace(/…$/, "")}…</span>
+      {seconds >= 2 ? <small className="ai-live__time" dir="ltr">{seconds}s</small> : null}
     </p>
   );
 }
@@ -121,7 +137,6 @@ function Message({ m, last, currency, busy, onChoose, onSwitchMode, onAskAnyway,
       </div>
     );
   }
-  const waiting = m.streaming && !m.text && m.blocks.length === 0 && m.changes.length === 0;
   // Only the newest answer is "alive"; older ones rest (or stay red if they failed).
   const state = last ? orb : m.errorCode ? "error" : "idle";
   return (
@@ -132,10 +147,10 @@ function Message({ m, last, currency, busy, onChoose, onSwitchMode, onAskAnyway,
       <div className="ai-msg__body">
         <div className="ai-msg__name">{t("ai.panel.title")}</div>
         <Steps steps={m.timeline} live={Boolean(m.streaming)} />
-        {waiting ? <LiveStatus steps={m.timeline} /> : null}
         <AnswerBlocks blocks={m.blocks} currency={currency} onChoose={onChoose} onSwitchMode={last ? onSwitchMode : undefined} onAskAnyway={last ? onAskAnyway : undefined} disabled={busy} />
         {m.text ? <div className={`ai-answer${m.streaming ? " ai-answer--streaming" : ""}`}><RichText text={m.text} /></div> : null}
         <ChangeCards changes={m.changes} busy={busy} onDecide={onDecide} />
+        {m.streaming && (!m.text || m.timeline.some((x) => x.running)) ? <LiveStatus steps={m.timeline} /> : null}
         {m.errorCode && m.errorCode !== "ABORTED" ? (
           <div className="ai-error">
             <i className="pi pi-exclamation-triangle" aria-hidden="true" />

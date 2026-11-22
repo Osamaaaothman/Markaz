@@ -3951,6 +3951,10 @@
       "switch": "Switch to interactive and send",
       "askAnyway": "Answer it as a question",
       "noPermission": "This request changes data. Your role can only ask questions."
+    },
+    "live": {
+      "switching": "The main model is busy, switching to a backup",
+      "composing": "Putting the answer together"
     }
   }
 }

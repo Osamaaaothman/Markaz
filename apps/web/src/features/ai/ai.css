@@ -182,8 +182,20 @@
 .ai-divider span::before, .ai-divider span::after { content: ""; flex: 1; height: 1px; background: var(--mk-border); }
 .ai-divider small { font-size: 0.7rem; }
 
-.ai-live { display: flex; align-items: center; gap: 0.55rem; margin: 0; }
-.ai-live__text { font-size: 0.88rem; font-weight: 600; color: var(--mk-text-muted); }
+.ai-live { display: flex; align-items: center; gap: 0.55rem; margin: 0; animation: ai-fade-up 0.25s ease both; }
+/* Faint text with a light sweeping across it, like a skeleton loader. */
+.ai-live__text {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--mk-text-muted) 75%, transparent);
+  background: linear-gradient(90deg, transparent 0%, transparent 35%, color-mix(in srgb, var(--mk-text) 85%, transparent) 50%, transparent 65%, transparent 100%) 0 0 / 250% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: ai-shimmer 1.8s linear infinite, ai-fade-up 0.3s ease both;
+}
+[dir="rtl"] .ai-live__text { animation-direction: reverse, normal; }
+.ai-live__time { font-size: 0.72rem; color: var(--mk-text-subtle, var(--mk-text-muted)); opacity: 0.7; font-variant-numeric: tabular-nums; }
+@keyframes ai-shimmer { from { background-position: 125% 0; } to { background-position: -125% 0; } }
 
 /* Steps */
 .ai-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
@@ -814,7 +826,7 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
 @keyframes ai-stamp { from { opacity: 0; transform: scale(1.5); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-loader i, .ai-wave i, .ai-capsule.is-busy::before, .ai-capsule.is-focused::after, .ai-capsule, .ai-composer::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
+  .ai-loader i, .ai-wave i, .ai-live__text, .ai-live, .ai-capsule.is-busy::before, .ai-capsule.is-focused::after, .ai-capsule, .ai-composer::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
   .ai-stamp, .ai-card, .ai-choice, .ai-step, .ai-suggestion, .ai-table tbody tr, .ai-fields__row, .ai-history li, .ai-dot, .ai-welcome__stage {
     animation: none !important;
     transition: none !important;
