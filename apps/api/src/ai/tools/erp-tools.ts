@@ -212,7 +212,7 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
     vatNumber: z.string().regex(/^3\d{13}3$/, "Saudi VAT number: 15 digits starting and ending with 3").optional(),
   });
   type PartyArgs = z.infer<typeof partyInput>;
-  const partyPreview = (titleKey: string) => async (_ctx: ToolContext, a: PartyArgs) => ({
+  const partyPreview = (titleKey: string) => (_ctx: ToolContext, a: PartyArgs) => Promise.resolve({
     titleKey,
     entity: "party",
     fields: [
@@ -270,7 +270,7 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
     input: employeeInput,
     permission: { resource: "employee", action: "create" },
     risk: "low",
-    preview: async (_ctx, a) => ({
+    preview: (_ctx, a) => Promise.resolve({
       titleKey: "ai.preview.createEmployee",
       entity: "employee",
       fields: [
@@ -305,7 +305,7 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
     }),
     permission: { resource: "item", action: "create" },
     risk: "low",
-    preview: async (_ctx, a) => ({
+    preview: (_ctx, a) => Promise.resolve({
       titleKey: "ai.preview.createItem",
       entity: "item",
       fields: [

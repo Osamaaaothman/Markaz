@@ -69,7 +69,11 @@ export function textOf(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .map((p: unknown) => (p !== null && typeof p === "object" && (p as { type?: unknown }).type === "text" ? String((p as { text?: unknown }).text ?? "") : ""))
+      .map((p: unknown) => {
+        if (p === null || typeof p !== "object" || (p as { type?: unknown }).type !== "text") return "";
+        const text = (p as { text?: unknown }).text;
+        return typeof text === "string" ? text : "";
+      })
       .join("");
   }
   return "";
@@ -102,8 +106,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
       if (text) opts.emit({ type: "token", text });
       full = full ? concat(full, chunk) : chunk;
     }
-    // TS cannot see the assignment inside the for-await loop, so re-type it explicitly.
-    const res = full as AIMessageChunk | undefined;
+    const res = full;
     const message = new AIMessage({
       content: res?.content ?? "",
       tool_calls: res?.tool_calls ?? [],
@@ -212,7 +215,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     .addConditionalEdges("tools", (s: S) => (s.clarified || s.steps >= maxSteps ? END : "agent"))
     .compile();
 
-  const final = (await graph.invoke({ messages: [...opts.messages] }, { recursionLimit: maxSteps * 2 + 4, ...(opts.signal ? { signal: opts.signal } : {}) })) as S;
+  const final = (await graph.invoke({ messages: [...opts.messages] }, { recursionLimit: maxSteps * 2 + 4, ...(opts.signal ? { signal: opts.signal } : {}) }));
   // The run ended without a final plain-text answer from the model (and not because it asked a question).
   const last = final.messages[final.messages.length - 1];
   const hitStepLimit = !final.clarified && !(last instanceof AIMessage && (last.tool_calls?.length ?? 0) === 0);

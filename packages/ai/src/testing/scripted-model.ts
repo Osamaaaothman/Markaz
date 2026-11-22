@@ -28,7 +28,7 @@ export class ScriptedChatModel extends BaseChatModel {
     return this;
   }
 
-  async _generate(messages: BaseMessage[]): Promise<ChatResult> {
+  _generate(messages: BaseMessage[]): Promise<ChatResult> {
     this.seen.push(messages);
     const reply = this.replies[this.index++] ?? { text: "(no more scripted replies)" };
     const message = new AIMessage({
@@ -37,6 +37,6 @@ export class ScriptedChatModel extends BaseChatModel {
     });
     // usage_metadata is typed per provider in LangChain 1.x; set it structurally like a real provider does.
     Object.assign(message, { usage_metadata: { input_tokens: 10, output_tokens: 5, total_tokens: 15 } });
-    return { generations: [{ message, text: reply.text ?? "" }] };
+    return Promise.resolve({ generations: [{ message, text: reply.text ?? "" }] });
   }
 }

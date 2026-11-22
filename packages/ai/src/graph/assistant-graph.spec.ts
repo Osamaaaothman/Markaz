@@ -14,7 +14,7 @@ const searchParties = defineReadTool({
   description: "Search parties",
   input: z.object({ query: z.string() }),
   permission: { resource: "party", action: "read" },
-  run: async (_ctx, input) => ({
+  run: (_ctx, input) => Promise.resolve({
     data: [{ id: "p1", name: `Match for ${input.query}` }],
     display: { kind: "links", titleKey: "ai.blocks.parties", items: [{ label: "P-1", path: "/parties/p1" }] },
   }),
@@ -26,8 +26,8 @@ const createSupplier = defineWriteTool({
   input: z.object({ name: z.string().min(1) }),
   permission: { resource: "party", action: "create" },
   risk: "low",
-  preview: async (_ctx, input) => ({ titleKey: "ai.preview.createSupplier", entity: "party", fields: [{ labelKey: "name", value: input.name }] }),
-  execute: async (_ctx, input) => { created.push({ tool: "supplier", input }); return { data: { id: "sup-1", ref: "S-0001" } }; },
+  preview: (_ctx, input) => Promise.resolve({ titleKey: "ai.preview.createSupplier", entity: "party", fields: [{ labelKey: "name", value: input.name }] }),
+  execute: (_ctx, input) => { created.push({ tool: "supplier", input }); return Promise.resolve({ data: { id: "sup-1", ref: "S-0001" } }); },
 });
 
 const createEmployee = defineWriteTool({
@@ -36,8 +36,8 @@ const createEmployee = defineWriteTool({
   input: z.object({ name: z.string(), basicSalary: z.string().regex(/^\d+(\.\d{1,4})?$/), partyId: z.string().optional() }),
   permission: { resource: "employee", action: "create" },
   risk: "low",
-  preview: async (_ctx, input) => ({ titleKey: "ai.preview.createEmployee", entity: "employee", fields: [{ labelKey: "salary", value: String(input.basicSalary) }] }),
-  execute: async (_ctx, input) => { created.push({ tool: "employee", input }); return { data: { id: "emp-1", ref: "EMP-0001" } }; },
+  preview: (_ctx, input) => Promise.resolve({ titleKey: "ai.preview.createEmployee", entity: "employee", fields: [{ labelKey: "salary", value: String(input.basicSalary) }] }),
+  execute: (_ctx, input) => { created.push({ tool: "employee", input }); return Promise.resolve({ data: { id: "emp-1", ref: "EMP-0001" } }); },
 });
 
 const postPayment = defineWriteTool({
@@ -46,8 +46,8 @@ const postPayment = defineWriteTool({
   input: z.object({ amount: z.string() }),
   permission: { resource: "payment", action: "create" },
   risk: "high",
-  preview: async () => ({ titleKey: "ai.preview.payment", entity: "payment", fields: [] }),
-  execute: async () => ({ data: { id: "pay-1" } }),
+  preview: () => Promise.resolve({ titleKey: "ai.preview.payment", entity: "payment", fields: [] }),
+  execute: () => Promise.resolve({ data: { id: "pay-1" } }),
 });
 
 const allTools: ErpTool[] = [searchParties, createSupplier, createEmployee, postPayment];
@@ -58,7 +58,7 @@ function ctx(denied: string[] = []): ToolContext {
     locale: "ar",
     conversationId: "conv1",
     correlationId: "corr1",
-    can: async (resource, action) => !denied.includes(`${resource}:${action}`),
+    can: (resource, action) => Promise.resolve(!denied.includes(`${resource}:${action}`)),
   };
 }
 
@@ -97,7 +97,7 @@ describe("runAssistant", () => {
     expect(result.proposals).toHaveLength(0);
     // The tool result reached the model inside the untrusted envelope.
     const tool = result.newMessages.find((m) => m instanceof ToolMessage) as ToolMessage;
-    expect(String(tool.content)).toContain("untrusted_data");
+    expect(JSON.stringify(tool.content)).toContain("untrusted_data");
   });
 
   it("proposes writes in review mode and never executes them", async () => {
