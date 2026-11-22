@@ -213,3 +213,17 @@ export function providerErrorCode(error: unknown): string {
   if (/ECONNREFUSED|ENOTFOUND|fetch failed|network/i.test(text)) return "UNREACHABLE";
   return "PROVIDER_ERROR";
 }
+
+// Server-log-only view of a provider error: name, HTTP status and a short message with anything
+// key-like masked. Never sent to the client.
+export function providerErrorLogDetail(error: unknown): { name: string; status?: number; message: string } {
+  const e = error as { name?: unknown; message?: unknown; status?: unknown; response?: { status?: unknown } } | null;
+  const status = typeof e?.status === "number" ? e.status : typeof e?.response?.status === "number" ? e.response.status : undefined;
+  const raw = error instanceof Error ? error.message : String(error);
+  const message = raw
+    .replace(/(sk-|AIza|gsk_|xai-)[A-Za-z0-9_-]{8,}/g, "[key]")
+    .replace(/Bearer\s+\S+/gi, "Bearer [key]")
+    .replace(/([?&](key|api_key|token)=)[^&\s]+/gi, "$1[key]")
+    .slice(0, 600);
+  return { name: error instanceof Error ? error.name : typeof error, ...(status !== undefined ? { status } : {}), message };
+}

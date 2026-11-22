@@ -30,7 +30,7 @@ import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { humanWithFile, prepareFiles, type ChatFileRef } from "./ai-files.js";
-import { AiSettingsError, providerErrorCode, type AiSettingsService } from "./ai-settings.service.js";
+import { AiSettingsError, providerErrorCode, providerErrorLogDetail, type AiSettingsService } from "./ai-settings.service.js";
 
 export class AiChatError extends Error {
   constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF" | "TURN_RUNNING" | "FILES_UNAVAILABLE") {
@@ -298,6 +298,8 @@ export class AiChatService {
       });
     } catch (error) {
       const code = error instanceof AiSettingsError ? error.code : providerErrorCode(error);
+      // Plain console: this file stays free of Nest imports so its specs run under the plain Jest config.
+      console.warn(JSON.stringify({ level: "warn", event: "ai.turn_failed", code, conversationId, provider: provider.provider, model: provider.model, steps: timeline.length, ...providerErrorLogDetail(error) }));
       const id = await this.appendNotice(conversationId, actor.companyId, null, blocks, timeline, provider, { input: 0, output: 0 }, code);
       emit({ type: "error", code });
       emit({ type: "done", messageId: id, status: "IDLE", usage: { input: 0, output: 0 } });
