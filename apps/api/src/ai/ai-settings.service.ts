@@ -204,6 +204,9 @@ function redact(row: { provider: string; model: string; baseUrl: string | null; 
 // Provider errors can echo request details; only a coarse code leaves the server.
 export function providerErrorCode(error: unknown): string {
   const text = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  // Set by the engine when the model (or the backup it switched to) cannot read an attached file.
+  if (/BACKUP_MODEL_NO_FILES|MODEL_NO_FILES/.test(text)) return text.match(/BACKUP_MODEL_NO_FILES|MODEL_NO_FILES/)?.[0] ?? "MODEL_NO_FILES";
+  if (/does not support (images|files|pdf|documents)|unsupported (mime|media|file)/i.test(text)) return "MODEL_NO_FILES";
   if (/API_KEY_REQUIRED|BASE_URL_REQUIRED|MODEL_REQUIRED/.test(text)) return text.match(/API_KEY_REQUIRED|BASE_URL_REQUIRED|MODEL_REQUIRED/)?.[0] ?? "CONFIG";
   if (/401|403|api key|unauthor|permission/i.test(text)) return "AUTH_FAILED";
   if (/404|not found|no longer available/i.test(text)) return "MODEL_NOT_FOUND";

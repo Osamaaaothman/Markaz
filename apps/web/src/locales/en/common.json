@@ -3858,7 +3858,9 @@
       "HTTP_404": "The document was not found.",
       "HTTP_409": "The current status of the document does not allow this.",
       "HTTP_422": "The document could not be posted as entered.",
-      "ACCOUNT_INACTIVE": "This account is inactive."
+      "ACCOUNT_INACTIVE": "This account is inactive.",
+      "BACKUP_MODEL_NO_FILES": "The main model is busy, so you were switched to a backup model that cannot read images or files. Please try again in a little while.",
+      "MODEL_NO_FILES": "The selected AI model cannot read images or files. Choose a model that does in Settings → AI."
     },
     "history": {
       "title": "Conversations",

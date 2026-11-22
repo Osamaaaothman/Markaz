@@ -3,7 +3,7 @@ import { AIMessage, type AIMessageChunk, type BaseMessage, SystemMessage, ToolMe
 import { concat } from "@langchain/core/utils/stream";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
-import { isProviderBusy } from "../providers/model-factory.js";
+import { isFilesUnsupported, isProviderBusy } from "../providers/model-factory.js";
 import { needsApproval, refsIn, resolveRefs, UnresolvedRefError } from "../tools/policy.js";
 import type { AssistantMode, ErpTool, ToolContext, WriteResult } from "../tools/types.js";
 import { toolError, wrapUntrusted } from "../safety/untrusted.js";
@@ -138,7 +138,12 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
       } catch (caught) {
         const error = stalled && !opts.signal?.aborted ? Object.assign(new Error("The model is unavailable: it stopped responding (timed out)"), { status: 504 }) : caught;
         // Switch only if nothing reached the user yet, so an answer is never stitched from two models.
-        if (wrote || opts.signal?.aborted || current >= boundChain.length - 1 || !isProviderBusy(error)) throw error;
+        // A backup that cannot read the attached file is skipped like a busy one; the next may read it.
+        if (wrote || opts.signal?.aborted || current >= boundChain.length - 1 || !(isProviderBusy(error) || isFilesUnsupported(error))) {
+          // Tell the user plainly when the model now answering (a backup) cannot read their file.
+          if (isFilesUnsupported(error)) throw Object.assign(new Error(current > 0 ? "BACKUP_MODEL_NO_FILES" : "MODEL_NO_FILES"), { code: current > 0 ? "BACKUP_MODEL_NO_FILES" : "MODEL_NO_FILES" });
+          throw error;
+        }
         current += 1;
         full = undefined;
         opts.emit({ type: "provider_busy", next: current });

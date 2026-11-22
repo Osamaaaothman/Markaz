@@ -75,6 +75,12 @@ export async function createChatModel(cfg: ProviderConfig): Promise<BaseChatMode
 
 // The free tiers answer "503 high demand" or "429 quota" under load. Those are worth trying on
 // another model; a bad key or a bad request is not.
+// The model refused the attached file or image (it cannot read that kind of input).
+export function isFilesUnsupported(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /does not support (images|files|pdf|documents)|unsupported (mime|media|file)|image input (is )?not supported/i.test(message);
+}
+
 export function isProviderBusy(error: unknown): boolean {
   const e = error as { status?: unknown; code?: unknown; message?: unknown } | null;
   const status = typeof e?.status === "number" ? e.status : undefined;

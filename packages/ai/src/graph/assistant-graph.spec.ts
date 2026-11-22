@@ -225,6 +225,18 @@ describe("runAssistant", () => {
     await expect(run(new SilentModel([]), { stallMs: 50 })).rejects.toThrow("timed out");
   });
 
+  it("skips a backup that cannot read the attached file, and says so when none can", async () => {
+    class BusyModel extends ScriptedChatModel {
+      override _generate(): Promise<never> { return Promise.reject(Object.assign(new Error("high demand"), { status: 503 })); }
+    }
+    class NoFilesModel extends ScriptedChatModel {
+      override _generate(): Promise<never> { return Promise.reject(new Error("This model does not support images")); }
+    }
+    const ok = await run(new BusyModel([]), { fallbackModels: [new NoFilesModel([]), new ScriptedChatModel([{ text: "read it" }])] });
+    expect(JSON.stringify(ok.result.newMessages.map((m) => m.content))).toContain("read it");
+    await expect(run(new BusyModel([]), { fallbackModels: [new NoFilesModel([])] })).rejects.toMatchObject({ code: "BACKUP_MODEL_NO_FILES" });
+  });
+
   it("does not hide a real error behind a fallback", async () => {
     class BrokenModel extends ScriptedChatModel {
       override _generate(): Promise<never> { return Promise.reject(Object.assign(new Error("API key not valid"), { status: 400 })); }
