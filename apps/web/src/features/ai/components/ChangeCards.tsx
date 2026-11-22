@@ -1,4 +1,3 @@
-import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,19 +13,13 @@ const ENTITY_ICON: Record<string, string> = {
   account: "pi pi-sitemap",
 };
 
-const STATUS_ICON: Record<string, string> = {
-  EXECUTED: "pi pi-check-circle",
-  REJECTED: "pi pi-times-circle",
-  SKIPPED: "pi pi-forward",
-  FAILED: "pi pi-exclamation-triangle",
-};
-
 function shown(t: (k: string) => string, value: string): string {
   return value.startsWith("ai.") ? t(value) : value;
 }
 
-// The review step of interactive mode: one card per proposed change, with a before/after view,
-// approve / edit / reject on each, and a sticky bar for the whole batch. High-risk changes are never
+// The review step of interactive mode. Each proposed change is a "ticket": entity icon, what will be
+// written, and a two-way toggle (reject ✕ | ✓ approve) that slides to the user's choice. A floating bar
+// shows how many are decided with a progress ring and sends them together. High-risk changes are never
 // included in "approve all" — each one needs its own click.
 export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]; busy: boolean; onDecide: (d: Record<string, Decision>, edits: Record<string, Record<string, unknown>>) => void }): React.JSX.Element | null {
   const { t } = useTranslation();
@@ -35,7 +28,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
   const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
   const [editing, setEditing] = useState<string | null>(null);
 
-  // A change whose dependency is rejected cannot run either; show it as such before submitting.
+  // A change whose dependency is rejected cannot run either; show it before submitting.
   const blockedBy = useMemo(() => {
     const out: Record<string, string> = {};
     for (const c of pending) {
@@ -46,7 +39,8 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
   }, [pending, choice]);
 
   if (changes.length === 0) return null;
-  const decidedAll = pending.length > 0 && pending.every((c) => choice[c.key] !== undefined || blockedBy[c.key]);
+  const decided = pending.filter((c) => choice[c.key] !== undefined || blockedBy[c.key]).length;
+  const progress = pending.length ? decided / pending.length : 0;
 
   const submit = (all?: Decision): void => {
     const decisions: Record<string, Decision> = {};
@@ -58,36 +52,45 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
   };
 
   return (
-    <div className="ai-changes">
+    <div className="ai-tickets">
       {changes.map((c, index) => {
         const pick = choice[c.key];
         const state = c.status !== "PROPOSED" ? c.status.toLowerCase() : blockedBy[c.key] ? "blocked" : pick ?? "pending";
         const isEditing = editing === c.key;
         const editable = Object.entries(c.args).filter(([, v]) => typeof v === "string" && !String(v).startsWith("$ref:"));
+        const dependsLabel = c.dependsOn.length ? c.dependsOn.join(", ") : null;
         return (
-          <article key={c.key} className={`ai-change ai-change--${state} ai-change--risk-${c.risk}`} style={{ animationDelay: `${index * 60}ms` }}>
-            <header className="ai-change__head">
-              <span className="ai-change__icon"><i className={ENTITY_ICON[c.preview.entity] ?? "pi pi-pencil"} aria-hidden="true" /></span>
-              <span className="ai-change__title">{t(c.preview.titleKey)}</span>
-              <span className="ai-change__key">{c.key}</span>
-              {c.risk === "high" ? <span className="ai-badge ai-badge--warn">{t("ai.risk.high")}</span> : null}
-              {edits[c.key] && c.status === "PROPOSED" ? <span className="ai-badge">{t("ai.change.edited")}</span> : null}
-              {c.auto ? <span className="ai-badge ai-badge--auto"><i className="pi pi-bolt" aria-hidden="true" /> {t("ai.change.auto")}</span> : null}
+          <article key={c.key} className={`ai-ticket ai-ticket--${state} ai-ticket--risk-${c.risk}`} style={{ animationDelay: `${index * 90}ms` }}>
+            <div className="ai-ticket__glow" aria-hidden="true" />
+            <header className="ai-ticket__head">
+              <span className="ai-ticket__icon"><i className={ENTITY_ICON[c.preview.entity] ?? "pi pi-pencil"} aria-hidden="true" /></span>
+              <div className="ai-ticket__titles">
+                <span className="ai-ticket__title">{t(c.preview.titleKey, { defaultValue: t(`ai.tool.${c.tool}`, { defaultValue: c.tool }) })}</span>
+                <span className="ai-ticket__meta">
+                  <span className="ai-ticket__key">#{c.key}</span>
+                  {dependsLabel ? <span><i className="pi pi-link" aria-hidden="true" /> {t("ai.change.dependsOn", { key: dependsLabel })}</span> : null}
+                  {edits[c.key] && c.status === "PROPOSED" ? <span className="ai-pill">{t("ai.change.edited")}</span> : null}
+                  {c.risk === "high" ? <span className="ai-pill ai-pill--warn"><i className="pi pi-shield" aria-hidden="true" /> {t("ai.risk.high")}</span> : null}
+                  {c.auto ? <span className="ai-pill ai-pill--auto"><i className="pi pi-bolt" aria-hidden="true" /> {t("ai.change.auto")}</span> : null}
+                </span>
+              </div>
               {c.status !== "PROPOSED" ? (
-                <span className={`ai-change__status ai-change__status--${c.status.toLowerCase()}`}>
-                  <i className={STATUS_ICON[c.status]} aria-hidden="true" /> {t(`ai.change.status.${c.status}`)}
+                <span className={`ai-stamp ai-stamp--${c.status.toLowerCase()}`}>
+                  <i className={c.status === "EXECUTED" ? "pi pi-check" : c.status === "FAILED" ? "pi pi-exclamation-triangle" : c.status === "SKIPPED" ? "pi pi-forward" : "pi pi-times"} aria-hidden="true" />
+                  {t(`ai.change.status.${c.status}`)}
                 </span>
               ) : null}
             </header>
 
             {c.preview.fields.length > 0 && !isEditing ? (
-              <dl className="ai-diff">
-                {c.preview.fields.map((f) => (
-                  <div key={f.labelKey} className="ai-diff__row">
+              <dl className="ai-fields">
+                {c.preview.fields.map((f, fi) => (
+                  <div key={f.labelKey} className="ai-fields__row" style={{ animationDelay: `${index * 90 + fi * 40}ms` }}>
                     <dt>{t(f.labelKey)}</dt>
                     <dd>
-                      {f.before ? <span className="ai-diff__before">{shown(t, f.before)}</span> : null}
-                      <span className="ai-diff__after">{shown(t, f.value)}</span>
+                      {f.before ? <span className="ai-fields__before">{shown(t, f.before)}</span> : null}
+                      {f.before ? <i className="pi pi-arrow-right ai-fields__arrow" aria-hidden="true" /> : null}
+                      <span className="ai-fields__after">{shown(t, f.value)}</span>
                     </dd>
                   </div>
                 ))}
@@ -99,30 +102,39 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
                 {editable.map(([key, value]) => (
                   <label key={key} className="ai-edit__field">
                     <span>{t(`ai.arg.${key}`, { defaultValue: key })}</span>
-                    <InputText
-                      value={String(edits[c.key]?.[key] ?? value)}
-                      onChange={(e) => setEdits((all) => ({ ...all, [c.key]: { ...(all[c.key] ?? {}), [key]: e.target.value } }))}
-                    />
+                    <InputText value={String(edits[c.key]?.[key] ?? value)} onChange={(e) => setEdits((all) => ({ ...all, [c.key]: { ...(all[c.key] ?? {}), [key]: e.target.value } }))} />
                   </label>
                 ))}
-                <Button type="button" size="small" label={t("ai.change.doneEditing")} icon="pi pi-check" onClick={() => setEditing(null)} />
+                <button type="button" className="ai-btn ai-btn--primary" onClick={() => setEditing(null)}><i className="pi pi-check" aria-hidden="true" /> {t("ai.change.doneEditing")}</button>
               </div>
             ) : null}
 
-            {c.preview.warningKeys?.map((w) => <p key={w} className="ai-change__warn"><i className="pi pi-exclamation-triangle" aria-hidden="true" /> {t(w)}</p>)}
-            {blockedBy[c.key] ? <p className="ai-change__warn">{t("ai.change.blocked", { key: blockedBy[c.key] })}</p> : null}
-            {c.status === "FAILED" && c.errorCode ? <p className="ai-change__warn">{t(`ai.error.${c.errorCode}`, { defaultValue: t("ai.error.TOOL_FAILED") })}</p> : null}
+            {c.preview.warningKeys?.map((w) => <p key={w} className="ai-ticket__note ai-ticket__note--warn"><i className="pi pi-exclamation-triangle" aria-hidden="true" /> {t(w)}</p>)}
+            {blockedBy[c.key] ? <p className="ai-ticket__note"><i className="pi pi-ban" aria-hidden="true" /> {t("ai.change.blocked", { key: blockedBy[c.key] })}</p> : null}
+            {c.status === "FAILED" && c.errorCode ? <p className="ai-ticket__note ai-ticket__note--danger">{t(`ai.error.${c.errorCode}`, { defaultValue: t("ai.error.TOOL_FAILED") })}</p> : null}
             {c.link ? (
-              <Link className="ai-change__link" to={c.link.path}>
-                <i className="pi pi-external-link" aria-hidden="true" /> {t("ai.change.open", { label: c.link.label })}
+              <Link className="ai-ticket__open" to={c.link.path}>
+                <span>{t("ai.change.open", { label: c.link.label })}</span>
+                <i className="pi pi-arrow-up-right" aria-hidden="true" />
               </Link>
             ) : null}
 
             {c.status === "PROPOSED" && !blockedBy[c.key] ? (
-              <footer className="ai-change__actions">
-                <Button type="button" size="small" disabled={busy} severity={pick === "approve" ? "success" : undefined} outlined={pick !== "approve"} icon="pi pi-check" label={t("ai.change.approve")} onClick={() => setChoice((x) => ({ ...x, [c.key]: "approve" }))} />
-                {editable.length > 0 ? <Button type="button" size="small" disabled={busy} text icon="pi pi-pencil" label={t("ai.change.edit")} onClick={() => setEditing(isEditing ? null : c.key)} /> : null}
-                <Button type="button" size="small" disabled={busy} text severity="danger" icon="pi pi-times" label={t("ai.change.reject")} onClick={() => setChoice((x) => ({ ...x, [c.key]: "reject" }))} />
+              <footer className="ai-ticket__foot">
+                {editable.length > 0 ? (
+                  <button type="button" className={`ai-btn ai-btn--ghost${isEditing ? " is-on" : ""}`} disabled={busy} onClick={() => setEditing(isEditing ? null : c.key)}>
+                    <i className="pi pi-pencil" aria-hidden="true" /> {t("ai.change.edit")}
+                  </button>
+                ) : <span />}
+                <div className={`ai-toggle2 ai-toggle2--${pick ?? "none"}`} role="radiogroup" aria-label={t(c.preview.titleKey)}>
+                  <span className="ai-toggle2__thumb" aria-hidden="true" />
+                  <button type="button" role="radio" aria-checked={pick === "reject"} disabled={busy} onClick={() => setChoice((x) => ({ ...x, [c.key]: "reject" }))}>
+                    <i className="pi pi-times" aria-hidden="true" /> {t("ai.change.reject")}
+                  </button>
+                  <button type="button" role="radio" aria-checked={pick === "approve"} disabled={busy} onClick={() => setChoice((x) => ({ ...x, [c.key]: "approve" }))}>
+                    <i className="pi pi-check" aria-hidden="true" /> {t("ai.change.approve")}
+                  </button>
+                </div>
               </footer>
             ) : null}
           </article>
@@ -130,14 +142,19 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
       })}
 
       {pending.length > 0 ? (
-        <div className="ai-batch">
-          <span className="ai-batch__count">{t("ai.change.pending", { count: pending.length })}</span>
-          <span className="ai-batch__spacer" />
-          <Button type="button" size="small" text severity="danger" disabled={busy} label={t("ai.change.rejectAll")} onClick={() => submit("reject")} />
-          {decidedAll ? (
-            <Button type="button" size="small" disabled={busy} icon="pi pi-send" label={t("ai.change.submit")} onClick={() => submit()} />
+        <div className="ai-dock">
+          <span className="ai-dock__ring" style={{ "--p": progress } as React.CSSProperties} aria-hidden="true">
+            <span>{decided}/{pending.length}</span>
+          </span>
+          <span className="ai-dock__label">{t("ai.change.pending", { count: pending.length })}</span>
+          <span className="ai-dock__spacer" />
+          <button type="button" className="ai-btn ai-btn--ghost ai-btn--danger" disabled={busy} onClick={() => submit("reject")}>{t("ai.change.rejectAll")}</button>
+          {decided === pending.length ? (
+            <button type="button" className="ai-btn ai-btn--primary" disabled={busy} onClick={() => submit()}><i className="pi pi-send" aria-hidden="true" /> {t("ai.change.submit")}</button>
           ) : (
-            <Button type="button" size="small" disabled={busy} icon="pi pi-check-square" label={pending.some((c) => c.risk === "high") ? t("ai.change.approveLow") : t("ai.change.approveAll")} onClick={() => submit("approve")} />
+            <button type="button" className="ai-btn ai-btn--primary" disabled={busy} onClick={() => submit("approve")}>
+              <i className="pi pi-check-circle" aria-hidden="true" /> {pending.some((c) => c.risk === "high") ? t("ai.change.approveLow") : t("ai.change.approveAll")}
+            </button>
           )}
         </div>
       ) : null}

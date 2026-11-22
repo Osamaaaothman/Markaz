@@ -24,7 +24,15 @@ interface AiState {
   setStatus: (status: "IDLE" | "AWAITING_APPROVAL") => void;
   setBusy: (busy: boolean) => void;
   setConversationId: (id: string) => void;
+
+  // Drives the orb: dictation in progress, and a short success/error flash after a turn.
+  listening: boolean;
+  setListening: (listening: boolean) => void;
+  flash: "success" | "error" | null;
+  flashOnce: (flash: "success" | "error") => void;
 }
+
+let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useAiStore = create<AiState>()(
   persist(
@@ -50,6 +58,14 @@ export const useAiStore = create<AiState>()(
       setStatus: (status) => set({ status }),
       setBusy: (busy) => set({ busy }),
       setConversationId: (conversationId) => set({ conversationId }),
+      listening: false,
+      setListening: (listening) => set({ listening }),
+      flash: null,
+      flashOnce: (flash) => {
+        clearTimeout(flashTimer);
+        set({ flash });
+        flashTimer = setTimeout(() => set({ flash: null }), 1600);
+      },
     }),
     { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode }) },
   ),

@@ -28,6 +28,9 @@ export function useAssistantChat() {
       s.setBusy(true);
       s.setMessages((m) => [...m, ...(userText !== null ? [{ id: localId(), role: "user" as const, text: userText, blocks: [], timeline: [], errorCode: null, changes: [] }] : []), assistant]);
       const update = (e: ChatEvent): void => {
+        // The orb flashes green when something was really saved, red on an error.
+        if (e.type === "error") store.getState().flashOnce("error");
+        if (e.type === "executed" || (e.type === "outcome" && e.outcome.status === "EXECUTED")) store.getState().flashOnce("success");
         if (e.type === "conversation") { store.getState().setConversationId(e.id); return; }
         if (e.type === "outcome") {
           // Outcomes update the cards of an earlier message.

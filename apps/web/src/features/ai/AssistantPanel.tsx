@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useAiStore } from "./ai-store";
+import { useOrbState } from "./orb-state";
 import { AssistantOrb } from "./components/AssistantOrb";
 import { ChatView } from "./components/ChatView";
 import { ConversationList } from "./components/ConversationList";
@@ -12,13 +13,12 @@ import "./ai.css";
 // The assistant as a side panel available on every screen (Ctrl/⌘ + J, or the ✨ button in the top bar).
 // It opens on the inline-end side, so it flips with the text direction.
 export function AssistantPanel(): React.JSX.Element | null {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const perms = usePermissions();
   const open = useAiStore((s) => s.panelOpen);
   const close = useAiStore((s) => s.closePanel);
-  const busy = useAiStore((s) => s.busy);
-  const status = useAiStore((s) => s.status);
+  const orb = useOrbState();
   const [history, setHistory] = useState(false);
   const allowed = perms.can("ai_assistant:use");
 
@@ -35,13 +35,13 @@ export function AssistantPanel(): React.JSX.Element | null {
   }, [allowed]);
 
   if (!allowed) return null;
-  const rtl = i18n.dir() === "rtl";
 
   return (
     <Sidebar
       visible={open}
       onHide={close}
-      position={rtl ? "left" : "right"}
+      // PrimeReact mirrors the side itself under dir="rtl", so "right" means inline-end in both directions.
+      position="right"
       className="ai-panel"
       showCloseIcon={false}
       blockScroll={false}
@@ -49,12 +49,13 @@ export function AssistantPanel(): React.JSX.Element | null {
       dismissable
       ariaCloseLabel={t("ai.panel.close")}
       content={() => (
-        <div className="ai-panel__inner">
+        <div className={`ai-panel__inner ai-surface ai-surface--${orb}`}>
+          <div className="ai-aurora" aria-hidden="true"><i /><i /><i /></div>
           <header className="ai-panel__head">
-            <AssistantOrb size={30} state={busy ? "thinking" : status === "AWAITING_APPROVAL" ? "waiting" : "idle"} />
+            <AssistantOrb size={34} state={orb} />
             <div className="ai-panel__titles">
               <strong>{t("ai.panel.title")}</strong>
-              <span>{busy ? t("ai.timeline.working") : status === "AWAITING_APPROVAL" ? t("ai.history.waiting") : t("ai.panel.subtitle")}</span>
+              <span key={orb} className="ai-panel__status">{t(`ai.orb.${orb}`)}</span>
             </div>
             <span className="ai-panel__spacer" />
             <button type="button" className={`ai-icon-btn${history ? " ai-icon-btn--on" : ""}`} onClick={() => setHistory(!history)} aria-label={t("ai.history.title")} title={t("ai.history.title")}>
@@ -79,12 +80,11 @@ export function AssistantButton(): React.JSX.Element | null {
   const { t } = useTranslation();
   const perms = usePermissions();
   const toggle = useAiStore((s) => s.togglePanel);
-  const busy = useAiStore((s) => s.busy);
-  const status = useAiStore((s) => s.status);
+  const orb = useOrbState();
   if (!perms.can("ai_assistant:use")) return null;
   return (
-    <button type="button" className="ai-topbar-btn" onClick={toggle} aria-label={t("ai.panel.open")} title={`${t("ai.panel.open")} (Ctrl J)`}>
-      <AssistantOrb size={20} state={busy ? "thinking" : status === "AWAITING_APPROVAL" ? "waiting" : "idle"} />
+    <button type="button" className={`ai-topbar-btn ai-topbar-btn--${orb}`} onClick={toggle} aria-label={t("ai.panel.open")} title={`${t("ai.panel.open")} (Ctrl J)`}>
+      <AssistantOrb size={22} state={orb} />
       <span>{t("ai.panel.short")}</span>
     </button>
   );

@@ -3400,7 +3400,11 @@
       "title": "How can I help?",
       "ask": "Ask about sales, balances, customers, employees or stock. I only read — I never change anything in this mode.",
       "review": "Tell me what to create. I will prepare each change as a card, and nothing is saved until you approve it.",
-      "auto": "Simple records are saved right away. Anything risky still waits for your approval."
+      "auto": "Simple records are saved right away. Anything risky still waits for your approval.",
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening",
+      "greeting": "{{greeting}}, {{name}}"
     },
     "notConfigured": {
       "title": "The assistant is not set up yet",
@@ -3413,12 +3417,17 @@
       "dictate": "Dictate",
       "send": "Send",
       "stop": "Stop",
-      "hint": "Enter to send · Shift+Enter for a new line · Ctrl+J to open or close"
+      "hint": "Enter to send · Shift+Enter for a new line · Ctrl+J to open or close",
+      "placeholder_ask": "Ask about your numbers… (type / for commands)",
+      "placeholder_review": "Tell me what to create… I'll prepare it for your review",
+      "placeholder_auto": "Tell me what to do… simple changes save right away"
     },
     "footnote": "Model: {{model}} · AI can make mistakes — check important figures.",
     "timeline": {
       "working": "Working…",
-      "steps": "{{count}} steps"
+      "steps": "{{count}} steps",
+      "thinking": "Thinking…",
+      "hide": "Hide steps"
     },
     "tool": {
       "dashboard_overview": "Reading the company overview",
@@ -3535,7 +3544,8 @@
         "SKIPPED": "Skipped",
         "FAILED": "Failed"
       },
-      "pending": "Changes to review: {{count}}"
+      "pending": "Changes to review: {{count}}",
+      "dependsOn": "after {{key}}"
     },
     "error": {
       "PROVIDER_ERROR": "The AI provider returned an error. Try again in a moment.",
@@ -3649,6 +3659,91 @@
       "testOk": "Works — answered and used a tool in {{ms}} ms.",
       "testNoTools": "The model answered but did not use the tool. It may not work well with the ERP.",
       "saved": "AI settings saved."
+    },
+    "orb": {
+      "idle": "Ready when you are",
+      "listening": "Listening…",
+      "thinking": "Thinking…",
+      "speaking": "Answering…",
+      "waiting": "Waiting for your approval",
+      "success": "Done!",
+      "error": "Something went wrong"
+    },
+    "cards": {
+      "numbers": {
+        "title": "Know your numbers",
+        "example": "Sales, cash, receivables and stock — right now",
+        "prompt": "How is the company doing today?"
+      },
+      "trend": {
+        "title": "See the trend",
+        "example": "Revenue and expenses over the last 6 months",
+        "prompt": "How did the last 6 months go?"
+      },
+      "create": {
+        "title": "Create records",
+        "example": "Customers, suppliers, employees, items — you approve first",
+        "prompt": "Create a new customer"
+      },
+      "find": {
+        "title": "Find anything",
+        "example": "Latest invoices, a customer, an account…",
+        "prompt": "Show the latest sales invoices"
+      }
+    },
+    "slash": {
+      "title": "Quick commands",
+      "overview": {
+        "label": "summary",
+        "hint": "Company overview right now",
+        "prompt": "How is the company doing today?"
+      },
+      "trend": {
+        "label": "trend",
+        "hint": "Last 6 months as a chart",
+        "prompt": "How did the last 6 months go?"
+      },
+      "invoices": {
+        "label": "invoices",
+        "hint": "Latest sales invoices",
+        "prompt": "Show the latest sales invoices"
+      },
+      "lowStock": {
+        "label": "stock",
+        "hint": "Items below reorder point",
+        "prompt": "Which items are below reorder point?"
+      },
+      "customer": {
+        "label": "customer",
+        "hint": "Create a customer (review)",
+        "prompt": "Create a new customer named "
+      },
+      "supplier": {
+        "label": "supplier",
+        "hint": "Create a supplier (review)",
+        "prompt": "Create a new supplier named "
+      },
+      "employee": {
+        "label": "employee",
+        "hint": "Create an employee (review)",
+        "prompt": "Create a new employee named "
+      },
+      "item": {
+        "label": "item",
+        "hint": "Create an item (review)",
+        "prompt": "Create a new item named "
+      },
+      "new": {
+        "label": "new",
+        "hint": "Start a new conversation",
+        "prompt": ""
+      }
+    },
+    "actions": {
+      "copy": "Copy",
+      "copied": "Copied",
+      "retry": "Ask again",
+      "latest": "Jump to latest"
     }
   }
 }
