@@ -44,7 +44,12 @@ export async function createChatModel(cfg: ProviderConfig): Promise<BaseChatMode
   switch (cfg.provider) {
     case "google": {
       const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
-      return new ChatGoogleGenerativeAI({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: cfg.retries ?? 1 });
+      const model = new ChatGoogleGenerativeAI({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: cfg.retries ?? 1 });
+      // LangChain guesses image support from the model NAME (gemini-2*, gemini-3*, ...), so an alias such
+      // as "gemini-flash-lite-latest" is refused an attached invoice before Google ever sees it. Every
+      // current Gemini chat model reads images and PDFs; let Google decide.
+      Object.defineProperty(model, "_isMultimodalModel", { get: () => true });
+      return model;
     }
     case "anthropic": {
       const { ChatAnthropic } = await import("@langchain/anthropic");

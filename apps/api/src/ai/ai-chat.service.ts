@@ -84,7 +84,7 @@ type ProviderSettings = Parameters<typeof createChatModel>[0];
 // AI_FALLBACK_MODELS overrides them (comma-separated; "none" turns this off). Gemini's free tier is
 // often overloaded, so it has defaults.
 const DEFAULT_FALLBACKS: Readonly<Partial<Record<ProviderSettings["provider"], readonly string[]>>> = {
-  google: ["gemini-flash-lite-latest", "gemini-2.5-flash-lite"],
+  google: ["gemini-2.5-flash-lite", "gemini-2.5-flash"],
 };
 export function fallbackModelNames(provider: ProviderSettings, env: NodeJS.ProcessEnv = process.env): string[] {
   const raw = env["AI_FALLBACK_MODELS"]?.trim();
