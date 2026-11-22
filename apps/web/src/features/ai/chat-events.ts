@@ -16,6 +16,8 @@ export function applyEvent(message: ChatMessage, e: ChatEvent): ChatMessage {
       return { ...message, blocks: [...message.blocks, e.block] };
     case "clarify":
       return { ...message, blocks: [...message.blocks, { kind: "clarify", question: e.question, options: e.options }] };
+    case "needs_mode":
+      return { ...message, blocks: [...message.blocks, { kind: "needsMode" }] };
     case "proposed":
       return {
         ...message,

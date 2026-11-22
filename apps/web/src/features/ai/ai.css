@@ -292,6 +292,7 @@
 /* Clarify */
 .ai-block--clarify { border-color: var(--mk-primary); border-inline-start-width: 3px; }
 .ai-clarify__q { display: flex; align-items: center; gap: 0.55rem; margin: 0 0 0.7rem; font-weight: 700; }
+.ai-needs-mode__hint { margin: -0.3rem 0 0.75rem; color: var(--mk-text-muted, inherit); font-size: 0.9rem; }
 .ai-clarify__icon { display: grid; place-items: center; flex: none; width: 1.8rem; height: 1.8rem; border-radius: 8px; background: var(--mk-primary); color: var(--mk-on-primary, #fff); font-size: 0.8rem; }
 .ai-choices { display: grid; gap: 0.4rem; }
 .ai-choice {

@@ -23,6 +23,9 @@ import type { AssistantEvent, ExecutedItem, ProposedItem, TokenUsage } from "./e
 // step limit. Approval happens outside the graph (change-set.ts), and a fresh run summarises.
 
 export const CLARIFY_TOOL = "clarify";
+// Only offered in question mode. One cheap call that ends the turn, so a write request gets an
+// immediate "switch mode" card instead of a slow refusal written by the model.
+export const MODE_TOOL = "switch_to_interactive";
 const clarifySchema = z.object({
   question: z.string().min(1).describe("One short question in the user's language"),
   options: z.array(z.string().min(1)).min(2).max(5).describe("2-5 short choices"),
@@ -90,6 +93,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
   const llmTools = [
     ...opts.tools.map((t) => ({ name: t.name, description: t.description, schema: t.input })),
     { name: CLARIFY_TOOL, description: "Ask the user to choose between options when the request is ambiguous. Ends your turn.", schema: clarifySchema },
+    ...(opts.mode === "ask" ? [{ name: MODE_TOOL, description: "Call this at once, alone, when the user asks to create, change or delete anything. Ends your turn.", schema: z.object({}) }] : []),
   ];
   if (typeof opts.model.bindTools !== "function") throw new Error("MODEL_HAS_NO_TOOL_SUPPORT");
   const bound = opts.model.bindTools(llmTools);
@@ -136,6 +140,14 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
       const end = (ok: boolean, errorCode?: string): void => {
         opts.emit({ type: "tool_end", callId, tool: call.name, ok, ms: Date.now() - started, ...(errorCode ? { errorCode } : {}) });
       };
+
+      if (call.name === MODE_TOOL && opts.mode === "ask") {
+        opts.emit({ type: "needs_mode" });
+        reply(JSON.stringify({ shown_to_user: true, note: "The user was offered to switch to interactive mode." }));
+        clarified = true;
+        end(true);
+        continue;
+      }
 
       if (call.name === CLARIFY_TOOL) {
         const parsed = clarifySchema.safeParse(call.args);

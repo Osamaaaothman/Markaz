@@ -160,6 +160,21 @@ describe("runAssistant", () => {
     expect(model.seen).toHaveLength(1);
   });
 
+  it("in question mode, a write request ends the turn with a switch-mode offer", async () => {
+    const model = new ScriptedChatModel([{ toolCalls: [{ name: "switch_to_interactive", args: {} }] }, { text: "should never be reached" }]);
+    const { result, events } = await run(model, { mode: "ask" });
+    expect(events).toContainEqual({ type: "needs_mode" });
+    expect(result.stoppedForClarify).toBe(true);
+    expect(model.seen).toHaveLength(1);
+  });
+
+  it("the switch-mode tool does nothing outside question mode", async () => {
+    const model = new ScriptedChatModel([{ toolCalls: [{ name: "switch_to_interactive", args: {} }] }, { text: "ok" }]);
+    const { events } = await run(model);
+    expect(events).not.toContainEqual({ type: "needs_mode" });
+    expect(events).toContainEqual(expect.objectContaining({ type: "tool_end", ok: false, errorCode: "UNKNOWN_TOOL" }));
+  });
+
   it("stops at the step limit", async () => {
     const loop = Array.from({ length: 10 }, () => ({ toolCalls: [{ name: "parties_search", args: { query: "x" } }] }));
     const { result } = await run(new ScriptedChatModel(loop), { maxSteps: 3 });

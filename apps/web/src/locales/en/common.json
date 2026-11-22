@@ -3477,7 +3477,8 @@
       "purchaseRequests_search": "Searching purchase requests",
       "fixedAssets_search": "Searching fixed assets",
       "hr_payrollRuns": "Reading payroll runs",
-      "hr_salaryAdvances": "Reading salary advances"
+      "hr_salaryAdvances": "Reading salary advances",
+      "switch_to_interactive": "Checking the mode"
     },
     "blocks": {
       "overview": "Company overview",
@@ -3908,6 +3909,13 @@
         "success": "Saved",
         "error": "Error"
       }
+    },
+    "needsMode": {
+      "title": "This request creates or changes data, and you are in question mode.",
+      "hint": "Switch to interactive mode: you review every change before it is saved.",
+      "switch": "Switch to interactive and send",
+      "askAnyway": "Answer it as a question",
+      "noPermission": "This request changes data. Your role can only ask questions."
     }
   }
 }

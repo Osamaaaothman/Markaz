@@ -96,7 +96,7 @@ function MessageActions({ m, canRetry, onRetry }: { m: ChatMessage; canRetry: bo
   );
 }
 
-function Message({ m, last, currency, busy, onChoose, onDecide, onRetry }: { m: ChatMessage; last: boolean; currency: string; busy: boolean; onChoose: (s: string) => void; onDecide: Parameters<typeof ChangeCards>[0]["onDecide"]; onRetry: () => void }): React.JSX.Element {
+function Message({ m, last, currency, busy, onChoose, onSwitchMode, onAskAnyway, onDecide, onRetry }: { m: ChatMessage; last: boolean; currency: string; busy: boolean; onChoose: (s: string) => void; onSwitchMode: (text?: string) => void; onAskAnyway: (text?: string) => void; onDecide: Parameters<typeof ChangeCards>[0]["onDecide"]; onRetry: () => void }): React.JSX.Element {
   const { t } = useTranslation();
   const orb = useOrbState();
   if (m.role === "user") {
@@ -122,7 +122,7 @@ function Message({ m, last, currency, busy, onChoose, onDecide, onRetry }: { m: 
         <div className="ai-msg__name">{t("ai.panel.title")}</div>
         <Steps steps={m.timeline} live={Boolean(m.streaming)} />
         {waiting ? <LiveStatus steps={m.timeline} /> : null}
-        <AnswerBlocks blocks={m.blocks} currency={currency} onChoose={onChoose} disabled={busy} />
+        <AnswerBlocks blocks={m.blocks} currency={currency} onChoose={onChoose} onSwitchMode={last ? onSwitchMode : undefined} onAskAnyway={last ? onAskAnyway : undefined} disabled={busy} />
         {m.text ? <div className={`ai-answer${m.streaming ? " ai-answer--streaming" : ""}`}><RichText text={m.text} /></div> : null}
         <ChangeCards changes={m.changes} busy={busy} onDecide={onDecide} />
         {m.errorCode && m.errorCode !== "ABORTED" ? (
@@ -258,7 +258,7 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
         ) : (
           <div className="ai-thread">
             {messages.map((m) => (
-              <Message key={m.id} m={m} last={m.id === lastAssistantId} currency={currency} busy={busy} onChoose={chat.send} onDecide={chat.decide} onRetry={() => { if (lastUser?.text) chat.send(lastUser.text); }} />
+              <Message key={m.id} m={m} last={m.id === lastAssistantId} currency={currency} busy={busy} onChoose={chat.send} onSwitchMode={(text) => chat.switchAndSend(text ?? lastUser?.text ?? "")} onAskAnyway={(text) => chat.send(text ?? lastUser?.text ?? "", { force: true })} onDecide={chat.decide} onRetry={() => { if (lastUser?.text) chat.send(lastUser.text); }} />
             ))}
           </div>
         )}

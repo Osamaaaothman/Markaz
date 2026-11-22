@@ -29,6 +29,8 @@ export type AssistantEvent =
   | { readonly type: "proposed"; readonly item: ProposedItem }
   | { readonly type: "executed"; readonly item: ExecutedItem }
   | { readonly type: "clarify"; readonly question: string; readonly options: readonly string[] }
+  // Question mode got a request to create or change data: the UI offers to switch mode and resend.
+  | { readonly type: "needs_mode" }
   | { readonly type: "step_limit" };
 
 export interface TokenUsage {

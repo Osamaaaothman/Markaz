@@ -13,6 +13,8 @@ export type DisplayBlock =
   | { kind: "chart"; titleKey: string; chartType: "bar" | "line"; labels: string[]; series: Array<{ labelKey: string; values: string[] }> }
   | { kind: "links"; titleKey: string; items: Array<{ label: string; path: string; hint?: string }> }
   | { kind: "clarify"; question: string; options: string[] }
+  // Question mode was asked to change data; `text` is the request to resend after switching.
+  | { kind: "needsMode"; text?: string }
   | { kind: "file"; titleKey: string; label: string; apiPath: string; filename: string; openPath?: string; meta?: Array<{ labelKey: string; value: string; format?: "money" | "date" | "text" }>; currency?: string };
 
 export interface ChangePreview {
@@ -113,6 +115,7 @@ export type ChatEvent =
   | { type: "tool_end"; callId: string; tool: string; ok: boolean; ms: number; errorCode?: string }
   | { type: "display"; block: DisplayBlock }
   | { type: "clarify"; question: string; options: string[] }
+  | { type: "needs_mode" }
   | { type: "proposed"; item: { id: string; tool: string; args: Record<string, unknown>; preview: ChangePreview; risk: "low" | "high"; dependsOn: string[] } }
   | { type: "executed"; item: { id: string; tool: string; args: Record<string, unknown>; result: { data: Record<string, unknown>; link?: { label: string; path: string } } } }
   | { type: "outcome"; outcome: { key: string; status: "EXECUTED" | "REJECTED" | "SKIPPED" | "FAILED"; link?: { label: string; path: string } | null; errorCode?: string } }

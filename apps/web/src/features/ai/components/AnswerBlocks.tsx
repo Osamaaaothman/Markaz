@@ -5,6 +5,7 @@ import { formatMoney, groupThousands } from "../../../shared/lib/money";
 import { useCountUp } from "../../../shared/lib/use-count-up";
 import { exportReport } from "../../accounting/export-report";
 import { MonthlyChart } from "../../dashboard/MonthlyChart";
+import { usePermissions } from "../../../shared/auth/use-permissions";
 import type { DisplayBlock } from "../ai-api";
 
 const DECIMAL = /^-?\d+(\.\d+)?$/;
@@ -39,8 +40,9 @@ function KpiValue({ value, format, currency }: { value: string; format: string; 
 
 // Structured parts of an answer. The model never writes HTML: tools hand these blocks over and the
 // screen draws them with the same formatting rules as the rest of the app.
-export function AnswerBlocks({ blocks, currency, onChoose, disabled }: { blocks: DisplayBlock[]; currency: string; onChoose: (text: string) => void; disabled: boolean }): React.JSX.Element | null {
+export function AnswerBlocks({ blocks, currency, onChoose, onSwitchMode, onAskAnyway, disabled }: { blocks: DisplayBlock[]; currency: string; onChoose: (text: string) => void; onSwitchMode?: ((text?: string) => void) | undefined; onAskAnyway?: ((text?: string) => void) | undefined; disabled: boolean }): React.JSX.Element | null {
   const { t, i18n } = useTranslation();
+  const canInteract = usePermissions().can("ai_assistant:interact");
   const lang = i18n.language;
   if (blocks.length === 0) return null;
   return (
@@ -133,6 +135,25 @@ export function AnswerBlocks({ blocks, currency, onChoose, disabled }: { blocks:
                       <Link className="ai-btn ai-btn--ghost" to={b.openPath}><i className="pi pi-external-link" aria-hidden="true" /> {t("ai.file.open")}</Link>
                     ) : null}
                   </div>
+                </div>
+              </section>
+            );
+          case "needsMode":
+            return (
+              <section key={i} className="ai-block ai-block--clarify ai-needs-mode">
+                <p className="ai-clarify__q"><span className="ai-clarify__icon"><i className="pi pi-pencil" aria-hidden="true" /></span>{t(canInteract ? "ai.needsMode.title" : "ai.needsMode.noPermission")}</p>
+                {canInteract ? <p className="ai-needs-mode__hint">{t("ai.needsMode.hint")}</p> : null}
+                <div className="ai-file__actions">
+                  {canInteract && onSwitchMode ? (
+                    <button type="button" className="ai-btn ai-btn--primary" disabled={disabled} onClick={() => onSwitchMode(b.text)}>
+                      <i className="pi pi-bolt" aria-hidden="true" /> {t("ai.needsMode.switch")}
+                    </button>
+                  ) : null}
+                  {onAskAnyway ? (
+                    <button type="button" className="ai-btn ai-btn--ghost" disabled={disabled} onClick={() => onAskAnyway(b.text)}>
+                      <i className="pi pi-question-circle" aria-hidden="true" /> {t("ai.needsMode.askAnyway")}
+                    </button>
+                  ) : null}
                 </div>
               </section>
             );

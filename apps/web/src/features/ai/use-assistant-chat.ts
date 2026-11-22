@@ -5,6 +5,7 @@ import { useLocation } from "react-router-dom";
 import { aiKeys, ChatHttpError, fetchConversation, streamChat, type ChatEvent, type ChatMessage } from "./ai-api";
 import { applyEvent } from "./chat-events";
 import { useAiStore } from "./ai-store";
+import { looksLikeWrite } from "./write-intent";
 
 let tempId = 0;
 const localId = (): string => `local-${Date.now()}-${tempId++}`;
@@ -73,10 +74,17 @@ export function useAssistantChat() {
   );
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, opts: { force?: boolean } = {}) => {
       const s = store.getState();
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed || s.busy) return;
+      // Question mode cannot change data: offer the switch at once instead of a slow refusal.
+      if (s.mode === "ask" && !opts.force && looksLikeWrite(trimmed)) {
+        s.remember(trimmed);
+        const base = { blocks: [], timeline: [], errorCode: null, changes: [] };
+        s.setMessages((m) => [...m, { ...base, id: localId(), role: "user", text: trimmed }, { ...base, id: localId(), role: "assistant", text: null, blocks: [{ kind: "needsMode", text: trimmed }] }]);
+        return;
+      }
       // Leaving proposals unanswered rejects them on the server; show that right away.
       if (s.status === "AWAITING_APPROVAL") {
         s.setMessages((list) => list.map((m) => ({ ...m, changes: m.changes.map((c) => (c.status === "PROPOSED" ? { ...c, status: "REJECTED" as const } : c)) })));
@@ -120,5 +128,14 @@ export function useAssistantChat() {
     [store],
   );
 
-  return { send, decide, stop, newChat, openConversation };
+  // Switch to interactive (review) mode and send the request again there.
+  const switchAndSend = useCallback(
+    (text: string) => {
+      store.getState().setMode("review");
+      send(text, { force: true });
+    },
+    [send, store],
+  );
+
+  return { send, switchAndSend, decide, stop, newChat, openConversation };
 }

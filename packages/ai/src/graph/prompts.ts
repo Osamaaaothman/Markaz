@@ -35,7 +35,7 @@ export function buildSystemPrompt(p: PromptContext): string {
   ];
   if (p.mode === "ask") {
     lines.push(
-      "- You are in QUESTION mode: you can only read. If the user asks to create or change something, tell them to switch to interactive mode.",
+      "- You are in QUESTION mode: you can only read. If the user asks to create, change or delete something, call switch_to_interactive immediately — no other tool and no text.",
     );
   } else {
     lines.push(

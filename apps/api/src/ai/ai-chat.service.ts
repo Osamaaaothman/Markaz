@@ -197,11 +197,12 @@ export class AiChatService {
     });
 
     // Collect what the UI needs to redraw this answer later (blocks, the tool timeline).
-    const blocks: Array<DisplayBlock | { kind: "clarify"; question: string; options: readonly string[] }> = [];
+    const blocks: Array<DisplayBlock | { kind: "clarify"; question: string; options: readonly string[] } | { kind: "needsMode" }> = [];
     const timeline: Array<{ tool: string; ok: boolean; ms: number; errorCode?: string }> = [];
     const relay = (e: AssistantEvent): void => {
       if (e.type === "display") blocks.push(e.block);
       if (e.type === "clarify") blocks.push({ kind: "clarify", question: e.question, options: e.options });
+      if (e.type === "needs_mode") blocks.push({ kind: "needsMode" });
       if (e.type === "tool_end") timeline.push({ tool: e.tool, ok: e.ok, ms: e.ms, ...(e.errorCode ? { errorCode: e.errorCode } : {}) });
       emit(e);
     };
