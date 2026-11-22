@@ -40,10 +40,21 @@ interface AiState {
   sent: string[];
   remember: (text: string) => void;
 
+  // The assistant's face: one of the three designs (Settings → Interface), remembered on this device.
+  orbStyle: OrbStyle;
+  setOrbStyle: (style: OrbStyle) => void;
+  // Microphone level 0..1 while dictating, for the "listening" state.
+  audioLevel: number;
+  setAudioLevel: (level: number) => void;
+
   // Full page: the conversation list column, open or collapsed (remembered on this device).
   historyOpen: boolean;
   toggleHistory: () => void;
 }
+
+// a = living emblem, b = dot matrix, c = precision instrument (docs/Planning/design/assistant-orb).
+export type OrbStyle = "a" | "b" | "c";
+export const ORB_STYLES: readonly OrbStyle[] = ["a", "b", "c"];
 
 let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -84,11 +95,15 @@ export const useAiStore = create<AiState>()(
       includePage: true,
       setIncludePage: (includePage) => set({ includePage }),
       sent: [],
+      orbStyle: "a",
+      setOrbStyle: (orbStyle) => set({ orbStyle }),
+      audioLevel: 0,
+      setAudioLevel: (audioLevel) => set({ audioLevel }),
       historyOpen: true,
       toggleHistory: () => set({ historyOpen: !get().historyOpen }),
       remember: (text) => set({ sent: [...get().sent.filter((x) => x !== text), text].slice(-20) }),
     }),
     // Only the mode is remembered: messages and drafts stay in memory, so no business text is left in browser storage.
-    { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode, historyOpen: s.historyOpen }) },
+    { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode, historyOpen: s.historyOpen, orbStyle: s.orbStyle }) },
   ),
 );

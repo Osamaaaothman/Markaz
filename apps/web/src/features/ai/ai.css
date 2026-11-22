@@ -4,7 +4,7 @@
    as a 5×5 dot matrix. Logical properties so RTL flips for free; PrimeReact's Sidebar is overridden with
    physical values where the library sets physical ones. */
 
-.ai-orb, .ai-surface, .ai-settings, .ai-topbar-btn, .ai-composer, .ai-live {
+.ai-surface, .ai-settings, .ai-topbar-btn, .ai-composer, .ai-live {
   --ai-cream: #ece9e1;
   --ai-brass: #c9aa5c;
   --ai-accent: var(--mk-primary);
@@ -13,68 +13,7 @@
 .ai-surface--success, .ai-topbar-btn--success { --ai-accent: var(--mk-success); }
 .ai-surface--error, .ai-topbar-btn--error { --ai-accent: var(--mk-danger); }
 
-/* ─── Dot matrix (the emblem) ─────────────────────────────────────────────────────────────────── */
-.ai-orb {
-  --ai-tile: var(--mk-primary);
-  display: inline-block;
-  flex: none;
-  width: 1em;
-  height: 1em;
-  padding: 0.16em;
-  border-radius: 0.26em;
-  background: var(--ai-tile);
-  box-shadow: inset 0 0 0 0.02em rgba(255, 255, 255, 0.12), 0 0.05em 0.14em rgba(0, 0, 0, 0.16);
-  vertical-align: middle;
-  transition: background-color 0.35s ease;
-}
-.ai-orb--success { --ai-tile: var(--mk-success); }
-.ai-orb--error { --ai-tile: var(--mk-danger); animation: ai-shake 0.45s ease-in-out; }
-.ai-orb__grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); place-items: center; width: 100%; height: 100%; }
-.ai-px {
-  width: 0.1em;
-  height: 0.1em;
-  min-width: 2px;
-  min-height: 2px;
-  border-radius: 22%;
-  background: var(--ai-cream);
-  opacity: 0.16;
-  transition: opacity 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
-}
-
-/* idle: the emblem — cream brackets, brass centre breathing */
-.ai-orb--idle .ai-px.is-bracket { opacity: 0.95; }
-.ai-orb--idle .ai-px.is-center,
-.ai-orb--thinking .ai-px.is-center,
-.ai-orb--speaking .ai-px.is-center,
-.ai-orb--listening .ai-px.is-center,
-.ai-orb--waiting .ai-px.is-center { background: var(--ai-brass); opacity: 1; transform: scale(1.45); }
-.ai-orb--idle .ai-px.is-center { animation: ai-center 3.2s ease-in-out infinite; }
-
-/* thinking: a light runs around the frame (the logo drawing itself) */
-.ai-orb--thinking .ai-px.is-ring { animation: ai-chase 1.28s linear infinite; animation-delay: calc(var(--ring) * 0.08s - 1.28s); }
-.ai-orb--thinking .ai-px.is-center { animation: ai-center 0.8s ease-in-out infinite; }
-
-/* speaking: columns rise and fall like a voice */
-.ai-orb--speaking .ai-px:not(.is-center) { animation: ai-eq 0.9s ease-in-out infinite alternate; animation-delay: calc(var(--c) * -0.19s + var(--r) * 0.07s); }
-
-/* listening: ripples spreading out from the centre */
-.ai-orb--listening .ai-px:not(.is-center) { animation: ai-ripple 1.2s ease-out infinite; animation-delay: calc(var(--d) * 0.16s); }
-
-/* waiting: brass brackets blinking slowly — your approval is needed */
-.ai-orb--waiting .ai-px.is-bracket { background: var(--ai-brass); animation: ai-blink 1.6s ease-in-out infinite; }
-
-/* success / error: a check or a cross, drawn dot by dot */
-.ai-orb--success .ai-px, .ai-orb--error .ai-px { opacity: 0; }
-.ai-orb--success .ai-px.is-check { animation: ai-dot-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--c) * 55ms); }
-.ai-orb--error .ai-px.is-cross { animation: ai-dot-in 0.3s ease-out both; animation-delay: calc(var(--d) * 60ms); }
-
-@keyframes ai-center { 0%, 100% { transform: scale(1.45); } 50% { transform: scale(1.05); opacity: 0.75; } }
-@keyframes ai-chase { 0% { opacity: 1; } 35%, 100% { opacity: 0.18; } }
-@keyframes ai-eq { from { opacity: 0.14; transform: scale(0.7); } to { opacity: 1; transform: scale(1.15); } }
-@keyframes ai-ripple { 0% { opacity: 1; transform: scale(1.3); } 55%, 100% { opacity: 0.16; transform: scale(0.85); } }
-@keyframes ai-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-@keyframes ai-dot-in { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1.25); } }
-@keyframes ai-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-7%); } 40%, 80% { transform: translateX(7%); } }
+/* ─── The orb itself lives in components/orb-variants/{a,b,c}/AssistantOrb.css (prefixes mko-a/b/c). ─── */
 
 /* small three-dot loader in the brand colours (inline status) */
 .ai-loader { display: inline-flex; align-items: center; gap: 3px; }
@@ -732,6 +671,19 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
   .ai-page { position: relative; }
 }
 
+/* ─── Orb style picker (Settings → Interface) ─── */
+.ai-orb-picker__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-block: 0.75rem; }
+.ai-orb-picker__card { position: relative; display: grid; justify-items: center; gap: 0.45rem; padding: 1rem 0.9rem; border: 1px solid var(--mk-border); border-radius: 14px; background: var(--mk-surface); color: var(--mk-text); font: inherit; text-align: center; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s; }
+.ai-orb-picker__card:hover { transform: translateY(-2px); border-color: var(--mk-border-strong, var(--mk-border)); }
+.ai-orb-picker__card.is-active { border-color: var(--mk-primary); box-shadow: 0 0 0 3px var(--mk-primary-ring, rgba(0, 0, 0, 0.06)); }
+.ai-orb-picker__card.is-active::after { content: "\e909"; font-family: primeicons; position: absolute; top: 0.6rem; inset-inline-end: 0.7rem; color: var(--mk-primary); }
+.ai-orb-picker__stage { display: grid; place-items: center; width: 100%; padding: 0.6rem 0; border-radius: 10px; background: var(--mk-surface-2); }
+.ai-orb-picker__sizes { display: flex; align-items: center; gap: 0.6rem; }
+.ai-orb-picker__card small { color: var(--mk-text-muted); font-size: 0.76rem; line-height: 1.45; }
+.ai-orb-picker__controls { display: grid; gap: 0.5rem; }
+.ai-orb-picker__states { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.ai-suggestion.is-on { border-color: var(--mk-primary); background: var(--mk-primary); color: var(--mk-on-primary, #fff); }
+
 /* ─── Settings page ───────────────────────────────────────────────────────────────────────────── */
 .ai-settings__heading { display: flex; align-items: center; gap: 0.9rem; }
 .ai-settings__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-block-start: 1rem; }
@@ -767,10 +719,9 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
 @keyframes ai-stamp { from { opacity: 0; transform: scale(1.5); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-orb, .ai-px, .ai-loader i, .ai-wave i, .ai-capsule.is-busy::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
+  .ai-loader i, .ai-wave i, .ai-capsule.is-busy::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
   .ai-stamp, .ai-card, .ai-choice, .ai-step, .ai-suggestion, .ai-table tbody tr, .ai-fields__row, .ai-history li, .ai-dot, .ai-welcome__stage {
     animation: none !important;
     transition: none !important;
   }
-  .ai-orb--success .ai-px.is-check, .ai-orb--error .ai-px.is-cross { opacity: 1; }
 }

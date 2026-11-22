@@ -1,0 +1,108 @@
+/* Markaz assistant orb — Direction B · "Dot matrix"
+   Flat colours only. Loops animate transform + opacity; the brass/cream swap of dots in "waiting" is an instant fill change.
+   Brand tokens can be overridden by the app: --mk-green, --mk-cream, --mk-brass, --mk-success, --mk-danger. */
+
+.mko-b { display: block; flex: none; overflow: visible; --px: 0; --py: 0; }
+.mko-b g { transform-box: view-box; transform-origin: 32px 32px; }
+
+.mko-b .t { transition: opacity .32s ease; }
+.mko-b .t0 { fill: var(--mk-green, #1C5A40); }
+.mko-b .t1 { fill: var(--mk-success, #1f8a5b); opacity: 0; }
+.mko-b .t2 { fill: var(--mk-danger, #c2413b); opacity: 0; }
+.mko-b .edge { fill: none; stroke: #fff; stroke-opacity: .1; stroke-width: 1.5; }
+
+.mko-b .frame { transform: translate(calc(var(--px) * .35px), calc(var(--py) * .35px)); transition: transform .2s ease-out; }
+.mko-b .core  { transform: translate(calc(var(--px) * 1px), calc(var(--py) * 1px)); transition: transform .2s ease-out; }
+
+/* dots — --pp / --cc pick the reading direction (flipped under RTL) */
+.mko-b .d {
+  --dc: var(--mk-cream, #ECE9E1); --pp: var(--p); --cc: var(--colr);
+  fill: var(--dc); stroke: var(--dc); stroke-width: 0;
+  opacity: 0; transform-box: fill-box; transform-origin: center;
+  transition: opacity .3s ease, transform .34s cubic-bezier(.2, .8, .2, 1);
+}
+[dir="rtl"] .mko-b .d { --pp: var(--pr); --cc: var(--col); }
+.mko-b.sm .d { stroke-width: 1.3; } /* keeps dots ≥ ~1.5px at 20–30px */
+.mko-b .d.a { opacity: .95; }
+
+.mko-b .cpose { transition: transform .36s cubic-bezier(.34, 1.56, .64, 1), opacity .24s ease; }
+.mko-b .cc { transform-box: view-box; transform-origin: 32px 32px; transition: opacity .3s ease; }
+.mko-b .c1 { fill: var(--mk-brass, #C9AA5C); }
+.mko-b .c2 { fill: var(--mk-cream, #ECE9E1); opacity: 0; }
+
+/* interaction */
+.mko-b .prs { transition: transform .14s ease; }
+.mko-b.int.s-idle:hover .d.in, :hover > .mko-b.int.s-idle .d.in { opacity: .22; }
+.mko-b.int.s-idle:hover .d.a, :hover > .mko-b.int.s-idle .d.a { transform: translate(calc(var(--sx) * 1.2px), calc(var(--sy) * 1.2px)); }
+.mko-b.int:active .prs, :active > .mko-b.int .prs { transform: scale(.9); }
+
+/* idle */
+.mko-b.s-idle .c1 { animation: mkoB-breathe 3.2s ease-in-out infinite; }
+
+/* thinking */
+.mko-b.s-thinking .d.pe { opacity: .22; animation: mkoB-chase 1.44s linear infinite; animation-delay: calc(var(--pp) * .06s - 1.44s); }
+.mko-b.s-thinking .cpose { transform: scale(.62); }
+
+/* speaking */
+.mko-b.s-speaking .d.a { opacity: .32; }
+.mko-b.s-speaking .d.in, .mko-b.s-speaking .d.m {
+  opacity: .6; animation: mkoB-eq .84s ease-in-out infinite alternate;
+  animation-delay: calc(var(--cc) * -.14s + var(--row) * -.05s);
+}
+.mko-b.s-speaking .c1 { animation: mkoB-say .42s ease-in-out infinite alternate; }
+
+/* listening — --lvl = audioLevel 0..1 */
+.mko-b.s-listening .d.a {
+  opacity: .6;
+  transform: translate(calc(var(--sx) * var(--lvl, 0) * 2.6px), calc(var(--sy) * var(--lvl, 0) * 2.6px));
+  transition: transform .12s linear, opacity .3s ease;
+}
+.mko-b.s-listening .d.in, .mko-b.s-listening .d.m { animation: mkoB-rip 1.2s ease-out infinite; animation-delay: calc(var(--d) * .18s); }
+.mko-b.s-listening .cpose { transform: scale(calc(.7 + var(--lvl, 0) * .55)); transition: transform .12s linear; }
+
+/* waiting */
+.mko-b.s-waiting .d.a { --dc: var(--mk-brass, #C9AA5C); opacity: 1; transform: translate(calc(var(--sx) * -1.2px), calc(var(--sy) * -1.2px)); }
+.mko-b.s-waiting .d.cn { animation: mkoB-knock 1.8s ease-in-out infinite; }
+.mko-b.s-waiting .c1 { opacity: 0; }
+.mko-b.s-waiting .c2 { opacity: 1; }
+.mko-b.s-waiting .cpose { transform: scale(.8); }
+
+/* success (one-shot) — check dots pop in reading order */
+.mko-b.s-success .t1 { opacity: 1; }
+.mko-b.s-success .d { opacity: 0; }
+.mko-b.s-success .d.k {
+  opacity: 1; transform: scale(1.25);
+  transition: opacity .2s ease, transform .4s cubic-bezier(.34, 1.8, .64, 1);
+  transition-delay: calc(var(--cc) * -45ms + 270ms);
+}
+.mko-b.s-success .cpose { transform: scale(0); opacity: 0; }
+
+/* error (one-shot) — cross dots from the centre out */
+.mko-b.s-error .t2 { opacity: 1; }
+.mko-b.s-error .d { opacity: 0; }
+.mko-b.s-error .d.x { opacity: 1; transform: scale(1.25); transition-delay: calc(var(--d) * 50ms); }
+.mko-b.s-error .c1 { opacity: 0; }
+.mko-b.s-error .c2 { opacity: 1; }
+.mko-b.s-error .cpose { transform: scale(.5); }
+.mko-b.s-error .shk { animation: mkoB-shake .46s ease-in-out 1; }
+
+@keyframes mkoB-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(.78); } }
+@keyframes mkoB-chase { 0% { opacity: 1; transform: scale(1.35); } 28%, 100% { opacity: .22; transform: scale(1); } }
+@keyframes mkoB-eq { from { opacity: .1; transform: scale(.55); } to { opacity: 1; transform: scale(1.2); } }
+@keyframes mkoB-say { from { transform: scale(1); } to { transform: scale(.7); } }
+@keyframes mkoB-rip { 0% { opacity: 1; } 60%, 100% { opacity: .08; } }
+@keyframes mkoB-knock {
+  0%, 40%, 100% { opacity: 1; transform: scale(1); }
+  10%, 30% { opacity: .25; transform: scale(.6); }
+  20% { opacity: 1; transform: scale(1.3); }
+}
+@keyframes mkoB-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-2.4px); } 40%, 80% { transform: translateX(2.4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mko-b * { animation: none !important; }
+  .mko-b .d, .mko-b .cpose, .mko-b .t, .mko-b .cc, .mko-b .frame, .mko-b .core { transition-duration: .01s !important; transition-delay: 0s !important; }
+  .mko-b.s-thinking .d.pe { opacity: .45; }
+  .mko-b.s-thinking .d.cn { opacity: 1; }
+  .mko-b.s-speaking .d.in { opacity: .7; }
+  .mko-b.s-listening .d.in { opacity: .5; }
+}

@@ -3819,6 +3819,36 @@
     "compacted": {
       "title": "Earlier messages were summarised",
       "hint": "The assistant remembers them as a summary, so long chats stay fast and within limits."
+    },
+    "orbPicker": {
+      "title": "Assistant look",
+      "hint": "Choose how the assistant shows what it is doing. All three follow the Markaz emblem; your choice is kept on this device.",
+      "states": "Preview a state",
+      "playApprove": "Play: ask → review → approve",
+      "playFail": "Play: ask → error",
+      "styles": {
+        "a": {
+          "name": "Living emblem",
+          "idea": "The real logo, alive: brackets tighten, open, knock and snap."
+        },
+        "b": {
+          "name": "Dot matrix",
+          "idea": "The emblem on a dot grid: light chases, waves and ripples; draws ✓ or ✗."
+        },
+        "c": {
+          "name": "Precision instrument",
+          "idea": "A viewfinder: corners hunt focus, lock in brass, the centre becomes a level meter."
+        }
+      },
+      "state": {
+        "idle": "Ready",
+        "thinking": "Thinking",
+        "speaking": "Answering",
+        "listening": "Listening",
+        "waiting": "Needs approval",
+        "success": "Saved",
+        "error": "Error"
+      }
     }
   }
 }

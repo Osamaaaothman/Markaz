@@ -9,6 +9,8 @@ import {
 import { useLayoutStore } from "../../app/layout/layout-store";
 import { THEMES, useThemeStore, type ThemeId } from "../../shared/theme/theme-store";
 import { DirectionSettings } from "../../shared/theme/DirectionPicker";
+import { usePermissions } from "../../shared/auth/use-permissions";
+import { OrbStylePicker } from "../ai/components/OrbStylePicker";
 
 // Preview colours mirror design/themes.css so a card can show its theme without applying it.
 const SWATCHES = {
@@ -37,6 +39,7 @@ const SWATCHES = {
 // server or shared between users, so everyone can open this page regardless of role.
 export function InterfaceSettingsPage(): React.JSX.Element {
   const { t } = useTranslation();
+  const { can } = usePermissions();
   const groupOrder = useLayoutStore((state) => state.groupOrder);
   const setGroupOrder = useLayoutStore((state) => state.setGroupOrder);
   const resetGroupOrder = useLayoutStore((state) => state.resetGroupOrder);
@@ -64,6 +67,8 @@ export function InterfaceSettingsPage(): React.JSX.Element {
       </div>
 
       <DirectionSettings />
+
+      {can("ai_assistant:use") ? <OrbStylePicker /> : null}
 
       <section className="erp-card">
         <h2 className="erp-card__title">{t("interfaceSettings.theme")}</h2>

@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { NAV_ITEMS } from "../../../app/layout/NavConfig";
 import type { AssistantMode } from "../ai-api";
 import { useAiStore } from "../ai-store";
+import { startAudioMeter, type AudioMeter } from "../audio-meter";
 import { ModeSwitch } from "./ModeSwitch";
 
 // Web Speech API types are not in TypeScript's DOM lib; this is the small part we use.
@@ -86,6 +87,7 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
   const [recall, setRecall] = useState<number | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
   const recRef = useRef<Recognition | null>(null);
+  const meterRef = useRef<AudioMeter | null>(null);
   const canDictate = recognitionCtor() !== null;
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
     el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [text]);
   useEffect(() => { ref.current?.focus(); }, []);
-  useEffect(() => () => recRef.current?.stop(), []);
+  useEffect(() => () => { recRef.current?.stop(); meterRef.current?.stop(); }, []);
 
   const slashQuery = /^\/(\S*)$/.exec(text)?.[1];
   const showMenu = slashQuery !== undefined || menuOpen;
@@ -146,11 +148,21 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
       for (let i = 0; i < e.results.length; i++) heard += e.results[i]?.[0]?.transcript ?? "";
       setText(before + heard);
     };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+    const finish = (): void => {
+      setListening(false);
+      meterRef.current?.stop();
+      meterRef.current = null;
+    };
+    rec.onend = finish;
+    rec.onerror = finish;
     recRef.current = rec;
     setListening(true);
     rec.start();
+    void startAudioMeter((level) => useAiStore.getState().setAudioLevel(level)).then((meter) => {
+      // Dictation may already have ended while the microphone permission was being asked.
+      if (!useAiStore.getState().listening) meter?.stop();
+      else meterRef.current = meter;
+    });
   };
 
   return (

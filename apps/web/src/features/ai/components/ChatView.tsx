@@ -155,7 +155,7 @@ function Welcome({ variant, allowed, onPick }: { variant: "panel" | "page"; allo
   return (
     <div className={`ai-welcome ai-welcome--${variant}`}>
       <div className="ai-welcome__stage">
-        <AssistantOrb size={variant === "page" ? 120 : 92} state={orb} />
+        <AssistantOrb size={variant === "page" ? 120 : 92} state={orb} interactive />
       </div>
       <h2 className="ai-welcome__title">
         <span>{name ? t("ai.welcome.greeting", { greeting, name }) : greeting}</span>

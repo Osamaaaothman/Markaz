@@ -1,0 +1,122 @@
+/* Markaz assistant orb — Direction C · "Precision instrument"
+   Flat colours only. Animates transform + opacity only.
+   Brand tokens can be overridden by the app: --mk-green, --mk-cream, --mk-brass, --mk-success, --mk-danger. */
+
+.mko-c { display: block; flex: none; overflow: visible; --px: 0; --py: 0; }
+.mko-c g, .mko-c rect, .mko-c path { transform-box: view-box; transform-origin: 32px 32px; }
+
+.mko-c .t { transition: opacity .32s ease; }
+.mko-c .t0 { fill: var(--mk-green, #1C5A40); }
+.mko-c .t1 { fill: var(--mk-success, #1f8a5b); opacity: 0; }
+.mko-c .t2 { fill: var(--mk-danger, #c2413b); opacity: 0; }
+.mko-c .edge { fill: none; stroke: #fff; stroke-opacity: .1; stroke-width: 1.5; }
+
+.mko-c .frame { transform: translate(calc(var(--px) * .35px), calc(var(--py) * .35px)); transition: transform .2s ease-out; }
+.mko-c .core  { transform: translate(calc(var(--px) * 1px), calc(var(--py) * 1px)); transition: transform .2s ease-out; }
+
+.mko-c .tk { fill: none; stroke: var(--mk-cream, #ECE9E1); stroke-width: 1.6; opacity: .35; transition: opacity .3s ease; }
+.mko-c .scan { fill: none; stroke: var(--mk-cream, #ECE9E1); stroke-width: 1.3; opacity: 0; transition: opacity .2s ease; }
+
+.mko-c .b {
+  --o: 0; --h: 0;
+  transform: translate(calc(var(--dx) * (var(--o) + var(--h)) * 1px), calc(var(--dy) * (var(--o) + var(--h)) * 1px));
+  transition: transform .36s cubic-bezier(.2, .8, .2, 1);
+}
+.mko-c .b1 { --dx: -1; --dy: -1; }
+.mko-c .b2 { --dx: 1;  --dy: -1; }
+.mko-c .b3 { --dx: 1;  --dy: 1; }
+.mko-c .b4 { --dx: -1; --dy: 1; }
+.mko-c .bk { fill: none; stroke-width: 3; stroke-linejoin: miter; transition: opacity .3s ease; }
+.mko-c .bc { stroke: var(--mk-cream, #ECE9E1); }
+.mko-c .bb { stroke: var(--mk-brass, #C9AA5C); opacity: 0; }
+
+/* 20–30px: drop fine detail, heavier corners */
+.mko-c.sm .bk { stroke-width: 4.6; }
+.mko-c.sm .tk, .mko-c.sm .scan { display: none; }
+
+.mko-c .cpose { transition: transform .36s cubic-bezier(.34, 1.56, .64, 1), opacity .24s ease; }
+.mko-c .cl { transition: opacity .3s ease; }
+.mko-c .c1 { fill: var(--mk-brass, #C9AA5C); }
+.mko-c .c2 { fill: var(--mk-cream, #ECE9E1); opacity: 0; }
+.mko-c .bar {
+  fill: var(--mk-brass, #C9AA5C); opacity: 0;
+  transform-box: fill-box; transform-origin: center; transform: scaleY(.3);
+  transition: opacity .2s ease, transform .3s ease;
+}
+.mko-c .ring { fill: none; stroke: var(--mk-brass, #C9AA5C); stroke-width: 1.4; opacity: 0; }
+.mko-c.sm .ring { stroke-width: 2.4; }
+.mko-c .gl {
+  fill: none; stroke: var(--mk-cream, #ECE9E1); stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round;
+  opacity: 0; transform: scale(.4) rotate(-12deg);
+  transition: opacity .2s ease, transform .42s cubic-bezier(.34, 1.56, .64, 1);
+}
+.mko-c.sm .gl { stroke-width: 5.6; }
+
+/* interaction */
+.mko-c .prs { transition: transform .14s ease; }
+.mko-c.int:hover .b, :hover > .mko-c.int .b { --h: 1.4; }
+.mko-c.int:hover .tk, :hover > .mko-c.int .tk { opacity: .7; }
+.mko-c.int:active .prs, :active > .mko-c.int .prs { transform: scale(.9); }
+
+/* idle */
+.mko-c.s-idle .c1 { animation: mkoC-breathe 4s ease-in-out infinite; }
+
+/* thinking */
+.mko-c.s-thinking .b { --o: -.8; }
+.mko-c.s-thinking .bi { animation: mkoC-focus 1.3s ease-in-out infinite; }
+.mko-c.s-thinking .scan { opacity: .7; animation: mkoC-scan 1.3s ease-in-out infinite alternate; }
+.mko-c.s-thinking .cpose { transform: rotate(45deg) scale(.72); }
+
+/* speaking */
+.mko-c.s-speaking .b { --o: .8; }
+.mko-c.s-speaking .cpose { transform: scale(.3); opacity: 0; }
+.mko-c.s-speaking .bar { opacity: 1; animation: mkoC-bar .4s ease-in-out infinite alternate; }
+.mko-c.s-speaking .bar2 { animation-delay: -.14s; }
+.mko-c.s-speaking .bar3 { animation-delay: -.28s; }
+
+/* listening — --lvl = audioLevel 0..1 */
+.mko-c.s-listening .b { --o: calc(.3 + var(--lvl, 0) * 3.4); transition: transform .12s linear; }
+.mko-c.s-listening .cpose { transform: scale(calc(.65 + var(--lvl, 0) * .5)); transition: transform .12s linear; }
+.mko-c.s-listening .ring { animation: mkoC-ring 1.6s ease-out infinite; }
+.mko-c.s-listening .ring2 { animation-delay: -.8s; }
+
+/* waiting */
+.mko-c.s-waiting .b { --o: -2.6; }
+.mko-c.s-waiting .bc { opacity: 0; }
+.mko-c.s-waiting .bb { opacity: 1; }
+.mko-c.s-waiting .tk { opacity: 0; }
+.mko-c.s-waiting .c1 { opacity: 0; }
+.mko-c.s-waiting .c2 { opacity: 1; }
+.mko-c.s-waiting .cpose { transform: scale(.8); }
+.mko-c.s-waiting .bi { animation: mkoC-lock 1.9s ease-in-out infinite; }
+
+/* success (one-shot) */
+.mko-c.s-success .t1 { opacity: 1; }
+.mko-c.s-success .b { --o: -1.6; transition-timing-function: cubic-bezier(.34, 1.9, .64, 1); }
+.mko-c.s-success .tk { opacity: 0; }
+.mko-c.s-success .cpose { transform: scale(0); opacity: 0; }
+.mko-c.s-success .gok { opacity: 1; transform: none; }
+
+/* error (one-shot) */
+.mko-c.s-error .t2 { opacity: 1; }
+.mko-c.s-error .b { --o: 1; }
+.mko-c.s-error .tk { opacity: 0; }
+.mko-c.s-error .cpose { transform: scale(0); opacity: 0; }
+.mko-c.s-error .ger { opacity: 1; transform: none; }
+.mko-c.s-error .shk { animation: mkoC-shake .46s ease-in-out 1; }
+
+@keyframes mkoC-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(.86); } }
+@keyframes mkoC-focus { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(calc(var(--dx) * -2.6px), calc(var(--dy) * -2.6px)); } }
+@keyframes mkoC-scan { from { transform: translateY(-10px); } to { transform: translateY(10px); } }
+@keyframes mkoC-bar { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
+@keyframes mkoC-ring { 0% { opacity: .95; transform: scale(.8); } 100% { opacity: 0; transform: scale(2.5); } }
+@keyframes mkoC-lock { 0%, 40%, 100% { opacity: 1; } 10%, 30% { opacity: .35; } 20% { opacity: 1; } }
+@keyframes mkoC-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-2.4px); } 40%, 80% { transform: translateX(2.4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mko-c * { animation: none !important; }
+  .mko-c .b, .mko-c .cpose, .mko-c .gl, .mko-c .t, .mko-c .bk, .mko-c .cl, .mko-c .bar, .mko-c .frame, .mko-c .core { transition-duration: .01s !important; }
+  .mko-c.s-speaking .bar { transform: scaleY(.7); }
+  .mko-c.s-speaking .bar2 { transform: scaleY(1); }
+  .mko-c.s-listening .ring { opacity: .7; transform: scale(1.5); }
+}

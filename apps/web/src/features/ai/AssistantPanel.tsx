@@ -83,7 +83,7 @@ export function AssistantButton(): React.JSX.Element | null {
   if (!perms.can("ai_assistant:use")) return null;
   return (
     <button type="button" className={`ai-topbar-btn ai-topbar-btn--${orb}`} onClick={toggle} aria-label={t("ai.panel.open")} title={`${t("ai.panel.open")} (Ctrl J)`}>
-      <AssistantOrb size={22} state={orb} />
+      <AssistantOrb size={22} state={orb} interactive />
       <span>{t("ai.panel.short")}</span>
     </button>
   );
