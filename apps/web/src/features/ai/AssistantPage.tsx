@@ -15,6 +15,10 @@ export function AssistantPage(): React.JSX.Element {
   const toggleHistory = useAiStore((s) => s.toggleHistory);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { closePanel(); }, [closePanel]);
+  // On a narrow screen the list overlays the chat, so it starts closed there.
+  useEffect(() => {
+    if (window.innerWidth <= 860 && useAiStore.getState().historyOpen) useAiStore.getState().toggleHistory();
+  }, []);
 
   // The assistant fills everything under the top bar, edge to edge, and the document itself never
   // scrolls while it is open: only the conversation list and the chat scroll, each inside its own column.

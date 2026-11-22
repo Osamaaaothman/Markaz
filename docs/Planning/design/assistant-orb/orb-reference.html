@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markaz Assistant Orb — Reference</title>
+<style>
+  :root {
+    --green: #1C5A40; --green-hover: #164a34; --cream: #ECE9E1; --brass: #C9AA5C;
+    --bg: #f5f7f6; --surface: #ffffff; --surface-2: #f0f4f2; --border: #dde5e1;
+    --text: #1b2e29; --muted: #60746a;
+    --success: #1f8a5b; --warning: #c98a12; --danger: #c2413b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 24px 64px; overflow-x: hidden; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Segoe UI", Tahoma, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  h2 { margin: 36px 0 12px; font-size: 16px; }
+  p.lead { margin: 0 0 8px; color: var(--muted); max-width: 820px; }
+  .note { padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--muted); max-width: 820px; }
+  .row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .swatch { width: 150px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .swatch div { height: 56px; }
+  .swatch span { display: block; padding: 8px 10px; font-size: 12px; }
+  .card { width: 190px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); display: grid; gap: 10px; justify-items: center; text-align: center; }
+  .card strong { font-size: 13px; }
+  .card small { color: var(--muted); font-size: 11.5px; }
+  table { border-collapse: collapse; width: 100%; max-width: 1000px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+  th { background: var(--surface-2); color: var(--muted); font-size: 12px; }
+  .ctx { display: grid; gap: 12px; max-width: 1000px; }
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  .pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 6px; border: 1px solid var(--border); border-radius: 999px; font-weight: 700; }
+  .msg { display: flex; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  .msg p { margin: 0; }
+  .panelhead { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  .panelhead div { display: grid; }
+  .panelhead small { color: var(--muted); }
+
+  /* ── Current implementation (v1): Markaz emblem as a 5×5 dot matrix ── */
+  .orb { --tile: var(--green); display: inline-block; width: 1em; height: 1em; padding: .16em; border-radius: .26em; background: var(--tile); box-shadow: inset 0 0 0 .02em rgba(255,255,255,.12), 0 .05em .14em rgba(0,0,0,.16); transition: background-color .35s; }
+  .orb.success { --tile: var(--success); } .orb.error { --tile: var(--danger); animation: shake .45s ease-in-out infinite 1.2s; }
+  .grid { display: grid; grid-template-columns: repeat(5,1fr); grid-template-rows: repeat(5,1fr); place-items: center; width: 100%; height: 100%; }
+  .px { width: .1em; height: .1em; min-width: 2px; min-height: 2px; border-radius: 22%; background: var(--cream); opacity: .16; }
+  .idle .px.b { opacity: .95; }
+  .idle .px.c, .thinking .px.c, .speaking .px.c, .listening .px.c, .waiting .px.c { background: var(--brass); opacity: 1; transform: scale(1.45); }
+  .idle .px.c { animation: center 3.2s ease-in-out infinite; }
+  .thinking .px.r { animation: chase 1.28s linear infinite; animation-delay: calc(var(--ring) * .08s - 1.28s); }
+  .thinking .px.c { animation: center .8s ease-in-out infinite; }
+  .speaking .px:not(.c) { animation: eq .9s ease-in-out infinite alternate; animation-delay: calc(var(--col) * -.19s + var(--row) * .07s); }
+  .listening .px:not(.c) { animation: ripple 1.2s ease-out infinite; animation-delay: calc(var(--d) * .16s); }
+  .waiting .px.b { background: var(--brass); animation: blink 1.6s ease-in-out infinite; }
+  .success .px, .error .px { opacity: 0; }
+  .success .px.k { animation: dotin 1.6s cubic-bezier(.34,1.56,.64,1) infinite; animation-delay: calc(var(--col) * 55ms); }
+  .error .px.x { animation: dotin 1.6s ease-out infinite; animation-delay: calc(var(--d) * 60ms); }
+  @keyframes center { 0%,100% { transform: scale(1.45); } 50% { transform: scale(1.05); opacity: .75; } }
+  @keyframes chase { 0% { opacity: 1; } 35%,100% { opacity: .18; } }
+  @keyframes eq { from { opacity: .14; transform: scale(.7); } to { opacity: 1; transform: scale(1.15); } }
+  @keyframes ripple { 0% { opacity: 1; transform: scale(1.3); } 55%,100% { opacity: .16; transform: scale(.85); } }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  @keyframes dotin { 0% { opacity: 0; transform: scale(.2); } 25%,85% { opacity: 1; transform: scale(1.25); } 100% { opacity: 0; } }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-7%); } 40%,80% { transform: translateX(7%); } }
+</style>
+</head>
+<body>
+  <h1>Markaz — AI assistant “orb” · design reference</h1>
+  <p class="lead">Markaz is an Arabic/English accounting ERP for Saudi and Gulf companies. The assistant lives in a side panel and a full page, and talks to the books (sales, stock, payroll, reports). This page shows the brand, where the orb appears, the seven states it must express, and the current v1 (which we want to replace with something better).</p>
+  <p class="note">v1 below is functional but not good enough: it feels static, it is not interactive, and at small sizes the states are hard to tell apart. Treat it as a starting point, not a constraint.</p>
+
+  <h2>1. Brand</h2>
+  <div class="row">
+    <div class="swatch"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" style="width:100%;height:150px;display:block;background:#fff;padding:14px" role="img" aria-label="Markaz emblem"><defs><clipPath id="mk"><rect width="64" height="64" rx="16"/></clipPath></defs><g clip-path="url(#mk)"><rect width="64" height="64" fill="#1C5A40"/><g transform="translate(16 16) scale(0.6667)"><path d="M6 21V6H21" fill="none" stroke="#ECE9E1" stroke-width="6"/><path d="M27 6H42V21" fill="none" stroke="#ECE9E1" stroke-width="6"/><path d="M42 27V42H27" fill="none" stroke="#ECE9E1" stroke-width="6"/><path d="M21 42H6V27" fill="none" stroke="#ECE9E1" stroke-width="6"/><rect x="18" y="18" width="12" height="12" fill="#C9AA5C"/></g></g></svg></div>
+    <div class="swatch"><div style="background:#1C5A40"></div><span><b>Green</b> #1C5A40<br>tile, primary</span></div>
+    <div class="swatch"><div style="background:#ECE9E1"></div><span><b>Cream</b> #ECE9E1<br>frame / brackets</span></div>
+    <div class="swatch"><div style="background:#C9AA5C"></div><span><b>Brass</b> #C9AA5C<br>the centre</span></div>
+    <div class="swatch"><div style="background:#1f8a5b"></div><span><b>Success</b> (app token)</span></div>
+    <div class="swatch"><div style="background:#c98a12"></div><span><b>Warning</b> (app token)</span></div>
+    <div class="swatch"><div style="background:#c2413b"></div><span><b>Danger</b> (app token)</span></div>
+  </div>
+  <p class="note" style="margin-top:12px">The emblem: four corner brackets framing a brass square — “markaz” means “centre”. The app’s loading screen draws the brackets in, pops the centre, then a light shine passes over the tile. No colour gradients anywhere (flat colours only); the app supports light and dark themes and several “design directions”, so neutral colours come from CSS variables.</p>
+
+  <h2>2. Seven states (current v1, animated)</h2>
+  <div class="row" id="states"></div>
+
+  <table style="margin-top:16px">
+    <thead><tr><th>State</th><th>When it shows</th><th>What it must communicate</th><th>v1 behaviour</th></tr></thead>
+    <tbody>
+      <tr><td><b>idle</b></td><td>Ready, nothing running</td><td>Calm, present, “Markaz”</td><td>Emblem; brass centre breathes (3.2s)</td></tr>
+      <tr><td><b>thinking</b></td><td>Request sent, model reasoning / calling tools</td><td>Working, don’t wait anxiously</td><td>Light runs around the frame (1.28s loop)</td></tr>
+      <tr><td><b>speaking</b></td><td>Answer text is streaming in</td><td>“I’m talking to you now”</td><td>Dot columns rise/fall like an equaliser</td></tr>
+      <tr><td><b>listening</b></td><td>Voice dictation is on (microphone)</td><td>Live input, I hear you</td><td>Ripples spread from the centre</td></tr>
+      <tr><td><b>waiting</b></td><td>Changes are proposed and need the user’s approval</td><td>Attention needed, but not an error</td><td>Brackets turn brass and blink</td></tr>
+      <tr><td><b>success</b></td><td>A change was saved (≈1.6s flash, then back to idle)</td><td>Done, confirmed</td><td>Check mark made of dots on a green tile</td></tr>
+      <tr><td><b>error</b></td><td>Provider/network/tool error (≈1.6s flash)</td><td>Something failed</td><td>Cross made of dots on a red tile + shake</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. Where it appears (sizes in real context)</h2>
+  <div class="ctx">
+    <div class="topbar"><span style="color:var(--muted)">Top bar button · 20–22px</span><span style="flex:1"></span><span class="pill"><span class="orb idle" data-orb style="font-size:22px"></span>Assistant</span></div>
+    <div class="panelhead"><span class="orb thinking" data-orb style="font-size:34px"></span><div><b>AI assistant</b><small>Thinking…</small></div><span style="flex:1"></span><small>Panel header · 34px</small></div>
+    <div class="msg"><span class="orb speaking" data-orb style="font-size:30px"></span><div><small style="color:var(--muted)">AI assistant · message avatar · 30px</small><p>Net sales this month are 115,700.00 SAR…</p></div></div>
+    <div class="msg" style="justify-content:center;padding:28px"><div style="display:grid;justify-items:center;gap:10px"><span class="orb idle" data-orb style="font-size:110px"></span><b style="font-size:20px">How can I help?</b><small style="color:var(--muted)">Welcome screen hero · 88–120px</small></div></div>
+  </div>
+
+  <script>
+    // Builds the 5×5 dot grid for every [data-orb] and the state gallery.
+    const RING = [[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,4],[3,4],[4,4],[4,3],[4,2],[4,1],[4,0],[3,0],[2,0],[1,0]];
+    const B = new Set(["0,0","0,1","1,0","0,3","0,4","1,4","3,4","4,4","4,3","3,0","4,0","4,1"]);
+    const K = new Set(["2,0","3,1","2,2","1,3","0,4"]);
+    const X = new Set(["0,0","1,1","2,2","3,3","4,4","0,4","1,3","3,1","4,0"]);
+    function fill(el) {
+      const g = document.createElement("span"); g.className = "grid";
+      for (let i = 0; i < 25; i++) {
+        const r = Math.floor(i / 5), c = i % 5, k = `${r},${c}`, ring = RING.findIndex(([a, b]) => a === r && b === c);
+        const d = document.createElement("i");
+        d.className = ["px", B.has(k) ? "b" : "", r === 2 && c === 2 ? "c" : "", K.has(k) ? "k" : "", X.has(k) ? "x" : "", ring >= 0 ? "r" : ""].join(" ");
+        d.style.setProperty("--row", r); d.style.setProperty("--col", c); d.style.setProperty("--ring", Math.max(ring, 0)); d.style.setProperty("--d", Math.hypot(r - 2, c - 2).toFixed(2));
+        g.appendChild(d);
+      }
+      el.appendChild(g);
+    }
+    const states = [["idle","Ready"],["thinking","Working"],["speaking","Answer streaming"],["listening","Microphone on"],["waiting","Needs approval"],["success","Saved"],["error","Failed"]];
+    const host = document.getElementById("states");
+    for (const [s, label] of states) {
+      const card = document.createElement("div"); card.className = "card";
+      card.innerHTML = `<span class="orb ${s}" data-orb style="font-size:96px"></span><strong>${s}</strong><small>${label}</small><span style="display:flex;gap:10px;align-items:center"><span class="orb ${s}" data-orb style="font-size:34px"></span><span class="orb ${s}" data-orb style="font-size:22px"></span></span>`;
+      host.appendChild(card);
+    }
+    document.querySelectorAll("[data-orb]").forEach(fill);
+  </script>
+</body>
+</html>

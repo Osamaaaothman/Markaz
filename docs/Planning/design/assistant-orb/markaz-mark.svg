@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64">
+  <!-- Markaz emblem: four corner brackets framing a brass centre square ("markaz" = centre).
+       Green tile #1C5A40, cream frame #ECE9E1, brass centre #C9AA5C. Source: apps/web/src/shared/ui/Logo.tsx -->
+  <defs>
+    <clipPath id="clip"><rect width="64" height="64" rx="16"/></clipPath>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect width="64" height="64" fill="#1C5A40"/>
+    <g transform="translate(16 16) scale(0.6667)">
+      <path d="M6 21V6H21" fill="none" stroke="#ECE9E1" stroke-width="6" stroke-linejoin="miter"/>
+      <path d="M27 6H42V21" fill="none" stroke="#ECE9E1" stroke-width="6" stroke-linejoin="miter"/>
+      <path d="M42 27V42H27" fill="none" stroke="#ECE9E1" stroke-width="6" stroke-linejoin="miter"/>
+      <path d="M21 42H6V27" fill="none" stroke="#ECE9E1" stroke-width="6" stroke-linejoin="miter"/>
+      <rect x="18" y="18" width="12" height="12" fill="#C9AA5C"/>
+    </g>
+  </g>
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="15.25" fill="none" stroke="#fff" stroke-opacity="0.1" stroke-width="1.5"/>
+</svg>
