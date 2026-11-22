@@ -1,0 +1,405 @@
+import {
+  buildSystemPrompt,
+  createChatModel,
+  executeDecisions,
+  fromStored,
+  outcomesMessage,
+  permittedTools,
+  runAssistant,
+  textOf,
+  toolsForMode,
+  toStored,
+  trimHistory,
+  type AssistantEvent,
+  type AssistantMode,
+  type Decision,
+  type DisplayBlock,
+  type ErpTool,
+  type ItemOutcome,
+  type Locale,
+  type ProposedItem,
+  type RunResult,
+  type ToolContext,
+} from "@erp/ai";
+import type { IAuditLogger, IPermissionService } from "@erp/core";
+import { Prisma, type PrismaClient } from "@erp/db";
+import { newId } from "@erp/shared";
+import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
+import { AiSettingsError, providerErrorCode, type AiSettingsService } from "./ai-settings.service.js";
+
+export class AiChatError extends Error {
+  constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF") {
+    super(code);
+    this.name = "AiChatError";
+  }
+}
+
+export interface Actor {
+  readonly id: string;
+  readonly companyId: string;
+}
+
+// Events streamed to the browser: the engine's events plus bookkeeping ones.
+export type ChatEvent =
+  | AssistantEvent
+  | { readonly type: "conversation"; readonly id: string; readonly title: string }
+  | { readonly type: "outcome"; readonly outcome: ItemOutcomeView }
+  | { readonly type: "done"; readonly messageId: string; readonly status: "IDLE" | "AWAITING_APPROVAL"; readonly usage: { input: number; output: number } }
+  | { readonly type: "error"; readonly code: string };
+
+export type ItemOutcomeView =
+  | { readonly key: string; readonly status: "EXECUTED"; readonly link: { label: string; path: string } | null }
+  | { readonly key: string; readonly status: "REJECTED" | "SKIPPED" }
+  | { readonly key: string; readonly status: "FAILED"; readonly errorCode: string };
+
+export interface SendInput {
+  readonly conversationId?: string | undefined;
+  readonly text: string;
+  readonly mode: AssistantMode;
+  readonly locale: Locale;
+  readonly page?: { readonly route: string; readonly entityId?: string | undefined } | undefined;
+}
+
+export interface DecideInput {
+  readonly conversationId: string;
+  readonly decisions: Readonly<Record<string, Decision>>;
+  readonly edits?: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined;
+  readonly locale: Locale;
+}
+
+const MAX_MESSAGE = 4000;
+
+// Orchestrates one chat turn: permissions → history → engine (packages/ai) → persistence.
+// The engine never touches the database; this class never decides what the model may do.
+export class AiChatService {
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly permissions: IPermissionService,
+    private readonly audit: IAuditLogger,
+    private readonly settings: AiSettingsService,
+    private readonly tools: readonly ErpTool[],
+  ) {}
+
+  private can(actor: Actor, resource: string, action: string): Promise<boolean> {
+    return this.permissions.can(actor.id, action, resource, actor.companyId);
+  }
+
+  private async requireMode(actor: Actor, mode: AssistantMode): Promise<void> {
+    if (!(await this.can(actor, "ai_assistant", "use"))) throw new AiChatError("FORBIDDEN");
+    if (mode !== "ask" && !(await this.can(actor, "ai_assistant", "interact"))) throw new AiChatError("FORBIDDEN");
+  }
+
+  private toolContext(actor: Actor, conversationId: string, locale: Locale): ToolContext {
+    return {
+      actor: { userId: actor.id, companyId: actor.companyId },
+      locale,
+      conversationId,
+      // Every audit row written through the assistant carries this prefix, so the audit log can
+      // show that a change came from the assistant (and from which conversation).
+      correlationId: `ai:${conversationId}`,
+      can: (resource, action) => this.can(actor, resource, action),
+    };
+  }
+
+  async send(actor: Actor, input: SendInput, emit: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
+    const text = input.text.trim();
+    if (text.length === 0 || text.length > MAX_MESSAGE) throw new AiChatError("MESSAGE_TOO_LONG");
+    await this.requireMode(actor, input.mode);
+    const config = await this.settings.resolve(actor.companyId);
+    await this.checkLimit(actor.companyId, config.monthlyTokenLimit);
+    const autoAllowed = input.mode === "auto" && config.autoModeEnabled && (await this.can(actor, "ai_assistant", "auto"));
+    if (input.mode === "auto" && !autoAllowed) throw new AiChatError("AUTO_MODE_OFF");
+
+    const conversation = input.conversationId
+      ? await this.ownConversation(actor, input.conversationId)
+      : await this.prisma.aiConversation.create({ data: { id: newId(), companyId: actor.companyId, userId: actor.id, title: text.slice(0, 80), mode: input.mode } });
+    emit({ type: "conversation", id: conversation.id, title: conversation.title });
+
+    // Moving on while proposals wait = the user did not accept them.
+    if (conversation.status === "AWAITING_APPROVAL") await this.rejectPending(actor, conversation.id, "superseded");
+
+    const history = await this.history(conversation.id);
+    const human = new HumanMessage(text);
+    await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([human])[0], visible: true, uiText: text }]);
+
+    await this.runTurn(actor, conversation.id, conversation.nextItemNumber, input.mode, autoAllowed, input.locale, [...history, human], input.page, config.provider, emit, signal);
+  }
+
+  async decide(actor: Actor, input: DecideInput, emit: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
+    const conversation = await this.ownConversation(actor, input.conversationId);
+    await this.requireMode(actor, conversation.mode as AssistantMode);
+    // Claim the decision atomically: a double click or a second tab cannot run the same items twice.
+    const claimed = await this.prisma.aiConversation.updateMany({ where: { id: conversation.id, status: "AWAITING_APPROVAL" }, data: { status: "IDLE" } });
+    if (claimed.count !== 1) throw new AiChatError("NOTHING_TO_DECIDE");
+
+    const rows = await this.prisma.aiChangeItem.findMany({ where: { conversationId: conversation.id }, orderBy: { createdAt: "asc" } });
+    const pending = rows.filter((r) => r.status === "PROPOSED");
+    const prior = new Map(rows.filter((r) => r.status === "EXECUTED" && r.result).map((r) => [r.itemKey, (r.result as { data?: Record<string, unknown> }).data ?? {}]));
+    const items: ProposedItem[] = pending.map((r) => ({ id: r.itemKey, toolCallId: "", tool: r.tool, args: r.args as Record<string, unknown>, preview: r.preview as unknown as ProposedItem["preview"], risk: r.risk as "low" | "high", dependsOn: r.dependsOn }));
+    const ctx = this.toolContext(actor, conversation.id, input.locale);
+
+    const outcomes = await executeDecisions({
+      items,
+      decisions: input.decisions,
+      ...(input.edits ? { edits: input.edits } : {}),
+      tools: this.tools,
+      ctx,
+      priorResults: prior,
+      onOutcome: (o) => emit({ type: "outcome", outcome: outcomeView(o) }),
+    });
+    await this.recordOutcomes(actor, pending, outcomes);
+
+    // Let the model tell the user, in plain words, what happened.
+    const config = await this.settings.resolve(actor.companyId);
+    const notice = outcomesMessage(outcomes);
+    const history = await this.history(conversation.id);
+    await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([notice])[0], visible: false }]);
+    await this.runTurn(actor, conversation.id, conversation.nextItemNumber, conversation.mode as AssistantMode, false, input.locale, [...history, notice], undefined, config.provider, emit, signal);
+  }
+
+  private async runTurn(
+    actor: Actor,
+    conversationId: string,
+    firstItemNumber: number,
+    mode: AssistantMode,
+    autoAllowed: boolean,
+    locale: Locale,
+    messages: BaseMessage[],
+    page: SendInput["page"],
+    provider: Awaited<ReturnType<AiSettingsService["resolve"]>>["provider"],
+    emit: (e: ChatEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const ctx = this.toolContext(actor, conversationId, locale);
+    const tools = await permittedTools(toolsForMode(this.tools, mode), ctx);
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true, defaultCurrency: true, timezone: true } });
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: actor.id }, select: { email: true } });
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: company.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const system = buildSystemPrompt({
+      mode,
+      locale,
+      today,
+      companyName: locale === "ar" && company.nameAr ? company.nameAr : company.name,
+      currency: company.defaultCurrency,
+      userName: user.email,
+      page,
+    });
+
+    // Collect what the UI needs to redraw this answer later (blocks, the tool timeline).
+    const blocks: Array<DisplayBlock | { kind: "clarify"; question: string; options: readonly string[] }> = [];
+    const timeline: Array<{ tool: string; ok: boolean; ms: number; errorCode?: string }> = [];
+    const relay = (e: AssistantEvent): void => {
+      if (e.type === "display") blocks.push(e.block);
+      if (e.type === "clarify") blocks.push({ kind: "clarify", question: e.question, options: e.options });
+      if (e.type === "tool_end") timeline.push({ tool: e.tool, ok: e.ok, ms: e.ms, ...(e.errorCode ? { errorCode: e.errorCode } : {}) });
+      emit(e);
+    };
+
+    let result: RunResult;
+    try {
+      const model = await createChatModel(provider);
+      const priorRows = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "EXECUTED" }, select: { itemKey: true, result: true } });
+      result = await runAssistant({
+        model,
+        tools,
+        mode,
+        autoAllowed,
+        ctx,
+        system,
+        messages: trimHistory(messages),
+        firstItemNumber,
+        priorResults: new Map(priorRows.map((r) => [r.itemKey, ((r.result as { data?: Record<string, unknown> } | null)?.data) ?? {}])),
+        emit: relay,
+        ...(signal ? { signal } : {}),
+      });
+    } catch (error) {
+      const code = error instanceof AiSettingsError ? error.code : providerErrorCode(error);
+      const id = await this.appendNotice(conversationId, actor.companyId, null, blocks, timeline, provider, { input: 0, output: 0 }, code);
+      emit({ type: "error", code });
+      emit({ type: "done", messageId: id, status: "IDLE", usage: { input: 0, output: 0 } });
+      return;
+    }
+
+    // Hidden plumbing rows (AI tool calls, tool results, the final AI message) keep the exact
+    // LangChain history; one visible "notice" row carries what the user sees.
+    await this.appendRows(conversationId, actor.companyId, result.newMessages.map((m) => ({ role: m.getType() === "ai" ? "ai" : m.getType() === "tool" ? "tool" : "human", payload: toStored([m])[0], visible: false })));
+    const finalAi = [...result.newMessages].reverse().find((m) => m.getType() === "ai" && !((m as { tool_calls?: unknown[] }).tool_calls?.length));
+    const answer = finalAi ? textOf(finalAi.content) : null;
+    const messageId = await this.appendNotice(conversationId, actor.companyId, answer, blocks, timeline, provider, result.usage, result.hitStepLimit ? "STEP_LIMIT" : null);
+
+    const status = result.proposals.length > 0 ? "AWAITING_APPROVAL" : "IDLE";
+    await this.prisma.$transaction([
+      ...result.proposals.map((p) =>
+        this.prisma.aiChangeItem.create({
+          data: { id: newId(), companyId: actor.companyId, conversationId, messageId, itemKey: p.id, tool: p.tool, args: p.args as Prisma.InputJsonValue, preview: p.preview as unknown as Prisma.InputJsonValue, risk: p.risk, dependsOn: [...p.dependsOn] },
+        }),
+      ),
+      ...result.executed.map((x) =>
+        this.prisma.aiChangeItem.create({
+          data: {
+            id: newId(), companyId: actor.companyId, conversationId, messageId, itemKey: x.id, tool: x.tool, args: x.args as Prisma.InputJsonValue, preview: {}, risk: "low",
+            dependsOn: [], status: "EXECUTED", auto: true, result: { data: x.result.data } as Prisma.InputJsonValue, link: (x.result.link ?? Prisma.JsonNull) as Prisma.InputJsonValue, decidedBy: actor.id, decidedAt: new Date(),
+          },
+        }),
+      ),
+      this.prisma.aiConversation.update({
+        where: { id: conversationId },
+        data: { status, mode, nextItemNumber: firstItemNumber + result.proposals.length + result.executed.length },
+      }),
+    ]);
+    await this.recordUsage(actor, result.usage);
+    for (const x of result.executed) {
+      await this.audit.log({ actorId: actor.id, action: "ai_change.auto_executed", entityType: "AiConversation", entityId: conversationId, after: { item: x.id, tool: x.tool }, correlationId: `ai:${conversationId}` });
+    }
+    emit({ type: "done", messageId, status, usage: result.usage });
+  }
+
+  private async recordOutcomes(actor: Actor, pending: ReadonlyArray<{ id: string; itemKey: string; tool: string }>, outcomes: readonly ItemOutcome[]): Promise<void> {
+    const byKey = new Map(pending.map((p) => [p.itemKey, p]));
+    const now = new Date();
+    for (const o of outcomes) {
+      const row = byKey.get(o.id);
+      if (!row) continue;
+      const base = { decidedBy: actor.id, decidedAt: now };
+      const data =
+        o.status === "executed"
+          ? { ...base, status: "EXECUTED", args: o.args as Prisma.InputJsonValue, result: { data: o.result.data } as Prisma.InputJsonValue, link: (o.result.link ?? Prisma.JsonNull) as Prisma.InputJsonValue }
+          : o.status === "failed"
+            ? { ...base, status: "FAILED", errorCode: o.errorCode }
+            : { ...base, status: o.status === "rejected" ? "REJECTED" : "SKIPPED" };
+      await this.prisma.aiChangeItem.update({ where: { id: row.id }, data });
+      await this.audit.log({ actorId: actor.id, action: `ai_change.${o.status}`, entityType: "AiChangeItem", entityId: row.id, after: { item: o.id, tool: row.tool }, correlationId: `ai:${row.id}` });
+    }
+  }
+
+  private async rejectPending(actor: Actor, conversationId: string, reason: string): Promise<void> {
+    const pending = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "PROPOSED" }, select: { id: true, itemKey: true, tool: true } });
+    await this.recordOutcomes(actor, pending, pending.map((p) => ({ id: p.itemKey, status: "rejected" as const })));
+    await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: "IDLE" } });
+    void reason;
+  }
+
+  private async ownConversation(actor: Actor, id: string) {
+    const c = await this.prisma.aiConversation.findFirst({ where: { id, companyId: actor.companyId, userId: actor.id } });
+    if (!c) throw new AiChatError("CONVERSATION_NOT_FOUND");
+    return c;
+  }
+
+  private async history(conversationId: string): Promise<BaseMessage[]> {
+    const rows = await this.prisma.aiMessage.findMany({ where: { conversationId, role: { not: "notice" } }, orderBy: { seq: "asc" }, select: { payload: true } });
+    return fromStored(rows.map((r) => r.payload));
+  }
+
+  private async appendRows(conversationId: string, companyId: string, rows: ReadonlyArray<{ role: string; payload: unknown; visible: boolean; uiText?: string }>): Promise<void> {
+    if (rows.length === 0) return;
+    const last = await this.prisma.aiMessage.findFirst({ where: { conversationId }, orderBy: { seq: "desc" }, select: { seq: true } });
+    let seq = (last?.seq ?? 0) + 1;
+    await this.prisma.aiMessage.createMany({
+      data: rows.map((r) => ({ id: newId(), conversationId, companyId, seq: seq++, role: r.role, payload: r.payload as Prisma.InputJsonValue, visible: r.visible, uiText: r.uiText ?? null })),
+    });
+  }
+
+  private async appendNotice(
+    conversationId: string,
+    companyId: string,
+    text: string | null,
+    blocks: readonly unknown[],
+    timeline: readonly unknown[],
+    provider: { provider: string; model: string },
+    usage: { input: number; output: number },
+    errorCode: string | null,
+  ): Promise<string> {
+    const id = newId();
+    const last = await this.prisma.aiMessage.findFirst({ where: { conversationId }, orderBy: { seq: "desc" }, select: { seq: true } });
+    await this.prisma.aiMessage.create({
+      data: {
+        id, conversationId, companyId, seq: (last?.seq ?? 0) + 1, role: "notice", payload: errorCode ? { errorCode } : {}, visible: true,
+        uiText: text, uiBlocks: blocks as Prisma.InputJsonValue, uiTimeline: timeline as Prisma.InputJsonValue,
+        provider: provider.provider, model: provider.model, inputTokens: usage.input, outputTokens: usage.output,
+      },
+    });
+    return id;
+  }
+
+  private async recordUsage(actor: Actor, usage: { input: number; output: number }): Promise<void> {
+    const day = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
+    await this.prisma.aiUsageDaily.upsert({
+      where: { companyId_userId_day: { companyId: actor.companyId, userId: actor.id, day } },
+      create: { companyId: actor.companyId, userId: actor.id, day, requests: 1, inputTokens: usage.input, outputTokens: usage.output },
+      update: { requests: { increment: 1 }, inputTokens: { increment: usage.input }, outputTokens: { increment: usage.output } },
+    });
+  }
+
+  private async checkLimit(companyId: string, limit: number | null): Promise<void> {
+    if (limit === null) return;
+    const used = await this.monthUsage(companyId);
+    if (used.input + used.output >= limit) throw new AiChatError("LIMIT_REACHED");
+  }
+
+  async monthUsage(companyId: string, userId?: string): Promise<{ input: number; output: number; requests: number }> {
+    const now = new Date();
+    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const agg = await this.prisma.aiUsageDaily.aggregate({ where: { companyId, day: { gte: from }, ...(userId ? { userId } : {}) }, _sum: { inputTokens: true, outputTokens: true, requests: true } });
+    return { input: agg._sum.inputTokens ?? 0, output: agg._sum.outputTokens ?? 0, requests: agg._sum.requests ?? 0 };
+  }
+
+  // ─── Conversation list and history for the UI ───────────────────────────────────────────────
+  async list(actor: Actor) {
+    return this.prisma.aiConversation.findMany({
+      where: { companyId: actor.companyId, userId: actor.id, archivedAt: null },
+      orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+      take: 100,
+      select: { id: true, title: true, mode: true, status: true, pinned: true, updatedAt: true },
+    });
+  }
+
+  async get(actor: Actor, id: string) {
+    const c = await this.ownConversation(actor, id);
+    const [rows, changes] = await Promise.all([
+      this.prisma.aiMessage.findMany({ where: { conversationId: id, visible: true }, orderBy: { seq: "asc" } }),
+      this.prisma.aiChangeItem.findMany({ where: { conversationId: id }, orderBy: { createdAt: "asc" } }),
+    ]);
+    return {
+      conversation: { id: c.id, title: c.title, mode: c.mode, status: c.status, pinned: c.pinned },
+      messages: rows.map((r) => ({
+        id: r.id,
+        role: r.role === "human" ? "user" : "assistant",
+        text: r.uiText,
+        blocks: r.uiBlocks ?? [],
+        timeline: r.uiTimeline ?? [],
+        errorCode: (r.payload as { errorCode?: string } | null)?.errorCode ?? null,
+        createdAt: r.createdAt,
+        changes: changes
+          .filter((ch) => ch.messageId === r.id)
+          .map((ch) => ({ key: ch.itemKey, tool: ch.tool, args: ch.args, preview: ch.preview, risk: ch.risk, status: ch.status, auto: ch.auto, dependsOn: ch.dependsOn, link: ch.link, errorCode: ch.errorCode })),
+      })),
+    };
+  }
+
+  async update(actor: Actor, id: string, patch: { title?: string | undefined; pinned?: boolean | undefined; archived?: boolean | undefined }) {
+    await this.ownConversation(actor, id);
+    await this.prisma.aiConversation.update({
+      where: { id },
+      data: {
+        ...(patch.title !== undefined ? { title: patch.title.trim().slice(0, 120) || "—" } : {}),
+        ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}),
+        ...(patch.archived !== undefined ? { archivedAt: patch.archived ? new Date() : null } : {}),
+      },
+    });
+  }
+
+  async remove(actor: Actor, id: string): Promise<void> {
+    await this.ownConversation(actor, id);
+    // Executed changes stay in the audit log of the records they created; the chat itself is the user's.
+    await this.prisma.aiConversation.delete({ where: { id } });
+  }
+}
+
+function outcomeView(o: ItemOutcome): ItemOutcomeView {
+  switch (o.status) {
+    case "executed": return { key: o.id, status: "EXECUTED", link: o.result.link ?? null };
+    case "failed": return { key: o.id, status: "FAILED", errorCode: o.errorCode };
+    case "rejected": return { key: o.id, status: "REJECTED" };
+    case "skipped": return { key: o.id, status: "SKIPPED" };
+  }
+}

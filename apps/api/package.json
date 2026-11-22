@@ -13,11 +13,14 @@
     "test:cost-centers": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.cost-centers.config.cjs --runInBand"
   },
   "dependencies": {
+    "@erp/ai": "*",
     "@erp/bots": "*",
     "@erp/compliance-zatca-sa": "*",
     "@erp/core": "*",
     "@erp/db": "*",
     "@erp/shared": "*",
+    "@langchain/core": "^1.5.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^12.0.1",
     "@nestjs/jwt": "^12.0.1",
@@ -35,7 +38,8 @@
     "playwright": "^1.63.0",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@nestjs/testing": "^12.0.1",

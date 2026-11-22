@@ -22,6 +22,7 @@ import { SetupModule } from "./setup/setup.module.js";
 import { AuditModule } from "./audit/audit.module.js";
 import { AttachmentsModule } from "./attachments/attachments.module.js";
 import { ComplianceModule } from "./compliance/compliance.module.js";
+import { AiModule } from "./ai/ai.module.js";
 import { BotsModule } from "./bots/bots.module.js";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { PermissionGuard } from "./identity/permission.guard.js";
@@ -61,6 +62,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter.js";
     AuditModule,
     AttachmentsModule,
     ComplianceModule,
+    AiModule,
     BotsModule,
   ],
   controllers: [HealthController],

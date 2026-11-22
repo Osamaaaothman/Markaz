@@ -19,17 +19,18 @@ datasource db {
 
 // Unposted working copies. They never allocate document numbers or change the ledger.
 model DocumentDraft {
-  id String @id
-  companyId String @map("company_id")
-  userId String @map("user_id")
-  kind String
-  payload Json
-  version Int @default(1)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String    @id
+  companyId String    @map("company_id")
+  userId    String    @map("user_id")
+  kind      String
+  payload   Json
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
-  company Company @relation(fields: [companyId], references: [id])
-  user User @relation(fields: [userId], references: [id])
+  company   Company   @relation(fields: [companyId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
   @@index([companyId, userId, updatedAt])
   @@map("document_drafts")
 }
@@ -38,46 +39,48 @@ model DocumentDraft {
 // §4 note: "per tenant" here means per company/branch within one customer's own
 // deployment, not a cross-customer SaaS tenant).
 model Company {
-  botConnections BotConnection[]
+  aiProviderConfig       AiProviderConfig?
+  aiConversations        AiConversation[]
+  botConnections         BotConnection[]
   quotationEmailAttempts QuotationEmailAttempt[]
-  id                    String   @id
-  name                  String
+  id                     String                  @id
+  name                   String
   // The name in Arabic, for Arabic documents and the Arabic interface. Null = use `name` everywhere.
-  nameAr                String?  @map("name_ar")
-  defaultCurrency       String   @default("SAR") @map("default_currency")
-  timezone              String   @default("Asia/Riyadh")
+  nameAr                 String?                 @map("name_ar")
+  defaultCurrency        String                  @default("SAR") @map("default_currency")
+  timezone               String                  @default("Asia/Riyadh")
   // M-HR1 WPS export (packages/core/src/hr, apps/api/src/hr/exports): the three header-group
   // fields the HRSD wages-file spec needs that belong to the company, not any one payroll run --
   // null until set, so the export endpoint can say exactly what is missing instead of guessing.
-  wpsBankSarieId        String?  @map("wps_bank_sarie_id")
-  wpsBankAccountNumber  String?  @map("wps_bank_account_number")
-  wpsMolEstablishmentId String?  @map("wps_mol_establishment_id")
+  wpsBankSarieId         String?                 @map("wps_bank_sarie_id")
+  wpsBankAccountNumber   String?                 @map("wps_bank_account_number")
+  wpsMolEstablishmentId  String?                 @map("wps_mol_establishment_id")
   // M7 ZATCA seller (taxpayer) profile — docs/06-COMPLIANCE-PACK-RULES.md. `nameAr` above is the
   // legal Arabic name ZATCA requires on every invoice regardless of UI language. Null until the
   // first-run setup page or Settings fills them in; nothing here is seeded.
   // Contact phone shown on documents. Not part of the ZATCA seller profile (not bound into the
   // issued certificate), so it stays editable even after `locked` is true.
-  phone                 String?
-  vatNumber             String?  @map("vat_number") // 15 digits, starts and ends with '3'
-  crNumber              String?  @map("cr_number") // Commercial Registration number, or another ZATCA party-id scheme
-  crNumberScheme        String?  @default("CRN") @map("cr_number_scheme") // ZATCA PartyIdentificationScheme: CRN | MOM | MLS | SAG | OTH | NAT | GCC | IQA | PAS | CCN | CBI
-  streetName            String?  @map("street_name")
-  additionalStreetName  String?  @map("additional_street_name")
-  buildingNumber        String?  @map("building_number") // 4 digits
-  additionalNumber      String?  @map("additional_number") // plot/secondary number, 4 digits
-  district              String?
-  city                  String?
-  postalCode            String?  @map("postal_code") // 5 digits
-  countryCode           String?  @default("SA") @map("country_code") // ISO 3166-1 alpha-2
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-  createdBy             String?  @map("created_by")
-  updatedBy             String?  @map("updated_by")
-  version               Int      @default(1)
+  phone                  String?
+  vatNumber              String?                 @map("vat_number") // 15 digits, starts and ends with '3'
+  crNumber               String?                 @map("cr_number") // Commercial Registration number, or another ZATCA party-id scheme
+  crNumberScheme         String?                 @default("CRN") @map("cr_number_scheme") // ZATCA PartyIdentificationScheme: CRN | MOM | MLS | SAG | OTH | NAT | GCC | IQA | PAS | CCN | CBI
+  streetName             String?                 @map("street_name")
+  additionalStreetName   String?                 @map("additional_street_name")
+  buildingNumber         String?                 @map("building_number") // 4 digits
+  additionalNumber       String?                 @map("additional_number") // plot/secondary number, 4 digits
+  district               String?
+  city                   String?
+  postalCode             String?                 @map("postal_code") // 5 digits
+  countryCode            String?                 @default("SA") @map("country_code") // ISO 3166-1 alpha-2
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  createdBy              String?                 @map("created_by")
+  updatedBy              String?                 @map("updated_by")
+  version                Int                     @default(1)
 
-  users User[]
+  users          User[]
   documentDrafts DocumentDraft[]
-  roles Role[]
+  roles          Role[]
 
   fiscalYears      FiscalYear[]
   fiscalPeriods    FiscalPeriod[]
@@ -125,32 +128,34 @@ model Company {
   // M7 compliance (ZATCA)
   egsUnits EgsUnit[]
 
-  fixedAssetCategories FixedAssetCategory[]
-  fixedAssets FixedAsset[]
-  depreciationRuns DepreciationRun[]
-  fixedAssetDisposals FixedAssetDisposal[]
-  @@map("companies")
-  inventoryShortfalls InventoryShortfall[]
+  fixedAssetCategories     FixedAssetCategory[]
+  fixedAssets              FixedAsset[]
+  depreciationRuns         DepreciationRun[]
+  fixedAssetDisposals      FixedAssetDisposal[]
+  inventoryShortfalls      InventoryShortfall[]
   inventoryCostSettlements InventoryCostSettlement[]
+
+  @@map("companies")
 }
 
 model User {
-  botIdentityLinks BotIdentityLink[]
-  documentDrafts DocumentDraft[]
-  id                  String    @id
-  companyId           String    @map("company_id")
+  aiConversations     AiConversation[]
+  botIdentityLinks    BotIdentityLink[]
+  documentDrafts      DocumentDraft[]
+  id                  String            @id
+  companyId           String            @map("company_id")
   // Human-readable label (USR-000012), unique per company; the UUID `id` stays the key.
   ref                 String
-  email               String    @unique
-  passwordHash        String    @map("password_hash")
-  isActive            Boolean   @default(true) @map("is_active")
-  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-  lockedUntil         DateTime? @map("locked_until")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-  createdBy           String?   @map("created_by")
-  updatedBy           String?   @map("updated_by")
-  version             Int       @default(1)
+  email               String            @unique
+  passwordHash        String            @map("password_hash")
+  isActive            Boolean           @default(true) @map("is_active")
+  failedLoginAttempts Int               @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?         @map("locked_until")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  createdBy           String?           @map("created_by")
+  updatedBy           String?           @map("updated_by")
+  version             Int               @default(1)
 
   company       Company        @relation(fields: [companyId], references: [id])
   roles         UserRole[]
@@ -413,13 +418,13 @@ model Account {
   fixedAssetCategoryAccumulated FixedAssetCategory[]     @relation("FixedAssetCategoryAccumulated")
   fixedAssetCategoryExpense     FixedAssetCategory[]     @relation("FixedAssetCategoryExpense")
   fixedAssetsFunded             FixedAsset[]             @relation("FixedAssetSourceAccount")
+  inventoryShortfalls           InventoryShortfall[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
   @@index([companyId, parentId])
   @@index([companyId, partyId])
   @@map("accounts")
-  inventoryShortfalls InventoryShortfall[]
 }
 
 // A person, company or employee an account can be kept for (custodian, supplier, customer...).
@@ -458,22 +463,23 @@ model Party {
   updatedBy              String?  @map("updated_by")
   version                Int      @default(1)
 
-  company          Company           @relation(fields: [companyId], references: [id])
-  accounts         Account[]
+  company            Company             @relation(fields: [companyId], references: [id])
+  accounts           Account[]
   // M4 inventory: the supplier a goods receipt was received from, if recorded.
-  goodsReceipts    GoodsReceipt[]
-  goodsReturns     GoodsReturn[]
+  goodsReceipts      GoodsReceipt[]
+  goodsReturns       GoodsReturn[]
   // M5 purchasing: orders placed with this party as the supplier.
-  purchaseOrders   PurchaseOrder[]
-  supplierInvoices SupplierInvoice[]
-  quotations       Quotation[]
-  salesOrders      SalesOrder[]
-  salesInvoices    SalesInvoice[]
+  purchaseOrders     PurchaseOrder[]
+  supplierInvoices   SupplierInvoice[]
+  quotations         Quotation[]
+  salesOrders        SalesOrder[]
+  salesInvoices      SalesInvoice[]
   goodsDeliveryNotes GoodsDeliveryNote[]
-  payments         Payment[]
-  employees        Employee[]
+  payments           Payment[]
+  employees          Employee[]
 
   fixedAssets FixedAsset[]
+
   @@unique([companyId, ref])
   @@index([companyId, kind])
   @@index([companyId, name])
@@ -551,17 +557,18 @@ model JournalEntry {
   // distinct in unique constraints, so it would not have actually blocked duplicate
   // original postings (reversalOfEntryId is NULL for all of them). Idempotency-Key
   // is the correct, working mechanism for this.
-  fixedAssetCapitalizations FixedAsset[]         @relation("FixedAssetCapitalization")
-  depreciationRuns          DepreciationRun[]    @relation("DepreciationRunEntry")
-  depreciationReversals     DepreciationRun[]    @relation("DepreciationRunReversal")
-  fixedAssetDisposals       FixedAssetDisposal[] @relation("FixedAssetDisposalEntry")
+  fixedAssetCapitalizations FixedAsset[]              @relation("FixedAssetCapitalization")
+  depreciationRuns          DepreciationRun[]         @relation("DepreciationRunEntry")
+  depreciationReversals     DepreciationRun[]         @relation("DepreciationRunReversal")
+  fixedAssetDisposals       FixedAssetDisposal[]      @relation("FixedAssetDisposalEntry")
+  inventoryCostSettlements  InventoryCostSettlement[]
+
   @@unique([companyId, idempotencyKey])
   @@index([companyId, fiscalPeriodId])
   @@index([companyId, number])
   @@index([companyId, entryDate])
   @@index([companyId, sourceModule, sourceDocumentType, sourceDocumentId])
   @@map("journal_entries")
-  inventoryCostSettlements InventoryCostSettlement[]
 }
 
 // docs/04-DATA-MODEL-RULES.md §9: exactly one of debit/credit populated, both
@@ -570,17 +577,17 @@ model JournalEntry {
 // computed once at posting time from the entry's exchangeRate and stored — never
 // recomputed later (docs/04 §2).
 model JournalEntryLine {
-  costCenterId   String? @map("cost_center_id")
+  costCenterId   String?     @map("cost_center_id")
   costCenter     CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  id             String  @id
-  journalEntryId String  @map("journal_entry_id")
-  accountId      String  @map("account_id")
-  debit          Decimal @default(0) @db.Decimal(19, 4)
-  credit         Decimal @default(0) @db.Decimal(19, 4)
-  baseDebit      Decimal @default(0) @map("base_debit") @db.Decimal(19, 4)
-  baseCredit     Decimal @default(0) @map("base_credit") @db.Decimal(19, 4)
+  id             String      @id
+  journalEntryId String      @map("journal_entry_id")
+  accountId      String      @map("account_id")
+  debit          Decimal     @default(0) @db.Decimal(19, 4)
+  credit         Decimal     @default(0) @db.Decimal(19, 4)
+  baseDebit      Decimal     @default(0) @map("base_debit") @db.Decimal(19, 4)
+  baseCredit     Decimal     @default(0) @map("base_credit") @db.Decimal(19, 4)
   description    String?
-  lineNumber     Int     @map("line_number")
+  lineNumber     Int         @map("line_number")
 
   journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
   account      Account      @relation(fields: [accountId], references: [id])
@@ -709,22 +716,22 @@ model Warehouse {
   updatedBy String?  @map("updated_by")
   version   Int      @default(1)
 
-  company           Company              @relation(fields: [companyId], references: [id])
-  stock             ItemWarehouseStock[]
-  stockMovements    StockMovement[]
-  costLayers        CostLayer[]
-  goodsReceipts     GoodsReceipt[]
-  goodsReturns      GoodsReturn[]
-  stockIssues       StockIssue[]
-  stockCounts       StockCount[]
-  salesInvoiceLines SalesInvoiceLine[]
-  purchaseRequests  PurchaseRequest[]
-  purchaseOrders    PurchaseOrder[]
+  company             Company              @relation(fields: [companyId], references: [id])
+  stock               ItemWarehouseStock[]
+  stockMovements      StockMovement[]
+  costLayers          CostLayer[]
+  goodsReceipts       GoodsReceipt[]
+  goodsReturns        GoodsReturn[]
+  stockIssues         StockIssue[]
+  stockCounts         StockCount[]
+  salesInvoiceLines   SalesInvoiceLine[]
+  purchaseRequests    PurchaseRequest[]
+  purchaseOrders      PurchaseOrder[]
+  inventoryShortfalls InventoryShortfall[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
   @@map("warehouses")
-  inventoryShortfalls InventoryShortfall[]
 }
 
 model Item {
@@ -747,25 +754,25 @@ model Item {
   updatedBy    String?  @map("updated_by")
   version      Int      @default(1)
 
-  company              Company               @relation(fields: [companyId], references: [id])
-  stock                ItemWarehouseStock[]
-  stockMovements       StockMovement[]
-  costLayers           CostLayer[]
-  goodsReceiptLines    GoodsReceiptLine[]
-  goodsReturnLines     GoodsReturnLine[]
-  stockIssueLines      StockIssueLine[]
-  stockCountLines      StockCountLine[]
-  purchaseRequestLines PurchaseRequestLine[]
-  purchaseOrderLines   PurchaseOrderLine[]
-  quotationLines       QuotationLine[]
-  salesOrderLines      SalesOrderLine[]
-  salesInvoiceLines    SalesInvoiceLine[]
+  company                Company                 @relation(fields: [companyId], references: [id])
+  stock                  ItemWarehouseStock[]
+  stockMovements         StockMovement[]
+  costLayers             CostLayer[]
+  goodsReceiptLines      GoodsReceiptLine[]
+  goodsReturnLines       GoodsReturnLine[]
+  stockIssueLines        StockIssueLine[]
+  stockCountLines        StockCountLine[]
+  purchaseRequestLines   PurchaseRequestLine[]
+  purchaseOrderLines     PurchaseOrderLine[]
+  quotationLines         QuotationLine[]
+  salesOrderLines        SalesOrderLine[]
+  salesInvoiceLines      SalesInvoiceLine[]
   goodsDeliveryNoteLines GoodsDeliveryNoteLine[]
+  inventoryShortfalls    InventoryShortfall[]
 
   @@unique([companyId, code])
   @@unique([companyId, ref])
   @@map("items")
-  inventoryShortfalls InventoryShortfall[]
 }
 
 // Current on-hand quantity and its total cost per item+warehouse — the weighted-average
@@ -775,15 +782,15 @@ model Item {
 // Updated in place, inside the same transaction as the stock movement that causes the
 // change. Signed book stock is allowed; quantity/value signs must agree (ADR 0005).
 model ItemWarehouseStock {
-  id          String   @id
-  companyId   String   @map("company_id")
-  itemId      String   @map("item_id")
-  warehouseId String   @map("warehouse_id")
-  quantity    Decimal  @default(0) @db.Decimal(19, 4)
-  value       Decimal  @default(0) @db.Decimal(19, 4)
-  lastUnitCost Decimal? @map("last_unit_cost") @db.Decimal(27,8)
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  version     Int      @default(1)
+  id           String   @id
+  companyId    String   @map("company_id")
+  itemId       String   @map("item_id")
+  warehouseId  String   @map("warehouse_id")
+  quantity     Decimal  @default(0) @db.Decimal(19, 4)
+  value        Decimal  @default(0) @db.Decimal(19, 4)
+  lastUnitCost Decimal? @map("last_unit_cost") @db.Decimal(27, 8)
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  version      Int      @default(1)
 
   company   Company   @relation(fields: [companyId], references: [id])
   item      Item      @relation(fields: [itemId], references: [id], onDelete: Restrict)
@@ -810,14 +817,14 @@ model StockMovement {
   value              Decimal  @db.Decimal(19, 4)
   sourceDocumentType String   @map("source_document_type")
   sourceDocumentId   String   @map("source_document_id")
-  journalEntryId     String?   @map("journal_entry_id")
+  journalEntryId     String?  @map("journal_entry_id")
   actorId            String   @map("actor_id")
   correlationId      String   @map("correlation_id")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  company      Company      @relation(fields: [companyId], references: [id])
-  item         Item         @relation(fields: [itemId], references: [id])
-  warehouse    Warehouse    @relation(fields: [warehouseId], references: [id])
+  company      Company       @relation(fields: [companyId], references: [id])
+  item         Item          @relation(fields: [itemId], references: [id])
+  warehouse    Warehouse     @relation(fields: [warehouseId], references: [id])
   journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id])
 
   @@index([companyId, itemId, warehouseId])
@@ -864,7 +871,7 @@ model GoodsReceipt {
   purchaseOrderId String?  @map("purchase_order_id")
   documentDate    DateTime @map("document_date") @db.Date
   reference       String?
-  journalEntryId  String?   @map("journal_entry_id")
+  journalEntryId  String?  @map("journal_entry_id")
   actorId         String   @map("actor_id")
   correlationId   String   @map("correlation_id")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -872,14 +879,14 @@ model GoodsReceipt {
   company       Company            @relation(fields: [companyId], references: [id])
   warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
   party         Party?             @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  journalEntry  JournalEntry?       @relation(fields: [journalEntryId], references: [id])
+  journalEntry  JournalEntry?      @relation(fields: [journalEntryId], references: [id])
   purchaseOrder PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
   lines         GoodsReceiptLine[]
+  submissionKey String?            @map("submission_key")
 
   @@unique([companyId, number])
+  @@unique([companyId, submissionKey])
   @@map("goods_receipts")
-  submissionKey String? @map("submission_key")
-  @@unique([companyId,submissionKey])
 }
 
 model GoodsReceiptLine {
@@ -912,20 +919,20 @@ model StockIssue {
   warehouseId    String   @map("warehouse_id")
   costCenterRef  String   @map("cost_center_ref")
   documentDate   DateTime @map("document_date") @db.Date
-  journalEntryId String?   @map("journal_entry_id")
+  journalEntryId String?  @map("journal_entry_id")
   actorId        String   @map("actor_id")
   correlationId  String   @map("correlation_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  company      Company          @relation(fields: [companyId], references: [id])
-  warehouse    Warehouse        @relation(fields: [warehouseId], references: [id])
-  journalEntry JournalEntry?     @relation(fields: [journalEntryId], references: [id])
-  lines        StockIssueLine[]
+  company       Company          @relation(fields: [companyId], references: [id])
+  warehouse     Warehouse        @relation(fields: [warehouseId], references: [id])
+  journalEntry  JournalEntry?    @relation(fields: [journalEntryId], references: [id])
+  lines         StockIssueLine[]
+  submissionKey String?          @map("submission_key")
 
   @@unique([companyId, number])
+  @@unique([companyId, submissionKey])
   @@map("stock_issues")
-  submissionKey String? @map("submission_key")
-  @@unique([companyId,submissionKey])
 }
 
 model StockIssueLine {
@@ -952,8 +959,7 @@ model StockIssueLine {
 // warehouse's figures at the moment the count line was recorded, not read again at posting
 // time, so the variance stays reproducible even if other movements happen in between.
 model StockCount {
-  submissionKey String? @map("submission_key")
-  @@unique([companyId, submissionKey])
+  submissionKey String?   @map("submission_key")
   id            String    @id
   companyId     String    @map("company_id")
   number        String
@@ -970,6 +976,7 @@ model StockCount {
   warehouse Warehouse        @relation(fields: [warehouseId], references: [id])
   lines     StockCountLine[]
 
+  @@unique([companyId, submissionKey])
   @@unique([companyId, number])
   @@map("stock_counts")
 }
@@ -1004,8 +1011,7 @@ model StockCountLine {
 // An internal request to buy, raised by whoever needs the goods. PENDING until a buyer turns it
 // into an order (PROCESSED, linked) or turns it down (REJECTED, with a reason).
 model PurchaseRequest {
-  submissionKey String? @map("submission_key")
-  @@unique([companyId, submissionKey])
+  submissionKey   String?   @map("submission_key")
   id              String    @id
   companyId       String    @map("company_id")
   number          String
@@ -1030,6 +1036,7 @@ model PurchaseRequest {
   purchaseOrder PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
   lines         PurchaseRequestLine[]
 
+  @@unique([companyId, submissionKey])
   @@unique([companyId, number])
   @@index([companyId, status])
   @@index([warehouseId])
@@ -1056,8 +1063,7 @@ model PurchaseRequestLine {
 // move it APPROVED -> PARTIALLY_RECEIVED -> RECEIVED. Lines are never edited after creation: a
 // wrong order is cancelled (only while nothing is received) and re-issued.
 model PurchaseOrder {
-  submissionKey String? @map("submission_key")
-  @@unique([companyId, submissionKey])
+  submissionKey     String?   @map("submission_key")
   id                String    @id
   companyId         String    @map("company_id")
   number            String
@@ -1091,6 +1097,7 @@ model PurchaseOrder {
   goodsReturns     GoodsReturn[]
   supplierInvoices SupplierInvoice[]
 
+  @@unique([companyId, submissionKey])
   @@unique([companyId, number])
   @@index([companyId, status])
   @@index([companyId, supplierId])
@@ -1133,30 +1140,30 @@ model PurchaseOrderLine {
 // percentage, the others are always 0 and exist so a report can tell zero-rated from exempt from
 // outside the scope. Rate and treatment are copied onto each invoice line when posted.
 model TaxCode {
-  id        String   @id
-  companyId String   @map("company_id")
-  code      String
-  name      String
-  nameAr    String?  @map("name_ar")
+  id                  String   @id
+  companyId           String   @map("company_id")
+  code                String
+  name                String
+  nameAr              String?  @map("name_ar")
   // Percentage, e.g. 15.0000 for 15%.
-  rate      Decimal  @db.Decimal(7, 4)
-  treatment            String  // STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE
+  rate                Decimal  @db.Decimal(7, 4)
+  treatment           String // STANDARD | ZERO_RATED | EXEMPT | OUT_OF_SCOPE
   // Required by ZATCA XML builder when treatment is ZERO_RATED or EXEMPT.
-  exemptionReasonCode  String?  @map("exemption_reason_code")
-  exemptionReason      String?  @map("exemption_reason")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  createdBy String?  @map("created_by")
-  updatedBy String?  @map("updated_by")
-  version   Int      @default(1)
+  exemptionReasonCode String?  @map("exemption_reason_code")
+  exemptionReason     String?  @map("exemption_reason")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdBy           String?  @map("created_by")
+  updatedBy           String?  @map("updated_by")
+  version             Int      @default(1)
 
-  company           Company               @relation(fields: [companyId], references: [id])
-  invoiceLines        SupplierInvoiceLine[]
-  quotationLines      QuotationLine[]
-  salesOrderLines     SalesOrderLine[]
-  salesInvoiceLines   SalesInvoiceLine[]
-  purchaseOrderLines  PurchaseOrderLine[]
+  company            Company               @relation(fields: [companyId], references: [id])
+  invoiceLines       SupplierInvoiceLine[]
+  quotationLines     QuotationLine[]
+  salesOrderLines    SalesOrderLine[]
+  salesInvoiceLines  SalesInvoiceLine[]
+  purchaseOrderLines PurchaseOrderLine[]
 
   @@unique([companyId, code])
   @@map("tax_codes")
@@ -1209,39 +1216,39 @@ model SupplierInvoice {
 
 model SupplierInvoiceLine {
   // Null for original invoices and legacy financial adjustments.
-  originalLineId String? @map("original_line_id")
-  originalLine SupplierInvoiceLine? @relation("SupplierInvoiceLineReturns", fields: [originalLineId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  returnLines SupplierInvoiceLine[] @relation("SupplierInvoiceLineReturns")
+  originalLineId String?               @map("original_line_id")
+  originalLine   SupplierInvoiceLine?  @relation("SupplierInvoiceLineReturns", fields: [originalLineId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  returnLines    SupplierInvoiceLine[] @relation("SupplierInvoiceLineReturns")
 
-  id                  String  @id
-  supplierInvoiceId   String  @map("supplier_invoice_id")
-  kind                String // PO_LINE | EXPENSE | ASSET
+  id                   String  @id
+  supplierInvoiceId    String  @map("supplier_invoice_id")
+  kind                 String // PO_LINE | EXPENSE | ASSET
   // ASSET lines: the category whose asset account is debited; posting the invoice creates the asset.
   fixedAssetCategoryId String? @map("fixed_asset_category_id")
-  purchaseOrderLineId String? @map("purchase_order_line_id")
+  purchaseOrderLineId  String? @map("purchase_order_line_id")
   // Expense lines post straight to this account.
-  accountId           String? @map("account_id")
-  description         String?
-  quantity            Decimal @db.Decimal(19, 4)
-  unitPrice           Decimal @map("unit_price") @db.Decimal(19, 4)
-  netAmount           Decimal @map("net_amount") @db.Decimal(19, 4)
-  taxCodeId           String  @map("tax_code_id")
-  taxRate             Decimal @map("tax_rate") @db.Decimal(7, 4)
-  taxAmount           Decimal @map("tax_amount") @db.Decimal(19, 4)
+  accountId            String? @map("account_id")
+  description          String?
+  quantity             Decimal @db.Decimal(19, 4)
+  unitPrice            Decimal @map("unit_price") @db.Decimal(19, 4)
+  netAmount            Decimal @map("net_amount") @db.Decimal(19, 4)
+  taxCodeId            String  @map("tax_code_id")
+  taxRate              Decimal @map("tax_rate") @db.Decimal(7, 4)
+  taxAmount            Decimal @map("tax_amount") @db.Decimal(19, 4)
   // Invoice net minus quantity x the order price; 0 for expense lines.
-  priceVariance       Decimal @default(0) @map("price_variance") @db.Decimal(19, 4)
-  lineNumber          Int     @map("line_number")
+  priceVariance        Decimal @default(0) @map("price_variance") @db.Decimal(19, 4)
+  lineNumber           Int     @map("line_number")
 
-  supplierInvoice   SupplierInvoice    @relation(fields: [supplierInvoiceId], references: [id])
-  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
-  account           Account?           @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  taxCode           TaxCode            @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
+  supplierInvoice    SupplierInvoice     @relation(fields: [supplierInvoiceId], references: [id])
+  purchaseOrderLine  PurchaseOrderLine?  @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+  account            Account?            @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  taxCode            TaxCode             @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
   fixedAssetCategory FixedAssetCategory? @relation(fields: [fixedAssetCategoryId], references: [id], onDelete: Restrict)
-  fixedAsset        FixedAsset?
+  fixedAsset         FixedAsset?
 
   @@index([supplierInvoiceId])
-  @@map("supplier_invoice_lines")
   @@index([originalLineId])
+  @@map("supplier_invoice_lines")
 }
 
 // ─── Purchase returns (M5) ──────────────────────────────────────────────────────
@@ -1310,31 +1317,31 @@ model GoodsReturnLine {
 // (REJECTED) or withdrawn (CANCELLED). Lines are never edited; a changed offer is a new quotation.
 model Quotation {
   emailAttempts QuotationEmailAttempt[]
-  submissionKey String? @map("submission_key")
-  @@unique([companyId, submissionKey])
-  id            String    @id
-  companyId     String    @map("company_id")
+  submissionKey String?                 @map("submission_key")
+  id            String                  @id
+  companyId     String                  @map("company_id")
   number        String
-  customerId    String    @map("customer_id")
+  customerId    String                  @map("customer_id")
   status        String // OPEN | CONVERTED | REJECTED | CANCELLED
-  quotationDate DateTime  @map("quotation_date") @db.Date
-  validUntil    DateTime? @map("valid_until") @db.Date
+  quotationDate DateTime                @map("quotation_date") @db.Date
+  validUntil    DateTime?               @map("valid_until") @db.Date
   currency      String
-  totalNet      Decimal   @map("total_net") @db.Decimal(19, 4)
-  totalTax      Decimal   @map("total_tax") @db.Decimal(19, 4)
-  totalGross    Decimal   @map("total_gross") @db.Decimal(19, 4)
+  totalNet      Decimal                 @map("total_net") @db.Decimal(19, 4)
+  totalTax      Decimal                 @map("total_tax") @db.Decimal(19, 4)
+  totalGross    Decimal                 @map("total_gross") @db.Decimal(19, 4)
   notes         String?
-  salesOrderId  String?   @map("sales_order_id")
-  createdBy     String    @map("created_by")
-  correlationId String    @map("correlation_id")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  salesOrderId  String?                 @map("sales_order_id")
+  createdBy     String                  @map("created_by")
+  correlationId String                  @map("correlation_id")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
 
   company    Company         @relation(fields: [companyId], references: [id])
   customer   Party           @relation(fields: [customerId], references: [id], onDelete: Restrict)
   salesOrder SalesOrder?     @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
   lines      QuotationLine[]
 
+  @@unique([companyId, submissionKey])
   @@unique([companyId, number])
   @@index([companyId, status])
   @@map("quotations")
@@ -1364,8 +1371,7 @@ model QuotationLine {
 
 // A confirmed order. OPEN -> PARTIALLY_INVOICED -> INVOICED as invoices are raised against it.
 model SalesOrder {
-  submissionKey String? @map("submission_key")
-  @@unique([companyId, submissionKey])
+  submissionKey String?  @map("submission_key")
   id            String   @id
   companyId     String   @map("company_id")
   number        String
@@ -1383,13 +1389,14 @@ model SalesOrder {
   updatedAt     DateTime @updatedAt @map("updated_at")
   version       Int      @default(1)
 
-  company       Company          @relation(fields: [companyId], references: [id])
-  customer      Party            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  company       Company             @relation(fields: [companyId], references: [id])
+  customer      Party               @relation(fields: [customerId], references: [id], onDelete: Restrict)
   lines         SalesOrderLine[]
   quotations    Quotation[]
   salesInvoices SalesInvoice[]
   deliveryNotes GoodsDeliveryNote[]
 
+  @@unique([companyId, submissionKey])
   @@unique([companyId, number])
   @@index([companyId, status])
   @@map("sales_orders")
@@ -1399,22 +1406,22 @@ model SalesOrder {
 // 0 <= invoiced <= ordered and 0 <= delivered <= ordered. Delivery is a paperwork record only
 // (docs/01-OPEN-DECISIONS.md E1 still holds: stock leaves at invoice, not at delivery note).
 model SalesOrderLine {
-  id               String  @id
-  salesOrderId     String  @map("sales_order_id")
-  itemId           String? @map("item_id")
-  description      String
-  quantity         Decimal @db.Decimal(19, 4)
-  unitPrice        Decimal @map("unit_price") @db.Decimal(19, 4)
-  taxCodeId        String  @map("tax_code_id")
-  invoicedQuantity Decimal @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
+  id                String  @id
+  salesOrderId      String  @map("sales_order_id")
+  itemId            String? @map("item_id")
+  description       String
+  quantity          Decimal @db.Decimal(19, 4)
+  unitPrice         Decimal @map("unit_price") @db.Decimal(19, 4)
+  taxCodeId         String  @map("tax_code_id")
+  invoicedQuantity  Decimal @default(0) @map("invoiced_quantity") @db.Decimal(19, 4)
   deliveredQuantity Decimal @default(0) @map("delivered_quantity") @db.Decimal(19, 4)
-  lineNumber       Int     @map("line_number")
+  lineNumber        Int     @map("line_number")
 
   salesOrder        SalesOrder              @relation(fields: [salesOrderId], references: [id])
-  item               Item?                   @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  taxCode            TaxCode                 @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
-  invoiceLines       SalesInvoiceLine[]
-  deliveryNoteLines  GoodsDeliveryNoteLine[]
+  item              Item?                   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  taxCode           TaxCode                 @relation(fields: [taxCodeId], references: [id], onDelete: Restrict)
+  invoiceLines      SalesInvoiceLine[]
+  deliveryNoteLines GoodsDeliveryNoteLine[]
 
   @@index([salesOrderId])
   @@map("sales_order_lines")
@@ -1425,8 +1432,7 @@ model SalesOrderLine {
 // COGS still posts only at the invoice). One sales order may have several delivery notes
 // (partial deliveries); deliveredQuantity on the order line is the running total.
 model GoodsDeliveryNote {
-  submissionKey String? @map("submission_key")
-  @@unique([companyId, submissionKey])
+  submissionKey String?  @map("submission_key")
   id            String   @id
   companyId     String   @map("company_id")
   number        String
@@ -1447,6 +1453,7 @@ model GoodsDeliveryNote {
   salesOrder SalesOrder              @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
   lines      GoodsDeliveryNoteLine[]
 
+  @@unique([companyId, submissionKey])
   @@unique([companyId, number])
   @@index([companyId, salesOrderId])
   @@map("goods_delivery_notes")
@@ -1473,37 +1480,37 @@ model GoodsDeliveryNoteLine {
 // the document type gives the direction. Immutable like a journal entry — a mistake is corrected by
 // a credit note, never an edit.
 model SalesInvoice {
-  id                String    @id
-  companyId         String    @map("company_id")
-  documentType      String    @map("document_type") // INVOICE | CREDIT_NOTE | DEBIT_NOTE
-  number            String
-  customerId        String    @map("customer_id")
-  salesOrderId      String?   @map("sales_order_id")
+  id                 String    @id
+  companyId          String    @map("company_id")
+  documentType       String    @map("document_type") // INVOICE | CREDIT_NOTE | DEBIT_NOTE
+  number             String
+  customerId         String    @map("customer_id")
+  salesOrderId       String?   @map("sales_order_id")
   // CREDIT_NOTE / DEBIT_NOTE only: the invoice it reduces or bills against.
-  originalInvoiceId String?   @map("original_invoice_id")
+  originalInvoiceId  String?   @map("original_invoice_id")
   // Full TIMESTAMPTZ: date portion = document date (user-selected); time portion = wall-clock
   // issue time captured at posting — required by ZATCA XML issueTime without a separate column.
-  invoiceDate       DateTime  @map("invoice_date")
-  dueDate           DateTime? @map("due_date") @db.Date
+  invoiceDate        DateTime  @map("invoice_date")
+  dueDate            DateTime? @map("due_date") @db.Date
   // Actual supply date explicitly provided at issue; null for historical documents/when not applicable.
   actualDeliveryDate DateTime? @map("actual_delivery_date") @db.Date
   // UNCL4461: 10=cash, 42=bank transfer (default), 48=card.
-  paymentMeansCode  String    @default("42") @map("payment_means_code")
-  currency          String
-  totalNet          Decimal   @map("total_net") @db.Decimal(19, 4)
-  totalTax          Decimal   @map("total_tax") @db.Decimal(19, 4)
-  totalGross        Decimal   @map("total_gross") @db.Decimal(19, 4)
+  paymentMeansCode   String    @default("42") @map("payment_means_code")
+  currency           String
+  totalNet           Decimal   @map("total_net") @db.Decimal(19, 4)
+  totalTax           Decimal   @map("total_tax") @db.Decimal(19, 4)
+  totalGross         Decimal   @map("total_gross") @db.Decimal(19, 4)
   // Cost of the stock sold (invoices only); what COGS was debited with.
-  totalCost         Decimal   @default(0) @map("total_cost") @db.Decimal(19, 4)
-  journalEntryId    String    @map("journal_entry_id")
-  notes             String?
+  totalCost          Decimal   @default(0) @map("total_cost") @db.Decimal(19, 4)
+  journalEntryId     String    @map("journal_entry_id")
+  notes              String?
   // The ZATCA issuing unit (EGS) this document belongs to. Null means the company has no ZATCA
   // units yet (ordinary invoicing, unaffected) or exactly one, which is assigned automatically;
   // with more than one active unit a caller must choose explicitly (docs/01-OPEN-DECISIONS.md).
-  egsUnitId         String?   @map("egs_unit_id")
-  actorId           String    @map("actor_id")
-  correlationId     String    @map("correlation_id")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  egsUnitId          String?   @map("egs_unit_id")
+  actorId            String    @map("actor_id")
+  correlationId      String    @map("correlation_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
 
   company            Company             @relation(fields: [companyId], references: [id])
   customer           Party               @relation(fields: [customerId], references: [id], onDelete: Restrict)
@@ -1524,9 +1531,9 @@ model SalesInvoice {
 
 model SalesInvoiceLine {
   // Null for original invoices and legacy financial adjustments.
-  originalLineId String? @map("original_line_id")
-  originalLine SalesInvoiceLine? @relation("SalesInvoiceLineReturns", fields: [originalLineId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  returnLines SalesInvoiceLine[] @relation("SalesInvoiceLineReturns")
+  originalLineId String?            @map("original_line_id")
+  originalLine   SalesInvoiceLine?  @relation("SalesInvoiceLineReturns", fields: [originalLineId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  returnLines    SalesInvoiceLine[] @relation("SalesInvoiceLineReturns")
 
   id               String  @id
   salesInvoiceId   String  @map("sales_invoice_id")
@@ -1556,8 +1563,8 @@ model SalesInvoiceLine {
   revenueAccount Account?        @relation(fields: [revenueAccountId], references: [id], onDelete: Restrict)
 
   @@index([salesInvoiceId])
-  @@map("sales_invoice_lines")
   @@index([originalLineId])
+  @@map("sales_invoice_lines")
 }
 
 // ─── Receipt and payment vouchers ───────────────────────────────────────────────
@@ -1566,39 +1573,39 @@ model SalesInvoiceLine {
 // select a counter-account. Eligible invoice allocations may total less than the voucher amount.
 // Posted financial fields are immutable; mistakes are corrected by a reversing entry.
 model Payment {
-  id             String   @id
-  companyId      String   @map("company_id")
-  direction      String // RECEIPT | PAYMENT
-  number         String
-  partyId        String?  @map("party_id")
+  id                  String    @id
+  companyId           String    @map("company_id")
+  direction           String // RECEIPT | PAYMENT
+  number              String
+  partyId             String?   @map("party_id")
   // Null on legacy vouchers; their role follows direction. New vouchers store the selected role.
-  counterpartyKind String? @map("counterparty_kind") // CUSTOMER | SUPPLIER | EMPLOYEE | ACCOUNT
-  counterAccountId String? @map("counter_account_id")
-  paymentDate    DateTime @map("payment_date") @db.Date
-  amount         Decimal  @db.Decimal(19, 4)
-  currency       String
+  counterpartyKind    String?   @map("counterparty_kind") // CUSTOMER | SUPPLIER | EMPLOYEE | ACCOUNT
+  counterAccountId    String?   @map("counter_account_id")
+  paymentDate         DateTime  @map("payment_date") @db.Date
+  amount              Decimal   @db.Decimal(19, 4)
+  currency            String
   // The bank or cash account the money moved through.
-  cashAccountId  String   @map("cash_account_id")
-  method         String // CASH | BANK_TRANSFER | CHEQUE | CARD | OTHER
-  reference      String?
-  notes          String?
-  journalEntryId       String    @map("journal_entry_id")
-  actorId              String    @map("actor_id")
-  correlationId        String    @map("correlation_id")
-  createdAt            DateTime  @default(now()) @map("created_at")
+  cashAccountId       String    @map("cash_account_id")
+  method              String // CASH | BANK_TRANSFER | CHEQUE | CARD | OTHER
+  reference           String?
+  notes               String?
+  journalEntryId      String    @map("journal_entry_id")
+  actorId             String    @map("actor_id")
+  correlationId       String    @map("correlation_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
   // Reversal / void: a voided payment has voidedAt set and reversedByPaymentId pointing to the
   // new reversing payment. The reversing payment has reversesPaymentId pointing back. The original
   // journal entry and allocations are never edited — the reversal posts a new counter-entry.
-  voidedAt             DateTime? @map("voided_at")
-  reversesPaymentId    String?   @map("reverses_payment_id")
-  reversedByPaymentId  String?   @map("reversed_by_payment_id")
+  voidedAt            DateTime? @map("voided_at")
+  reversesPaymentId   String?   @map("reverses_payment_id")
+  reversedByPaymentId String?   @map("reversed_by_payment_id")
 
-  company      Company             @relation(fields: [companyId], references: [id])
-  party        Party?              @relation(fields: [partyId], references: [id], onDelete: Restrict)
-  cashAccount  Account             @relation("PaymentCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
-  counterAccount Account?          @relation("PaymentCounterAccount", fields: [counterAccountId], references: [id], onDelete: Restrict)
-  journalEntry JournalEntry        @relation(fields: [journalEntryId], references: [id])
-  allocations  PaymentAllocation[]
+  company        Company             @relation(fields: [companyId], references: [id])
+  party          Party?              @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  cashAccount    Account             @relation("PaymentCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  counterAccount Account?            @relation("PaymentCounterAccount", fields: [counterAccountId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry        @relation(fields: [journalEntryId], references: [id])
+  allocations    PaymentAllocation[]
 
   @@unique([companyId, number])
   @@index([companyId, partyId])
@@ -1646,10 +1653,10 @@ model CashExpense {
   correlationId    String   @map("correlation_id")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  company        Company      @relation(fields: [companyId], references: [id])
-  cashAccount    Account      @relation("CashExpenseCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
-  expenseAccount Account?     @relation("CashExpenseLegacyExpense", fields: [expenseAccountId], references: [id], onDelete: Restrict)
-  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  company        Company           @relation(fields: [companyId], references: [id])
+  cashAccount    Account           @relation("CashExpenseCash", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  expenseAccount Account?          @relation("CashExpenseLegacyExpense", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry      @relation(fields: [journalEntryId], references: [id])
   lines          CashExpenseLine[]
 
   @@unique([companyId, number])
@@ -1658,13 +1665,13 @@ model CashExpense {
 }
 
 model CashExpenseLine {
-  costCenterId    String? @map("cost_center_id")
-  costCenter      CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  id               String   @id
-  cashExpenseId    String   @map("cash_expense_id")
-  expenseAccountId String   @map("expense_account_id")
-  amount           Decimal  @db.Decimal(19, 4)
-  costCenterRef    String?  @map("cost_center_ref")
+  costCenterId     String?     @map("cost_center_id")
+  costCenter       CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  id               String      @id
+  cashExpenseId    String      @map("cash_expense_id")
+  expenseAccountId String      @map("expense_account_id")
+  amount           Decimal     @db.Decimal(19, 4)
+  costCenterRef    String?     @map("cost_center_ref")
   description      String?
 
   cashExpense    CashExpense @relation(fields: [cashExpenseId], references: [id], onDelete: Cascade)
@@ -1675,20 +1682,21 @@ model CashExpenseLine {
 }
 
 model CostCenter {
-  id        String @id
-  companyId String @map("company_id")
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  code      String
-  name      String
-  nameAr    String? @map("name_ar")
-  kind      String
-  isActive  Boolean @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String             @id
+  companyId    String             @map("company_id")
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  code         String
+  name         String
+  nameAr       String?            @map("name_ar")
+  kind         String
+  isActive     Boolean            @default(true) @map("is_active")
+  createdAt    DateTime           @default(now()) @map("created_at")
   expenseLines CashExpenseLine[]
   journalLines JournalEntryLine[]
 
-  fixedAssets FixedAsset[]
+  fixedAssets          FixedAsset[]
   depreciationRunLines DepreciationRunLine[]
+
   @@unique([companyId, code])
   @@map("cost_centers")
 }
@@ -1775,6 +1783,7 @@ model Employee {
   endOfServiceSettlements EndOfServiceSettlement[]
 
   fixedAssets FixedAsset[]
+
   @@unique([companyId, ref])
   @@index([companyId, isActive])
   @@index([partyId])
@@ -2198,9 +2207,9 @@ model ZatcaInvoiceRecord {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  egsUnit      EgsUnit      @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
-  salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
-    history      ZatcaSubmissionAttempt[]
+  egsUnit      EgsUnit                  @relation(fields: [egsUnitId], references: [id], onDelete: Restrict)
+  salesInvoice SalesInvoice             @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  history      ZatcaSubmissionAttempt[]
 
   @@unique([egsUnitId, icv])
   @@index([companyId])
@@ -2210,16 +2219,16 @@ model ZatcaInvoiceRecord {
 }
 
 model ZatcaSubmissionAttempt {
-  id          String   @id
-  companyId   String   @map("company_id")
-  recordId    String   @map("record_id")
+  id          String             @id
+  companyId   String             @map("company_id")
+  recordId    String             @map("record_id")
   stage       String
   status      String
-  startedAt   DateTime @map("started_at")
-  completedAt DateTime @map("completed_at")
+  startedAt   DateTime           @map("started_at")
+  completedAt DateTime           @map("completed_at")
   warnings    Json
   errors      Json
-  httpStatus  Int?     @map("http_status")
+  httpStatus  Int?               @map("http_status")
   record      ZatcaInvoiceRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
 
   @@index([companyId, recordId, startedAt])
@@ -2228,26 +2237,27 @@ model ZatcaSubmissionAttempt {
 
 // Outgoing quotation correspondence. Provider acceptance is distinct from delivery.
 model QuotationEmailAttempt {
-  id String @id
-  companyId String @map("company_id")
-  quotationId String @map("quotation_id")
-  requestKey String @map("request_key")
-  recipient String
-  language String
-  subject String?
-  status String
-  provider String?
-  providerId String? @map("provider_id")
-  errorCode String? @map("error_code")
-  sentAt DateTime? @map("sent_at") @db.Timestamptz(3)
-  checkedAt DateTime? @map("checked_at") @db.Timestamptz(3)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  createdBy String @map("created_by")
-  updatedBy String @map("updated_by")
-  version Int @default(1)
-  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+  id          String    @id
+  companyId   String    @map("company_id")
+  quotationId String    @map("quotation_id")
+  requestKey  String    @map("request_key")
+  recipient   String
+  language    String
+  subject     String?
+  status      String
+  provider    String?
+  providerId  String?   @map("provider_id")
+  errorCode   String?   @map("error_code")
+  sentAt      DateTime? @map("sent_at") @db.Timestamptz(3)
+  checkedAt   DateTime? @map("checked_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdBy   String    @map("created_by")
+  updatedBy   String    @map("updated_by")
+  version     Int       @default(1)
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Restrict)
+
   @@unique([companyId, requestKey])
   @@index([companyId, quotationId, id])
   @@index([quotationId])
@@ -2256,52 +2266,54 @@ model QuotationEmailAttempt {
 
 // Mutable outstanding quantities; original estimate and settlement history are retained.
 model InventoryShortfall {
-  id String @id
-  companyId String @map("company_id")
-  itemId String @map("item_id")
-  warehouseId String @map("warehouse_id")
-  sourceDocumentType String @map("source_document_type")
-  sourceDocumentId String @map("source_document_id")
-  lineNumber Int @map("line_number")
-  expenseAccountId String @map("expense_account_id")
-  quantity Decimal @db.Decimal(19,4)
-  estimatedValue Decimal @map("estimated_value") @db.Decimal(19,4)
-  costKnown Boolean @map("cost_known")
-  remainingQuantity Decimal @map("remaining_quantity") @db.Decimal(19,4)
-  remainingValue Decimal @map("remaining_value") @db.Decimal(19,4)
-  createdAt DateTime @default(now()) @map("created_at")
-  company Company @relation(fields:[companyId],references:[id])
-  item Item @relation(fields:[itemId],references:[id])
-  warehouse Warehouse @relation(fields:[warehouseId],references:[id])
-  expenseAccount Account @relation(fields:[expenseAccountId],references:[id])
-  settlements InventoryCostSettlement[]
-  @@index([companyId,itemId,warehouseId,createdAt,id], map:"inventory_shortfalls_pool")
-  @@index([companyId,sourceDocumentType,sourceDocumentId], map:"inventory_shortfalls_source")
-  @@map("inventory_shortfalls")
+  id                 String                    @id
+  companyId          String                    @map("company_id")
+  itemId             String                    @map("item_id")
+  warehouseId        String                    @map("warehouse_id")
+  sourceDocumentType String                    @map("source_document_type")
+  sourceDocumentId   String                    @map("source_document_id")
+  lineNumber         Int                       @map("line_number")
+  expenseAccountId   String                    @map("expense_account_id")
+  quantity           Decimal                   @db.Decimal(19, 4)
+  estimatedValue     Decimal                   @map("estimated_value") @db.Decimal(19, 4)
+  costKnown          Boolean                   @map("cost_known")
+  remainingQuantity  Decimal                   @map("remaining_quantity") @db.Decimal(19, 4)
+  remainingValue     Decimal                   @map("remaining_value") @db.Decimal(19, 4)
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  company            Company                   @relation(fields: [companyId], references: [id])
+  item               Item                      @relation(fields: [itemId], references: [id])
+  warehouse          Warehouse                 @relation(fields: [warehouseId], references: [id])
+  expenseAccount     Account                   @relation(fields: [expenseAccountId], references: [id])
+  settlements        InventoryCostSettlement[]
+
+  @@index([companyId, itemId, warehouseId, createdAt, id], map: "inventory_shortfalls_pool")
+  @@index([companyId, sourceDocumentType, sourceDocumentId], map: "inventory_shortfalls_source")
   @@index([itemId])
   @@index([warehouseId])
   @@index([expenseAccountId])
+  @@map("inventory_shortfalls")
 }
 
 // Append-only adjustments: a later receipt never rewrites a posted invoice or entry.
 model InventoryCostSettlement {
-  id String @id
-  shortfallId String @map("shortfall_id")
-  companyId String @map("company_id")
-  quantity Decimal @db.Decimal(19,4)
-  estimatedValue Decimal @map("estimated_value") @db.Decimal(19,4)
-  actualValue Decimal @map("actual_value") @db.Decimal(19,4)
-  sourceDocumentType String @map("source_document_type")
-  sourceDocumentId String @map("source_document_id")
-  journalEntryId String? @map("journal_entry_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  shortfall InventoryShortfall @relation(fields:[shortfallId],references:[id])
-  company Company @relation(fields:[companyId],references:[id])
-  journalEntry JournalEntry? @relation(fields:[journalEntryId],references:[id])
-  @@map("inventory_cost_settlements")
+  id                 String             @id
+  shortfallId        String             @map("shortfall_id")
+  companyId          String             @map("company_id")
+  quantity           Decimal            @db.Decimal(19, 4)
+  estimatedValue     Decimal            @map("estimated_value") @db.Decimal(19, 4)
+  actualValue        Decimal            @map("actual_value") @db.Decimal(19, 4)
+  sourceDocumentType String             @map("source_document_type")
+  sourceDocumentId   String             @map("source_document_id")
+  journalEntryId     String?            @map("journal_entry_id")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  shortfall          InventoryShortfall @relation(fields: [shortfallId], references: [id])
+  company            Company            @relation(fields: [companyId], references: [id])
+  journalEntry       JournalEntry?      @relation(fields: [journalEntryId], references: [id])
+
   @@index([shortfallId])
   @@index([companyId])
   @@index([journalEntryId])
+  @@map("inventory_cost_settlements")
 }
 
 // ─── Fixed assets ───────────────────────────────────────────────────────────────
@@ -2735,4 +2747,119 @@ model BotInboundEvent {
   @@id([connectionId, eventId])
   @@index([receivedAt])
   @@map("bot_inbound_events")
+}
+
+// ─── AI assistant (docs/Planning/ai-assistant-plan.md) ──────────────────────────────────────────
+
+// One provider configuration per company. The API key is AES-256-GCM sealed (AI_CREDENTIALS_ENCRYPTION_KEY),
+// never returned by the API and never logged.
+model AiProviderConfig {
+  id                String   @id
+  companyId         String   @unique @map("company_id")
+  provider          String
+  model             String
+  baseUrl           String?  @map("base_url")
+  apiKeyCiphertext  Bytes?   @map("api_key_ciphertext")
+  enabled           Boolean  @default(false)
+  // D-AI-4: the company-wide switch for auto mode. Users also need ai_assistant:auto.
+  autoModeEnabled   Boolean  @default(false) @map("auto_mode_enabled")
+  // D-AI-3: tokens per calendar month for the whole company. Null = no limit.
+  monthlyTokenLimit Int?     @map("monthly_token_limit")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  createdBy         String   @map("created_by")
+  updatedBy         String   @map("updated_by")
+  version           Int      @default(1)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("ai_provider_configs")
+}
+
+model AiConversation {
+  id             String    @id
+  companyId      String    @map("company_id")
+  userId         String    @map("user_id")
+  title          String
+  mode           String    @default("ask")
+  // IDLE, or AWAITING_APPROVAL while proposed changes wait for the user.
+  status         String    @default("IDLE")
+  nextItemNumber Int       @default(1) @map("next_item_number")
+  pinned         Boolean   @default(false)
+  archivedAt     DateTime? @map("archived_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  company  Company        @relation(fields: [companyId], references: [id])
+  user     User           @relation(fields: [userId], references: [id])
+  messages AiMessage[]
+  changes  AiChangeItem[]
+
+  @@index([companyId, userId, updatedAt])
+  @@map("ai_conversations")
+}
+
+// One LangChain message per row (payload = LangChain's stored form, so provider extras survive).
+// Rows the user sees carry ui_* fields; tool calls and tool results are hidden plumbing.
+model AiMessage {
+  id             String   @id
+  conversationId String   @map("conversation_id")
+  companyId      String   @map("company_id")
+  seq            Int
+  role           String
+  payload        Json
+  visible        Boolean  @default(false)
+  uiText         String?  @map("ui_text")
+  uiBlocks       Json?    @map("ui_blocks")
+  uiTimeline     Json?    @map("ui_timeline")
+  provider       String?
+  model          String?
+  inputTokens    Int      @default(0) @map("input_tokens")
+  outputTokens   Int      @default(0) @map("output_tokens")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, seq])
+  @@map("ai_messages")
+}
+
+// A change the assistant proposed or ran. Once it leaves PROPOSED it is frozen (DB trigger).
+model AiChangeItem {
+  id             String    @id
+  companyId      String    @map("company_id")
+  conversationId String    @map("conversation_id")
+  messageId      String?   @map("message_id")
+  itemKey        String    @map("item_key")
+  tool           String
+  args           Json
+  preview        Json
+  risk           String
+  dependsOn      String[]  @map("depends_on")
+  status         String    @default("PROPOSED")
+  auto           Boolean   @default(false)
+  result         Json?
+  link           Json?
+  errorCode      String?   @map("error_code")
+  decidedBy      String?   @map("decided_by")
+  decidedAt      DateTime? @map("decided_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, itemKey])
+  @@index([companyId, status])
+  @@map("ai_change_items")
+}
+
+model AiUsageDaily {
+  companyId    String   @map("company_id")
+  userId       String   @map("user_id")
+  day          DateTime @db.Date
+  requests     Int      @default(0)
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+
+  @@id([companyId, userId, day])
+  @@map("ai_usage_daily")
 }

@@ -89,6 +89,13 @@ services:
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-markaz}
       ZATCA_ENVIRONMENT: ${ZATCA_ENVIRONMENT:-sandbox}
       ZATCA_KEY_ENCRYPTION_KEY: ${ZATCA_KEY_ENCRYPTION_KEY:-}
+      # AI assistant (docs/Planning/ai-assistant-plan.md). The provider is normally set in Settings → AI.
+      AI_CREDENTIALS_ENCRYPTION_KEY: ${AI_CREDENTIALS_ENCRYPTION_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       # Customer documents. Back this up together with erp_db_data (docs/12-OPS-AND-DEPLOYMENT.md).
       - attachments_data:/data/attachments

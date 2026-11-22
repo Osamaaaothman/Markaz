@@ -7,7 +7,7 @@ export interface PromptContext {
   readonly companyName: string;
   readonly currency: string;
   readonly userName: string;
-  readonly page?: { readonly route: string; readonly entityId?: string } | undefined;
+  readonly page?: { readonly route: string; readonly entityId?: string | undefined } | undefined;
 }
 
 // English on purpose: models follow English instructions most reliably. The reply language is
