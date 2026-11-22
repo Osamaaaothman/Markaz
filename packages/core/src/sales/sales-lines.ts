@@ -31,7 +31,10 @@ export class SalesError extends Error {
       | "EGS_UNIT_NOT_FOUND"
       | "EGS_UNIT_REQUIRED"
       | "BELOW_COST"
-      | "FUTURE_DATE",
+      | "FUTURE_DATE"
+      | "ALREADY_VOIDED"
+      | "VOID_NOT_ALLOWED"
+      | "VOIDED_INVOICE",
     message: string,
     readonly lineNumber?: number,
   ) {

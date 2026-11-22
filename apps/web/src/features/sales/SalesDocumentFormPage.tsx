@@ -28,6 +28,7 @@ import {
   useCreateQuotation,
   useCreateSalesInvoice,
   useCreateSalesOrder,
+  useSalesInvoice,
   useSalesOrder,
   type SalesLinePayload,
 } from "./use-sales";
@@ -83,6 +84,9 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const stockLevels = stockQuery.isError ? undefined : stockQuery.data;
   const { data: taxCodes } = useTaxCodes(false);
   const { data: order } = useSalesOrder(orderId);
+  // Correcting an invoice ZATCA rejected (and that was voided): start from a copy of it.
+  const copyFromId = mode === "invoice" && !params.get("draft") ? params.get("copyFrom") ?? "" : "";
+  const { data: copyFrom } = useSalesInvoice(copyFromId);
   // Which ZATCA issuing unit (EGS) this invoice belongs to -- only relevant/shown once a company
   // has more than one active unit (docs/01-OPEN-DECISIONS.md); otherwise the backend assigns it
   // (or leaves it null) automatically, and this never needs to be asked.
@@ -120,7 +124,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
   // Start with one empty line once the tax codes are known.
   useEffect(() => {
-    if (lines.length === 0 && !orderId && defaultTaxId) setLines([blankLine()]);
+    if (lines.length === 0 && !orderId && !copyFromId && defaultTaxId) setLines([blankLine()]);
   }, [defaultTaxId]);
 
   // Starting an invoice from an order: copy what is still to invoice.
@@ -147,6 +151,25 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
       }),
     );
   }, [order?.id, defaultTaxId]);
+
+  useEffect(() => {
+    if (!copyFrom || copyFrom.documentType !== "INVOICE" || !defaultTaxId) return;
+    setCustomerId(copyFrom.customerId);
+    setNotes(copyFrom.notes ?? "");
+    setActualDeliveryDate(copyFrom.actualDeliveryDate ? new Date(`${copyFrom.actualDeliveryDate}T00:00:00`) : null);
+    setLines(
+      copyFrom.lines.map((l) => ({
+        key: nextKey(),
+        itemId: l.itemId ?? "",
+        description: l.itemId ? "" : l.description,
+        quantity: trimZeros(l.quantity),
+        unitPrice: trimZeros(l.unitPrice),
+        taxCodeId: l.taxCodeId,
+        warehouseId: l.warehouseId ?? "",
+        salesOrderLineId: l.salesOrderLineId ?? "",
+      })),
+    );
+  }, [copyFrom?.id, defaultTaxId]);
 
   const setLine = (key: string, patch: Partial<LineState>): void => {
     mutation.reset();

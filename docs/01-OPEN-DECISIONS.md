@@ -1081,3 +1081,25 @@ Design: [Planning/ai-assistant-plan.md](Planning/ai-assistant-plan.md). Code: `p
   audit log; the MCP endpoint is read-only and uses the normal API bearer token (no personal access
   tokens yet).
 
+
+## Correcting an invoice ZATCA rejected — 2026-11-22
+
+Code: `SalesInvoiceService.voidRejectedInvoice` (packages/core/src/sales), guard
+`SalesInvoiceIssueGuard.validateVoid` (apps/api/src/compliance), table `sales_invoice_voids`.
+
+- **D-VOID-1 treatment — DECIDED by Osama (2026-11-22), option A:** a rejected invoice never became
+  a valid tax invoice, so it is voided internally, without a credit note sent to ZATCA. One reversing
+  journal entry, dated on the invoice date, flips the original posting (receivable, revenue, output
+  VAT, cost of goods sold / inventory); the goods return to their warehouses at the cost they left
+  with; order quantities are released. The invoice row is never changed. The person then issues a new,
+  corrected invoice (new number, UUID, ICV, PIH) prefilled from the voided one.
+  **Pending: an accountant to confirm** the internal reversal without a credit note.
+- Basis: ZATCA community forum answers say not to raise a credit note for a rejected invoice and to
+  submit the correction as a new document. Not confirmed against official ZATCA documentation.
+- **D-VOID-2 simplified (B2C) invoices — OPEN:** the customer already holds a rejected simplified
+  invoice. Forum guidance says re-report the correction under the same invoice number; vendor guides
+  say credit note plus new invoice. Until confirmed, the guard refuses simplified invoices
+  (`COMPLIANCE_VOID_SIMPLIFIED_UNSUPPORTED`).
+- Refused for now (Known Gaps): an invoice with payments, credit or debit notes against it (undo
+  those first), an invoice whose sale created an inventory shortfall (provisional cost), and an
+  invoice whose fiscal period is closed.

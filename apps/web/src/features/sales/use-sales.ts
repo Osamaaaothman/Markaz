@@ -355,6 +355,8 @@ export interface SalesInvoiceSummary {
   readonly totalNet: string;
   readonly totalTax: string;
   readonly totalGross: string;
+  // Set when the invoice was voided after ZATCA rejected it.
+  readonly voidedAt?: string | null;
 }
 
 export interface SalesInvoiceDetail extends SalesInvoiceSummary {
@@ -376,6 +378,7 @@ export interface SalesInvoiceDetail extends SalesInvoiceSummary {
     readonly id: string;
     readonly taxCodeId: string;
     readonly originalLineId: string | null;
+    readonly salesOrderLineId?: string | null;
     readonly returnableQuantity: string;
     readonly itemId: string | null;
     readonly warehouseId: string | null;
@@ -502,6 +505,17 @@ export interface DebitNotePayload {
     readonly unitPrice: string;
     readonly taxCodeId: string;
   }[];
+}
+
+// Voids an invoice ZATCA rejected (reversing entry, stock back) so a corrected one can be issued.
+export function useVoidRejectedInvoice(invoiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { feedback: "dialog" },
+    mutationFn: async (reason: string) =>
+      (await apiClient.post<{ id: string; journalEntryId: string }>(`/v1/sales-invoices/${invoiceId}/void-rejected`, { reason })).data,
+    onSuccess: () => invalidateAfterPosting(qc),
+  });
 }
 
 export function useCreateDebitNote(invoiceId: string) {

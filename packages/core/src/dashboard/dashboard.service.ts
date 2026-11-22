@@ -143,7 +143,7 @@ export class DashboardService {
     const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
     const tomorrow = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1));
     const [invoices, creditNotes, debitNotes, openQuotations, openOrders] = await Promise.all([
-      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "INVOICE", invoiceDate: { gte: monthStart, lt: tomorrow } }, _sum: { totalNet: true } }),
+      this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "INVOICE", voidRecord: { is: null }, invoiceDate: { gte: monthStart, lt: tomorrow } }, _sum: { totalNet: true } }),
       this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "CREDIT_NOTE", invoiceDate: { gte: monthStart, lt: tomorrow } }, _sum: { totalNet: true } }),
       this.prisma.salesInvoice.aggregate({ where: { companyId, documentType: "DEBIT_NOTE", invoiceDate: { gte: monthStart, lt: tomorrow } }, _sum: { totalNet: true } }),
       this.prisma.quotation.count({ where: { companyId, status: "OPEN" } }),

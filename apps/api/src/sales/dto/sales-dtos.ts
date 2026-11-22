@@ -345,3 +345,10 @@ export class SendQuotationEmailDto {
   @IsIn(["en", "ar"])
   language!: "en" | "ar";
 }
+
+export class VoidRejectedInvoiceDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}

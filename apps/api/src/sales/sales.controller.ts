@@ -47,6 +47,7 @@ import {
   ConvertQuotationDto,
   CreateCreditNoteDto,
   CreateDebitNoteDto,
+  VoidRejectedInvoiceDto,
   CreateGoodsDeliveryNoteDto,
   CreateQuotationDto,
   CreateSalesInvoiceDto,
@@ -123,6 +124,9 @@ async function mapSalesErrors<T>(work: Promise<T>): Promise<T> {
       case "DEBIT_EXCEEDS_INVOICE":
       case "NOT_AN_INVOICE":
       case "EGS_UNIT_REQUIRED":
+      case "ALREADY_VOIDED":
+      case "VOID_NOT_ALLOWED":
+      case "VOIDED_INVOICE":
         throw new ConflictException(body);
       default:
         throw new BadRequestException(body);
@@ -496,5 +500,17 @@ export class SalesController {
         idempotencyKey,
       ),
     );
+  }
+
+  // Voids an invoice ZATCA rejected (reversing entry + stock back), so a corrected one can be issued.
+  @Post("sales-invoices/:id/void-rejected")
+  @RequirePermission("sales_invoice", "void_rejected")
+  voidRejectedInvoice(
+    @Param("id") id: string,
+    @Body() dto: VoidRejectedInvoiceDto,
+    @CurrentUser() actor: CurrentUserPayload,
+    @CorrelationId() correlationId: string,
+  ): Promise<{ readonly id: string; readonly journalEntryId: string }> {
+    return mapSalesErrors(this.invoices.voidRejectedInvoice({ invoiceId: id, reason: dto.reason }, actor, correlationId));
   }
 }

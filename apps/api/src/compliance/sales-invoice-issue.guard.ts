@@ -1,9 +1,25 @@
-import { SalesInvoiceIssueError, type SalesInvoiceIssueValidator } from "@erp/core";
-import { invoiceIssueProblems } from "@erp/compliance-zatca-sa";
+import { SalesInvoiceIssueError, type SalesInvoiceIssueValidator, type SalesInvoiceVoidGuard } from "@erp/core";
+import { invoiceIssueProblems, readInvoiceArtifacts } from "@erp/compliance-zatca-sa";
 import { buyerParty, sellerParty } from "./zatca-invoice-mapper.js";
 
 /** Composition-only adapter: validate the same fields the submission mapper will emit. */
 export class SalesInvoiceIssueGuard {
+  /**
+   * Only an invoice ZATCA definitively rejected may be voided: it never became a valid tax invoice
+   * (ZATCA community guidance: no credit note for a rejected invoice; the correction is a new
+   * document with a new UUID/ICV/PIH). Standard (B2B, clearance) invoices only for now -- the
+   * simplified (B2C) procedure is unconfirmed, see docs/01-OPEN-DECISIONS.md.
+   */
+  readonly validateVoid: SalesInvoiceVoidGuard = async (tx, input) => {
+    const record = await tx.zatcaInvoiceRecord.findFirst({
+      where: { salesInvoiceId: input.salesInvoiceId, companyId: input.companyId },
+      select: { status: true, signedXml: true },
+    });
+    if (record?.status !== "REJECTED") throw new SalesInvoiceIssueError("COMPLIANCE_VOID_NOT_REJECTED");
+    if (!record.signedXml || readInvoiceArtifacts(record.signedXml).simplified)
+      throw new SalesInvoiceIssueError("COMPLIANCE_VOID_SIMPLIFIED_UNSUPPORTED");
+  };
+
   readonly validate: SalesInvoiceIssueValidator = async (tx, input) => {
     if (!input.egsUnitId) return;
     const unit = await tx.egsUnit.findFirst({

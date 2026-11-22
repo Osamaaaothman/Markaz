@@ -1039,6 +1039,9 @@
       "INSUFFICIENT_STOCK_WARN": "Quantity exceeds available stock or availability could not be checked. You can continue; shortages use provisional costs settled on receipt.",
       "BELOW_COST": "Selling price is below the known average cost. Increase it before saving.",
       "FUTURE_DATE": "The date cannot be after today.",
+      "ALREADY_VOIDED": "This invoice was already voided.",
+      "VOID_NOT_ALLOWED": "This invoice cannot be voided: remove its payments and credit or debit notes first, or it sold stock that was not on hand.",
+      "VOIDED_INVOICE": "This invoice was voided after ZATCA rejected it.",
       "OVER_INVOICED": "More than the quantity still to invoice on the order.",
       "CUSTOMER_MISMATCH": "An order line belongs to a different customer.",
       "WAREHOUSE_REQUIRED": "A line with an item needs a warehouse.",
@@ -1171,6 +1174,12 @@
       "statusHint": "Status follows the balance after linked vouchers and notes. Counts and filters cover loaded invoices; load more for remaining results.",
       "actualDeliveryDate": "Supply date",
       "actualDeliveryDateHint": "Enter the actual date goods were supplied or the service was provided; it may differ from the invoice date. Required for standard tax invoices.",
+      "voided": "Voided",
+      "correctRejected": "Correct and re-issue",
+      "correctRejectedTitle": "Correct an invoice ZATCA rejected",
+      "correctRejectedHint": "ZATCA rejected this invoice, so it is not a valid tax invoice. Voiding reverses its revenue, VAT and receivable and returns the goods to stock. A new invoice then opens with the same data for you to correct and issue. This cannot be undone.",
+      "voidReason": "Reason for the correction",
+      "correctRejectedConfirm": "Void and open a corrected copy",
       "paymentMethod": "Payment method",
       "paymentMethods": {
         "CASH": "Cash",
@@ -2457,6 +2466,8 @@
       "COMPLIANCE_SELLER_CR_INVALID": "Correct the seller commercial registration number to 10 digits.",
       "COMPLIANCE_BUYER_CR_INVALID": "Correct the customer commercial registration number to 10 digits.",
       "COMPLIANCE_SELLER_NAME_REQUIRED": "Enter the seller name in company settings.",
+      "COMPLIANCE_VOID_NOT_REJECTED": "Only an invoice ZATCA rejected can be voided this way.",
+      "COMPLIANCE_VOID_SIMPLIFIED_UNSUPPORTED": "Correcting a rejected simplified invoice is not supported yet. Contact support.",
       "COMPLIANCE_BUYER_NAME_REQUIRED": "Enter the customer name before issuing the invoice."
     }
   },
