@@ -72,7 +72,7 @@ export function buildPurchasingTools(s: AiPurchasingServices): ErpTool[] {
   async function toInput(ctx: ToolContext, a: InvoiceArgs): Promise<SupplierInvoiceInput> {
     const companyId = ctx.actor.companyId;
     const codes = [...new Set(a.lines.flatMap((l) => (l.accountCode ? [l.accountCode] : [])))];
-    const accounts = await s.prisma.account.findMany({ where: { companyId, code: { in: codes }, isActive: true, isPostable: true }, select: { id: true, code: true } });
+    const accounts = await s.prisma.account.findMany({ where: { companyId, code: { in: codes } }, select: { id: true, code: true, isActive: true, isPostable: true } });
     const taxCodes = await s.prisma.taxCode.findMany({ where: { companyId, isActive: true }, select: { id: true, code: true, treatment: true } });
     const standard = taxCodes.filter((t) => t.treatment === "STANDARD");
     const lines = a.lines.map((l) => {
@@ -86,6 +86,8 @@ export function buildPurchasingTools(s: AiPurchasingServices): ErpTool[] {
       }
       const account = accounts.find((x) => x.code === l.accountCode);
       if (!account) throw fail("ACCOUNT_REQUIRED", "An EXPENSE line needs a postable account code (accounts_search); ask the user which account");
+      if (!account.isPostable) throw fail("ACCOUNT_NOT_POSTABLE", `Account ${account.code} is a group account; choose one of its detail accounts (accounts_search, group "no")`);
+      if (!account.isActive) throw fail("ACCOUNT_INACTIVE", `Account ${account.code} is inactive`);
       return { kind: "EXPENSE" as const, accountId: account.id, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, taxCodeId: tax.id };
     });
     return {
@@ -105,7 +107,7 @@ export function buildPurchasingTools(s: AiPurchasingServices): ErpTool[] {
       "Enter and post a supplier (purchase) invoice, usually read from a document the user attached. Steps: find the supplier with " +
       "parties_search (if several match, clarify; if none, propose parties_createSupplier and use $ref). Call purchasing_invoiceableLines: " +
       "goods that were ordered and received go as PO_LINE lines. Other lines are EXPENSE lines and need an account: suggest one with " +
-      "accounts_search and let the user confirm it — never pick an account silently. Copy numbers exactly as printed (unit price " +
+      "accounts_search (only accounts with group \"no\" can be posted to; for services and costs prefer EXPENSE accounts) and let the user confirm it — never pick an account silently. If the document shows no VAT, ask which tax code applies (taxCodes_list) instead of assuming. Copy numbers exactly as printed (unit price " +
       "excluding VAT); if the document is unreadable or a required detail (invoice number, date, supplier) is missing, ask. Pass the " +
       "document's own totals in documentTotals and its file id in sourceFileId. Never compute totals yourself.",
     input: invoiceInput,
@@ -137,8 +139,10 @@ export function buildPurchasingTools(s: AiPurchasingServices): ErpTool[] {
         const t = a.documentTotals;
         const differs = (printed: string | undefined, ours: string): boolean => printed !== undefined && !new Prisma.Decimal(printed).equals(new Prisma.Decimal(ours));
         if (t && (differs(t.net, p.totalNet) || differs(t.tax, p.totalTax) || differs(t.gross, p.totalGross))) warningKeys.push("ai.warn.totalsMismatch");
-      } catch {
-        warningKeys.push("ai.warn.linesInvalid");
+      } catch (error) {
+        // Show the actual reason (e.g. a group account, no tax code) next to the generic note.
+        const code = (error as { code?: unknown }).code;
+        warningKeys.push("ai.warn.linesInvalid", ...(typeof code === "string" ? [`ai.error.${code}`] : []));
       }
       const t = a.documentTotals;
       return {

@@ -245,11 +245,22 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
         proposedIds.add(id);
         proposals.push(item);
         opts.emit({ type: "proposed", item });
-        reply(JSON.stringify({ status: "PROPOSED", id, note: `Waiting for the user's approval. Later calls may use "$ref:${id}.id".` }));
+        // The card's warnings go back to the model so it can tell the user the real problem (and fix it)
+        // instead of guessing one.
+        const warnings = item.preview.warningKeys ?? [];
+        reply(JSON.stringify({
+          status: "PROPOSED",
+          id,
+          note: warnings.length
+            ? `Proposed, but the card shows problems: ${warnings.join(", ")}. Tell the user exactly these problems in plain words and propose a corrected version; do not ask them to approve this one.`
+            : `Waiting for the user's approval on the card. Later calls may use "$ref:${id}.id".`,
+          ...(warnings.length ? { warnings } : {}),
+        }));
         end(true);
       } catch (error) {
         const code = error instanceof UnresolvedRefError ? "UNKNOWN_REFERENCE" : errorCode(error);
-        reply(toolError(code));
+        // Domain errors (with a code) carry a message written for people; anything else stays generic.
+        reply(toolError(code, code !== "TOOL_FAILED" && error instanceof Error ? error.message.slice(0, 300) : undefined));
         end(false, code);
       }
     }

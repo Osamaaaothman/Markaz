@@ -112,6 +112,23 @@ describe("runAssistant", () => {
     expect(created).toHaveLength(0);
   });
 
+  it("tells the model the card's warnings so it reports the real problem", async () => {
+    const warned = defineWriteTool({
+      name: "invoices_enter",
+      description: "Enter an invoice",
+      input: z.object({ account: z.string() }),
+      permission: { resource: "supplier_invoice", action: "create" },
+      risk: "high",
+      preview: () => Promise.resolve({ titleKey: "t", entity: "supplier_invoice", fields: [], warningKeys: ["ai.warn.linesInvalid", "ai.error.ACCOUNT_NOT_POSTABLE"] }),
+      execute: () => Promise.resolve({ data: {} }),
+    });
+    const model = new ScriptedChatModel([{ toolCalls: [{ name: "invoices_enter", args: { account: "2111105" } }] }, { text: "The account is a group account." }]);
+    const { result } = await run(model, { tools: [...allTools, warned] });
+    const toolMessage = result.newMessages.find((m) => m.getType() === "tool");
+    expect(String(toolMessage?.content)).toContain("ai.error.ACCOUNT_NOT_POSTABLE");
+    expect(String(toolMessage?.content)).toContain("do not ask them to approve this one");
+  });
+
   it("auto mode runs low-risk writes at once but still asks for high-risk ones", async () => {
     const model = new ScriptedChatModel([
       { toolCalls: [{ name: "parties_createSupplier", args: { name: "Al Noor" } }, { name: "payments_post", args: { amount: "100.00" } }] },

@@ -131,8 +131,10 @@ export function buildActionTools(s: AiActionServices): ErpTool[] {
     return { id: r.id, code: r.code, name: name(ctx, r) };
   }
   async function account(ctx: ToolContext, code: string): Promise<{ id: string; code: string; name: string }> {
-    const r = await prisma.account.findFirst({ where: { companyId: ctx.actor.companyId, OR: [{ code }, { id: code }] }, select: { id: true, code: true, name: true, nameAr: true } });
+    const r = await prisma.account.findFirst({ where: { companyId: ctx.actor.companyId, OR: [{ code }, { id: code }] }, select: { id: true, code: true, name: true, nameAr: true, isPostable: true, isActive: true } });
     if (!r) throw actionError("ACCOUNT_NOT_FOUND", `Account ${code} not found`);
+    if (!r.isPostable) throw actionError("ACCOUNT_NOT_POSTABLE", `Account ${r.code} is a group account; choose one of its detail accounts`);
+    if (!r.isActive) throw actionError("ACCOUNT_INACTIVE", `Account ${r.code} is inactive`);
     return { id: r.id, code: r.code, name: name(ctx, r) };
   }
   async function warehouse(ctx: ToolContext, code: string | undefined): Promise<{ id: string; code: string; name: string }> {
@@ -166,8 +168,9 @@ export function buildActionTools(s: AiActionServices): ErpTool[] {
   async function show<T>(work: Promise<T>, warnings: string[], warningKey: string): Promise<T | null> {
     try {
       return await work;
-    } catch {
-      warnings.push(warningKey);
+    } catch (error) {
+      const code = (error as { code?: unknown }).code;
+      warnings.push(warningKey, ...(typeof code === "string" ? [`ai.error.${code}`] : []));
       return null;
     }
   }
@@ -293,8 +296,9 @@ export function buildActionTools(s: AiActionServices): ErpTool[] {
         { labelKey: "ai.col.tax", value: t.tax.toFixed(2) },
         { labelKey: "ai.col.total", value: t.gross.toFixed(2) },
       ];
-    } catch {
-      warnings.push("ai.warn.linesInvalid");
+    } catch (error) {
+      const code = (error as { code?: unknown }).code;
+      warnings.push("ai.warn.linesInvalid", ...(typeof code === "string" ? [`ai.error.${code}`] : []));
       return [];
     }
   }

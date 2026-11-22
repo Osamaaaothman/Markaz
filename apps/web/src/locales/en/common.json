@@ -3680,7 +3680,21 @@
       "code": "Code",
       "unit": "Unit",
       "reorderPoint": "Reorder point",
-      "parentCode": "Parent account code"
+      "parentCode": "Parent account code",
+      "invoiceDate": "Invoice date",
+      "supplierInvoiceNumber": "Supplier invoice number",
+      "dueDate": "Due date",
+      "notes": "Notes",
+      "description": "Description",
+      "reference": "Reference",
+      "reason": "Reason",
+      "amount": "Amount",
+      "orderDate": "Order date",
+      "deliveryDate": "Delivery date",
+      "paymentDate": "Payment date",
+      "quotationDate": "Quotation date",
+      "validUntil": "Valid until",
+      "date": "Date"
     },
     "value": {
       "saudi": "Saudi",
@@ -3843,7 +3857,8 @@
       "HTTP_403": "You do not have permission for this.",
       "HTTP_404": "The document was not found.",
       "HTTP_409": "The current status of the document does not allow this.",
-      "HTTP_422": "The document could not be posted as entered."
+      "HTTP_422": "The document could not be posted as entered.",
+      "ACCOUNT_INACTIVE": "This account is inactive."
     },
     "history": {
       "title": "Conversations",

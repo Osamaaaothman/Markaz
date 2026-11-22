@@ -57,7 +57,8 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
         const pick = choice[c.key];
         const state = c.status !== "PROPOSED" ? c.status.toLowerCase() : blockedBy[c.key] ? "blocked" : pick ?? "pending";
         const isEditing = editing === c.key;
-        const editable = Object.entries(c.args).filter(([, v]) => typeof v === "string" && !String(v).startsWith("$ref:"));
+        // Only plain text the user can sensibly change: never ids, file references or $ref links.
+        const editable = Object.entries(c.args).filter(([k, v]) => typeof v === "string" && !String(v).startsWith("$ref:") && !/(Id|FileId)$/.test(k));
         const dependsLabel = c.dependsOn.length ? c.dependsOn.join(", ") : null;
         return (
           <article key={c.key} className={`ai-ticket ai-ticket--${state} ai-ticket--risk-${c.risk}`} style={{ animationDelay: `${index * 90}ms` }}>
@@ -101,7 +102,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
               <div className="ai-edit">
                 {editable.map(([key, value]) => (
                   <label key={key} className="ai-edit__field">
-                    <span>{t(`ai.arg.${key}`, { defaultValue: key })}</span>
+                    <span>{t(`ai.arg.${key}`, { defaultValue: t(`ai.col.${key}`, { defaultValue: key }) })}</span>
                     <InputText value={String(edits[c.key]?.[key] ?? value)} onChange={(e) => setEdits((all) => ({ ...all, [c.key]: { ...(all[c.key] ?? {}), [key]: e.target.value } }))} />
                   </label>
                 ))}

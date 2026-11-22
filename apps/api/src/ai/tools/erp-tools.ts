@@ -191,7 +191,7 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
 
   const searchAccounts = defineReadTool({
     name: "accounts_search",
-    description: "Search the chart of accounts by name or code. Use it to find a parent account code before creating an account.",
+    description: "Search the chart of accounts by name or code. Use it to find a parent account code before creating an account, or an account to post to: only rows with group \"no\" (detail accounts) can be used on invoices, payments and journal lines.",
     input: z.object({ query: shortText(100) }),
     permission: { resource: "account", action: "read" },
     run: async (ctx, input) => {
