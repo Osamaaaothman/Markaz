@@ -17,6 +17,7 @@ import {
   sectionOfRoute,
   toStored,
   trimHistory,
+  shrinkOldToolResults,
   type AssistantEvent,
   type AssistantMode,
   type Decision,
@@ -287,7 +288,8 @@ export class AiChatService {
       const model = await this.modelFactory(backups.length ? { ...provider, retries: 0 } : provider);
       const fallbackModels = await Promise.all(backups.map((m) => this.modelFactory({ ...provider, model: m })));
       const priorRows = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "EXECUTED" }, select: { itemKey: true, result: true } });
-      const history = trimHistory(messages);
+      // Recent window only, and earlier turns' tool data shortened (the current turn's stays whole).
+      const history = shrinkOldToolResults(trimHistory(messages));
       result = await runAssistant({
         model,
         tools,
