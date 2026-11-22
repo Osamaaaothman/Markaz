@@ -11,6 +11,7 @@ import {
   PartyStatementService,
   PurchaseOrderService,
   QuotationService,
+  TrialBalanceService,
   StockLevelService,
   DashboardService,
   EmployeeService,
@@ -25,6 +26,7 @@ import { AiChatError, AiChatService, type ChatEvent } from "./ai-chat.service.js
 import { AiSettingsService } from "./ai-settings.service.js";
 import { buildErpTools } from "./tools/erp-tools.js";
 import { buildReportTools } from "./tools/report-tools.js";
+import { buildDocumentTools } from "./tools/document-tools.js";
 import { buildSalesTools } from "./tools/sales-tools.js";
 
 // The whole assistant path against real PostgreSQL, with a scripted model instead of a provider:
@@ -146,8 +148,10 @@ import { buildSalesTools } from "./tools/sales-tools.js";
       ledger: new GeneralLedgerService(db),
       purchaseOrders: new PurchaseOrderService(db, new ApprovalService(), audit),
     });
+    // Every document list too, with filters set so each optional branch reaches the real schema.
+    reports.push(...buildDocumentTools({ prisma: db, trialBalance: new TrialBalanceService(db) }));
     const ctx = { actor: { userId: owner.id, companyId }, locale: "ar" as const, conversationId: "t", correlationId: "ai:t", can: () => Promise.resolve(true) };
-    const args: Record<string, unknown> = { parties_statement: { party: "QA Supplier Co", side: "SUPPLIER" }, accounts_statement: { code: "NOPE" }, salesInvoices_get: { number: "INV-NOPE" } };
+    const args: Record<string, unknown> = { parties_statement: { party: "QA Supplier Co", side: "SUPPLIER" }, accounts_statement: { code: "NOPE" }, salesInvoices_get: { number: "INV-NOPE" }, journalEntries_search: { from: "2026-01-01", to: "2026-12-31", number: "JE", accountCode: "1" }, reports_trialBalance: { from: "2026-01-01", to: "2026-12-31" }, quotations_search: { query: "x", status: "OPEN", from: "2026-01-01" }, payments_search: { direction: "RECEIPT", query: "x" }, fixedAssets_search: { query: "x" }, hr_salaryAdvances: { employee: "x" } };
     for (const tool of reports) {
       if (tool.kind !== "read") continue;
       const input = tool.input.parse(args[tool.name] ?? {});

@@ -8,7 +8,7 @@ Decisions: `docs/01-OPEN-DECISIONS.md` → "AI assistant". Lessons: `docs/Planni
 | Layer | Where | Knows about |
 |---|---|---|
 | Engine | `packages/ai` | LangChain / LangGraph, tool contracts, modes, approvals. No database, no Nest. |
-| Tools | `tools/erp-tools.ts` | The core services (`@erp/core`). One file, framework-free. |
+| Tools | `tools/erp-tools.ts`, `report-tools.ts`, `sales-tools.ts`, `document-tools.ts` | Master data and writes; report services; quotation creation; read-only lists of every document type (journal entries, quotations, orders, delivery notes, supplier invoices, payments, cash expenses, stock movements, warehouses, goods receipts, purchase requests, fixed assets, payroll, salary advances) plus the trial balance. Framework-free. |
 | Orchestration | `ai-chat.service.ts` | Permissions, history, persistence, usage. Calls the engine. |
 | HTTP | `ai.controller.ts`, `mcp/ai-mcp.controller.ts` | SSE streaming, settings, MCP. |
 

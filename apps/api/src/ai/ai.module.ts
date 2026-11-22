@@ -11,6 +11,7 @@ import {
   PartyStatementService,
   PurchaseOrderService,
   QuotationService,
+  TrialBalanceService,
   StockLevelService,
   DashboardService,
   EmployeeService,
@@ -28,6 +29,7 @@ import { AiMcpController } from "./mcp/ai-mcp.controller.js";
 import { AI_TOOLS } from "./ai.tokens.js";
 import { buildErpTools } from "./tools/erp-tools.js";
 import { buildReportTools } from "./tools/report-tools.js";
+import { buildDocumentTools } from "./tools/document-tools.js";
 import { buildSalesTools } from "./tools/sales-tools.js";
 
 // AI assistant (docs/Planning/ai-assistant-plan.md). The tools use the same core services the web
@@ -66,6 +68,7 @@ import { buildSalesTools } from "./tools/sales-tools.js";
             purchaseOrders: new PurchaseOrderService(prisma, new ApprovalService(), audit),
           }),
           ...buildSalesTools({ prisma, quotations: new QuotationService(prisma, audit) }),
+          ...buildDocumentTools({ prisma, trialBalance: new TrialBalanceService(prisma) }),
         ];
       },
       inject: [PrismaService, AUDIT_LOGGER],
