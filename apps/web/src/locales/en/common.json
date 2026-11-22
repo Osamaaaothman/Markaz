@@ -3420,7 +3420,16 @@
       "hint": "Enter to send · Shift+Enter for a new line · Ctrl+J to open or close",
       "placeholder_ask": "Ask about your numbers… (type / for commands)",
       "placeholder_review": "Tell me what to create… I'll prepare it for your review",
-      "placeholder_auto": "Tell me what to do… simple changes save right away"
+      "placeholder_auto": "Tell me what to do… simple changes save right away",
+      "pageContextHint": "The assistant knows which page you are on. Remove to ask without it.",
+      "removeContext": "Remove page context",
+      "addContext": "Add page: {{page}}",
+      "batchHint": "{{count}} lines — one record per line will be proposed",
+      "keySend": "send",
+      "keyLine": "new line",
+      "keyCommands": "commands",
+      "keyRecall": "previous message",
+      "keyToggle": "open / close"
     },
     "footnote": "Model: {{model}} · AI can make mistakes — check important figures.",
     "timeline": {

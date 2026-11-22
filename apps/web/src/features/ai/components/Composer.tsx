@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
+import { NAV_ITEMS } from "../../../app/layout/NavConfig";
 import type { AssistantMode } from "../ai-api";
 import { useAiStore } from "../ai-store";
 import { ModeSwitch } from "./ModeSwitch";
@@ -23,7 +25,7 @@ function recognitionCtor(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-// Slash commands: "/" at the start of the box opens a menu of ready-made requests.
+// Slash commands: "/" at the start of the box (or the / button) opens a menu of ready-made requests.
 interface SlashCommand { readonly id: string; readonly icon: string; readonly mode?: AssistantMode; readonly send?: boolean }
 const COMMANDS: readonly SlashCommand[] = [
   { id: "overview", icon: "pi pi-chart-pie", send: true },
@@ -37,27 +39,51 @@ const COMMANDS: readonly SlashCommand[] = [
   { id: "new", icon: "pi pi-plus-circle" },
 ];
 
+// The page the user is on, as a readable label (longest matching sidebar entry).
+function usePageLabel(): string | null {
+  const { pathname } = useLocation();
+  const { t } = useTranslation();
+  const match = [...NAV_ITEMS]
+    .filter((n) => (n.to === "/" ? pathname === "/" : pathname === n.to || pathname.startsWith(`${n.to}/`)))
+    .sort((a, b) => b.to.length - a.to.length)[0];
+  if (!match || match.to === "/assistant") return null;
+  return t(match.labelKey);
+}
+
 export interface ComposerProps {
   readonly busy: boolean;
   readonly mode: AssistantMode;
   readonly allowed: Record<AssistantMode, boolean>;
   readonly suggestions: string[];
+  readonly liveLabel: string | null;
   readonly onSend: (text: string) => void;
   readonly onStop: () => void;
   readonly onMode: (mode: AssistantMode) => void;
   readonly onNewChat: () => void;
 }
 
-// The input capsule: a glowing border while focused or working, the mode switch inside it, "/" commands,
-// dictation into the box (never sent by itself), Enter to send, Shift+Enter for a new line, Esc to stop.
-export function Composer({ busy, mode, allowed, suggestions, onSend, onStop, onMode, onNewChat }: ComposerProps): React.JSX.Element {
+// The input capsule:
+//  - a context chip for the page you are on (remove it to ask without page context)
+//  - "/" commands (typed or from the button), a hint when a pasted list will become several records
+//  - dictation into the box with a live dot wave (never sent by itself)
+//  - ArrowUp on an empty box recalls earlier messages; Enter sends, Shift+Enter new line, Esc stops
+//  - while the assistant works, what it is doing is shown inside the bar
+//  - the unsent text survives switching between the panel and the full page
+export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, onStop, onMode, onNewChat }: ComposerProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const [text, setText] = useState("");
-  const [focused, setFocused] = useState(false);
-  const [active, setActive] = useState(0);
+  const text = useAiStore((s) => s.draft);
+  const setText = useAiStore((s) => s.setDraft);
+  const includePage = useAiStore((s) => s.includePage);
+  const setIncludePage = useAiStore((s) => s.setIncludePage);
+  const sent = useAiStore((s) => s.sent);
   const listening = useAiStore((s) => s.listening);
   const setListening = useAiStore((s) => s.setListening);
   const prefill = useAiStore((s) => s.prefill);
+  const pageLabel = usePageLabel();
+  const [focused, setFocused] = useState(false);
+  const [active, setActive] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [recall, setRecall] = useState<number | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
   const recRef = useRef<Recognition | null>(null);
   const canDictate = recognitionCtor() !== null;
@@ -66,31 +92,37 @@ export function Composer({ busy, mode, allowed, suggestions, onSend, onStop, onM
     if (prefill === null) return;
     setText(useAiStore.getState().takePrefill() ?? "");
     ref.current?.focus();
-  }, [prefill]);
+  }, [prefill, setText]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
   }, [text]);
   useEffect(() => { ref.current?.focus(); }, []);
   useEffect(() => () => recRef.current?.stop(), []);
 
   const slashQuery = /^\/(\S*)$/.exec(text)?.[1];
+  const showMenu = slashQuery !== undefined || menuOpen;
   const commands = useMemo(() => {
-    if (slashQuery === undefined) return [];
-    const q = slashQuery.toLowerCase();
+    if (!showMenu) return [];
+    const q = (slashQuery ?? "").toLowerCase();
     return COMMANDS.filter((c) => (!c.mode || allowed[c.mode]) && `${c.id} ${t(`ai.slash.${c.id}.label`)}`.toLowerCase().includes(q));
-  }, [slashQuery, allowed, t]);
-  useEffect(() => setActive(0), [slashQuery]);
+  }, [showMenu, slashQuery, allowed, t]);
+  useEffect(() => setActive(0), [slashQuery, menuOpen]);
+
+  const lines = text.split("\n").filter((l) => l.trim()).length;
+  const pctUsed = text.length / 4000;
 
   const submit = (): void => {
     if (busy || !text.trim()) return;
     onSend(text);
     setText("");
+    setRecall(null);
   };
 
   const pick = (c: SlashCommand | undefined): void => {
+    setMenuOpen(false);
     if (!c) return;
     if (c.id === "new") { setText(""); onNewChat(); return; }
     if (c.mode && mode === "ask") onMode(c.mode);
@@ -125,7 +157,10 @@ export function Composer({ busy, mode, allowed, suggestions, onSend, onStop, onM
     <div className="ai-composer">
       {commands.length > 0 ? (
         <div className="ai-slash" role="listbox" aria-label={t("ai.slash.title")}>
-          <div className="ai-slash__title">{t("ai.slash.title")}</div>
+          <div className="ai-slash__title">
+            <span>{t("ai.slash.title")}</span>
+            <span className="ai-kbd-row"><kbd>↑</kbd><kbd>↓</kbd><kbd>Enter</kbd></span>
+          </div>
           {commands.map((c, i) => (
             <button
               key={c.id}
@@ -141,7 +176,7 @@ export function Composer({ busy, mode, allowed, suggestions, onSend, onStop, onM
                 <strong>/{t(`ai.slash.${c.id}.label`)}</strong>
                 <small>{t(`ai.slash.${c.id}.hint`)}</small>
               </span>
-              {c.mode ? <span className="ai-slash__mode"><i className="pi pi-check-square" aria-hidden="true" /></span> : null}
+              {c.mode ? <span className="ai-slash__mode">{t("ai.mode.review")}</span> : null}
             </button>
           ))}
         </div>
@@ -151,13 +186,40 @@ export function Composer({ busy, mode, allowed, suggestions, onSend, onStop, onM
         <div className="ai-suggestions">
           {suggestions.map((s, i) => (
             <button key={s} type="button" className="ai-suggestion" style={{ animationDelay: `${i * 70}ms` }} disabled={busy} onClick={() => onSend(s)}>
-              <i className="pi pi-sparkles" aria-hidden="true" /> {s}
+              <i className="pi pi-arrow-up-left" aria-hidden="true" /> {s}
             </button>
           ))}
         </div>
       ) : null}
 
-      <div className={`ai-capsule${focused ? " is-focused" : ""}${busy ? " is-busy" : ""}${listening ? " is-listening" : ""}`}>
+      <div className={`ai-capsule${focused ? " is-focused" : ""}${busy ? " is-busy" : ""}${listening ? " is-listening" : ""}`} onClick={() => ref.current?.focus()}>
+        {(pageLabel || (lines >= 3 && mode !== "ask")) ? (
+          <div className="ai-capsule__top">
+            {pageLabel ? (
+              includePage ? (
+                <span className="ai-ctx" title={t("ai.composer.pageContextHint")}>
+                  <i className="pi pi-map-marker" aria-hidden="true" />
+                  <span>{pageLabel}</span>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setIncludePage(false); }} aria-label={t("ai.composer.removeContext")}>
+                    <i className="pi pi-times" aria-hidden="true" />
+                  </button>
+                </span>
+              ) : (
+                <button type="button" className="ai-ctx ai-ctx--off" onClick={(e) => { e.stopPropagation(); setIncludePage(true); }}>
+                  <i className="pi pi-plus" aria-hidden="true" /> {t("ai.composer.addContext", { page: pageLabel })}
+                </button>
+              )
+            ) : null}
+            {lines >= 3 && mode !== "ask" ? (
+              <span className="ai-ctx ai-ctx--info"><i className="pi pi-list" aria-hidden="true" /> {t("ai.composer.batchHint", { count: lines })}</span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {listening ? (
+          <div className="ai-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, i) => <i key={i} style={{ animationDelay: `${(i % 6) * -0.12 - Math.floor(i / 6) * 0.05}s` }} />)}</div>
+        ) : null}
+
         <textarea
           ref={ref}
           rows={1}
@@ -165,42 +227,74 @@ export function Composer({ busy, mode, allowed, suggestions, onSend, onStop, onM
           placeholder={listening ? t("ai.composer.listening") : t(`ai.composer.placeholder_${mode}`)}
           aria-label={t("ai.composer.placeholder")}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onChange={(e) => setText(e.target.value)}
+          onBlur={() => { setFocused(false); setMenuOpen(false); }}
+          onChange={(e) => { setText(e.target.value); setRecall(null); }}
           onKeyDown={(e) => {
             if (commands.length > 0) {
               if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => (a + 1) % commands.length); return; }
               if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => (a - 1 + commands.length) % commands.length); return; }
               if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); pick(commands[active]); return; }
-              if (e.key === "Escape") { e.preventDefault(); setText(""); return; }
+              if (e.key === "Escape") { e.preventDefault(); setMenuOpen(false); if (slashQuery !== undefined) setText(""); return; }
+            }
+            // Recall earlier messages like a terminal: ArrowUp/ArrowDown on an empty or recalled box.
+            if ((e.key === "ArrowUp" || e.key === "ArrowDown") && sent.length > 0 && (text === "" || recall !== null) && !e.shiftKey) {
+              e.preventDefault();
+              const next = e.key === "ArrowUp" ? (recall === null ? sent.length - 1 : Math.max(recall - 1, 0)) : recall === null ? null : recall + 1 >= sent.length ? null : recall + 1;
+              setRecall(next);
+              setText(next === null ? "" : sent[next] ?? "");
+              return;
             }
             if (e.key === "Escape" && busy) { e.preventDefault(); onStop(); return; }
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); }
           }}
           maxLength={4000}
         />
+
         <div className="ai-capsule__bar">
           <ModeSwitch compact mode={mode} allowed={allowed} disabled={busy} onChange={onMode} />
+          <button
+            type="button"
+            className={`ai-round ai-round--ghost ai-round--slash${menuOpen ? " is-on" : ""}`}
+            onMouseDown={(e) => { e.preventDefault(); setMenuOpen((o) => !o); ref.current?.focus(); }}
+            aria-label={t("ai.slash.title")}
+            title={`${t("ai.slash.title")} (/)`}
+          >
+            <span aria-hidden="true">/</span>
+          </button>
           <span className="ai-capsule__spacer" />
-          {text.length > 3500 ? <span className="ai-capsule__count" dir="ltr">{text.length}/4000</span> : null}
+          {busy && liveLabel ? (
+            <span className="ai-capsule__live" aria-live="polite">
+              <span className="ai-loader" aria-hidden="true"><i /><i /><i /></span>
+              <span>{liveLabel}</span>
+            </span>
+          ) : null}
+          {pctUsed > 0.75 ? (
+            <span className={`ai-meter${pctUsed > 0.95 ? " is-full" : ""}`} style={{ "--p": pctUsed } as React.CSSProperties} title={`${text.length}/4000`} aria-label={`${text.length}/4000`} />
+          ) : null}
           {canDictate ? (
-            <button type="button" className={`ai-round ai-round--ghost${listening ? " is-live" : ""}`} onClick={dictate} aria-label={t("ai.composer.dictate")} title={t("ai.composer.dictate")}>
-              <i className="pi pi-microphone" aria-hidden="true" />
+            <button type="button" className={`ai-round ai-round--ghost${listening ? " is-live" : ""}`} onClick={(e) => { e.stopPropagation(); dictate(); }} aria-label={t("ai.composer.dictate")} title={t("ai.composer.dictate")}>
+              <i className={listening ? "pi pi-stop-circle" : "pi pi-microphone"} aria-hidden="true" />
             </button>
           ) : null}
           <button
             type="button"
-            className={`ai-round ai-round--send${busy ? " is-stop" : ""}`}
-            onClick={busy ? onStop : submit}
+            className={`ai-round ai-round--send${busy ? " is-stop" : ""}${text.trim() ? " is-ready" : ""}`}
+            onClick={(e) => { e.stopPropagation(); if (busy) onStop(); else submit(); }}
             disabled={!busy && !text.trim()}
             aria-label={busy ? t("ai.composer.stop") : t("ai.composer.send")}
-            title={busy ? `${t("ai.composer.stop")} (Esc)` : t("ai.composer.send")}
+            title={busy ? `${t("ai.composer.stop")} (Esc)` : `${t("ai.composer.send")} (Enter)`}
           >
             <i className={busy ? "pi pi-stop" : "pi pi-arrow-up"} aria-hidden="true" />
           </button>
         </div>
       </div>
-      <p className="ai-composer__hint">{t("ai.composer.hint")}</p>
+      <p className="ai-composer__hint">
+        <span><kbd>Enter</kbd> {t("ai.composer.keySend")}</span>
+        <span><kbd>Shift</kbd>+<kbd>Enter</kbd> {t("ai.composer.keyLine")}</span>
+        <span><kbd>/</kbd> {t("ai.composer.keyCommands")}</span>
+        <span><kbd>↑</kbd> {t("ai.composer.keyRecall")}</span>
+        <span><kbd>Ctrl</kbd>+<kbd>J</kbd> {t("ai.composer.keyToggle")}</span>
+      </p>
     </div>
   );
 }

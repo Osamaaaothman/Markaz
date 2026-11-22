@@ -73,10 +73,11 @@ export function useAssistantChat() {
         s.setMessages((list) => list.map((m) => ({ ...m, changes: m.changes.map((c) => (c.status === "PROPOSED" ? { ...c, status: "REJECTED" as const } : c)) })));
         s.setStatus("IDLE");
       }
+      s.remember(trimmed);
       const entityId = /\/([0-9a-f]{8}-[0-9a-f-]{27,})$/.exec(location.pathname)?.[1];
       void run(
         "/v1/ai/messages",
-        { text: trimmed, mode: s.mode, locale, ...(s.conversationId ? { conversationId: s.conversationId } : {}), page: { route: location.pathname, ...(entityId ? { entityId } : {}) } },
+        { text: trimmed, mode: s.mode, locale, ...(s.conversationId ? { conversationId: s.conversationId } : {}), ...(s.includePage ? { page: { route: location.pathname, ...(entityId ? { entityId } : {}) } } : {}) },
         trimmed,
       );
     },

@@ -30,7 +30,12 @@ function LiveStatus({ steps }: { steps: TimelineStep[] }): React.JSX.Element {
   const { t } = useTranslation();
   const running = [...steps].reverse().find((s) => s.running);
   const label = running ? t(`ai.tool.${running.tool}`, { defaultValue: t("ai.timeline.working") }) : t("ai.timeline.thinking");
-  return <p className="ai-live" aria-live="polite"><span className="ai-live__text">{label}</span></p>;
+  return (
+    <p className="ai-live" aria-live="polite">
+      <span className="ai-loader" aria-hidden="true"><i /><i /><i /></span>
+      <span className="ai-live__text">{label}</span>
+    </p>
+  );
 }
 
 // The tools used for an answer, as small pills; collapsed to a summary once done.
@@ -211,6 +216,9 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
   }
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const streaming = messages[messages.length - 1];
+  const runningTool = streaming?.streaming ? [...streaming.timeline].reverse().find((x) => x.running) : undefined;
+  const liveLabel = !busy ? null : runningTool ? t(`ai.tool.${runningTool.tool}`, { defaultValue: t("ai.timeline.working") }) : streaming?.text ? t("ai.orb.speaking") : t("ai.timeline.thinking");
   const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
   const suggestions = messages.length > 0 && status === "IDLE" && !busy ? suggestionKeys(pathname, mode).map((k) => t(k)).slice(0, 3) : [];
   const pickCard = (prompt: string, m: AssistantMode): void => {
@@ -245,7 +253,7 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
         </button>
       ) : null}
 
-      <Composer busy={busy} mode={mode} allowed={allowed} suggestions={suggestions} onSend={chat.send} onStop={chat.stop} onMode={setMode} onNewChat={chat.newChat} />
+      <Composer busy={busy} mode={mode} allowed={allowed} suggestions={suggestions} liveLabel={liveLabel} onSend={chat.send} onStop={chat.stop} onMode={setMode} onNewChat={chat.newChat} />
       {me.data?.model ? <p className="ai-footnote">{t("ai.footnote", { model: me.data.model })}</p> : null}
     </div>
   );

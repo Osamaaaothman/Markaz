@@ -50,7 +50,6 @@ export function AssistantPanel(): React.JSX.Element | null {
       ariaCloseLabel={t("ai.panel.close")}
       content={() => (
         <div className={`ai-panel__inner ai-surface ai-surface--${orb}`}>
-          <div className="ai-aurora" aria-hidden="true"><i /><i /><i /></div>
           <header className="ai-panel__head">
             <AssistantOrb size={34} state={orb} />
             <div className="ai-panel__titles">

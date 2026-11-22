@@ -30,6 +30,15 @@ interface AiState {
   setListening: (listening: boolean) => void;
   flash: "success" | "error" | null;
   flashOnce: (flash: "success" | "error") => void;
+
+  // The composer: the unsent text survives switching between the panel and the full page; the page
+  // the user is on is sent as context unless they remove the chip; ArrowUp recalls earlier messages.
+  draft: string;
+  setDraft: (draft: string) => void;
+  includePage: boolean;
+  setIncludePage: (include: boolean) => void;
+  sent: string[];
+  remember: (text: string) => void;
 }
 
 let flashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -66,7 +75,14 @@ export const useAiStore = create<AiState>()(
         set({ flash });
         flashTimer = setTimeout(() => set({ flash: null }), 1600);
       },
+      draft: "",
+      setDraft: (draft) => set({ draft }),
+      includePage: true,
+      setIncludePage: (includePage) => set({ includePage }),
+      sent: [],
+      remember: (text) => set({ sent: [...get().sent.filter((x) => x !== text), text].slice(-20) }),
     }),
+    // Only the mode is remembered: messages and drafts stay in memory, so no business text is left in browser storage.
     { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode }) },
   ),
 );

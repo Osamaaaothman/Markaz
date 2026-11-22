@@ -8,7 +8,7 @@ import type {
   ItemService,
   PartyService,
 } from "@erp/core";
-import type { PrismaClient } from "@erp/db";
+import { Prisma, type PrismaClient } from "@erp/db";
 import { z } from "zod";
 
 // Every tool calls the same core service the web endpoint calls (numbering, audit and validation
@@ -81,8 +81,14 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
     run: async (ctx) => {
       const d = await s.dashboard.compute(ctx.actor.companyId, { receivables: false, payables: false, profit: true, cash: false, stock: false, sales: false, purchasing: false });
       const monthly = d.monthly ?? [];
+      // Net per month and six-month totals are computed here with exact decimals, so the model never
+      // does arithmetic on money (it only reports these figures).
+      const dec = (v: string): Prisma.Decimal => new Prisma.Decimal(v);
+      const rows = monthly.map((m) => ({ month: m.month, revenue: dec(m.revenue).toFixed(2), expense: dec(m.expense).toFixed(2), net: dec(m.revenue).minus(dec(m.expense)).toFixed(2) }));
+      const sum = (key: "revenue" | "expense"): Prisma.Decimal => monthly.reduce((acc, m) => acc.plus(dec(m[key])), new Prisma.Decimal(0));
+      const totals = { revenue: sum("revenue").toFixed(2), expense: sum("expense").toFixed(2), net: sum("revenue").minus(sum("expense")).toFixed(2) };
       return {
-        data: { currency: d.currency, monthly },
+        data: { currency: d.currency, months: rows, totals },
         display: {
           kind: "chart",
           titleKey: "ai.blocks.revenueExpense",
