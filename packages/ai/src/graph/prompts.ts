@@ -8,6 +8,8 @@ export interface PromptContext {
   readonly currency: string;
   readonly userName: string;
   readonly page?: { readonly route: string; readonly entityId?: string | undefined } | undefined;
+  // Summary of the earlier, compacted part of this conversation.
+  readonly memory?: string | null | undefined;
 }
 
 // English on purpose: models follow English instructions most reliably. The reply language is
@@ -44,6 +46,13 @@ export function buildSystemPrompt(p: PromptContext): string {
   }
   if (p.page) {
     lines.push(`- The user is currently on the page ${p.page.route}${p.page.entityId ? ` (record id ${p.page.entityId})` : ""}. "This" usually refers to it.`);
+  }
+  if (p.memory) {
+    lines.push(
+      "",
+      "Earlier in this conversation (summarised because it grew long; figures and references in it were reported by tools at the time — re-check with a tool if the user needs current values):",
+      p.memory,
+    );
   }
   return lines.join("\n");
 }

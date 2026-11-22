@@ -102,6 +102,14 @@ function Message({ m, last, currency, busy, onChoose, onDecide, onRetry }: { m: 
   if (m.role === "user") {
     return <div className="ai-msg ai-msg--user"><div className="ai-bubble">{m.text}</div></div>;
   }
+  if (m.role === "divider") {
+    return (
+      <div className="ai-divider" role="note">
+        <span><i className="pi pi-history" aria-hidden="true" /> {t("ai.compacted.title")}</span>
+        <small>{t("ai.compacted.hint")}</small>
+      </div>
+    );
+  }
   const waiting = m.streaming && !m.text && m.blocks.length === 0 && m.changes.length === 0;
   // Only the newest answer is "alive"; older ones rest (or stay red if they failed).
   const state = last ? orb : m.errorCode ? "error" : "idle";

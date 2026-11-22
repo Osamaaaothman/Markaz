@@ -5,6 +5,7 @@ export * from "./graph/events.js";
 export * from "./graph/prompts.js";
 export * from "./graph/assistant-graph.js";
 export * from "./graph/change-set.js";
+export * from "./graph/compaction.js";
 export * from "./safety/untrusted.js";
 export * from "./history.js";
 export * from "./testing/scripted-model.js";

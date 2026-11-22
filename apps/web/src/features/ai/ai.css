@@ -237,6 +237,12 @@
 .ai-rich__heading { font-weight: 800; }
 .ai-rich__table { margin-block: 0.4rem 0.7rem; padding: 0.35rem; border: 1px solid var(--mk-border); border-radius: 12px; background: var(--mk-surface); }
 
+/* Compaction divider: from here up, the assistant works from a summary */
+.ai-divider { display: grid; justify-items: center; gap: 0.15rem; margin-block: 0.4rem; text-align: center; color: var(--mk-text-muted); animation: ai-fade-up 0.3s ease both; }
+.ai-divider span { display: flex; align-items: center; gap: 0.6rem; width: 100%; font-size: 0.75rem; font-weight: 700; }
+.ai-divider span::before, .ai-divider span::after { content: ""; flex: 1; height: 1px; background: var(--mk-border); }
+.ai-divider small { font-size: 0.7rem; }
+
 .ai-live { display: flex; align-items: center; gap: 0.55rem; margin: 0; }
 .ai-live__text { font-size: 0.88rem; font-weight: 600; color: var(--mk-text-muted); }
 

@@ -48,7 +48,7 @@ export interface TimelineStep {
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "divider";
   text: string | null;
   blocks: DisplayBlock[];
   timeline: TimelineStep[];
@@ -117,6 +117,7 @@ export type ChatEvent =
   | { type: "executed"; item: { id: string; tool: string; args: Record<string, unknown>; result: { data: Record<string, unknown>; link?: { label: string; path: string } } } }
   | { type: "outcome"; outcome: { key: string; status: "EXECUTED" | "REJECTED" | "SKIPPED" | "FAILED"; link?: { label: string; path: string } | null; errorCode?: string } }
   | { type: "step_limit" }
+  | { type: "compacted"; compactions: number }
   | { type: "done"; messageId: string; status: "IDLE" | "AWAITING_APPROVAL"; usage: { input: number; output: number } }
   | { type: "error"; code: string };
 

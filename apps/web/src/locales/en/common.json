@@ -3815,6 +3815,10 @@
       "download": "Download PDF",
       "print": "Print",
       "open": "Open in Markaz"
+    },
+    "compacted": {
+      "title": "Earlier messages were summarised",
+      "hint": "The assistant remembers them as a summary, so long chats stay fast and within limits."
     }
   }
 }

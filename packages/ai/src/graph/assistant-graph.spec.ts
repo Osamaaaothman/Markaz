@@ -1,10 +1,11 @@
-import { HumanMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { ScriptedChatModel } from "../testing/scripted-model.js";
 import { toolsForMode } from "../tools/policy.js";
 import { defineReadTool, defineWriteTool, type ErpTool, type ToolContext } from "../tools/types.js";
 import { runAssistant, type RunOptions } from "./assistant-graph.js";
 import { executeDecisions } from "./change-set.js";
+import { compactionCut, estimateTokens, summarizeForCompaction } from "./compaction.js";
 import type { AssistantEvent } from "./events.js";
 
 const created: Array<{ tool: string; input: unknown }> = [];
@@ -204,5 +205,32 @@ describe("executeDecisions", () => {
     const outcomes = await executeDecisions({ items, decisions: { c1: "approve", c2: "approve" }, tools: allTools, ctx: ctx(["party:create"]) });
     expect(outcomes[0]).toEqual({ id: "c1", status: "failed", errorCode: "FORBIDDEN" });
     expect(outcomes[1]?.status).toBe("skipped");
+  });
+});
+
+describe("compaction", () => {
+  const long = (n: number) => "x".repeat(n);
+  const turn = (i: number) => [new HumanMessage(`q${i} ${long(700)}`), new AIMessage({ content: "", tool_calls: [{ id: `t${i}`, name: "parties_search", args: { query: "a" }, type: "tool_call" }] }), new ToolMessage({ content: long(700), tool_call_id: `t${i}` }), new AIMessage(`a${i} ${long(700)}`)];
+
+  it("does nothing while the history is small", () => {
+    expect(compactionCut(turn(1), { maxTokens: 10_000, keepRecentTokens: 1_000 })).toBeNull();
+  });
+
+  it("cuts at a user message and keeps a recent tail", () => {
+    const history = Array.from({ length: 12 }, (_, i) => turn(i)).flat();
+    const cut = compactionCut(history, { maxTokens: 3_000, keepRecentTokens: 1_500 });
+    expect(cut).not.toBeNull();
+    expect(history[cut!]!.getType()).toBe("human");
+    expect(estimateTokens(history.slice(cut!))).toBeLessThan(estimateTokens(history));
+    expect(cut!).toBeGreaterThan(0);
+  });
+
+  it("asks the model for an updated summary including the previous one", async () => {
+    const model = new ScriptedChatModel([{ text: "- Created supplier PRT-000009" }]);
+    const summary = await summarizeForCompaction(model, "- earlier facts", turn(1));
+    expect(summary).toBe("- Created supplier PRT-000009");
+    const sent = JSON.stringify(model.seen[0]?.map((m) => m.content));
+    expect(sent).toContain("earlier facts");
+    expect(sent).toContain("q1");
   });
 });

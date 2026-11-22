@@ -153,4 +153,35 @@ import { buildReportTools } from "./tools/report-tools.js";
       expect(result.data).toBeDefined();
     }
   });
+
+  it("compacts a long conversation into a summary the model then receives as memory", async () => {
+    // Small limits so three turns are enough. Each model creation takes the next script from the queue.
+    const queue: ScriptedReply[][] = [];
+    let last: ScriptedChatModel | null = null;
+    const compacting = new AiChatService(db, permissions, audit, settings, tools, () => {
+      last = new ScriptedChatModel(queue.shift() ?? [{ text: "ok" }]);
+      return Promise.resolve(last);
+    }, { maxTokens: 300, keepRecentTokens: 100 });
+    const long = "تفاصيل ".repeat(200);
+    queue.push([{ text: `first answer ${long}` }]);
+    const first = await run((emit) => compacting.send(owner, { text: `first question ${long}`, mode: "ask", locale: "ar" }, emit));
+    const id = conversationOf(first);
+    queue.push([{ text: `second answer ${long}` }]);
+    await run((emit) => compacting.send(owner, { conversationId: id, text: `second question ${long}`, mode: "ask", locale: "ar" }, emit));
+    // Third turn: the history is over the limit, so the first exchange is folded into a summary.
+    queue.push([{ text: "- Created supplier PRT-000123 for the user" }], [{ text: "third answer" }]);
+    const third = await run((emit) => compacting.send(owner, { conversationId: id, text: "third question", mode: "ask", locale: "ar" }, emit));
+    expect(third).toContainEqual(expect.objectContaining({ type: "compacted", compactions: 1 }));
+    const conv = await db.aiConversation.findUniqueOrThrow({ where: { id } });
+    expect(conv.summary).toContain("PRT-000123");
+    expect(conv.summaryThroughSeq).toBeGreaterThan(0);
+    // The answering model got the summary in its system prompt and no longer got the first question.
+    const sent = (last as ScriptedChatModel | null)?.seen[0] ?? [];
+    expect(String(sent[0]?.content)).toContain("PRT-000123");
+    expect(JSON.stringify(sent.slice(1).map((m) => m.content))).not.toContain("first question");
+    // The user still sees every message, plus a divider where the compaction happened.
+    const detail = await compacting.get(owner, id);
+    expect(detail.messages.some((m) => m.role === "divider")).toBe(true);
+    expect(detail.messages.filter((m) => m.role === "user")).toHaveLength(3);
+  });
 });

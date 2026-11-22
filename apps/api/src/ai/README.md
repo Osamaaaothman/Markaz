@@ -46,6 +46,15 @@ Decisions: `docs/01-OPEN-DECISIONS.md` → "AI assistant". Lessons: `docs/Planni
 3. A write that posts to the ledger, moves money, sends something out or cannot be undone is
    `risk: "high"`.
 
+## Context and compaction
+
+Every turn sends the conversation so far, so follow-up questions work ("its details", "the second one").
+When the history passes ~24k estimated tokens (`AI_COMPACT_AT_TOKENS` to change), the older part is
+folded into a model-written summary stored on `ai_conversations.summary`; only messages after
+`summary_through_seq` are sent, with the summary as memory in the system prompt. The cut always starts
+at a user message. The user still sees every message, with a divider where it happened. A failed
+summary never blocks the message (the history is then trimmed to the last 40 messages).
+
 ## Configuration
 
 `AI_CREDENTIALS_ENCRYPTION_KEY` (required to save a key from the settings page). Optional server default
@@ -60,6 +69,5 @@ until an admin saves one: `AI_PROVIDER`, `AI_MODEL`, `AI_BASE_URL`, `AI_API_KEY`
 - No RAG over the user guides (plan feature 11), no supplier invoice from a photo (feature 7), no
   anomaly detection or proactive dashboard insights (features 9, 13), no saved macros (feature 12).
 - MCP uses the normal short-lived bearer token; personal access tokens for desktop AI clients are not built.
-- Long conversations are trimmed to the last 40 messages, not summarised.
 - Multi-step changes are not atomic (D-AI-5).
 - Dictation uses the browser's Web Speech API (Chrome/Edge); other browsers hide the mic button.

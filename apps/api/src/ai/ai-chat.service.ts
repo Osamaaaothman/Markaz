@@ -1,6 +1,10 @@
 import {
   buildSystemPrompt,
+  compactionCut,
   createChatModel,
+  DEFAULT_COMPACTION,
+  summarizeForCompaction,
+  type CompactionLimits,
   executeDecisions,
   fromStored,
   outcomesMessage,
@@ -44,6 +48,7 @@ export type ChatEvent =
   | AssistantEvent
   | { readonly type: "conversation"; readonly id: string; readonly title: string }
   | { readonly type: "outcome"; readonly outcome: ItemOutcomeView }
+  | { readonly type: "compacted"; readonly compactions: number }
   | { readonly type: "done"; readonly messageId: string; readonly status: "IDLE" | "AWAITING_APPROVAL"; readonly usage: { input: number; output: number } }
   | { readonly type: "error"; readonly code: string };
 
@@ -80,6 +85,7 @@ export class AiChatService {
     private readonly tools: readonly ErpTool[],
     // Swappable so tests can run the whole flow with a scripted model and no network.
     private readonly modelFactory: typeof createChatModel = createChatModel,
+    private readonly compaction: CompactionLimits = compactionFromEnv(),
   ) {}
 
   private can(actor: Actor, resource: string, action: string): Promise<boolean> {
@@ -120,6 +126,7 @@ export class AiChatService {
     // Moving on while proposals wait = the user did not accept them.
     if (conversation.status === "AWAITING_APPROVAL") await this.rejectPending(actor, conversation.id);
 
+    await this.compactIfNeeded(actor, conversation.id, config.provider, emit, signal);
     const history = await this.history(conversation.id);
     const human = new HumanMessage(text);
     await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([human])[0], visible: true, uiText: text }]);
@@ -177,7 +184,9 @@ export class AiChatService {
     const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true, defaultCurrency: true, timezone: true } });
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: actor.id }, select: { email: true } });
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: company.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const memory = (await this.prisma.aiConversation.findUnique({ where: { id: conversationId }, select: { summary: true } }))?.summary ?? null;
     const system = buildSystemPrompt({
+      memory,
       mode,
       locale,
       today,
@@ -286,9 +295,33 @@ export class AiChatService {
     return c;
   }
 
+  // What the model sees: only the messages after the compacted part (the summary goes in the system prompt).
   private async history(conversationId: string): Promise<BaseMessage[]> {
-    const rows = await this.prisma.aiMessage.findMany({ where: { conversationId, role: { not: "notice" } }, orderBy: { seq: "asc" }, select: { payload: true } });
+    const c = await this.prisma.aiConversation.findUniqueOrThrow({ where: { id: conversationId }, select: { summaryThroughSeq: true } });
+    const rows = await this.prisma.aiMessage.findMany({ where: { conversationId, role: { not: "notice" }, seq: { gt: c.summaryThroughSeq } }, orderBy: { seq: "asc" }, select: { payload: true } });
     return fromStored(rows.map((r) => r.payload));
+  }
+
+  // When the conversation has grown past the limit, fold its older part into the running summary.
+  // A failure here never blocks the user's message: the history is then just trimmed as before.
+  private async compactIfNeeded(actor: Actor, conversationId: string, provider: Awaited<ReturnType<AiSettingsService["resolve"]>>["provider"], emit: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
+    const c = await this.prisma.aiConversation.findUniqueOrThrow({ where: { id: conversationId }, select: { summary: true, summaryThroughSeq: true, compactions: true } });
+    const rows = await this.prisma.aiMessage.findMany({ where: { conversationId, role: { not: "notice" }, seq: { gt: c.summaryThroughSeq } }, orderBy: { seq: "asc" }, select: { seq: true, payload: true } });
+    const messages = fromStored(rows.map((r) => r.payload));
+    const cut = compactionCut(messages, this.compaction);
+    if (cut === null) return;
+    try {
+      const model = await this.modelFactory(provider);
+      const summary = await summarizeForCompaction(model, c.summary, messages.slice(0, cut), signal);
+      const through = rows[cut - 1]?.seq;
+      if (!summary || through === undefined) return;
+      await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { summary, summaryThroughSeq: through, compactions: { increment: 1 } } });
+      // A visible divider so the user knows the assistant now works from a summary of what came before.
+      await this.appendRows(conversationId, actor.companyId, [{ role: "notice", payload: { compacted: true }, visible: true }]);
+      emit({ type: "compacted", compactions: c.compactions + 1 });
+    } catch {
+      // Ignored on purpose: trimHistory still bounds what is sent.
+    }
   }
 
   private async appendRows(conversationId: string, companyId: string, rows: ReadonlyArray<{ role: string; payload: unknown; visible: boolean; uiText?: string }>): Promise<void> {
@@ -364,7 +397,7 @@ export class AiChatService {
       conversation: { id: c.id, title: c.title, mode: c.mode, status: c.status, pinned: c.pinned },
       messages: rows.map((r) => ({
         id: r.id,
-        role: r.role === "human" ? "user" : "assistant",
+        role: r.role === "human" ? "user" : (r.payload as { compacted?: boolean } | null)?.compacted ? "divider" : "assistant",
         text: r.uiText,
         blocks: r.uiBlocks ?? [],
         timeline: r.uiTimeline ?? [],
@@ -403,4 +436,11 @@ function outcomeView(o: ItemOutcome): ItemOutcomeView {
     case "rejected": return { key: o.id, status: "REJECTED" };
     case "skipped": return { key: o.id, status: "SKIPPED" };
   }
+}
+
+// AI_COMPACT_AT_TOKENS lets an operator (or a test) change when compaction starts.
+function compactionFromEnv(env: NodeJS.ProcessEnv = process.env): CompactionLimits {
+  const at = Number(env["AI_COMPACT_AT_TOKENS"]);
+  if (!Number.isFinite(at) || at < 2000) return DEFAULT_COMPACTION;
+  return { maxTokens: at, keepRecentTokens: Math.max(1000, Math.round(at / 4)) };
 }

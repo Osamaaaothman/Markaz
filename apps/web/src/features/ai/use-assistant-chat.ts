@@ -32,6 +32,15 @@ export function useAssistantChat() {
         if (e.type === "error") store.getState().flashOnce("error");
         if (e.type === "executed" || (e.type === "outcome" && e.outcome.status === "EXECUTED")) store.getState().flashOnce("success");
         if (e.type === "conversation") { store.getState().setConversationId(e.id); return; }
+        if (e.type === "compacted") {
+          // Show the divider just above the message that triggered it.
+          store.getState().setMessages((list) => {
+            const at = list.map((m) => m.role).lastIndexOf("user");
+            const divider: ChatMessage = { id: localId(), role: "divider", text: null, blocks: [], timeline: [], errorCode: null, changes: [] };
+            return at < 0 ? [...list, divider] : [...list.slice(0, at), divider, ...list.slice(at)];
+          });
+          return;
+        }
         if (e.type === "outcome") {
           // Outcomes update the cards of an earlier message.
           store.getState().setMessages((list) =>

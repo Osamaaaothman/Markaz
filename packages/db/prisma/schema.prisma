@@ -2777,18 +2777,23 @@ model AiProviderConfig {
 }
 
 model AiConversation {
-  id             String    @id
-  companyId      String    @map("company_id")
-  userId         String    @map("user_id")
-  title          String
-  mode           String    @default("ask")
+  id                String    @id
+  companyId         String    @map("company_id")
+  userId            String    @map("user_id")
+  title             String
+  mode              String    @default("ask")
   // IDLE, or AWAITING_APPROVAL while proposed changes wait for the user.
-  status         String    @default("IDLE")
-  nextItemNumber Int       @default(1) @map("next_item_number")
-  pinned         Boolean   @default(false)
-  archivedAt     DateTime? @map("archived_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  status            String    @default("IDLE")
+  nextItemNumber    Int       @default(1) @map("next_item_number")
+  // Compaction: a model-written summary of every message up to summary_through_seq. Older messages
+  // stay in ai_messages (for the user to scroll), but only the summary is sent to the model.
+  summary           String?   @map("summary")
+  summaryThroughSeq Int       @default(0) @map("summary_through_seq")
+  compactions       Int       @default(0)
+  pinned            Boolean   @default(false)
+  archivedAt        DateTime? @map("archived_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   company  Company        @relation(fields: [companyId], references: [id])
   user     User           @relation(fields: [userId], references: [id])
