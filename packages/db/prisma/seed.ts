@@ -119,6 +119,7 @@ const PERMISSION_CATALOG = [
   { code: "ai_settings:manage", description: "Configure the AI provider, model, key and limits" },
   { code: "sales_invoice:create", description: "Post a sales invoice" },
   { code: "sales_invoice:read", description: "View sales invoices and credit notes" },
+  { code: "sales_invoice:void_rejected", description: "Void a sales invoice ZATCA rejected so it can be corrected and issued again" },
   { code: "credit_note:create", description: "Post a credit note against an invoice" },
   { code: "payment:read", description: "View customer receipts and supplier payments" },
   { code: "payment:create", description: "Reverse a payment, or settle on-account money against invoices" },

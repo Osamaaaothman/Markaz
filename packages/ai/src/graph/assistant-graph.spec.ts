@@ -125,8 +125,9 @@ describe("runAssistant", () => {
     const model = new ScriptedChatModel([{ toolCalls: [{ name: "invoices_enter", args: { account: "2111105" } }] }, { text: "The account is a group account." }]);
     const { result } = await run(model, { tools: [...allTools, warned] });
     const toolMessage = result.newMessages.find((m) => m.getType() === "tool");
-    expect(String(toolMessage?.content)).toContain("ai.error.ACCOUNT_NOT_POSTABLE");
-    expect(String(toolMessage?.content)).toContain("do not ask them to approve this one");
+    const content = JSON.stringify(toolMessage?.content ?? "");
+    expect(content).toContain("ai.error.ACCOUNT_NOT_POSTABLE");
+    expect(content).toContain("do not ask them to approve this one");
   });
 
   it("sends only the loaded sections' tools and loads more on demand", async () => {
@@ -143,7 +144,7 @@ describe("runAssistant", () => {
     class Spy extends ScriptedChatModel {
       override bindTools(tools: Array<{ name: string }>): this {
         seen.push(tools.map((t) => t.name));
-        return super.bindTools(tools as never) as this;
+        return super.bindTools(tools as never);
       }
     }
     const model = new Spy([{ toolCalls: [{ name: "load_tools", args: { section: "payments" } }] }, { toolCalls: [{ name: "payments_post", args: { amount: "10.00" } }] }, { text: "ready" }]);

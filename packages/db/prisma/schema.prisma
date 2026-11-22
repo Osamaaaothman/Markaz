@@ -134,6 +134,7 @@ model Company {
   fixedAssetDisposals      FixedAssetDisposal[]
   inventoryShortfalls      InventoryShortfall[]
   inventoryCostSettlements InventoryCostSettlement[]
+  salesInvoiceVoids        SalesInvoiceVoid[]
 
   @@map("companies")
 }
@@ -562,6 +563,7 @@ model JournalEntry {
   depreciationReversals     DepreciationRun[]         @relation("DepreciationRunReversal")
   fixedAssetDisposals       FixedAssetDisposal[]      @relation("FixedAssetDisposalEntry")
   inventoryCostSettlements  InventoryCostSettlement[]
+  salesInvoiceVoid          SalesInvoiceVoid?
 
   @@unique([companyId, idempotencyKey])
   @@index([companyId, fiscalPeriodId])
@@ -1479,6 +1481,27 @@ model GoodsDeliveryNoteLine {
 // A posted sales document: an INVOICE, or a CREDIT_NOTE against one. Amounts are always positive;
 // the document type gives the direction. Immutable like a journal entry — a mistake is corrected by
 // a credit note, never an edit.
+// An invoice ZATCA rejected never became a valid tax invoice. Voiding it posts one reversing
+// journal entry (receivable, revenue, VAT and cost of goods sold) and returns the goods to stock;
+// the invoice row itself stays untouched (insert-only, docs/05). One row per voided invoice.
+model SalesInvoiceVoid {
+  id             String   @id
+  companyId      String   @map("company_id")
+  salesInvoiceId String   @unique @map("sales_invoice_id")
+  journalEntryId String   @unique @map("journal_entry_id")
+  reason         String
+  actorId        String   @map("actor_id")
+  correlationId  String   @map("correlation_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  company      Company      @relation(fields: [companyId], references: [id])
+  salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@map("sales_invoice_voids")
+}
+
 model SalesInvoice {
   id                 String    @id
   companyId          String    @map("company_id")
@@ -1522,6 +1545,7 @@ model SalesInvoice {
   lines              SalesInvoiceLine[]
   paymentAllocations PaymentAllocation[]
   zatcaRecord        ZatcaInvoiceRecord?
+  voidRecord         SalesInvoiceVoid?
 
   @@unique([companyId, number])
   @@index([companyId, customerId])

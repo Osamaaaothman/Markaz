@@ -28,6 +28,7 @@ import {
   useCreateQuotation,
   useCreateSalesInvoice,
   useCreateSalesOrder,
+  useSalesInvoice,
   useSalesOrder,
   type SalesLinePayload,
 } from "./use-sales";
@@ -49,6 +50,7 @@ const KNOWN_ERRORS = new Set([
   "ACCOUNT_NOT_POSTABLE",
   "EGS_UNIT_REQUIRED",
   "EGS_UNIT_NOT_FOUND",
+  "FUTURE_DATE",
 ]);
 
 interface LineState {
@@ -82,6 +84,9 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const stockLevels = stockQuery.isError ? undefined : stockQuery.data;
   const { data: taxCodes } = useTaxCodes(false);
   const { data: order } = useSalesOrder(orderId);
+  // Correcting an invoice ZATCA rejected (and that was voided): start from a copy of it.
+  const copyFromId = mode === "invoice" && !params.get("draft") ? params.get("copyFrom") ?? "" : "";
+  const { data: copyFrom } = useSalesInvoice(copyFromId);
   // Which ZATCA issuing unit (EGS) this invoice belongs to -- only relevant/shown once a company
   // has more than one active unit (docs/01-OPEN-DECISIONS.md); otherwise the backend assigns it
   // (or leaves it null) automatically, and this never needs to be asked.
@@ -113,14 +118,13 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
   const mutation = mode === "quotation" ? createQuotation : mode === "order" ? createOrder : createInvoice;
 
   const defaultTaxId = useMemo(() => (taxCodes?.find((c) => c.treatment === "STANDARD") ?? taxCodes?.[0])?.id ?? "", [taxCodes]);
-  const defaultWarehouseId = warehouses?.[0]?.id ?? "";
   const rateById = useMemo(() => new Map((taxCodes ?? []).map((c) => [c.id, c.rate])), [taxCodes]);
 
-  const blankLine = (): LineState => ({ key: nextKey(), itemId: "", description: "", quantity: "1", unitPrice: "", taxCodeId: defaultTaxId, warehouseId: defaultWarehouseId, salesOrderLineId: "" });
+  const blankLine = (): LineState => ({ key: nextKey(), itemId: "", description: "", quantity: "1", unitPrice: "", taxCodeId: defaultTaxId, warehouseId: "", salesOrderLineId: "" });
 
   // Start with one empty line once the tax codes are known.
   useEffect(() => {
-    if (lines.length === 0 && !orderId && defaultTaxId) setLines([blankLine()]);
+    if (lines.length === 0 && !orderId && !copyFromId && defaultTaxId) setLines([blankLine()]);
   }, [defaultTaxId]);
 
   // Starting an invoice from an order: copy what is still to invoice.
@@ -139,13 +143,33 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
             quantity: trimZeros(left.toDecimalString(4)),
             unitPrice: trimZeros(l.unitPrice),
             taxCodeId: l.taxCodeId,
-            warehouseId: defaultWarehouseId,
+            // No warehouse is preselected: the person picks where each stocked line leaves from.
+            warehouseId: "",
             salesOrderLineId: l.id,
           },
         ];
       }),
     );
-  }, [order?.id, defaultTaxId, defaultWarehouseId]);
+  }, [order?.id, defaultTaxId]);
+
+  useEffect(() => {
+    if (!copyFrom || copyFrom.documentType !== "INVOICE" || !defaultTaxId) return;
+    setCustomerId(copyFrom.customerId);
+    setNotes(copyFrom.notes ?? "");
+    setActualDeliveryDate(copyFrom.actualDeliveryDate ? new Date(`${copyFrom.actualDeliveryDate}T00:00:00`) : null);
+    setLines(
+      copyFrom.lines.map((l) => ({
+        key: nextKey(),
+        itemId: l.itemId ?? "",
+        description: l.itemId ? "" : l.description,
+        quantity: trimZeros(l.quantity),
+        unitPrice: trimZeros(l.unitPrice),
+        taxCodeId: l.taxCodeId,
+        warehouseId: l.warehouseId ?? "",
+        salesOrderLineId: l.salesOrderLineId ?? "",
+      })),
+    );
+  }, [copyFrom?.id, defaultTaxId]);
 
   const setLine = (key: string, patch: Partial<LineState>): void => {
     mutation.reset();
@@ -252,14 +276,14 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
 
       <DraftBar draft={draft} />
       <div className="erp-form">
-        <div className="erp-form__row">
+        <div className="erp-form__row erp-form__row--top">
           <div className="erp-field">
             <label htmlFor="sdCustomer">{t("sales.customer")}</label>
             <PartyPicker excludeEmployees kind="CUSTOMER" inputId="sdCustomer" value={customerId || null} onChange={(party) => !orderId && setCustomerId(party?.id ?? "")} />
           </div>
           <div className="erp-field">
             <label htmlFor="sdDate">{t(`${prefix}.date`)}</label>
-            <Calendar inputId="sdDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" />
+            <Calendar inputId="sdDate" value={date} onChange={(e) => e.value && setDate(e.value)} dateFormat="yy-mm-dd" {...(mode === "invoice" ? { maxDate: new Date() } : {})} />
           </div>
           {mode !== "order" ? (
             <div className="erp-field">
@@ -323,7 +347,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                 <LineField label={t("sales.description")}><InputText placeholder={t("sales.description")} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} disabled={l.salesOrderLineId !== ""} /></LineField>
               ) : null}
               <LineField label={t("purchasing.quantity")} hint={l.itemId ? <StockHint {...stock} scope={mode === "invoice" ? "warehouse" : "company"} /> : undefined}><InputText dir="ltr" placeholder={t("purchasing.quantity")} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} className={`erp-lines__amount${DECIMAL.test(l.quantity) ? "" : " p-invalid"}`} /></LineField>
-              <LineField label={t("purchasing.unitPrice")} hint={l.salesOrderLineId ? t("sales.priceLocked") : belowCost(l) ? <span className="erp-field__error">{t("sales.errors.BELOW_COST")}</span> : undefined}><InputText
+              <LineField label={t("purchasing.unitPrice")} hint={l.salesOrderLineId ? t("sales.priceLocked") : belowCost(l) ? <span className="erp-field__warning">{t("sales.errors.BELOW_COST")}</span> : undefined}><InputText
                 dir="ltr"
                 placeholder={t("purchasing.unitPrice")}
                 value={l.unitPrice}
@@ -351,6 +375,7 @@ function SalesDocumentForm({ mode }: { mode: Mode }): React.JSX.Element {
                     onChange={(e) => setLine(l.key, { warehouseId: (e.value as string | null) ?? "" })}
                     options={(warehouses ?? []).map((w) => ({ label: localizedName(w, i18n.language), value: w.id }))}
                     placeholder={t("inventory.warehouses.title")}
+                    className={l.warehouseId === "" ? "p-invalid" : ""}
                   /></LineField>
                 </div>
               ) : null}

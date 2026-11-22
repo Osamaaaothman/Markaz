@@ -165,6 +165,7 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
       const where = {
         companyId: ctx.actor.companyId,
         documentType: "INVOICE",
+        voidRecord: { is: null },
         ...(input.from || input.to ? { invoiceDate: { ...(input.from ? { gte: new Date(`${input.from}T00:00:00Z`) } : {}), ...(input.to ? { lte: new Date(`${input.to}T00:00:00Z`) } : {}) } } : {}),
         ...(input.query
           ? { OR: [{ number: { contains: input.query, mode: "insensitive" as const } }, { customer: { name: { contains: input.query, mode: "insensitive" as const } } }, { customer: { nameAr: { contains: input.query } } }] }

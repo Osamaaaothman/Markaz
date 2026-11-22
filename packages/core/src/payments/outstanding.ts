@@ -64,6 +64,8 @@ export async function loadOutstanding(
                                WHERE dn.original_invoice_id = si.id AND dn.document_type = 'DEBIT_NOTE' AND dn.invoice_date < ${salesBefore}), 0))::text AS outstanding
           FROM sales_invoices si
           WHERE si.company_id = ${companyId} AND si.document_type = 'INVOICE' AND si.invoice_date < ${salesBefore}
+            -- A voided (tax-authority rejected) invoice is reversed in the ledger on its own date: never owed.
+            AND NOT EXISTS (SELECT 1 FROM sales_invoice_voids v WHERE v.sales_invoice_id = si.id)
             AND (${ids}::text[] IS NULL OR si.id = ANY(${ids}::text[]))
             AND (${partyId}::text IS NULL OR si.customer_id = ${partyId})
           ORDER BY si.invoice_date, si.number

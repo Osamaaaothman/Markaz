@@ -71,6 +71,7 @@ export class PartyStatementService {
                      CASE WHEN si.document_type = 'CREDIT_NOTE' THEN si.total_gross ELSE 0 END AS settlement,
                      si.created_at
               FROM sales_invoices si WHERE si.company_id = ${companyId} AND si.customer_id = ${partyId} AND si.invoice_date < ${salesBefore}
+                AND NOT EXISTS (SELECT 1 FROM sales_invoice_voids v WHERE v.sales_invoice_id = si.id)
               UNION ALL
               SELECT p.direction, p.id, p.number, p.payment_date, p.reference,
                      CASE WHEN (p.direction = 'PAYMENT') <> (p.reverses_payment_id IS NOT NULL) THEN p.amount ELSE 0 END,

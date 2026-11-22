@@ -53,7 +53,7 @@ import { EMAIL_TRANSPORT, MailModule } from "../notifications/mail.module.js";
     {
       provide: SalesInvoiceService,
       useFactory: (prisma: PrismaService, engine: IAccountingEngine, audit: IAuditLogger, guard: SalesInvoiceIssueGuard) =>
-        new SalesInvoiceService(prisma, engine, new AccountMappingService(prisma, audit), audit, guard.validate),
+        new SalesInvoiceService(prisma, engine, new AccountMappingService(prisma, audit), audit, guard.validate, guard.validateVoid),
       inject: [PrismaService, SALES_ENGINE, AUDIT_LOGGER, SalesInvoiceIssueGuard],
     },
     SalesInvoicePdfService,

@@ -178,6 +178,13 @@ describeIfDb("Sales (M6, quotation to invoice) — real database", () => {
     expect((await orders.get(companyId, orderId)).lines.find((l) => l.id === itemLineId)?.invoicedQuantity).toBe("3.0000");
   });
 
+  it("refuses an invoice dated after today (ZATCA BR-KSA-04) before touching stock", async () => {
+    const tomorrow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    await expect(
+      invoices.createInvoice({ customerId, invoiceDate: tomorrow, lines: [{ description: "x", quantity: "1", unitPrice: "1", taxCodeId: vat0 }] }, actor, cid(), newId()),
+    ).rejects.toMatchObject({ code: "FUTURE_DATE" });
+  });
+
   it("finishes the order with the rest, posts a service line to its own revenue account, and closes the order", async () => {
     const services = await balance(acc.services!);
     const result = await invoices.createInvoice(

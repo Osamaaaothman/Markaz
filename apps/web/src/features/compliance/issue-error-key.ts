@@ -10,6 +10,8 @@ const CODES = new Set([
   "COMPLIANCE_BUYER_CR_INVALID",
   "COMPLIANCE_SELLER_NAME_REQUIRED",
   "COMPLIANCE_BUYER_NAME_REQUIRED",
+  "COMPLIANCE_VOID_NOT_REJECTED",
+  "COMPLIANCE_VOID_SIMPLIFIED_UNSUPPORTED",
 ]);
 
 /** Localized, actionable pre-issue failures shared by invoices and their notes. */

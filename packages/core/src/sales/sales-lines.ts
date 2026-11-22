@@ -30,7 +30,11 @@ export class SalesError extends Error {
       | "ZERO_DOCUMENT"
       | "EGS_UNIT_NOT_FOUND"
       | "EGS_UNIT_REQUIRED"
-      | "BELOW_COST",
+      | "BELOW_COST"
+      | "FUTURE_DATE"
+      | "ALREADY_VOIDED"
+      | "VOID_NOT_ALLOWED"
+      | "VOIDED_INVOICE",
     message: string,
     readonly lineNumber?: number,
   ) {
@@ -99,6 +103,18 @@ export function totalsOf(lines: readonly { net: Prisma.Decimal; tax: Prisma.Deci
 
 export const blankToNull = (v: string | null | undefined): string | null => (v?.trim() ? v.trim() : null);
 export const dateOnly = (d: Date): string => d.toISOString().slice(0, 10);
+
+// A document cannot be issued on a day that has not happened yet (also ZATCA BR-KSA-04, but it is
+// a plain bookkeeping rule). "Today" is the calendar date in the company's own timezone.
+export async function assertNotFutureDate(
+  tx: TransactionClient, companyId: string, date: Date, now: Date = new Date(),
+): Promise<void> {
+  const company = await tx.company.findUnique({ where: { id: companyId }, select: { timezone: true } });
+  // An unknown company is left to the document's own not-found checks.
+  if (!company) return;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: company.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  if (dateOnly(date) > today) throw new SalesError("FUTURE_DATE", "The document date is after today");
+}
 
 // Looks up the items and tax codes a document's lines name and does each line's arithmetic, so a
 // quotation, an order and an invoice all price a line the same way (docs/04 §2: rounded once, to

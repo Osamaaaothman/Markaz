@@ -29,7 +29,8 @@ describeIfDb("Ageing and party statements — real database", () => {
   const companyId = newId();
   const actor = { id: "accountant", companyId };
   const cid = (): string => newId();
-  const year = new Date().getUTCFullYear();
+  // Last year: every document below must be dated in the past (invoices cannot be future-dated).
+  const year = new Date().getUTCFullYear() - 1;
   const on = (month: number, d: number): Date => new Date(Date.UTC(year, month - 1, d));
 
   let acc: Record<string, string>;

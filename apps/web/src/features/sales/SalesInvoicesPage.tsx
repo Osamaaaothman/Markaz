@@ -30,12 +30,14 @@ import {
   useCreateDebitNote,
   useSalesInvoice,
   useSalesInvoices,
+  useVoidRejectedInvoice,
   type SalesInvoiceDetail,
   type SalesInvoiceSummary,
 } from "./use-sales";
 import { AttachmentsButton } from "../attachments/AttachmentsButton";
 import { ZatcaInvoicePanel, ZatcaStatusBadge } from "../compliance/ZatcaInvoicePanel";
-import { useInvoiceStatuses } from "../compliance/use-compliance";
+import { useInvoiceRecord, useInvoiceStatuses } from "../compliance/use-compliance";
+import { InputTextarea } from "primereact/inputtextarea";
 
 const ALL = "ALL";
 const DECIMAL = /^\d{1,15}(\.\d{1,4})?$/;
@@ -264,12 +266,16 @@ export function SalesInvoicesPage({
             <Column
               field="settlementStatus"
               header={t("sales.invoices.settlement")}
-              body={(row: SalesInvoiceSummary) => (
-                <Tag
-                  value={t(`sales.invoices.settlementStates.${row.settlementStatus}`)}
-                  severity={settlementSeverity[row.settlementStatus]}
-                />
-              )}
+              body={(row: SalesInvoiceSummary) =>
+                row.voidedAt ? (
+                  <Tag value={t("sales.invoices.voided")} severity="secondary" />
+                ) : (
+                  <Tag
+                    value={t(`sales.invoices.settlementStates.${row.settlementStatus}`)}
+                    severity={settlementSeverity[row.settlementStatus]}
+                  />
+                )
+              }
             />
             {can("compliance:read") ? (
               <Column
@@ -350,6 +356,8 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
   const { data: invoice, isPending, isError, refetch } = useSalesInvoice(id);
   const [creditOpen, setCreditOpen] = useState(false);
   const [debitOpen, setDebitOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const { data: zatcaRecord } = useInvoiceRecord(id === "" ? undefined : id);
 
   if (isPending) return <PageSkeleton />;
   if (isError || !invoice) {
@@ -376,10 +384,14 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
           </p>
         </div>
         <div className="erp-page__header-actions">
-          <Tag
-            value={t(`sales.invoices.settlementStates.${invoice.settlementStatus}`)}
-            severity={settlementSeverity[invoice.settlementStatus]}
-          />
+          {invoice.voidedAt ? (
+            <Tag value={t("sales.invoices.voided")} severity="secondary" />
+          ) : (
+            <Tag
+              value={t(`sales.invoices.settlementStates.${invoice.settlementStatus}`)}
+              severity={settlementSeverity[invoice.settlementStatus]}
+            />
+          )}
           <Tag
             value={t(`sales.invoices.types.${invoice.documentType}`)}
             severity={documentTypeSeverity(invoice.documentType)}
@@ -415,7 +427,16 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
               )
             }
           />
-          {invoice.documentType === "INVOICE" ? (
+          {invoice.documentType === "INVOICE" && !invoice.voidedAt && zatcaRecord?.status === "REJECTED" ? (
+            <PermissionButton
+              allowed={can("sales_invoice:void_rejected")}
+              label={t("sales.invoices.correctRejected")}
+              icon="pi pi-replay"
+              severity="warning"
+              onClick={() => setVoidOpen(true)}
+            />
+          ) : null}
+          {invoice.documentType === "INVOICE" && !invoice.voidedAt ? (
             <PermissionButton
               allowed={can("credit_note:create")}
               label={t("sales.invoices.salesReturn")}
@@ -424,7 +445,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
               onClick={() => setCreditOpen(true)}
             />
           ) : null}
-          {invoice.documentType === "INVOICE" ? (
+          {invoice.documentType === "INVOICE" && !invoice.voidedAt ? (
             <PermissionButton
               allowed={can("debit_note:create")}
               label={t("sales.invoices.debitNote")}
@@ -433,7 +454,7 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
               onClick={() => setDebitOpen(true)}
             />
           ) : null}
-          {invoice.documentType === "INVOICE" ? (
+          {invoice.documentType === "INVOICE" && !invoice.voidedAt ? (
             <PermissionButton
               allowed={can("customer_receipt:create")}
               label={t("payments.recordPayment")}
@@ -599,6 +620,12 @@ export function SalesInvoiceDetailPage(): React.JSX.Element {
         visible={debitOpen}
         onHide={() => setDebitOpen(false)}
       />
+      <VoidRejectedDialog
+        invoiceId={invoice.id}
+        visible={voidOpen}
+        onHide={() => setVoidOpen(false)}
+        onVoided={() => void navigate(`/sales/invoices/new?copyFrom=${invoice.id}`)}
+      />
       <DocumentTrail kind="sales_invoice" id={id} />
     </div>
   );
@@ -714,7 +741,7 @@ function SalesReturnDialog({
               <label htmlFor="srDate">{t("sales.invoices.creditDate")}</label>
               <Calendar
                 inputId="srDate"
-                value={date}
+                value={date} maxDate={new Date()}
                 onChange={(e) => e.value && setDate(e.value)}
                 dateFormat="yy-mm-dd"
               />
@@ -898,7 +925,7 @@ function DebitNoteDialog({
             <label htmlFor="dnDate">{t("sales.invoices.debitDate")}</label>
             <Calendar
               inputId="dnDate"
-              value={date}
+              value={date} maxDate={new Date()}
               onChange={(e) => e.value && setDate(e.value)}
               dateFormat="yy-mm-dd"
             />
@@ -962,6 +989,52 @@ function DebitNoteDialog({
                 { onSuccess: onHide },
               )
             }
+          />
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+// ZATCA rejected the invoice: it never became a valid tax invoice. Voiding reverses its posting and
+// returns the goods; the person then issues a corrected invoice, prefilled from this one.
+function VoidRejectedDialog({
+  invoiceId,
+  visible,
+  onHide,
+  onVoided,
+}: {
+  invoiceId: string;
+  visible: boolean;
+  onHide: () => void;
+  onVoided: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const [reason, setReason] = useState("");
+  const mutation = useVoidRejectedInvoice(invoiceId);
+  const code = (mutation.error as { response?: { data?: { error?: { code?: string } } } } | null)?.response?.data?.error?.code;
+  const errorKey = mutation.isError
+    ? (complianceIssueErrorKey(code) ?? (code && ["ALREADY_VOIDED", "VOID_NOT_ALLOWED", "NO_OPEN_PERIOD"].includes(code) ? `sales.errors.${code}` : "sales.errors.generic"))
+    : null;
+  return (
+    <Dialog header={t("sales.invoices.correctRejectedTitle")} visible={visible} onHide={onHide} style={{ width: "min(36rem, 95vw)" }}>
+      <div className="erp-form">
+        <p className="erp-auth-card__warning">{t("sales.invoices.correctRejectedHint")}</p>
+        <div className="erp-field">
+          <label htmlFor="voidReason">{t("sales.invoices.voidReason")}</label>
+          <InputTextarea id="voidReason" rows={3} maxLength={500} value={reason} onChange={(e) => { mutation.reset(); setReason(e.target.value); }} />
+        </div>
+        {errorKey ? <p className="erp-auth-card__error">{t(errorKey)}</p> : null}
+        <div className="erp-form__actions">
+          <Button type="button" label={t("actions.cancel")} text onClick={onHide} />
+          <Button
+            type="button"
+            label={t("sales.invoices.correctRejectedConfirm")}
+            icon="pi pi-replay"
+            severity="warning"
+            disabled={reason.trim() === ""}
+            loading={mutation.isPending}
+            onClick={() => mutation.mutate(reason.trim(), { onSuccess: onVoided })}
           />
         </div>
       </div>

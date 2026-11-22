@@ -28,6 +28,7 @@ import type { SalesActor } from "./quotation.service.js";
 import {
   SalesError,
   blankToNull,
+  assertNotFutureDate,
   dateOnly,
   lockCustomer,
   resolveEgsUnitId,
@@ -136,6 +137,8 @@ export interface SalesInvoiceSummary {
   readonly totalNet: string;
   readonly totalTax: string;
   readonly totalGross: string;
+  // Set when the invoice was voided after the tax authority rejected it.
+  readonly voidedAt?: string | null;
 }
 
 export interface SalesInvoiceDetail extends SalesInvoiceSummary {
@@ -164,6 +167,7 @@ export interface SalesInvoiceDetail extends SalesInvoiceSummary {
     readonly warehouseName: string | null;
     readonly warehouseNameAr: string | null;
     readonly originalLineId: string | null;
+    readonly salesOrderLineId?: string | null;
     readonly description: string;
     readonly quantity: string;
     readonly unitPrice: string;
@@ -185,7 +189,7 @@ export interface SalesInvoiceListPage {
   readonly pageInfo: { readonly hasMore: boolean; readonly nextCursor: string | null };
 }
 
-type InvoiceRow = Prisma.SalesInvoiceGetPayload<{ include: { customer: true } }>;
+type InvoiceRow = Prisma.SalesInvoiceGetPayload<{ include: { customer: true; voidRecord: { select: { createdAt: true } } } }>;
 
 function toSummary(row: InvoiceRow, outstanding: Prisma.Decimal | null): SalesInvoiceSummary {
   return {
@@ -211,6 +215,7 @@ function toSummary(row: InvoiceRow, outstanding: Prisma.Decimal | null): SalesIn
     totalNet: row.totalNet.toFixed(4),
     totalTax: row.totalTax.toFixed(4),
     totalGross: row.totalGross.toFixed(4),
+    voidedAt: row.voidRecord ? row.voidRecord.createdAt.toISOString() : null,
   };
 }
 
@@ -246,6 +251,15 @@ export interface SalesInvoiceIssueContext {
 // transaction before accounting, numbering, stock or outbox effects; Core has no country rules.
 export type SalesInvoiceIssueValidator = (tx: TransactionClient, input: SalesInvoiceIssueContext) => Promise<void>;
 
+// Composition supplies the compliance check that an invoice may be voided (for ZATCA: the tax
+// authority definitively rejected it). Core has no country rules; without a guard nothing is voidable.
+export type SalesInvoiceVoidGuard = (tx: TransactionClient, input: { readonly companyId: string; readonly salesInvoiceId: string }) => Promise<void>;
+
+export interface VoidSalesInvoiceInput {
+  readonly invoiceId: string;
+  readonly reason: string;
+}
+
 export class SalesInvoiceService {
   constructor(
     private readonly prisma: PrismaClient,
@@ -253,6 +267,7 @@ export class SalesInvoiceService {
     private readonly accountMappings: AccountMappingService,
     private readonly audit: IAuditLogger,
     private readonly beforeIssue?: SalesInvoiceIssueValidator,
+    private readonly voidGuard?: SalesInvoiceVoidGuard,
   ) {}
 
   async createInvoice(
@@ -262,6 +277,7 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertNotFutureDate(tx, actor.companyId, input.invoiceDate);
       await lockCustomer(tx, actor.companyId, input.customerId);
       const previous = await tx.salesInvoice.findFirst({
         where: {
@@ -597,6 +613,7 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertNotFutureDate(tx, actor.companyId, input.creditDate);
       // Invoice tables are immutable for the runtime role; serialize returns without UPDATE privileges.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.companyId + ":sales-return:" + input.originalInvoiceId}, 0))::text`;
       const original = await tx.salesInvoice.findFirst({
@@ -630,6 +647,8 @@ export class SalesInvoiceService {
           "NOT_AN_INVOICE",
           "A credit note can only be raised against an invoice",
         );
+      if (await tx.salesInvoiceVoid.findUnique({ where: { salesInvoiceId: original.id } }))
+        throw new SalesError("VOIDED_INVOICE", "This invoice was voided");
       await lockCustomer(tx, actor.companyId, original.customerId);
       // A credit note inherits the original invoice's issuing unit by default -- it is the same
       // legal document lineage, not a fresh choice -- unless the caller explicitly overrides it.
@@ -982,6 +1001,7 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertNotFutureDate(tx, actor.companyId, input.debitDate);
       const original = await tx.salesInvoice.findFirst({
         where: { id: input.originalInvoiceId, companyId: actor.companyId },
       });
@@ -991,6 +1011,8 @@ export class SalesInvoiceService {
           "NOT_AN_INVOICE",
           "A debit note can only be raised against an invoice",
         );
+      if (await tx.salesInvoiceVoid.findUnique({ where: { salesInvoiceId: original.id } }))
+        throw new SalesError("VOIDED_INVOICE", "This invoice was voided");
       await lockCustomer(tx, actor.companyId, original.customerId);
       // Same inheritance rule as a credit note (above): defaults to the original invoice's unit.
       const egsUnitId = input.egsUnitId
@@ -1160,6 +1182,146 @@ export class SalesInvoiceService {
     return result;
   }
 
+  // Voids an invoice the tax authority rejected: it never became a valid tax invoice, so its effects
+  // are undone without a credit note. One reversing entry flips every line of the original posting
+  // (receivable, revenue, VAT, cost of goods sold / inventory), the goods go back to the warehouses
+  // they left at the cost they left with, and order counters are released. The invoice row is not
+  // touched; a SalesInvoiceVoid row records the void. The person then issues a corrected invoice.
+  // REVIEW: treatment (internal reversal dated on the invoice date, no credit note) chosen by Osama
+  // on 2026-11-22 pending an accountant's confirmation; see docs/01-OPEN-DECISIONS.md.
+  async voidRejectedInvoice(
+    input: VoidSalesInvoiceInput,
+    actor: SalesActor,
+    correlationId: string,
+  ): Promise<{ readonly id: string; readonly journalEntryId: string }> {
+    const reason = input.reason.trim();
+    if (!reason) throw new SalesError("VOID_NOT_ALLOWED", "A reason is required");
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Same serialization key as returns: a credit note and a void of one invoice never interleave.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.companyId + ":sales-return:" + input.invoiceId}, 0))::text`;
+      const original = await tx.salesInvoice.findFirst({
+        where: { id: input.invoiceId, companyId: actor.companyId },
+        include: { lines: true, journalEntry: { include: { lines: true } }, voidRecord: true },
+      });
+      if (!original) throw new SalesError("NOT_FOUND", "Invoice not found");
+      if (original.documentType !== "INVOICE")
+        throw new SalesError("NOT_AN_INVOICE", "Only an invoice can be voided");
+      if (original.voidRecord) throw new SalesError("ALREADY_VOIDED", "This invoice was already voided");
+      if (!this.voidGuard) throw new SalesError("VOID_NOT_ALLOWED", "No compliance rule allows voiding");
+      await this.voidGuard(tx, { companyId: actor.companyId, salesInvoiceId: original.id });
+      await lockCustomer(tx, actor.companyId, original.customerId);
+
+      // Anything that already builds on the invoice must be undone first, or the void would leave it dangling.
+      const notes = await tx.salesInvoice.count({ where: { companyId: actor.companyId, originalInvoiceId: original.id } });
+      if (notes > 0) throw new SalesError("VOID_NOT_ALLOWED", "Credit or debit notes exist against this invoice");
+      const paid = await tx.paymentAllocation.count({ where: { salesInvoiceId: original.id, payment: { companyId: actor.companyId, voidedAt: null } } });
+      if (paid > 0) throw new SalesError("VOID_NOT_ALLOWED", "Payments are allocated to this invoice");
+      // A provisional-cost shortfall from this invoice would need its own settlement unwound. Rare; refused.
+      const shortfalls = await tx.inventoryShortfall.count({ where: { companyId: actor.companyId, sourceDocumentType: "sales_invoice", sourceDocumentId: original.id } });
+      if (shortfalls > 0) throw new SalesError("VOID_NOT_ALLOWED", "This invoice sold stock that was not on hand");
+
+      const entryDate = original.journalEntry.entryDate;
+      const period = await findOpenFiscalPeriod(tx, actor.companyId, entryDate);
+      if (!period) throw new SalesError("NO_OPEN_PERIOD", "The fiscal period of the invoice is closed");
+
+      const voidId = newId();
+      const journalLines: JournalLineInput[] = original.journalEntry.lines.map((line) => ({
+        accountId: line.accountId,
+        ...(line.credit.greaterThan(0) ? { debit: line.credit.toFixed(4) } : { credit: line.debit.toFixed(4) }),
+        description: "Rejected invoice voided",
+      }));
+
+      const stockLines = original.lines
+        .filter((l) => l.itemId !== null && l.warehouseId !== null)
+        .sort((a, b) => (a.itemId! + a.warehouseId!).localeCompare(b.itemId! + b.warehouseId!));
+      const costSettlements: CostSettlement[] = [];
+      for (const line of stockLines) {
+        costSettlements.push(
+          ...(await receiveStock(
+            tx,
+            { companyId: actor.companyId, itemId: line.itemId!, warehouseId: line.warehouseId! },
+            line.quantity,
+            line.costValue,
+          )),
+        );
+      }
+      if (costSettlements.length)
+        journalLines.push(
+          ...settlementJournalLines(costSettlements, await this.accountMappings.resolve(tx, actor.companyId, "INVENTORY")),
+        );
+
+      const posting = await this.engine.postEntry(
+        {
+          companyId: actor.companyId,
+          fiscalPeriodId: period.id,
+          entryDate,
+          postingDate: entryDate,
+          currency: original.currency,
+          lines: journalLines,
+          sourceModule: "sales",
+          sourceDocumentType: "sales_invoice_void",
+          sourceDocumentId: voidId,
+          actorId: actor.id,
+          correlationId,
+          idempotencyKey: `sales-invoice-void:${original.id}`,
+        },
+        tx,
+      );
+      await recordSettlements(tx, costSettlements, { type: "sales_invoice_void", id: voidId }, posting.journalEntryId, actor.id, correlationId);
+
+      await tx.salesInvoiceVoid.create({
+        data: { id: voidId, companyId: actor.companyId, salesInvoiceId: original.id, journalEntryId: posting.journalEntryId, reason, actorId: actor.id, correlationId },
+      });
+      if (stockLines.length)
+        await tx.stockMovement.createMany({
+          data: stockLines.map((line) => ({
+            id: newId(),
+            companyId: actor.companyId,
+            itemId: line.itemId!,
+            warehouseId: line.warehouseId!,
+            movementType: "RETURN",
+            quantity: line.quantity,
+            unitCost: line.costValue.div(line.quantity).toDecimalPlaces(4),
+            value: line.costValue,
+            sourceDocumentType: "sales_invoice_void",
+            sourceDocumentId: voidId,
+            journalEntryId: posting.journalEntryId,
+            actorId: actor.id,
+            correlationId,
+          })),
+        });
+
+      // Release what the invoice claimed on its order so the corrected invoice can claim it again.
+      const released = new Map<string, Prisma.Decimal>();
+      for (const line of original.lines)
+        if (line.salesOrderLineId)
+          released.set(line.salesOrderLineId, (released.get(line.salesOrderLineId) ?? new Prisma.Decimal(0)).plus(line.quantity));
+      if (released.size) {
+        const ids = [...released.keys()];
+        await tx.$queryRaw`SELECT l.id FROM sales_order_lines l JOIN sales_orders o ON o.id = l.sales_order_id WHERE l.id = ANY(${ids}::text[]) AND o.company_id = ${actor.companyId} ORDER BY l.id FOR UPDATE OF l`;
+        for (const [lineId, quantity] of released)
+          await tx.salesOrderLine.update({ where: { id: lineId }, data: { invoicedQuantity: { decrement: quantity } } });
+        const orderLines = await tx.salesOrderLine.findMany({ where: { id: { in: ids } }, select: { salesOrderId: true } });
+        for (const orderId of new Set(orderLines.map((l) => l.salesOrderId))) {
+          const all = await tx.salesOrderLine.findMany({ where: { salesOrderId: orderId }, select: { invoicedQuantity: true } });
+          const started = all.some((l) => l.invoicedQuantity.greaterThan(0));
+          await tx.salesOrder.update({ where: { id: orderId }, data: { status: started ? "PARTIALLY_INVOICED" : "OPEN", version: { increment: 1 } } });
+        }
+      }
+      return { id: voidId, journalEntryId: posting.journalEntryId };
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: "sales_invoice.voided",
+      entityType: "SalesInvoice",
+      entityId: input.invoiceId,
+      after: { voidId: result.id, journalEntryId: result.journalEntryId, reason },
+      correlationId,
+    });
+    return result;
+  }
+
   async list(companyId: string, query: SalesInvoiceListQuery): Promise<SalesInvoiceListPage> {
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? "50", 10) || 50, 1), 100);
     const rows = await this.prisma.salesInvoice.findMany({
@@ -1168,7 +1330,7 @@ export class SalesInvoiceService {
         ...(query.customerId ? { customerId: query.customerId } : {}),
         ...(query.documentType ? { documentType: query.documentType } : {}),
       },
-      include: { customer: true },
+      include: { customer: true, voidRecord: { select: { createdAt: true } } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(query.cursor !== undefined ? { cursor: { id: query.cursor }, skip: 1 } : {}),
@@ -1191,6 +1353,7 @@ export class SalesInvoiceService {
       where: { id, companyId },
       include: {
         customer: true,
+        voidRecord: { select: { createdAt: true } },
         lines: {
           orderBy: { lineNumber: "asc" },
           include: { returnLines: true, warehouse: { select: { name: true, nameAr: true } } },
@@ -1236,6 +1399,7 @@ export class SalesInvoiceService {
         id: l.id,
         taxCodeId: l.taxCodeId,
         originalLineId: l.originalLineId,
+        salesOrderLineId: l.salesOrderLineId,
         itemId: l.itemId,
         warehouseId: l.warehouseId,
         warehouseName: l.warehouse?.name ?? null,

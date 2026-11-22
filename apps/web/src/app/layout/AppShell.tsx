@@ -19,7 +19,9 @@ export function AppShell(): React.JSX.Element {
   const mobileSidebarOpen = useLayoutStore((state) => state.mobileSidebarOpen);
   const closeMobileSidebar = useLayoutStore((state) => state.closeMobileSidebar);
   const { collapsed } = useSidebarLayout();
-  const { key: locationKey } = useLocation();
+  // Scroll to the top on a new page only. A query-string change on the same page (a form saving
+  // its draft id into ?draft=) must not throw the person back to the top mid-edit.
+  const { pathname } = useLocation();
 
   useLayoutEffect(() => {
     const previous = window.history.scrollRestoration;
@@ -29,7 +31,7 @@ export function AppShell(): React.JSX.Element {
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  }, [locationKey]);
+  }, [pathname]);
 
   useLineGridKeys();
 
