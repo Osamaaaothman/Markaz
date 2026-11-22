@@ -3460,7 +3460,9 @@
       "parties_statement": "Reading the party statement",
       "accounts_statement": "Reading the account statement",
       "purchaseOrders_search": "Searching purchase orders",
-      "salesInvoices_get": "Opening the invoice"
+      "salesInvoices_get": "Opening the invoice",
+      "sales_createQuotation": "Preparing a quotation",
+      "taxCodes_list": "Reading tax codes"
     },
     "blocks": {
       "overview": "Company overview",
@@ -3549,7 +3551,12 @@
       "credit": "Credit",
       "balance": "Balance",
       "supplier": "Supplier",
-      "status": "Status"
+      "status": "Status",
+      "line": "Line",
+      "net": "Net",
+      "tax": "VAT",
+      "validUntil": "Valid until",
+      "notes": "Notes"
     },
     "arg": {
       "name": "Name",
@@ -3576,11 +3583,14 @@
       "createSupplier": "New supplier",
       "createEmployee": "New employee",
       "createItem": "New item",
-      "createAccount": "New ledger account"
+      "createAccount": "New ledger account",
+      "createQuotation": "New quotation"
     },
     "warn": {
       "parentNotFound": "No account has this parent code.",
-      "parentNotGroup": "The parent is a postable account, not a group."
+      "parentNotGroup": "The parent is a postable account, not a group.",
+      "customerNotFound": "No customer has this id.",
+      "linesInvalid": "A line could not be priced (item, tax code or description). Totals are not shown."
     },
     "risk": {
       "high": "Needs care"

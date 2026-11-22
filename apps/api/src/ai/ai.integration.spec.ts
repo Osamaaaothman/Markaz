@@ -10,6 +10,7 @@ import {
   IncomeStatementService,
   PartyStatementService,
   PurchaseOrderService,
+  QuotationService,
   StockLevelService,
   DashboardService,
   EmployeeService,
@@ -24,6 +25,7 @@ import { AiChatError, AiChatService, type ChatEvent } from "./ai-chat.service.js
 import { AiSettingsService } from "./ai-settings.service.js";
 import { buildErpTools } from "./tools/erp-tools.js";
 import { buildReportTools } from "./tools/report-tools.js";
+import { buildSalesTools } from "./tools/sales-tools.js";
 
 // The whole assistant path against real PostgreSQL, with a scripted model instead of a provider:
 // permissions, proposals, approval, execution through the core services, the freeze trigger,
@@ -154,6 +156,25 @@ import { buildReportTools } from "./tools/report-tools.js";
     }
   });
 
+  it("prepares a quotation with server-computed totals, then creates it through the core service", async () => {
+    const [taxList, createQuotation] = buildSalesTools({ prisma: db, quotations: new QuotationService(db, audit) });
+    if (taxList?.kind !== "read" || createQuotation?.kind !== "write") throw new Error("unexpected tool kinds");
+    await db.taxCode.create({ data: { id: newId(), companyId, code: "VAT15", name: "Standard 15%", rate: "15", treatment: "STANDARD" } });
+    const customer = await new PartyService(db, audit).create({ name: "Chair Buyer", kind: "CUSTOMER" }, owner, "ai:q");
+    const ctx = { actor: { userId: owner.id, companyId }, locale: "en" as const, conversationId: "q", correlationId: "ai:q", can: () => Promise.resolve(true) };
+    const input = createQuotation.input.parse({ customerId: customer.id, quotationDate: "2026-11-22", lines: [{ description: "Chairs", quantity: "2", unitPrice: "100" }] });
+
+    const preview = await createQuotation.preview(ctx, input);
+    const value = (key: string): string | undefined => preview.fields.find((f) => f.labelKey === key)?.value;
+    expect(preview.warningKeys).toBeUndefined();
+    expect([value("ai.col.net"), value("ai.col.tax"), value("ai.col.total")]).toEqual(["200.00", "30.00", "230.00"]);
+
+    const done = await createQuotation.execute(ctx, input);
+    const saved = await db.quotation.findFirstOrThrow({ where: { companyId, id: (done.data as { id: string }).id } });
+    expect(saved.totalGross.toFixed(2)).toBe("230.00");
+    expect(saved.status).toBe("OPEN");
+  });
+
   it("compacts a long conversation into a summary the model then receives as memory", async () => {
     // Small limits so three turns are enough. Each model creation takes the next script from the queue.
     const queue: ScriptedReply[][] = [];
@@ -177,7 +198,7 @@ import { buildReportTools } from "./tools/report-tools.js";
     expect(conv.summaryThroughSeq).toBeGreaterThan(0);
     // The answering model got the summary in its system prompt and no longer got the first question.
     const sent = (last as ScriptedChatModel | null)?.seen[0] ?? [];
-    expect(String(sent[0]?.content)).toContain("PRT-000123");
+    expect(JSON.stringify(sent[0]?.content ?? "")).toContain("PRT-000123");
     expect(JSON.stringify(sent.slice(1).map((m) => m.content))).not.toContain("first question");
     // The user still sees every message, plus a divider where the compaction happened.
     const detail = await compacting.get(owner, id);

@@ -10,6 +10,7 @@ import {
   IncomeStatementService,
   PartyStatementService,
   PurchaseOrderService,
+  QuotationService,
   StockLevelService,
   DashboardService,
   EmployeeService,
@@ -27,6 +28,7 @@ import { AiMcpController } from "./mcp/ai-mcp.controller.js";
 import { AI_TOOLS } from "./ai.tokens.js";
 import { buildErpTools } from "./tools/erp-tools.js";
 import { buildReportTools } from "./tools/report-tools.js";
+import { buildSalesTools } from "./tools/sales-tools.js";
 
 // AI assistant (docs/Planning/ai-assistant-plan.md). The tools use the same core services the web
 // endpoints use, built here the same way their own modules build them.
@@ -63,6 +65,7 @@ import { buildReportTools } from "./tools/report-tools.js";
             // Read-only use (list); approvals are never decided through the assistant.
             purchaseOrders: new PurchaseOrderService(prisma, new ApprovalService(), audit),
           }),
+          ...buildSalesTools({ prisma, quotations: new QuotationService(prisma, audit) }),
         ];
       },
       inject: [PrismaService, AUDIT_LOGGER],

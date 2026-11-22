@@ -1,3 +1,4 @@
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "../../../shared/lib/format-date";
 import { useConversations, useDeleteConversation, useUpdateConversation } from "../ai-api";
@@ -37,10 +38,19 @@ export function ConversationList({ onPicked }: { onPicked?: () => void }): React
               <button
                 type="button"
                 className="ai-icon-btn ai-icon-btn--danger"
-                onClick={() => {
-                  if (!window.confirm(t("ai.history.confirmDelete"))) return;
-                  remove.mutate(c.id, { onSuccess: () => { if (c.id === activeId) chat.newChat(); } });
-                }}
+                onClick={() =>
+                  confirmDialog({
+                    group: "ai-history",
+                    header: t("ai.history.delete"),
+                    message: t("ai.history.confirmDelete"),
+                    icon: "pi pi-trash",
+                    acceptLabel: t("actions.delete"),
+                    rejectLabel: t("actions.cancel"),
+                    acceptClassName: "p-button-danger",
+                    defaultFocus: "reject",
+                    accept: () => remove.mutate(c.id, { onSuccess: () => { if (c.id === activeId) chat.newChat(); } }),
+                  })
+                }
                 aria-label={t("ai.history.delete")}
                 title={t("ai.history.delete")}
               >
@@ -50,6 +60,8 @@ export function ConversationList({ onPicked }: { onPicked?: () => void }): React
           </li>
         ))}
       </ul>
+      {/* In-app confirmation (no native browser dialog); grouped so it never answers another page's dialog. */}
+      <ConfirmDialog group="ai-history" className="ai-confirm" />
     </div>
   );
 }

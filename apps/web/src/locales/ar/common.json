@@ -3460,7 +3460,9 @@
       "parties_statement": "قراءة كشف حساب العميل / المورد",
       "accounts_statement": "قراءة كشف الحساب",
       "purchaseOrders_search": "البحث في أوامر الشراء",
-      "salesInvoices_get": "فتح الفاتورة"
+      "salesInvoices_get": "فتح الفاتورة",
+      "sales_createQuotation": "تجهيز عرض سعر",
+      "taxCodes_list": "قراءة رموز الضريبة"
     },
     "blocks": {
       "overview": "ملخص الشركة",
@@ -3549,7 +3551,12 @@
       "credit": "دائن",
       "balance": "الرصيد",
       "supplier": "المورد",
-      "status": "الحالة"
+      "status": "الحالة",
+      "line": "بند",
+      "net": "الصافي",
+      "tax": "الضريبة",
+      "validUntil": "صالح حتى",
+      "notes": "ملاحظات"
     },
     "arg": {
       "name": "الاسم",
@@ -3576,11 +3583,14 @@
       "createSupplier": "مورد جديد",
       "createEmployee": "موظف جديد",
       "createItem": "صنف جديد",
-      "createAccount": "حساب جديد في الدليل"
+      "createAccount": "حساب جديد في الدليل",
+      "createQuotation": "عرض سعر جديد"
     },
     "warn": {
       "parentNotFound": "لا يوجد حساب بهذا الرمز الرئيسي.",
-      "parentNotGroup": "الحساب الرئيسي حساب ترحيل وليس مجموعة."
+      "parentNotGroup": "الحساب الرئيسي حساب ترحيل وليس مجموعة.",
+      "customerNotFound": "لا يوجد عميل بهذا المعرّف.",
+      "linesInvalid": "تعذّر تسعير أحد البنود (الصنف أو رمز الضريبة أو الوصف). لا تظهر الإجماليات."
     },
     "risk": {
       "high": "يحتاج انتباهاً"
