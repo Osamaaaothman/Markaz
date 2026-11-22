@@ -65,7 +65,7 @@ until an admin saves one: `AI_PROVIDER`, `AI_MODEL`, `AI_BASE_URL`, `AI_API_KEY`
 ## Known Gaps
 
 - **Actions are checked live, not in CI.** `scripts/ai-actions-live.cjs` posts real documents into the local demo company; CI has no fully set-up company to run it on. Purchase-order approval was only seen failing correctly (the demo company has no approval rule), and payroll / depreciation runs were only previewed, never posted, in that check.
-- **About 70 tools are sent to the model on every call.** That costs input tokens on each request (~10k); grouping tools by page or intent would cut it.
+- **Tools are sent by section.** Core tools (~1.4k tokens) plus the page's and the conversation's sections go with each call; the model loads any other section with `load_tools` (`packages/ai/src/tools/sections.ts`). Sending all 69 cost ~12.6k tokens per call. A request that spans many sections still loads them one by one (one extra step each).
 - **Retried approvals:** the idempotency key is conversation + decision + tool + input, so the same approval replayed posts once, while a separate request for an identical document creates a second one, as on the page.
 
 - **Attached files go to the AI provider.** The model reads the document's bytes, so the file leaves the server. On a free provider tier it may be used for training — tell customers before they enable it.

@@ -3,7 +3,8 @@ import { AIMessage, type AIMessageChunk, type BaseMessage, SystemMessage, ToolMe
 import { concat } from "@langchain/core/utils/stream";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
-import { isFilesUnsupported, isProviderBusy } from "../providers/model-factory.js";
+import { isFilesUnsupported, isModelMissing, isProviderBusy } from "../providers/model-factory.js";
+import { LOAD_TOOLS, SECTION_CONTENTS, SECTIONS, sectionOf } from "../tools/sections.js";
 import { needsApproval, refsIn, resolveRefs, UnresolvedRefError } from "../tools/policy.js";
 import type { AssistantMode, ErpTool, ToolContext, WriteResult } from "../tools/types.js";
 import { toolError, wrapUntrusted } from "../safety/untrusted.js";
@@ -52,6 +53,9 @@ export interface RunOptions {
   // A model that sends nothing for this long is treated as busy (default 25s), so a stalled
   // provider never leaves the user watching "thinking" for a minute.
   readonly stallMs?: number;
+  // Sections whose tools are sent from the start (besides the core tools). When set, every other
+  // section is loaded on demand with load_tools; when undefined, all tools are sent (as before).
+  readonly initialSections?: readonly string[];
 }
 
 export interface RunResult {
@@ -97,15 +101,42 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
   const maxSteps = opts.maxSteps ?? 8;
   const stallMs = opts.stallMs ?? 25_000;
   const byName = new Map(opts.tools.map((t) => [t.name, t]));
-  const llmTools = [
-    ...opts.tools.map((t) => ({ name: t.name, description: t.description, schema: t.input })),
-    { name: CLARIFY_TOOL, description: "Ask the user to choose between options when the request is ambiguous. Ends your turn.", schema: clarifySchema },
-    ...(opts.mode === "ask" ? [{ name: MODE_TOOL, description: "Call this at once, alone, when the user asks to create, change or delete anything. Ends your turn.", schema: z.object({}) }] : []),
-  ];
+  // Sections loaded so far this turn (only used when the caller asked for on-demand loading).
+  const onDemand = opts.initialSections !== undefined;
+  const active = new Set<string>(["core", ...(opts.initialSections ?? [])]);
+  const available = SECTIONS.filter((s) => opts.tools.some((t) => sectionOf(t.name) === s));
+  const loadSchema = z.object({ section: z.enum(SECTIONS) });
+  const llmToolsFor = (): Array<{ name: string; description: string; schema: z.ZodType }> => {
+    const notLoaded = available.filter((s) => !active.has(s));
+    return [
+      ...opts.tools.filter((t) => !onDemand || active.has(sectionOf(t.name))).map((t) => ({ name: t.name, description: t.description, schema: t.input })),
+      { name: CLARIFY_TOOL, description: "Ask the user to choose between options when the request is ambiguous. Ends your turn.", schema: clarifySchema },
+      ...(opts.mode === "ask" ? [{ name: MODE_TOOL, description: "Call this at once, alone, when the user asks to create, change or delete anything. Ends your turn.", schema: z.object({}) }] : []),
+      ...(onDemand && notLoaded.length
+        ? [{
+            name: LOAD_TOOLS,
+            description:
+              "Load the tools of a section before working in it; call it first whenever the request needs a tool you do not have, and never say you cannot do something before loading its section. Sections: " +
+              notLoaded.map((s) => `${s} (${SECTION_CONTENTS[s]})`).join("; ") + ".",
+            schema: loadSchema,
+          }]
+        : []),
+    ];
+  };
   const chain = [opts.model, ...(opts.fallbackModels ?? [])];
   for (const m of chain) if (typeof m.bindTools !== "function") throw new Error("MODEL_HAS_NO_TOOL_SUPPORT");
-  // bindTools exists on every model in the chain (checked above).
-  const boundChain = chain.map((m) => m.bindTools!(llmTools));
+  // Re-bound only when the loaded sections change; bindTools exists on every model (checked above).
+  let boundKey = "";
+  let boundChain: ReturnType<NonNullable<BaseChatModel["bindTools"]>>[] = [];
+  const bound = (): typeof boundChain => {
+    const key = [...active].sort().join(",");
+    if (key !== boundKey) {
+      const tools = llmToolsFor();
+      boundChain = chain.map((m) => m.bindTools!(tools));
+      boundKey = key;
+    }
+    return boundChain;
+  };
   let current = 0; // once a fallback answered, stay on it for the rest of the turn
   const knownResults = new Map(opts.priorResults ?? []);
   const proposedIds = new Set<string>();
@@ -127,7 +158,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
       };
       try {
         arm();
-        const stream = await boundChain[current]!.stream([new SystemMessage(opts.system), ...state.messages], { signal: attempt.signal });
+        const stream = await bound()[current]!.stream([new SystemMessage(opts.system), ...state.messages], { signal: attempt.signal });
         for await (const chunk of stream) {
           arm();
           const text = textOf(chunk.content);
@@ -139,7 +170,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
         const error = stalled && !opts.signal?.aborted ? Object.assign(new Error("The model is unavailable: it stopped responding (timed out)"), { status: 504 }) : caught;
         // Switch only if nothing reached the user yet, so an answer is never stitched from two models.
         // A backup that cannot read the attached file is skipped like a busy one; the next may read it.
-        if (wrote || opts.signal?.aborted || current >= boundChain.length - 1 || !(isProviderBusy(error) || isFilesUnsupported(error))) {
+        if (wrote || opts.signal?.aborted || current >= chain.length - 1 || !(isProviderBusy(error) || isFilesUnsupported(error) || isModelMissing(error))) {
           // Tell the user plainly when the model now answering (a backup) cannot read their file.
           if (isFilesUnsupported(error)) throw Object.assign(new Error(current > 0 ? "BACKUP_MODEL_NO_FILES" : "MODEL_NO_FILES"), { code: current > 0 ? "BACKUP_MODEL_NO_FILES" : "MODEL_NO_FILES" });
           throw error;
@@ -188,6 +219,20 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
         reply(JSON.stringify({ shown_to_user: true, note: "The user was offered to switch to interactive mode." }));
         clarified = true;
         end(true);
+        continue;
+      }
+
+      if (call.name === LOAD_TOOLS) {
+        const parsed = loadSchema.safeParse(call.args);
+        if (parsed.success) {
+          active.add(parsed.data.section);
+          const names = opts.tools.filter((t) => sectionOf(t.name) === parsed.data.section).map((t) => t.name);
+          reply(JSON.stringify({ loaded: parsed.data.section, tools: names, note: names.length ? "These tools are now available." : "You have no permission for this section's tools." }));
+          end(true);
+        } else {
+          reply(toolError("INVALID_INPUT"));
+          end(false, "INVALID_INPUT");
+        }
         continue;
       }
 

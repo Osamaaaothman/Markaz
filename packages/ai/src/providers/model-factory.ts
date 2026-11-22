@@ -81,6 +81,14 @@ export function isFilesUnsupported(error: unknown): boolean {
   return /does not support (images|files|pdf|documents)|unsupported (mime|media|file)|image input (is )?not supported/i.test(message);
 }
 
+// The model name is unknown or retired (404 "not found" / "no longer available").
+export function isModelMissing(error: unknown): boolean {
+  const e = error as { status?: unknown; message?: unknown } | null;
+  if (e?.status === 404) return true;
+  const message = typeof e?.message === "string" ? e.message : String(error);
+  return /\b404\b|not found for API version|no longer available|is not found|model[^.]*not found/i.test(message);
+}
+
 export function isProviderBusy(error: unknown): boolean {
   const e = error as { status?: unknown; code?: unknown; message?: unknown } | null;
   const status = typeof e?.status === "number" ? e.status : undefined;

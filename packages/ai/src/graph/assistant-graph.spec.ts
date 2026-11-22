@@ -129,6 +129,32 @@ describe("runAssistant", () => {
     expect(String(toolMessage?.content)).toContain("do not ask them to approve this one");
   });
 
+  it("sends only the loaded sections' tools and loads more on demand", async () => {
+    const payTool = defineWriteTool({
+      name: "payments_post",
+      description: "Post a payment",
+      input: z.object({ amount: z.string() }),
+      permission: { resource: "payment", action: "create" },
+      risk: "high",
+      preview: () => Promise.resolve({ titleKey: "t", entity: "payment", fields: [] }),
+      execute: () => Promise.resolve({ data: {} }),
+    });
+    const seen: string[][] = [];
+    class Spy extends ScriptedChatModel {
+      override bindTools(tools: Array<{ name: string }>): this {
+        seen.push(tools.map((t) => t.name));
+        return super.bindTools(tools as never) as this;
+      }
+    }
+    const model = new Spy([{ toolCalls: [{ name: "load_tools", args: { section: "payments" } }] }, { toolCalls: [{ name: "payments_post", args: { amount: "10.00" } }] }, { text: "ready" }]);
+    const { result } = await run(model, { tools: [searchParties, payTool], initialSections: [] });
+    expect(seen[0]).toContain("parties_search");
+    expect(seen[0]).toContain("load_tools");
+    expect(seen[0]).not.toContain("payments_post");
+    expect(seen.at(-1)).toContain("payments_post");
+    expect(result.proposals.map((p) => p.tool)).toEqual(["payments_post"]);
+  });
+
   it("auto mode runs low-risk writes at once but still asks for high-risk ones", async () => {
     const model = new ScriptedChatModel([
       { toolCalls: [{ name: "parties_createSupplier", args: { name: "Al Noor" } }, { name: "payments_post", args: { amount: "100.00" } }] },
@@ -235,6 +261,17 @@ describe("runAssistant", () => {
     const ok = await run(new BusyModel([]), { fallbackModels: [new NoFilesModel([]), new ScriptedChatModel([{ text: "read it" }])] });
     expect(JSON.stringify(ok.result.newMessages.map((m) => m.content))).toContain("read it");
     await expect(run(new BusyModel([]), { fallbackModels: [new NoFilesModel([])] })).rejects.toMatchObject({ code: "BACKUP_MODEL_NO_FILES" });
+  });
+
+  it("skips a backup model the provider no longer serves", async () => {
+    class BusyModel extends ScriptedChatModel {
+      override _generate(): Promise<never> { return Promise.reject(Object.assign(new Error("high demand"), { status: 503 })); }
+    }
+    class RetiredModel extends ScriptedChatModel {
+      override _generate(): Promise<never> { return Promise.reject(new Error("[404 Not Found] This model models/x is no longer available to new users")); }
+    }
+    const { result } = await run(new BusyModel([]), { fallbackModels: [new RetiredModel([]), new ScriptedChatModel([{ text: "answered" }])] });
+    expect(JSON.stringify(result.newMessages.map((m) => m.content))).toContain("answered");
   });
 
   it("does not hide a real error behind a fallback", async () => {

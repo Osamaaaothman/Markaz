@@ -3512,7 +3512,8 @@
       "hr_payrollRun": "تجهيز مسيّر الرواتب",
       "assets_create": "تسجيل أصل ثابت",
       "assets_capitalize": "رسملة أصل",
-      "assets_depreciationRun": "تجهيز الإهلاك"
+      "assets_depreciationRun": "تجهيز الإهلاك",
+      "load_tools": "فتح الأدوات المناسبة"
     },
     "blocks": {
       "overview": "ملخص الشركة",

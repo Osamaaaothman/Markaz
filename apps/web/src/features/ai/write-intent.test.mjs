@@ -13,3 +13,9 @@ test("questions are not", () => {
     assert.equal(looksLikeWrite(t), false, t);
   }
 });
+
+test("a report request is a read, whatever the verb", () => {
+  assert.equal(looksLikeWrite("اعمل لي تقرير مبيعات الشهر هذا"), false);
+  assert.equal(looksLikeWrite("make me a sales report"), false);
+  assert.equal(looksLikeWrite("اعمل فاتورة مبيعات"), true);
+});

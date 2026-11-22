@@ -12,6 +12,9 @@ import {
   runAssistant,
   textOf,
   toolsForMode,
+  LOAD_TOOLS,
+  sectionOf,
+  sectionOfRoute,
   toStored,
   trimHistory,
   type AssistantEvent,
@@ -84,7 +87,9 @@ type ProviderSettings = Parameters<typeof createChatModel>[0];
 // AI_FALLBACK_MODELS overrides them (comma-separated; "none" turns this off). Gemini's free tier is
 // often overloaded, so it has defaults.
 const DEFAULT_FALLBACKS: Readonly<Partial<Record<ProviderSettings["provider"], readonly string[]>>> = {
-  google: ["gemini-2.5-flash-lite", "gemini-2.5-flash"],
+  // Google retires models for new keys (gemini-2.5-flash-lite: 404 "no longer available to new users");
+  // the -latest alias always points at a current model, and a retired backup is skipped anyway.
+  google: ["gemini-flash-lite-latest", "gemini-flash-latest"],
 };
 export function fallbackModelNames(provider: ProviderSettings, env: NodeJS.ProcessEnv = process.env): string[] {
   const raw = env["AI_FALLBACK_MODELS"]?.trim();
@@ -282,14 +287,17 @@ export class AiChatService {
       const model = await this.modelFactory(backups.length ? { ...provider, retries: 0 } : provider);
       const fallbackModels = await Promise.all(backups.map((m) => this.modelFactory({ ...provider, model: m })));
       const priorRows = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "EXECUTED" }, select: { itemKey: true, result: true } });
+      const history = trimHistory(messages);
       result = await runAssistant({
         model,
         tools,
+        // Only the sections this conversation and page need are sent; the model loads others on demand.
+        initialSections: startingSections(history, page?.route),
         mode,
         autoAllowed,
         ctx,
         system,
-        messages: trimHistory(messages),
+        messages: history,
         firstItemNumber,
         priorResults: new Map(priorRows.map((r) => [r.itemKey, ((r.result as { data?: Record<string, unknown> } | null)?.data) ?? {}])),
         emit: relay,
@@ -527,4 +535,23 @@ function compactionFromEnv(env: NodeJS.ProcessEnv = process.env): CompactionLimi
   const at = Number(env["AI_COMPACT_AT_TOKENS"]);
   if (!Number.isFinite(at) || at < 2000) return DEFAULT_COMPACTION;
   return { maxTokens: at, keepRecentTokens: Math.max(1000, Math.round(at / 4)) };
+}
+
+// Sections to send from the first model call: the page's own, every section the conversation already
+// used (so a follow-up keeps its tools), and purchasing when a document is attached (supplier invoice).
+export function startingSections(history: readonly BaseMessage[], route: string | undefined): string[] {
+  const out = new Set<string>();
+  const page = sectionOfRoute(route);
+  if (page) out.add(page);
+  for (const m of history) {
+    const calls = (m as { tool_calls?: Array<{ name: string; args?: Record<string, unknown> }> }).tool_calls ?? [];
+    for (const c of calls) {
+      if (c.name === LOAD_TOOLS && typeof c.args?.["section"] === "string") out.add(c.args["section"]);
+      const s = sectionOf(c.name);
+      if (s !== "core") out.add(s);
+    }
+  }
+  const last = [...history].reverse().find((m) => m.getType() === "human");
+  if (last && Array.isArray(last.content) && last.content.some((p) => typeof p === "object" && p !== null && "source_type" in p)) out.add("purchasing");
+  return [...out];
 }

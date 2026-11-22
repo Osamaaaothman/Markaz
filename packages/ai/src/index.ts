@@ -1,5 +1,6 @@
 export * from "./tools/types.js";
 export * from "./tools/policy.js";
+export * from "./tools/sections.js";
 export * from "./providers/model-factory.js";
 export * from "./graph/events.js";
 export * from "./graph/prompts.js";

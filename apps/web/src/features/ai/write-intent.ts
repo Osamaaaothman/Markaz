@@ -4,7 +4,11 @@
 const AR = /^(?:من\s+فضلك\s+|لو\s+سمحت\s+|ممكن\s+)?(?:أ|ا|إ)?(?:نشئ|نشي|ضف|ضيف|عمل|عمللي|سجل|سجّل|حذف|مسح|عدل|عدّل|غير|غيّر|صدر|صدّر|نشئلي|نشئ لي)|^(?:أضف|اضف|ضيف|سوي|سوّي|اعمل|اعملي|سجّل|سجل|احذف|امسح|عدّل|عدل|غيّر|غير|حدّث|حدث|أنشئ|انشئ|انشئلي|أنشئلي|اصدر|أصدر|ادخل|أدخل)/u;
 const EN = /^(?:please\s+)?(?:create|add|make|new|register|record|delete|remove|update|edit|change|issue|post|enter)\b/i;
 
+// "Make me a report / a summary / a list" asks to READ data, whatever the verb.
+const READ_ONLY = /تقرير|ملخص|كشف|قائمة|إحصائ|احصائ|رصيد|ارصدة|أرصدة|مقارنة|رسم|\b(report|summary|statement|list|chart|balance|compare)\b/iu;
+
 export function looksLikeWrite(text: string): boolean {
   const t = text.trim().replace(/^[«"'(\s]+/u, "");
+  if (READ_ONLY.test(t)) return false;
   return AR.test(t) || EN.test(t);
 }

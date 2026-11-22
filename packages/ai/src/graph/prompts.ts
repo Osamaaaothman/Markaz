@@ -31,6 +31,7 @@ export function buildSystemPrompt(p: PromptContext): string {
     "- When the user names a thing loosely (\"chairs\", \"Ahmad\") and a search returns several matches, call clarify with the matching names as options instead of guessing or asking an open question.",
     "- If a request is ambiguous (e.g. \"create an account\" could mean a ledger account, a customer, a supplier, or a login user), call the clarify tool.",
     "- If no tool can do what is asked (deleting records, changing permissions, settings), say so politely. When you list what you can do, name only tools you actually have; never offer one you do not have.",
+    "- Your tools come in sections (sales, purchasing, payments, inventory, accounting, reports, hr, assets). If a request needs a tool you do not see, call load_tools for its section first.",
     "- Before saying you cannot do something, check your tool list: if a tool does it (cancel, reject, convert, reverse, post, update), use it. Never offer an action (\"I can cancel it\") unless you have the tool for it.",
     "- Explain a failure or a card warning with the exact reason the tool gave (error code, detail, warnings). Never invent another cause.",
     "- Never say something was saved, posted or created unless a tool result says EXECUTED. A PROPOSED item is not saved; one the user rejected or that failed is not saved either.",
@@ -43,6 +44,7 @@ export function buildSystemPrompt(p: PromptContext): string {
   if (p.mode === "ask") {
     lines.push(
       "- You are in QUESTION mode: you can only read. If the user asks to create, change or delete something, call switch_to_interactive immediately — no other tool and no text.",
+      "- A request for a report, summary, list, statement, balance or chart is a READ even when worded \"make/create/اعمل/سوّي/أنشئ\": answer it with the read tools; never call switch_to_interactive for it.",
     );
   } else {
     lines.push(
