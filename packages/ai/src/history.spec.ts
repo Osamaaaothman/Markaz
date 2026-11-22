@@ -14,9 +14,9 @@ describe("shrinkOldToolResults", () => {
       new ToolMessage({ content: big, tool_call_id: "b", name: "t" }),
     ]);
     const old = out[2] as ToolMessage;
-    expect(String(old.content).length).toBeLessThan(800);
+    expect((old.content as string).length).toBeLessThan(800);
     expect(old.tool_call_id).toBe("a");
-    expect(String(old.content)).toContain("call the tool again");
-    expect(String((out[6] as ToolMessage).content)).toHaveLength(5000);
+    expect((old.content as string)).toContain("call the tool again");
+    expect(((out[6] as ToolMessage).content as string)).toHaveLength(5000);
   });
 });
