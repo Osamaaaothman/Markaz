@@ -5,14 +5,14 @@ import { Fragment, type ReactNode } from "react";
 // so a model or a customer name cannot inject markup or scripts.
 function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  const re = /(\*\*[^*]+\*\*|`[^`]+`|(?<![\w*])\*[^*\s][^*]*\*(?![\w*]))/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const token = m[0];
-    out.push(token.startsWith("**") ? <strong key={i++}>{token.slice(2, -2)}</strong> : <code key={i++}>{token.slice(1, -1)}</code>);
+    out.push(token.startsWith("**") ? <strong key={i++}>{token.slice(2, -2)}</strong> : token.startsWith("`") ? <code key={i++}>{token.slice(1, -1)}</code> : <em key={i++}>{token.slice(1, -1)}</em>);
     last = m.index + token.length;
   }
   if (last < text.length) out.push(text.slice(last));
@@ -51,12 +51,13 @@ function Table({ rows }: { rows: string[] }): React.JSX.Element {
 export function RichText({ text }: { text: string }): React.JSX.Element {
   const lines = text.replace(/\r/g, "").split("\n");
   const blocks: ReactNode[] = [];
-  let list: { ordered: boolean; items: string[] } | null = null;
+  // `start` keeps the model's own numbering when a list is broken by a line in between ("1." … text … "2.").
+  let list: { ordered: boolean; start: number; items: string[] } | null = null;
   let table: string[] | null = null;
   const flushList = (): void => {
     if (!list) return;
-    const items = list.items.map((item, idx) => <li key={idx}>{inline(item)}</li>);
-    blocks.push(list.ordered ? <ol key={blocks.length}>{items}</ol> : <ul key={blocks.length}>{items}</ul>);
+    const items = list.items.map((item, idx) => <li key={idx}>{item.split("\n").map((part, pi) => <Fragment key={pi}>{pi > 0 ? <br /> : null}{inline(part)}</Fragment>)}</li>);
+    blocks.push(list.ordered ? <ol key={blocks.length} start={list.start}>{items}</ol> : <ul key={blocks.length}>{items}</ul>);
     list = null;
   };
   const flushTable = (): void => {
@@ -76,16 +77,24 @@ export function RichText({ text }: { text: string }): React.JSX.Element {
     }
     flushTable();
     const bullet = /^\s*[-*•]\s+(.*)$/.exec(line);
-    const numbered = /^\s*\d+[.)]\s+(.*)$/.exec(line);
-    if (bullet?.[1] !== undefined || numbered?.[1] !== undefined) {
-      const ordered = numbered !== null;
-      if (list && list.ordered !== ordered) flushList();
-      list ??= { ordered, items: [] };
-      list.items.push((bullet?.[1] ?? numbered?.[1]) as string);
+    const numbered = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
+    // An indented line under a list item (a detail, a sub-bullet) belongs to that item, so the list —
+    // and its numbering — is not broken into several lists that each restart at 1.
+    if (list && /^\s{2,}\S/.test(line) && numbered === null) {
+      const last = list.items.length - 1;
+      list.items[last] = `${list.items[last] ?? ""}\n${bullet?.[1] !== undefined ? `• ${bullet[1]}` : line.trim()}`;
       continue;
     }
-    flushList();
+    if (bullet?.[1] !== undefined || numbered?.[2] !== undefined) {
+      const ordered = numbered !== null;
+      if (list && list.ordered !== ordered) flushList();
+      list ??= { ordered, start: numbered ? Number(numbered[1]) : 1, items: [] };
+      list.items.push((bullet?.[1] ?? numbered?.[2]) as string);
+      continue;
+    }
+    // A blank line between items keeps the list open ("1." blank "2." is one list).
     if (line.trim() === "") continue;
+    flushList();
     const heading = /^#{1,4}\s+(.*)$/.exec(line);
     blocks.push(heading?.[1] ? <p key={blocks.length} className="ai-rich__heading">{inline(heading[1])}</p> : <p key={blocks.length}>{inline(line)}</p>);
   }

@@ -648,7 +648,7 @@ export function buildActionTools(s: AiActionServices): ErpTool[] {
   });
   const createPurchaseOrder = action({
     name: "purchasing_createOrder",
-    description: "Create a purchase order to a supplier. It goes through the company's approval rules before goods can be received. unitPrice EXCLUDES VAT.",
+    description: "Create a purchase order to a supplier. unitPrice EXCLUDES VAT. The result's status says whether it is APPROVED at once or PENDING_APPROVAL; a pending order must be approved (purchasing_approveOrder) before goods can be received.",
     input: poInput,
     permission: { resource: "purchase_order", action: "create" },
     risk: "high",
@@ -677,8 +677,9 @@ export function buildActionTools(s: AiActionServices): ErpTool[] {
       const lines = [];
       for (const l of a.lines) lines.push({ itemId: (await item(ctx, l.itemCode)).id, quantity: l.quantity, unitPrice: l.unitPrice, taxCodeId: (await taxCode(ctx, l.taxCode)).id });
       const dto = await toDto(CreatePurchaseOrderDto, { supplierId: (await party(ctx, a.supplierId)).id, warehouseId: w.id, orderDate: a.orderDate ?? today(), ...(a.expectedDate ? { expectedDate: a.expectedDate } : {}), ...(a.notes ? { notes: a.notes } : {}), lines });
-      const r = (await controller(PurchasingController).createOrder(dto, actorOf(ctx), ctx.correlationId, key)) as unknown as { id: string; number: string };
-      return { data: { id: r.id, number: r.number }, link: { label: r.number, path: `/purchasing/orders/${r.id}` } };
+      const r = await controller(PurchasingController).createOrder(dto, actorOf(ctx), ctx.correlationId, key);
+      // The status tells the model whether the order still needs approval before goods can be received.
+      return { data: { id: r.id, number: r.number, status: r.status, ...(r.status === "PENDING_APPROVAL" ? { next: "Needs approval (purchasing_approveOrder) before goods can be received" } : {}) }, link: { label: r.number, path: `/purchasing/orders/${r.id}` } };
     },
   });
 
@@ -750,6 +751,8 @@ export function buildActionTools(s: AiActionServices): ErpTool[] {
       const warnings: string[] = [];
       const r = await show(receiveLines(ctx, a), warnings, "ai.warn.linesInvalid");
       const w = await show(warehouse(ctx, a.warehouseCode), warnings, "ai.warn.warehouseRequired");
+      const o = r ? await prisma.purchaseOrder.findUnique({ where: { id: r.orderId }, select: { status: true } }) : null;
+      if (o && o.status !== "APPROVED" && o.status !== "PARTIALLY_RECEIVED") warnings.push(o.status === "PENDING_APPROVAL" ? "ai.warn.orderNeedsApproval" : "ai.warn.notOpen");
       return card("ai.preview.receivePurchaseOrder", "goods_receipt", [
         { labelKey: "ai.col.document", value: r?.number ?? a.order },
         ...field("ai.col.warehouse", w?.name),
@@ -760,10 +763,18 @@ export function buildActionTools(s: AiActionServices): ErpTool[] {
     },
     execute: async (ctx, a, key) => {
       const r = await receiveLines(ctx, a);
+      const status = (await prisma.purchaseOrder.findUnique({ where: { id: r.orderId }, select: { status: true } }))?.status;
+      if (status !== "APPROVED" && status !== "PARTIALLY_RECEIVED") {
+        throw actionError(status === "PENDING_APPROVAL" ? "ORDER_NEEDS_APPROVAL" : "ORDER_NOT_RECEIVABLE", `${r.number} is ${status ?? "missing"}: goods can only be received against an approved order`);
+      }
       const w = await warehouse(ctx, a.warehouseCode);
       const dto = await toDto(ReceivePurchaseOrderDto, { warehouseId: w.id, documentDate: a.documentDate ?? today(), ...(a.reference ? { reference: a.reference } : {}), lines: r.lines.map(({ purchaseOrderLineId, quantity }) => ({ purchaseOrderLineId, quantity })) });
       const res = (await controller(PurchasingController).receive(r.orderId, dto, actorOf(ctx), ctx.correlationId, key)) as unknown as { id?: string; number?: string };
-      return { data: { order: r.number, ...(res.number ? { number: res.number } : {}) }, link: { label: r.number, path: `/purchasing/orders/${r.orderId}` } };
+      // The link opens the goods receipt itself (the order is named in the data).
+      return {
+        data: { order: r.number, ...(res.number ? { goodsReceipt: res.number } : {}), next: "Record the supplier invoice (purchasing_createSupplierInvoice) when it arrives" },
+        link: res.id && res.number ? { label: res.number, path: `/inventory/goods-receipts/${res.id}` } : { label: r.number, path: `/purchasing/orders/${r.orderId}` },
+      };
     },
   });
 

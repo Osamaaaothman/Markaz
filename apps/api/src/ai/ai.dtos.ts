@@ -49,6 +49,15 @@ export class DecideDto {
   locale!: "ar" | "en";
 }
 
+export class ReviseItemDto {
+  // The whole corrected argument object of one waiting card; the tool's own schema validates it.
+  @IsObject()
+  args!: Record<string, unknown>;
+
+  @IsIn(["ar", "en"])
+  locale!: "ar" | "en";
+}
+
 export class UpdateConversationDto {
   @IsOptional()
   @IsString()

@@ -88,11 +88,7 @@ export function useAssistantChat() {
         s.setMessages((m) => [...m, { ...base, id: localId(), role: "user", text: trimmed }, { ...base, id: localId(), role: "assistant", text: null, blocks: [{ kind: "needsMode", text: trimmed }] }]);
         return;
       }
-      // Leaving proposals unanswered rejects them on the server; show that right away.
-      if (s.status === "AWAITING_APPROVAL") {
-        s.setMessages((list) => list.map((m) => ({ ...m, changes: m.changes.map((c) => (c.status === "PROPOSED" ? { ...c, status: "REJECTED" as const } : c)) })));
-        s.setStatus("IDLE");
-      }
+      // Cards still waiting stay open: the user can answer a question and approve them afterwards.
       s.remember(trimmed);
       const entityId = /\/([0-9a-f]{8}-[0-9a-f-]{27,})$/.exec(location.pathname)?.[1];
       const payload = { text: trimmed, mode: s.mode, locale, ...(s.conversationId ? { conversationId: s.conversationId } : {}), ...(s.includePage ? { page: { route: location.pathname, ...(entityId ? { entityId } : {}) } } : {}) };

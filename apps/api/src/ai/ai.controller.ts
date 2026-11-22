@@ -30,7 +30,7 @@ import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { AiChatError, AiChatService, type ChatEvent } from "./ai-chat.service.js";
 import { AiSettingsError, AiSettingsService } from "./ai-settings.service.js";
-import { AiSettingsDto, DecideDto, SendMessageDto, UpdateConversationDto } from "./ai.dtos.js";
+import { AiSettingsDto, DecideDto, ReviseItemDto, SendMessageDto, UpdateConversationDto } from "./ai.dtos.js";
 import { MAX_CHAT_FILE_BYTES } from "./ai-files.js";
 
 export async function mapAiErrors<T>(work: Promise<T>): Promise<T> {
@@ -43,10 +43,11 @@ export async function mapAiErrors<T>(work: Promise<T>): Promise<T> {
 
 function toHttp(error: unknown): unknown {
   if (error instanceof AiChatError || error instanceof AiSettingsError) {
-    const body = { message: error.message, code: error.code };
+    const body = { message: error.message, code: error.code, ...(error instanceof AiChatError && error.detail ? { detail: error.detail } : {}) };
     switch (error.code) {
       case "FORBIDDEN": return new ForbiddenException(body);
-      case "CONVERSATION_NOT_FOUND": return new NotFoundException(body);
+      case "CONVERSATION_NOT_FOUND":
+      case "CHANGE_NOT_FOUND": return new NotFoundException(body);
       case "NOTHING_TO_DECIDE":
       case "TURN_RUNNING":
       case "VERSION_CONFLICT": return new ConflictException(body);
@@ -156,6 +157,19 @@ export class AiController {
       decisions[key] = value;
     }
     await stream(req, res, (emit) => this.chat.decide(actor, { conversationId: id, decisions, edits: dto.edits, locale: dto.locale }, emit));
+  }
+
+  // Edit a card that still waits: the form (schema + values), then the corrected values.
+  @Get("conversations/:id/items/:key/form")
+  @RequirePermission("ai_assistant", "interact")
+  itemForm(@Param("id") id: string, @Param("key") key: string, @CurrentUser() actor: CurrentUserPayload) {
+    return mapAiErrors(this.chat.itemForm(actor, id, key));
+  }
+
+  @Put("conversations/:id/items/:key")
+  @RequirePermission("ai_assistant", "interact")
+  reviseItem(@Param("id") id: string, @Param("key") key: string, @Body() dto: ReviseItemDto, @CurrentUser() actor: CurrentUserPayload) {
+    return mapAiErrors(this.chat.reviseItem(actor, id, key, dto.args, dto.locale));
   }
 
   @Get("conversations")

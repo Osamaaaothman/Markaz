@@ -9,6 +9,8 @@ import {
   fromStored,
   outcomesMessage,
   permittedTools,
+  refsIn,
+  resolveRefs,
   runAssistant,
   textOf,
   toolsForMode,
@@ -33,11 +35,12 @@ import type { AttachmentService, IAuditLogger, IPermissionService } from "@erp/c
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
+import { z } from "zod";
 import { humanWithFile, prepareFiles, type ChatFileRef } from "./ai-files.js";
 import { AiSettingsError, providerErrorCode, providerErrorLogDetail, type AiSettingsService } from "./ai-settings.service.js";
 
 export class AiChatError extends Error {
-  constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF" | "TURN_RUNNING" | "FILES_UNAVAILABLE") {
+  constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF" | "TURN_RUNNING" | "FILES_UNAVAILABLE" | "CHANGE_NOT_FOUND" | "INVALID_ARGUMENTS", readonly detail?: string) {
     super(code);
     this.name = "AiChatError";
   }
@@ -177,8 +180,8 @@ export class AiChatService {
 
     const ctrl = this.beginTurn(conversation.id);
     try {
-      // Moving on while proposals wait = the user did not accept them.
-      if (conversation.status === "AWAITING_APPROVAL") await this.skipPending(actor, conversation.id);
+      // Cards still waiting stay open: the user may answer a question first and approve them after.
+      // The model is told which cards wait (system prompt), so it never treats them as done or dropped.
 
       await this.compactIfNeeded(actor, conversation.id, config.provider, emit, ctrl.signal);
       const history = await this.history(conversation.id);
@@ -216,7 +219,12 @@ export class AiChatService {
     if (claimed.count !== 1) throw new AiChatError("NOTHING_TO_DECIDE");
 
     const rows = await this.prisma.aiChangeItem.findMany({ where: { conversationId: conversation.id }, orderBy: { createdAt: "asc" } });
-    const pending = rows.filter((r) => r.status === "PROPOSED");
+    // Only the cards the user decided now; other waiting cards (e.g. from another message) stay open.
+    const pending = rows.filter((r) => r.status === "PROPOSED" && input.decisions[r.itemKey] !== undefined);
+    if (pending.length === 0) {
+      await this.refreshStatus(conversation.id);
+      throw new AiChatError("NOTHING_TO_DECIDE");
+    }
     const prior = new Map(rows.filter((r) => r.status === "EXECUTED" && r.result).map((r) => [r.itemKey, (r.result as { data?: Record<string, unknown> }).data ?? {}]));
     const items: ProposedItem[] = pending.map((r) => ({ id: r.itemKey, toolCallId: "", tool: r.tool, args: r.args as Record<string, unknown>, preview: r.preview as unknown as ProposedItem["preview"], risk: r.risk as "low" | "high", dependsOn: r.dependsOn }));
     const ctx = this.toolContext(actor, conversation.id, input.locale);
@@ -256,7 +264,8 @@ export class AiChatService {
     const ctx = this.toolContext(actor, conversationId, locale);
     const tools = await permittedTools(toolsForMode(this.tools, mode), ctx);
     const company = await this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId }, select: { name: true, nameAr: true, defaultCurrency: true, timezone: true } });
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: actor.id }, select: { email: true } });
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: actor.id }, select: { email: true, roles: { select: { role: { select: { name: true } } } } } });
+    const waiting = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "PROPOSED" }, orderBy: { createdAt: "asc" }, select: { itemKey: true, tool: true, preview: true } });
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: company.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const memory = (await this.prisma.aiConversation.findUnique({ where: { id: conversationId }, select: { summary: true } }))?.summary ?? null;
     const system = buildSystemPrompt({
@@ -268,6 +277,8 @@ export class AiChatService {
       currency: company.defaultCurrency,
       userName: user.email,
       page,
+      roles: user.roles.map((r) => r.role.name),
+      pending: waiting.map((w) => ({ id: w.itemKey, tool: w.tool, summary: previewSummary(w.preview) })),
     });
 
     // Collect what the UI needs to redraw this answer later (blocks, the tool timeline).
@@ -304,6 +315,7 @@ export class AiChatService {
         priorResults: new Map(priorRows.map((r) => [r.itemKey, ((r.result as { data?: Record<string, unknown> } | null)?.data) ?? {}])),
         emit: relay,
         fallbackModels,
+        pendingIds: waiting.map((w) => w.itemKey),
         ...(signal ? { signal } : {}),
       });
     } catch (error) {
@@ -323,7 +335,14 @@ export class AiChatService {
     const answer = finalAi ? textOf(finalAi.content) : null;
     const messageId = await this.appendNotice(conversationId, actor.companyId, answer, blocks, timeline, provider, result.usage, result.hitStepLimit ? "STEP_LIMIT" : null);
 
-    const status = result.proposals.length > 0 ? "AWAITING_APPROVAL" : "IDLE";
+    // Cards the model replaced with a corrected version are closed (skipped), never run.
+    if (result.withdrawn.length > 0) {
+      const gone = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "PROPOSED", itemKey: { in: result.withdrawn } }, select: { id: true, itemKey: true, tool: true } });
+      await this.recordOutcomes(actor, gone, gone.map((g) => ({ id: g.itemKey, status: "skipped" as const, reason: "DEPENDS_ON_UNEXECUTED" as const })));
+      for (const id of result.withdrawn) emit({ type: "outcome", outcome: { key: id, status: "SKIPPED" } });
+    }
+    const stillWaiting = await this.prisma.aiChangeItem.count({ where: { conversationId, status: "PROPOSED" } });
+    const status = result.proposals.length > 0 || stillWaiting > 0 ? "AWAITING_APPROVAL" : "IDLE";
     await this.prisma.$transaction([
       ...result.proposals.map((p) =>
         this.prisma.aiChangeItem.create({
@@ -368,11 +387,10 @@ export class AiChatService {
     }
   }
 
-  // The user wrote again instead of deciding: the open cards are left undecided (SKIPPED), not rejected.
-  private async skipPending(actor: Actor, conversationId: string): Promise<void> {
-    const pending = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "PROPOSED" }, select: { id: true, itemKey: true, tool: true } });
-    await this.recordOutcomes(actor, pending, pending.map((p) => ({ id: p.itemKey, status: "skipped" as const, reason: "DEPENDS_ON_UNEXECUTED" as const })));
-    await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: "IDLE" } });
+  // AWAITING_APPROVAL exactly while any card in the conversation still waits.
+  private async refreshStatus(conversationId: string): Promise<void> {
+    const waiting = await this.prisma.aiChangeItem.count({ where: { conversationId, status: "PROPOSED" } });
+    await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: waiting > 0 ? "AWAITING_APPROVAL" : "IDLE" } });
   }
 
   private async ownConversation(actor: Actor, id: string) {
@@ -482,6 +500,42 @@ export class AiChatService {
     }).then((rows) => rows.map((r) => ({ ...r, running: this.running.has(r.id) })));
   }
 
+  // The edit form of a waiting card: the tool's input as JSON Schema plus the card's current values.
+  async itemForm(actor: Actor, conversationId: string, key: string): Promise<{ schema: unknown; args: unknown }> {
+    const { tool, row } = await this.waitingItem(actor, conversationId, key);
+    return { schema: z.toJSONSchema(tool.input, { io: "input", unrepresentable: "any" }), args: row.args };
+  }
+
+  // The user corrected a waiting card. The new values go through the tool's own schema and preview —
+  // the same checks as a proposal — and the card shows the new preview before anything is approved.
+  async reviseItem(actor: Actor, conversationId: string, key: string, args: Record<string, unknown>, locale: Locale): Promise<{ args: unknown; preview: unknown }> {
+    const { tool, row } = await this.waitingItem(actor, conversationId, key);
+    if (this.running.has(conversationId)) throw new AiChatError("TURN_RUNNING");
+    const ctx = this.toolContext(actor, conversationId, locale);
+    if (!(await ctx.can(tool.permission.resource, tool.permission.action))) throw new AiChatError("FORBIDDEN");
+    // Links to other cards ($ref) may be kept but not invented.
+    const refs = refsIn(args);
+    if (refs.some((r) => !row.dependsOn.includes(r))) throw new AiChatError("INVALID_ARGUMENTS", "UNKNOWN_REFERENCE");
+    const done = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "EXECUTED" }, select: { itemKey: true, result: true } });
+    const prior = new Map(done.map((r) => [r.itemKey, ((r.result as { data?: Record<string, unknown> } | null)?.data) ?? {}]));
+    const pendingRef = refs.some((r) => !prior.has(r));
+    const parsed = tool.input.safeParse(pendingRef ? args : resolveRefs(args, prior));
+    if (!parsed.success && !pendingRef) throw new AiChatError("INVALID_ARGUMENTS", parsed.error.issues.map((i) => i.path.join(".")).join(", ").slice(0, 300));
+    const checked = parsed.success && !pendingRef ? (parsed.data as Record<string, unknown>) : args;
+    const preview = await tool.preview(ctx, checked);
+    await this.prisma.aiChangeItem.update({ where: { id: row.id }, data: { args: checked as Prisma.InputJsonValue, preview: preview as unknown as Prisma.InputJsonValue } });
+    await this.audit.log({ actorId: actor.id, action: "ai_change.edited", entityType: "AiChangeItem", entityId: row.id, after: { item: key, tool: row.tool, changed: changedKeys(row.args, checked) }, correlationId: `ai:${row.id}` });
+    return { args: checked, preview };
+  }
+
+  private async waitingItem(actor: Actor, conversationId: string, key: string) {
+    await this.ownConversation(actor, conversationId);
+    const row = await this.prisma.aiChangeItem.findFirst({ where: { conversationId, itemKey: key, status: "PROPOSED" } });
+    const tool = row ? this.tools.find((t) => t.name === row.tool) : undefined;
+    if (!row || !tool || tool.kind !== "write") throw new AiChatError("CHANGE_NOT_FOUND");
+    return { row, tool };
+  }
+
   async get(actor: Actor, id: string) {
     const c = await this.ownConversation(actor, id);
     const [rows, changes] = await Promise.all([
@@ -522,6 +576,18 @@ export class AiChatService {
     // Executed changes stay in the audit log of the records they created; the chat itself is the user's.
     await this.prisma.aiConversation.delete({ where: { id } });
   }
+}
+
+// Which top-level fields the user changed (names only: values may hold personal data).
+function changedKeys(before: unknown, after: Record<string, unknown>): string[] {
+  const old = (before ?? {}) as Record<string, unknown>;
+  return [...new Set([...Object.keys(old), ...Object.keys(after)])].filter((k) => JSON.stringify(old[k]) !== JSON.stringify(after[k]));
+}
+
+// A short line for the model about a waiting card: its stored preview values (labels are i18n keys).
+function previewSummary(preview: unknown): string {
+  const fields = (preview as { fields?: Array<{ value?: unknown }> } | null)?.fields ?? [];
+  return fields.map((f) => (typeof f.value === "string" ? f.value : "")).filter(Boolean).slice(0, 4).join(", ").slice(0, 200);
 }
 
 function outcomeView(o: ItemOutcome): ItemOutcomeView {

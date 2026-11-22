@@ -7,6 +7,7 @@ import { exportReport } from "../../accounting/export-report";
 import { MonthlyChart } from "../../dashboard/MonthlyChart";
 import { usePermissions } from "../../../shared/auth/use-permissions";
 import type { DisplayBlock } from "../ai-api";
+import { valueLabel } from "../value-label";
 
 const DECIMAL = /^-?\d+(\.\d+)?$/;
 
@@ -65,7 +66,8 @@ export function AnswerBlocks({ blocks, currency, onChoose, onSwitchMode, onAskAn
               </section>
             );
           case "table":
-            if (b.rows.length === 0) return <p key={i} className="ai-block__empty"><i className="pi pi-search" aria-hidden="true" /> {t("ai.blocks.empty")}</p>;
+            // An empty search result adds nothing: the answer itself says nothing was found.
+            if (b.rows.length === 0) return null;
             return (
               <section key={i} className="ai-block">
                 <div className="ai-block__head">
@@ -80,7 +82,7 @@ export function AnswerBlocks({ blocks, currency, onChoose, onSwitchMode, onAskAn
                         <tr key={ri} style={{ animationDelay: `${ri * 35}ms` }}>
                           {b.columns.map((c, ci) => (
                             <td key={c.key} className={c.format === "money" || c.format === "number" ? "ai-table__num" : undefined}>
-                              {ci === 0 && r["_link"] ? <Link to={r["_link"]}>{cell(r[c.key], c.format, currency, lang)}</Link> : cell(r[c.key], c.format, currency, lang)}
+                              {ci === 0 && r["_link"] ? <Link to={r["_link"]}>{cell(r[c.key], c.format, currency, lang)}</Link> : !c.format || c.format === "text" ? valueLabel(i18n, cell(r[c.key], c.format, currency, lang)) : cell(r[c.key], c.format, currency, lang)}
                             </td>
                           ))}
                         </tr>

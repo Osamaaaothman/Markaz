@@ -21,7 +21,15 @@ Decisions: `docs/01-OPEN-DECISIONS.md` → "AI assistant". Lessons: `docs/Planni
   proposal (`ai_change_items`, status `PROPOSED`). **Auto** runs low-risk writes at once only when the
   company switch *and* `ai_assistant:auto` allow it; high-risk tools always wait.
 - A decided change item is frozen by a trigger. A decision is claimed by flipping the conversation from
-  `AWAITING_APPROVAL` to `IDLE` atomically, so a second click cannot run the same items twice.
+  `AWAITING_APPROVAL` to `IDLE` atomically, so a second click cannot run the same items twice. Only the
+  cards the user decided run; the conversation stays `AWAITING_APPROVAL` while any card still waits.
+- A new message does not cancel waiting cards (the user may answer a question first, then approve). The
+  waiting cards are listed in the system prompt every turn, so the model never reports them as done. When
+  the user wants one changed, the model calls `withdraw_proposal` (card becomes `SKIPPED`) and proposes a
+  corrected card.
+- The user can edit every field of a waiting card. The form is the tool's own input schema (JSON Schema);
+  the corrected values go through the same schema and `preview()` as a proposal before the card updates.
+  Only the names of changed fields are audited (`ai_change.edited`), never their values.
 - Writes carry correlation id `ai:<conversationId>` into the audit log.
 - Provider keys are AES-256-GCM sealed with `AI_CREDENTIALS_ENCRYPTION_KEY`, write-only in the API,
   never logged. Provider errors leave the server only as coarse codes.
@@ -34,6 +42,7 @@ Decisions: `docs/01-OPEN-DECISIONS.md` → "AI assistant". Lessons: `docs/Planni
 | POST | `/v1/ai/messages` (SSE) | `ai_assistant:use` (+ `interact` for review/auto) |
 | POST | `/v1/ai/messages/file` (SSE, multipart `payload` + `file`: PDF/PNG/JPEG/WebP ≤ 10 MB) | same as `/v1/ai/messages` |
 | POST | `/v1/ai/conversations/:id/decisions` (SSE) | `ai_assistant:interact` |
+| GET | `/v1/ai/conversations/:id/items/:key/form`, PUT `/v1/ai/conversations/:id/items/:key` (edit a waiting card) | `ai_assistant:interact` + the tool's own permission |
 | GET/PATCH/DELETE | `/v1/ai/conversations[/:id]` | `ai_assistant:use` (own conversations only) |
 | GET | `/v1/ai/me` | `ai_assistant:use` |
 | GET/PUT | `/v1/ai/settings`, POST `/v1/ai/settings/test` | `ai_settings:manage` |

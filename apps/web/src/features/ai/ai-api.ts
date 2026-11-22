@@ -237,3 +237,25 @@ export async function streamChat(path: string, body: unknown, onEvent: (e: ChatE
     }
   }
 }
+
+// ─── Editing a waiting card ───
+// The tool's input as JSON Schema (generated on the server from the same schema that validates it).
+export interface FormSchema {
+  type?: string | string[];
+  enum?: unknown[];
+  properties?: Record<string, FormSchema>;
+  required?: string[];
+  items?: FormSchema;
+  pattern?: string;
+  anyOf?: FormSchema[];
+  minItems?: number;
+  maxItems?: number;
+}
+
+export async function fetchItemForm(conversationId: string, key: string): Promise<{ schema: FormSchema; args: Record<string, unknown> }> {
+  return (await apiClient.get<{ schema: FormSchema; args: Record<string, unknown> }>(`/v1/ai/conversations/${conversationId}/items/${key}/form`)).data;
+}
+
+export async function reviseItem(conversationId: string, key: string, args: Record<string, unknown>, locale: string): Promise<{ args: Record<string, unknown>; preview: ChangePreview }> {
+  return (await apiClient.put<{ args: Record<string, unknown>; preview: ChangePreview }>(`/v1/ai/conversations/${conversationId}/items/${key}`, { args, locale: locale === "ar" ? "ar" : "en" })).data;
+}

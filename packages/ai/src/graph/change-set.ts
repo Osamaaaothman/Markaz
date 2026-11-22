@@ -70,5 +70,5 @@ export function outcomesMessage(outcomes: readonly ItemOutcome[]): HumanMessage 
       case "failed": return `${o.id}: FAILED with error ${o.errorCode}.`;
     }
   });
-  return new HumanMessage(`[System notice — result of the review, not typed by the user]\n${lines.join("\n")}\nSummarise briefly for the user what was done and what was not.`);
+  return new HumanMessage(`[System notice — result of the review, not typed by the user]\n${lines.join("\n")}\nSummarise briefly for the user what was done and what was not, naming only these cards. Cards not listed here were not decided and are not done. Then name the next step of the process, if there is one.`);
 }

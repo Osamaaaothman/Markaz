@@ -189,7 +189,9 @@ export function buildReportTools(s: ReportToolServices): ErpTool[] {
     description:
       "Statement of account for ONE customer or supplier: opening balance, invoices, payments and closing balance for a period " +
       "(default: from 1 January this year to today). Give the party's name (or reference); side CUSTOMER or SUPPLIER. " +
-      "Use for 'how much does X owe us' or 'what do we owe X'. If several parties match, the matches are returned so you can ask which one.",
+      "Use for 'how much does X owe us' or 'what do we owe X'. If several parties match, the matches are returned so you can ask which one. " +
+      "charges = debits (invoices, debit notes AND reversals of receipts); settlements = credits (receipts, credit notes). " +
+      "For a customer, a negative closing balance means the customer has a credit with us (paid in advance), not a debt; say it that way, with the sign's meaning, never as a bare number.",
     input: z.object({ party: z.string().trim().min(1).max(100), side: z.enum(["CUSTOMER", "SUPPLIER"]).default("CUSTOMER"), from: date.optional(), to: date.optional() }),
     permission: { resource: "party_statement", action: "read" },
     run: async (ctx, input) => {

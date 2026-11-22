@@ -118,6 +118,75 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     await expect(chat.decide(owner, { conversationId: id, decisions: { c1: "approve" }, locale: "en" }, () => undefined)).rejects.toThrow(AiChatError);
   });
 
+  it("a waiting card survives a new message, can be corrected on the card, and is approved later", async () => {
+    script = [{ toolCalls: [{ name: "parties_createCustomer", args: { name: "QA Waiting Co" } }] }, { text: "Ready for review." }];
+    const id = conversationOf(await run((emit) => chat.send(owner, { text: "create customer QA Waiting Co", mode: "review", locale: "en" }, emit)));
+
+    // The user writes again before deciding: the card stays open and the model is told it still waits.
+    script = [{ text: "The card is still waiting for you." }];
+    const second = await run((emit) => chat.send(owner, { conversationId: id, text: "his phone is 0530031266", mode: "review", locale: "en" }, emit));
+    expect(second).toContainEqual(expect.objectContaining({ type: "done", status: "AWAITING_APPROVAL" }));
+    expect((await db.aiChangeItem.findFirst({ where: { conversationId: id, itemKey: "c1" } }))?.status).toBe("PROPOSED");
+    const firstSent = lastModel?.seen[0]?.[0]?.content;
+    const system = typeof firstSent === "string" ? firstSent : "";
+    expect(system).toContain("STILL WAITING");
+    expect(system).toContain("c1");
+    expect(lastModel?.boundToolNames).toContain("withdraw_proposal");
+
+    // The user corrects the card: every field of the tool is offered, the server re-checks and re-previews.
+    const form = await chat.itemForm(owner, id, "c1");
+    expect(Object.keys((form.schema as { properties: Record<string, unknown> }).properties)).toEqual(expect.arrayContaining(["name", "phone", "vatNumber"]));
+    const revised = await chat.reviseItem(owner, id, "c1", { name: "QA Waiting Co", phone: "0530031266" }, "en");
+    expect((revised.preview as { fields: unknown[] }).fields).toContainEqual({ labelKey: "ai.col.phone", value: "0530031266" });
+    await expect(chat.reviseItem(owner, id, "c1", { name: "QA Waiting Co", vatNumber: "123" }, "en")).rejects.toThrow(AiChatError);
+    await expect(chat.reviseItem(other, id, "c1", { name: "Hijack" }, "en")).rejects.toThrow(AiChatError);
+
+    script = [{ text: "The customer was created." }];
+    await run((emit) => chat.decide(owner, { conversationId: id, decisions: { c1: "approve" }, locale: "en" }, emit));
+    expect(await db.party.findFirst({ where: { companyId, name: "QA Waiting Co" }, select: { phone: true } })).toEqual({ phone: "0530031266" });
+    // A decided card can no longer be edited.
+    await expect(chat.reviseItem(owner, id, "c1", { name: "Later" }, "en")).rejects.toThrow(AiChatError);
+  });
+
+  it("deciding one message's cards leaves another message's waiting cards open", async () => {
+    script = [{ toolCalls: [{ name: "parties_createCustomer", args: { name: "QA First Card" } }] }, { text: "Ready." }];
+    const id = conversationOf(await run((emit) => chat.send(owner, { text: "first", mode: "review", locale: "en" }, emit)));
+    script = [{ toolCalls: [{ name: "parties_createCustomer", args: { name: "QA Second Card" } }] }, { text: "Ready." }];
+    await run((emit) => chat.send(owner, { conversationId: id, text: "second", mode: "review", locale: "en" }, emit));
+
+    script = [{ text: "Only the second one was decided." }];
+    const decided = await run((emit) => chat.decide(owner, { conversationId: id, decisions: { c2: "reject" }, locale: "en" }, emit));
+    expect(decided).toContainEqual(expect.objectContaining({ type: "done", status: "AWAITING_APPROVAL" }));
+    const rows = await db.aiChangeItem.findMany({ where: { conversationId: id }, orderBy: { itemKey: "asc" }, select: { itemKey: true, status: true } });
+    expect(rows).toEqual([{ itemKey: "c1", status: "PROPOSED" }, { itemKey: "c2", status: "REJECTED" }]);
+  });
+
+  it("the model withdraws a waiting card it replaces with a corrected one", async () => {
+    script = [{ toolCalls: [{ name: "parties_createCustomer", args: { name: "QA Wrong Name" } }] }, { text: "Ready." }];
+    const id = conversationOf(await run((emit) => chat.send(owner, { text: "create customer", mode: "review", locale: "en" }, emit)));
+    script = [
+      { toolCalls: [{ name: "withdraw_proposal", args: { id: "c1" } }, { name: "parties_createCustomer", args: { name: "QA Right Name" } }] },
+      { text: "I replaced the card." },
+    ];
+    const events = await run((emit) => chat.send(owner, { conversationId: id, text: "no, the name is QA Right Name", mode: "review", locale: "en" }, emit));
+    expect(events).toContainEqual({ type: "outcome", outcome: { key: "c1", status: "SKIPPED" } });
+    const rows = await db.aiChangeItem.findMany({ where: { conversationId: id }, orderBy: { itemKey: "asc" }, select: { itemKey: true, status: true } });
+    expect(rows).toEqual([{ itemKey: "c1", status: "SKIPPED" }, { itemKey: "c2", status: "PROPOSED" }]);
+  });
+
+  it("lists every supplier when asked without a search word", async () => {
+    for (const name of ["QA Supplier A", "QA Supplier B", "QA Both Ways"]) {
+      await db.party.create({ data: { id: newId(), companyId, ref: `PRT-L${name.slice(-1)}`, name, kind: name === "QA Both Ways" ? "CUSTOMER_SUPPLIER" : "SUPPLIER" } });
+    }
+    const search = tools.find((t) => t.name === "parties_search");
+    if (!search || search.kind !== "read") throw new Error("parties_search missing");
+    const ctx = { actor: { userId: owner.id, companyId }, locale: "en" as const, conversationId: "x", correlationId: "x", can: () => Promise.resolve(true) };
+    const result = await search.run(ctx, search.input.parse({ kind: "SUPPLIER" }));
+    const names = (result.data as { matches: Array<{ name: string }> }).matches.map((m) => m.name);
+    expect(names).toEqual(expect.arrayContaining(["QA Supplier A", "QA Supplier B", "QA Both Ways"]));
+    expect((result.data as { more: boolean }).more).toBe(false);
+  });
+
   it("decided changes are frozen by the database", async () => {
     const executed = await db.aiChangeItem.findFirstOrThrow({ where: { companyId, status: "EXECUTED" } });
     await expect(db.aiChangeItem.update({ where: { id: executed.id }, data: { status: "PROPOSED" } })).rejects.toThrow();

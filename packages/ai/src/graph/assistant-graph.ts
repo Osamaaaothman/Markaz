@@ -28,6 +28,10 @@ export const CLARIFY_TOOL = "clarify";
 // Only offered in question mode. One cheap call that ends the turn, so a write request gets an
 // immediate "switch mode" card instead of a slow refusal written by the model.
 export const MODE_TOOL = "switch_to_interactive";
+
+// Offered only while cards from earlier turns still wait. The model withdraws a waiting card it is
+// replacing (a corrected version), so the user is never left with two versions of the same change.
+export const WITHDRAW_TOOL = "withdraw_proposal";
 const clarifySchema = z.object({
   question: z.string().min(1).describe("One short question in the user's language"),
   options: z.array(z.string().min(1)).min(2).max(5).describe("2-5 short choices"),
@@ -56,6 +60,8 @@ export interface RunOptions {
   // Sections whose tools are sent from the start (besides the core tools). When set, every other
   // section is loaded on demand with load_tools; when undefined, all tools are sent (as before).
   readonly initialSections?: readonly string[];
+  // Cards proposed in earlier turns that still wait for the user's decision (still valid).
+  readonly pendingIds?: readonly string[];
 }
 
 export interface RunResult {
@@ -65,6 +71,8 @@ export interface RunResult {
   readonly usage: TokenUsage;
   readonly stoppedForClarify: boolean;
   readonly hitStepLimit: boolean;
+  // Earlier waiting cards the model withdrew this turn (replaced by a corrected one).
+  readonly withdrawn: string[];
 }
 
 const State = Annotation.Root({
@@ -75,6 +83,7 @@ const State = Annotation.Root({
   inputTokens: Annotation<number>({ reducer: (a, b) => a + b, default: () => 0 }),
   outputTokens: Annotation<number>({ reducer: (a, b) => a + b, default: () => 0 }),
   clarified: Annotation<boolean>({ reducer: (a, b) => a || b, default: () => false }),
+  withdrawn: Annotation<string[]>({ reducer: (a, b) => a.concat(b), default: () => [] }),
 });
 type S = typeof State.State;
 
@@ -106,11 +115,16 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
   const active = new Set<string>(["core", ...(opts.initialSections ?? [])]);
   const available = SECTIONS.filter((s) => opts.tools.some((t) => sectionOf(t.name) === s));
   const loadSchema = z.object({ section: z.enum(SECTIONS) });
+  const waiting = new Set(opts.pendingIds ?? []);
+  const withdrawSchema = z.object({ id: z.string().min(1).describe("The waiting card's id, e.g. c4") });
   const llmToolsFor = (): Array<{ name: string; description: string; schema: z.ZodType }> => {
     const notLoaded = available.filter((s) => !active.has(s));
     return [
       ...opts.tools.filter((t) => !onDemand || active.has(sectionOf(t.name))).map((t) => ({ name: t.name, description: t.description, schema: t.input })),
       { name: CLARIFY_TOOL, description: "Ask the user to choose between options when the request is ambiguous. Ends your turn.", schema: clarifySchema },
+      ...(waiting.size > 0 && opts.mode !== "ask"
+        ? [{ name: WITHDRAW_TOOL, description: `Withdraw a card that is still waiting for approval (${[...waiting].join(", ")}) when the user wants it changed or dropped. Propose the corrected card in the same turn. Never withdraw a card the user still wants.`, schema: withdrawSchema }]
+        : []),
       ...(opts.mode === "ask" ? [{ name: MODE_TOOL, description: "Call this at once, alone, when the user asks to create, change or delete anything. Ends your turn.", schema: z.object({}) }] : []),
       ...(onDemand && notLoaded.length
         ? [{
@@ -139,7 +153,8 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
   };
   let current = 0; // once a fallback answered, stay on it for the rest of the turn
   const knownResults = new Map(opts.priorResults ?? []);
-  const proposedIds = new Set<string>();
+  // Waiting cards from earlier turns can be referenced like this turn's proposals.
+  const proposedIds = new Set<string>(opts.pendingIds ?? []);
   let nextItem = opts.firstItemNumber;
   const startLength = opts.messages.length;
 
@@ -204,6 +219,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     const out: ToolMessage[] = [];
     const proposals: ProposedItem[] = [];
     const executed: ExecutedItem[] = [];
+    const withdrawn: string[] = [];
     let clarified = false;
     for (const call of ai?.tool_calls ?? []) {
       const callId = call.id ?? `call_${out.length}`;
@@ -236,6 +252,20 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
         continue;
       }
 
+      if (call.name === WITHDRAW_TOOL) {
+        const parsed = withdrawSchema.safeParse(call.args);
+        if (parsed.success && waiting.has(parsed.data.id)) {
+          waiting.delete(parsed.data.id);
+          proposedIds.delete(parsed.data.id);
+          withdrawn.push(parsed.data.id);
+          reply(JSON.stringify({ withdrawn: parsed.data.id, note: "The card is withdrawn; it will not run." }));
+          end(true);
+        } else {
+          reply(toolError("UNKNOWN_REFERENCE", parsed.success ? parsed.data.id : undefined));
+          end(false, "UNKNOWN_REFERENCE");
+        }
+        continue;
+      }
       if (call.name === CLARIFY_TOOL) {
         const parsed = clarifySchema.safeParse(call.args);
         if (parsed.success) {
@@ -314,7 +344,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
         end(false, code);
       }
     }
-    return { messages: out, proposals, executed, clarified };
+    return { messages: out, proposals, executed, clarified, withdrawn };
   };
 
   const graph = new StateGraph(State)
@@ -337,6 +367,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     usage: { input: final.inputTokens, output: final.outputTokens },
     stoppedForClarify: final.clarified,
     hitStepLimit,
+    withdrawn: final.withdrawn,
   };
 }
 

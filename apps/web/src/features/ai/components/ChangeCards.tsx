@@ -1,8 +1,10 @@
-import { InputText } from "primereact/inputtext";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import type { ChangeItem } from "../ai-api";
+import type { ChangeItem, ChangePreview } from "../ai-api";
+import { useAiStore } from "../ai-store";
+import { valueLabel } from "../value-label";
+import { CardEditor } from "./CardEditor";
 
 type Decision = "approve" | "reject";
 
@@ -13,20 +15,25 @@ const ENTITY_ICON: Record<string, string> = {
   account: "pi pi-sitemap",
 };
 
-function shown(t: (k: string) => string, value: string): string {
-  return value.startsWith("ai.") ? t(value) : value;
-}
 
 // The review step of interactive mode. Each proposed change is a "ticket": entity icon, what will be
 // written, and a two-way toggle (reject ✕ | ✓ approve) that slides to the user's choice. A floating bar
 // shows how many are decided with a progress ring and sends them together. High-risk changes are never
 // included in "approve all" — each one needs its own click.
 export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]; busy: boolean; onDecide: (d: Record<string, Decision>, edits: Record<string, Record<string, unknown>>) => void }): React.JSX.Element | null {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const pending = changes.filter((c) => c.status === "PROPOSED");
   const [choice, setChoice] = useState<Record<string, Decision>>({});
-  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
+  // Cards the user corrected; the corrected values are already saved on the server.
+  const [edited, setEdited] = useState<Record<string, true>>({});
   const [editing, setEditing] = useState<string | null>(null);
+  const conversationId = useAiStore((s) => s.conversationId);
+  const setMessages = useAiStore((s) => s.setMessages);
+  const saved = (key: string, args: Record<string, unknown>, preview: ChangePreview): void => {
+    setMessages((list) => list.map((m) => ({ ...m, changes: m.changes.map((c) => (c.key === key ? { ...c, args, preview } : c)) })));
+    setEdited((x) => ({ ...x, [key]: true }));
+    setEditing(null);
+  };
 
   // A change whose dependency is rejected cannot run either; show it before submitting.
   const blockedBy = useMemo(() => {
@@ -48,7 +55,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
       const picked = all === "approve" && c.risk === "high" ? choice[c.key] ?? "reject" : all ?? choice[c.key] ?? "reject";
       decisions[c.key] = blockedBy[c.key] ? "reject" : picked;
     }
-    onDecide(decisions, edits);
+    onDecide(decisions, {});
   };
 
   return (
@@ -57,8 +64,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
         const pick = choice[c.key];
         const state = c.status !== "PROPOSED" ? c.status.toLowerCase() : blockedBy[c.key] ? "blocked" : pick ?? "pending";
         const isEditing = editing === c.key;
-        // Only plain text the user can sensibly change: never ids, file references or $ref links.
-        const editable = Object.entries(c.args).filter(([k, v]) => typeof v === "string" && !String(v).startsWith("$ref:") && !/(Id|FileId)$/.test(k));
+        const editable = c.status === "PROPOSED" && !c.auto && conversationId !== null;
         const dependsLabel = c.dependsOn.length ? c.dependsOn.join(", ") : null;
         return (
           <article key={c.key} className={`ai-ticket ai-ticket--${state} ai-ticket--risk-${c.risk}`} style={{ animationDelay: `${index * 90}ms` }}>
@@ -70,7 +76,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
                 <span className="ai-ticket__meta">
                   <bdi className="ai-ticket__key" dir="ltr">#{c.key}</bdi>
                   {dependsLabel ? <span><i className="pi pi-link" aria-hidden="true" /> {t("ai.change.dependsOn", { key: dependsLabel })}</span> : null}
-                  {edits[c.key] && c.status === "PROPOSED" ? <span className="ai-pill">{t("ai.change.edited")}</span> : null}
+                  {edited[c.key] && c.status === "PROPOSED" ? <span className="ai-pill">{t("ai.change.edited")}</span> : null}
                   {c.risk === "high" && c.status === "PROPOSED" ? <span className="ai-pill ai-pill--warn"><i className="pi pi-shield" aria-hidden="true" /> {t("ai.risk.high")}</span> : null}
                   {c.auto ? <span className="ai-pill ai-pill--auto"><i className="pi pi-bolt" aria-hidden="true" /> {t("ai.change.auto")}</span> : null}
                 </span>
@@ -89,26 +95,16 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
                   <div key={f.labelKey} className="ai-fields__row" style={{ animationDelay: `${index * 90 + fi * 40}ms` }}>
                     <dt>{t(f.labelKey)}</dt>
                     <dd>
-                      {f.before ? <span className="ai-fields__before">{shown(t, f.before)}</span> : null}
+                      {f.before ? <span className="ai-fields__before">{valueLabel(i18n, f.before)}</span> : null}
                       {f.before ? <i className="pi pi-arrow-right ai-fields__arrow" aria-hidden="true" /> : null}
-                      <span className="ai-fields__after">{shown(t, f.value)}</span>
+                      <span className="ai-fields__after">{valueLabel(i18n, f.value)}</span>
                     </dd>
                   </div>
                 ))}
               </dl>
             ) : null}
 
-            {isEditing ? (
-              <div className="ai-edit">
-                {editable.map(([key, value]) => (
-                  <label key={key} className="ai-edit__field">
-                    <span>{t(`ai.arg.${key}`, { defaultValue: t(`ai.col.${key}`, { defaultValue: key }) })}</span>
-                    <InputText value={String(edits[c.key]?.[key] ?? value)} onChange={(e) => setEdits((all) => ({ ...all, [c.key]: { ...(all[c.key] ?? {}), [key]: e.target.value } }))} />
-                  </label>
-                ))}
-                <button type="button" className="ai-btn ai-btn--primary" onClick={() => setEditing(null)}><i className="pi pi-check" aria-hidden="true" /> {t("ai.change.doneEditing")}</button>
-              </div>
-            ) : null}
+            {isEditing && conversationId ? <CardEditor conversationId={conversationId} change={c} onSaved={(args, preview) => saved(c.key, args, preview)} onClose={() => setEditing(null)} /> : null}
 
             {c.preview.warningKeys?.map((w) => <p key={w} className="ai-ticket__note ai-ticket__note--warn"><i className="pi pi-exclamation-triangle" aria-hidden="true" /> {t(w)}</p>)}
             {blockedBy[c.key] ? <p className="ai-ticket__note"><i className="pi pi-ban" aria-hidden="true" /> {t("ai.change.blocked", { key: blockedBy[c.key] })}</p> : null}
@@ -122,7 +118,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
 
             {c.status === "PROPOSED" && !blockedBy[c.key] ? (
               <footer className="ai-ticket__foot">
-                {editable.length > 0 ? (
+                {editable ? (
                   <button type="button" className={`ai-btn ai-btn--ghost${isEditing ? " is-on" : ""}`} disabled={busy} onClick={() => setEditing(isEditing ? null : c.key)}>
                     <i className="pi pi-pencil" aria-hidden="true" /> {t("ai.change.edit")}
                   </button>

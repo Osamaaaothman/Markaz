@@ -25,6 +25,8 @@ export interface AiToolServices {
 }
 
 const LIMIT = 10;
+// "List all suppliers": enough for a small company's whole list; `more` tells the model when it is not.
+const LIST_LIMIT = 50;
 const decimal = z.string().regex(/^\d{1,15}(\.\d{1,4})?$/, "decimal string such as 3000.00");
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
 const shortText = (max: number) => z.string().trim().min(1).max(max);
@@ -105,14 +107,17 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
 
   const searchParties = defineReadTool({
     name: "parties_search",
-    description: "Search customers and suppliers by name, code or phone. Returns up to 10 matches with their reference.",
-    input: z.object({ query: shortText(100), kind: z.enum(["CUSTOMER", "SUPPLIER", "ANY"]).default("ANY") }),
+    description:
+      "Search customers and suppliers by name, code or phone. Omit query to LIST them all (with kind SUPPLIER for all suppliers, " +
+      "CUSTOMER for all customers). SUPPLIER and CUSTOMER include parties that are both. `more: true` means the list is partial.",
+    input: z.object({ query: z.string().trim().max(100).optional(), kind: z.enum(["CUSTOMER", "SUPPLIER", "ANY"]).default("ANY") }),
     permission: { resource: "party", action: "read" },
     run: async (ctx, input) => {
-      const page = await s.parties.list(ctx.actor.companyId, { q: input.query, limit: String(LIMIT), excludeEmployees: "true", ...(input.kind !== "ANY" ? { kind: input.kind } : {}) });
+      const q = input.query?.trim();
+      const page = await s.parties.list(ctx.actor.companyId, { ...(q ? { q } : {}), limit: String(q ? LIMIT : LIST_LIMIT), excludeEmployees: "true", ...(input.kind !== "ANY" ? { kind: input.kind } : {}) });
       const rows = page.data.map((p) => ({ id: p.id, ref: p.ref, name: localName(ctx, p.name, p.nameAr), kind: p.kind, phone: p.phone ?? "" }));
       return {
-        data: rows,
+        data: { matches: rows, more: page.pageInfo.hasMore },
         display: table("ai.blocks.parties", [{ key: "ref", labelKey: "ai.col.ref" }, { key: "name", labelKey: "ai.col.name" }, { key: "kind", labelKey: "ai.col.kind" }, { key: "phone", labelKey: "ai.col.phone" }], rows, "/parties"),
       };
     },
@@ -191,12 +196,14 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
 
   const searchAccounts = defineReadTool({
     name: "accounts_search",
-    description: "Search the chart of accounts by name or code. Use it to find a parent account code before creating an account, or an account to post to: only rows with group \"no\" (detail accounts) can be used on invoices, payments and journal lines.",
-    input: z.object({ query: shortText(100) }),
+    description:
+      "Search the chart of accounts by name or code. Use it to find a parent account code before creating an account, or an account to post to: " +
+      "only rows with group \"no\" (detail accounts) can be used on invoices, payments and journal lines. Set postableOnly when the user must pick an account to post to (a bank or cash account for a payment).",
+    input: z.object({ query: shortText(100), postableOnly: z.boolean().default(false) }),
     permission: { resource: "account", action: "read" },
     run: async (ctx, input) => {
       const found = await s.prisma.account.findMany({
-        where: { companyId: ctx.actor.companyId, OR: [{ code: { startsWith: input.query } }, { name: { contains: input.query, mode: "insensitive" } }, { nameAr: { contains: input.query } }] },
+        where: { companyId: ctx.actor.companyId, ...(input.postableOnly ? { isPostable: true, isActive: true } : {}), OR: [{ code: { startsWith: input.query } }, { name: { contains: input.query, mode: "insensitive" } }, { nameAr: { contains: input.query } }] },
         orderBy: { code: "asc" },
         take: LIMIT,
         select: { code: true, name: true, nameAr: true, type: true, isPostable: true, isActive: true },
@@ -204,7 +211,7 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
       const rows = found.map((a) => ({ code: a.code, name: localName(ctx, a.name, a.nameAr), type: a.type, group: a.isPostable ? "no" : "yes", active: a.isActive ? "yes" : "no" }));
       return {
         data: rows,
-        display: table("ai.blocks.accounts", [{ key: "code", labelKey: "ai.col.code" }, { key: "name", labelKey: "ai.col.name" }, { key: "type", labelKey: "ai.col.type" }], rows, "/accounting/chart-of-accounts"),
+        display: table("ai.blocks.accounts", [{ key: "code", labelKey: "ai.col.code" }, { key: "name", labelKey: "ai.col.name" }, { key: "type", labelKey: "ai.col.type" }, { key: "group", labelKey: "ai.col.group" }], rows, "/accounting/chart-of-accounts"),
       };
     },
   });
