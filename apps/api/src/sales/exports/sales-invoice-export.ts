@@ -73,9 +73,9 @@ export async function salesInvoiceToPdfHtml(params: {
 
   const extraCss = `
   .compliance-notice { border: 2pt solid #92400e; padding: 8pt; color: #78350f; background: #fffbeb; font-weight: 700; margin-block-end: 12pt; }
-  .invoice-compliance { display: flex; flex-direction: column; align-items: flex-start; max-width: 40%; break-inside: avoid; font-size: 8pt; }
-  .report-main .invoice-compliance { padding-block-start: 0; border: none; }
+  .invoice-compliance { display: flex; flex-direction: column; align-items: flex-start; margin-block-start: 16pt; break-inside: avoid; font-size: 8pt; }
   .report-main .invoice-qr, .doc-clean .invoice-qr { width: 88pt; height: 88pt; object-fit: contain; image-rendering: pixelated; }
+  .invoice-compliance .zatca-caption, .invoice-compliance .zatca-caption .en { text-align: start; }
   .qr-missing { font-size: 8pt; color: #78350f; margin: 4pt 0 0; }
   .inv-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16pt; margin-block-end: 18pt; }
   .bill-to-block { flex: 1 1 auto; }
@@ -90,8 +90,10 @@ export async function salesInvoiceToPdfHtml(params: {
   table.inv-lines th { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-size: 9pt; }
   table.inv-lines td { font-size: 9pt; }
   table.inv-lines tbody tr:nth-child(even) td { background: #f9f9fb; }
-  .totals-wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 16pt; margin-block-start: 10pt; break-inside: avoid; }
-  table.inv-totals { width: 42%; border: none; }
+  .totals-wrap { display: flex; justify-content: flex-end; margin-block-start: 8pt; }
+  .totals-col { width: 42%; break-inside: avoid; }
+  table.inv-totals, .report-main table.inv-totals { width: 100%; border: none; }
+  .totals-col .amount-words { margin-block-start: 6pt; font-size: 8.5pt; }
   table.inv-totals th, table.inv-totals td { border: none; border-block-end: 1px solid #e8e8e8; padding: 4pt 8pt; font-size: 9.5pt; background: none; }
   table.inv-totals .grand-total th, table.inv-totals .grand-total td { border-block-end: none; background: #1a1a1a; color: #fff; font-size: 11pt; font-weight: 700; padding: 6pt 8pt; }
   .amount-words { margin-block-start: 10pt; padding: 6pt 10pt; background: #f4f5fb; border-inline-start: 3pt solid #1a1a1a; font-size: 9.5pt; font-weight: 600; }
@@ -123,19 +125,21 @@ ${params.compliance && params.compliance.environment !== "production" ? `<div cl
 <tbody>${lineRows}</tbody>
 </table>
 <div class="totals-wrap">
-  ${params.compliance ? `<div class="invoice-compliance">
-    ${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : `<p class="qr-missing">${escapeHtml(t("compliance.qrUnavailable"))}</p>`}
-    <p class="zatca-caption"><span class="en">${escapeHtml(t("compliance.zatcaQrCaptionEn"))}</span>${escapeHtml(t("compliance.zatcaQrCaptionAr"))}</p>
-    ${isDataPreview ? `<p class="qr-missing"><strong>${escapeHtml(t("compliance.dataPreviewNotice"))}</strong></p>` : ""}
-  </div>` : "<div></div>"}
+ <div class="totals-col">
   <table class="inv-totals">
     <tr><th>${escapeHtml(t("salesInvoice.net"))}</th><td class="amount">${money(invoice.totalNet)}</td></tr>
     <tr><th>${escapeHtml(t("salesInvoice.tax"))}</th><td class="amount">${money(invoice.totalTax)}</td></tr>
     <tr class="grand-total"><th>${escapeHtml(t("salesInvoice.total"))}</th><td class="amount">${money(invoice.totalGross)}</td></tr>
   </table>
+  <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur, params.language))}</p>
+ </div>
 </div>
-<p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur, params.language))}</p>
-${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
+${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
+${params.compliance ? `<div class="invoice-compliance">
+  ${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : `<p class="qr-missing">${escapeHtml(t("compliance.qrUnavailable"))}</p>`}
+  <p class="zatca-caption"><span class="en">${escapeHtml(t("compliance.zatcaQrCaptionEn"))}</span>${escapeHtml(t("compliance.zatcaQrCaptionAr"))}</p>
+  ${isDataPreview ? `<p class="qr-missing"><strong>${escapeHtml(t("compliance.dataPreviewNotice"))}</strong></p>` : ""}
+</div>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("salesInvoice.computerGenerated") }),
   });
 }
