@@ -23,6 +23,7 @@ module.exports = {
         "shared",
         "infra",
         "ci",
+        "ai",
       ],
     ],
     "subject-case": [0],
