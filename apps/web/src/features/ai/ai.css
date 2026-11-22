@@ -408,7 +408,26 @@
 .ai-error { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid var(--mk-danger); background: var(--mk-danger-soft); color: var(--mk-danger); font-size: 0.85rem; animation: ai-fade-up 0.3s ease both; }
 
 /* ─── Composer ────────────────────────────────────────────────────────────────────────────────── */
-.ai-composer { position: relative; padding: 0.4rem 0.9rem 0.4rem; z-index: 2; }
+/* The composer floats over the end of the thread: the last messages slide under the frosted capsule. */
+.ai-composer { position: relative; padding: 0.4rem 0.9rem 0.4rem; z-index: 2; margin-block-start: -2.75rem; padding-block-start: 1.2rem; background: linear-gradient(to bottom, transparent, var(--ai-composer-fade, var(--mk-bg)) 2.6rem); }
+.ai-scroll { padding-block-end: 3.5rem; }
+/* A soft brand-and-brass glow under the capsule; brighter while typing. */
+.ai-composer::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-inline: 12%;
+  inset-block-end: 1.6rem;
+  height: 3.6rem;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--mk-primary) 55%, transparent), transparent), radial-gradient(closest-side at 80% 60%, color-mix(in srgb, var(--mk-brass-400) 60%, transparent), transparent);
+  filter: blur(26px);
+  opacity: 0.22;
+  pointer-events: none;
+  transition: opacity 0.4s, transform 0.4s;
+}
+.ai-composer:has(.ai-capsule.is-focused)::before { opacity: 0.45; transform: scaleX(1.08); }
+.ai-composer:has(.ai-capsule.is-listening)::before { background: radial-gradient(closest-side, color-mix(in srgb, var(--mk-danger) 60%, transparent), transparent); opacity: 0.4; }
 .ai-chat--page .ai-composer { padding-inline: 1.5rem; padding-block-end: 0.8rem; }
 .ai-suggestions { display: flex; gap: 0.4rem; margin-block-end: 0.55rem; overflow-x: auto; scrollbar-width: none; padding-block: 0.1rem; }
 .ai-suggestions::-webkit-scrollbar { display: none; }
@@ -441,17 +460,48 @@
   gap: 0.4rem;
   padding-block: 0.6rem 0.5rem;
   padding-inline: 0.95rem 0.55rem;
-  border: 1.5px solid var(--mk-border-strong, var(--mk-border));
-  border-radius: 22px;
-  background: var(--mk-surface);
-  box-shadow: var(--mk-shadow-md, 0 8px 24px rgba(0, 0, 0, 0.08));
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--mk-border-strong, var(--mk-border)) 70%, transparent);
+  border-radius: 24px;
+  /* Frosted glass: the thread shows through, blurred. */
+  background: color-mix(in srgb, var(--mk-surface) 70%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  backdrop-filter: blur(20px) saturate(1.7);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 12px 32px -8px rgba(0, 0, 0, 0.14);
   cursor: text;
   overflow: hidden;
-  transition: border-color 0.25s, box-shadow 0.25s;
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
-.ai-capsule.is-focused { border-color: var(--mk-primary); box-shadow: 0 0 0 4px var(--mk-primary-ring, rgba(0, 0, 0, 0.06)), var(--mk-shadow-md, 0 8px 24px rgba(0, 0, 0, 0.08)); }
-.ai-chat--mode-auto .ai-capsule.is-focused { border-color: var(--mk-warning); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ai-capsule { background: var(--mk-surface); }
+}
+html[data-theme-mode="dark"] .ai-capsule { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 14px 36px -10px rgba(0, 0, 0, 0.6); }
+/* Focus: a slowly turning brand-to-brass ring traced on the edge (masked to the 1.5px border). */
+@property --ai-ring { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.ai-capsule::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--ai-ring), var(--mk-primary), var(--mk-brass-400), color-mix(in srgb, var(--mk-primary) 30%, transparent), var(--mk-brass-300), var(--mk-primary));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s;
+}
+.ai-capsule.is-focused { border-color: transparent; transform: translateY(-1px); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent), 0 0 0 5px color-mix(in srgb, var(--mk-primary) 10%, transparent), 0 18px 40px -12px color-mix(in srgb, var(--mk-primary) 35%, rgba(0, 0, 0, 0.2)); }
+.ai-capsule.is-focused::after { opacity: 1; animation: ai-ring-turn 6s linear infinite; }
+@keyframes ai-ring-turn { to { --ai-ring: 360deg; } }
+.ai-chat--mode-auto .ai-capsule::after { background: conic-gradient(from var(--ai-ring), var(--mk-warning), var(--mk-brass-400), color-mix(in srgb, var(--mk-warning) 30%, transparent), var(--mk-warning)); }
 .ai-capsule.is-listening { border-color: var(--mk-danger); }
+.ai-capsule.is-listening::after { opacity: 1; background: var(--mk-danger); animation: none; }
 /* While the assistant works, a short brass segment runs back and forth along the top edge. */
 .ai-capsule.is-busy::before {
   content: "";
@@ -507,8 +557,16 @@
 .ai-round--ghost.is-live { background: var(--mk-danger-soft); color: var(--mk-danger); }
 .ai-round--slash span { font-family: var(--mk-font-mono, monospace); font-size: 1rem; font-weight: 800; }
 .ai-round--send { background: var(--mk-surface-2); color: var(--mk-text-muted); }
-.ai-round--send.is-ready { background: var(--mk-primary); color: var(--mk-on-primary, #fff); transform: scale(1.04); }
-.ai-round--send.is-ready:hover { background: var(--mk-primary-hover, var(--mk-primary)); }
+.ai-round--send.is-ready {
+  background: linear-gradient(135deg, var(--mk-primary), color-mix(in srgb, var(--mk-primary) 62%, var(--mk-brass-400)));
+  color: var(--mk-on-primary, #fff);
+  transform: scale(1.06);
+  box-shadow: 0 6px 16px -4px color-mix(in srgb, var(--mk-primary) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.ai-round--send.is-ready:hover { transform: scale(1.1) rotate(-6deg); }
+[dir="rtl"] .ai-round--send.is-ready:hover { transform: scale(1.1) rotate(6deg); }
+.ai-round--ghost:hover, .ai-round--ghost.is-on { background: color-mix(in srgb, var(--mk-surface-2) 80%, transparent); }
+.ai-round--ghost.is-on { background: color-mix(in srgb, var(--mk-primary) 16%, transparent); color: var(--mk-primary); }
 .ai-round--send:disabled { cursor: default; }
 .ai-round--send.is-stop { background: var(--mk-text); color: var(--mk-surface); }
 .ai-composer__hint { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 0.9rem; margin: 0.5rem 0 0; font-size: 0.68rem; color: var(--mk-text-subtle, var(--mk-text-muted)); }
@@ -723,7 +781,7 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
 @keyframes ai-stamp { from { opacity: 0; transform: scale(1.5); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-loader i, .ai-wave i, .ai-capsule.is-busy::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
+  .ai-loader i, .ai-wave i, .ai-capsule.is-busy::before, .ai-capsule.is-focused::after, .ai-capsule, .ai-composer::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
   .ai-stamp, .ai-card, .ai-choice, .ai-step, .ai-suggestion, .ai-table tbody tr, .ai-fields__row, .ai-history li, .ai-dot, .ai-welcome__stage {
     animation: none !important;
     transition: none !important;
