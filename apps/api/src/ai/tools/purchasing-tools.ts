@@ -106,7 +106,7 @@ export function buildPurchasingTools(s: AiPurchasingServices): ErpTool[] {
     description:
       "Enter and post a supplier (purchase) invoice, usually read from a document the user attached. Steps: find the supplier with " +
       "parties_search (if several match, clarify; if none, propose parties_createSupplier and use $ref). Call purchasing_invoiceableLines: " +
-      "goods that were ordered and received go as PO_LINE lines. Other lines are EXPENSE lines and need an account: suggest one with " +
+      "goods that were ordered and received go as PO_LINE lines. When only a line total is printed, use unitPrice = total ÷ quantity with 4 decimals (e.g. 2500 ÷ 30 = 83.3333) and keep the printed quantity; never change the quantity to make totals match. Other lines are EXPENSE lines and need an account: suggest one with " +
       "accounts_search (only accounts with group \"no\" can be posted to; for services and costs prefer EXPENSE accounts) and let the user confirm it — never pick an account silently. If the document shows no VAT, ask which tax code applies (taxCodes_list) instead of assuming. Copy numbers exactly as printed (unit price " +
       "excluding VAT); if the document is unreadable or a required detail (invoice number, date, supplier) is missing, ask. Pass the " +
       "document's own totals in documentTotals and its file id in sourceFileId. Never compute totals yourself.",
@@ -135,9 +135,11 @@ export function buildPurchasingTools(s: AiPurchasingServices): ErpTool[] {
         ];
         if (p.hasPriceVariance) warningKeys.push(a.acceptPriceVariance ? "ai.warn.priceVarianceAccepted" : "ai.warn.priceVariance");
         if (!p.canPost) warningKeys.push("ai.warn.qtyExceedsReceived");
-        // The document's printed totals against the system's: any difference means a misread or a rounding issue.
+        // The document's printed totals against the system's, at the printed (2-decimal) precision: a
+        // unit price such as 83.3333 gives 2499.999 internally, which IS the printed 2500.00.
         const t = a.documentTotals;
-        const differs = (printed: string | undefined, ours: string): boolean => printed !== undefined && !new Prisma.Decimal(printed).equals(new Prisma.Decimal(ours));
+        const cents = (v: string): Prisma.Decimal => new Prisma.Decimal(v).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+        const differs = (printed: string | undefined, ours: string): boolean => printed !== undefined && !cents(printed).equals(cents(ours));
         if (t && (differs(t.net, p.totalNet) || differs(t.tax, p.totalTax) || differs(t.gross, p.totalGross))) warningKeys.push("ai.warn.totalsMismatch");
       } catch (error) {
         // Show the actual reason (e.g. a group account, no tax code) next to the generic note.

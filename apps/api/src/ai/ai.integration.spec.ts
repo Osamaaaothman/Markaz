@@ -240,6 +240,11 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     // A misread total on the document is flagged; the card shows the server's figures.
     const misread = await createInvoice.preview(ctx, createInvoice.input.parse({ ...args, documentTotals: { gross: "1100.00" } }));
     expect(misread.warningKeys).toContain("ai.warn.totalsMismatch");
+    // 30 x 83.3333 is the printed 2500.00 once rounded to the printed cents: no false mismatch.
+    const split = await createInvoice.preview(ctx, createInvoice.input.parse({
+      ...args, lines: [{ ...args.lines[0], quantity: "30", unitPrice: "83.3333" }], documentTotals: { net: "2500.00", tax: "375.00", gross: "2875.00" },
+    }));
+    expect(split.warningKeys).toBeUndefined();
     const input = createInvoice.input.parse({ ...args, documentTotals: { net: "1000", tax: "150", gross: "1150.00" } });
     const preview = await createInvoice.preview(ctx, input);
     expect(preview.warningKeys).toBeUndefined();

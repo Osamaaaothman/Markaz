@@ -71,7 +71,7 @@ export function ChangeCards({ changes, busy, onDecide }: { changes: ChangeItem[]
                   <bdi className="ai-ticket__key" dir="ltr">#{c.key}</bdi>
                   {dependsLabel ? <span><i className="pi pi-link" aria-hidden="true" /> {t("ai.change.dependsOn", { key: dependsLabel })}</span> : null}
                   {edits[c.key] && c.status === "PROPOSED" ? <span className="ai-pill">{t("ai.change.edited")}</span> : null}
-                  {c.risk === "high" ? <span className="ai-pill ai-pill--warn"><i className="pi pi-shield" aria-hidden="true" /> {t("ai.risk.high")}</span> : null}
+                  {c.risk === "high" && c.status === "PROPOSED" ? <span className="ai-pill ai-pill--warn"><i className="pi pi-shield" aria-hidden="true" /> {t("ai.risk.high")}</span> : null}
                   {c.auto ? <span className="ai-pill ai-pill--auto"><i className="pi pi-bolt" aria-hidden="true" /> {t("ai.change.auto")}</span> : null}
                 </span>
               </div>

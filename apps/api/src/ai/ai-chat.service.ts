@@ -178,7 +178,7 @@ export class AiChatService {
     const ctrl = this.beginTurn(conversation.id);
     try {
       // Moving on while proposals wait = the user did not accept them.
-      if (conversation.status === "AWAITING_APPROVAL") await this.rejectPending(actor, conversation.id);
+      if (conversation.status === "AWAITING_APPROVAL") await this.skipPending(actor, conversation.id);
 
       await this.compactIfNeeded(actor, conversation.id, config.provider, emit, ctrl.signal);
       const history = await this.history(conversation.id);
@@ -368,9 +368,10 @@ export class AiChatService {
     }
   }
 
-  private async rejectPending(actor: Actor, conversationId: string): Promise<void> {
+  // The user wrote again instead of deciding: the open cards are left undecided (SKIPPED), not rejected.
+  private async skipPending(actor: Actor, conversationId: string): Promise<void> {
     const pending = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "PROPOSED" }, select: { id: true, itemKey: true, tool: true } });
-    await this.recordOutcomes(actor, pending, pending.map((p) => ({ id: p.itemKey, status: "rejected" as const })));
+    await this.recordOutcomes(actor, pending, pending.map((p) => ({ id: p.itemKey, status: "skipped" as const, reason: "DEPENDS_ON_UNEXECUTED" as const })));
     await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: "IDLE" } });
   }
 
