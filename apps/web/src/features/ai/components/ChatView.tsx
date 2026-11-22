@@ -20,9 +20,10 @@ function suggestionKeys(pathname: string, mode: AssistantMode): string[] {
   if (pathname.startsWith("/hr")) return interactive ? ["ai.suggest.newEmployee", "ai.suggest.findEmployee"] : ["ai.suggest.findEmployee", "ai.suggest.overview"];
   if (pathname.startsWith("/parties")) return interactive ? ["ai.suggest.newCustomer", "ai.suggest.newSupplier"] : ["ai.suggest.findCustomer", "ai.suggest.overview"];
   if (pathname.startsWith("/inventory")) return interactive ? ["ai.suggest.newItem", "ai.suggest.findItem"] : ["ai.suggest.findItem", "ai.suggest.lowStock"];
-  if (pathname.startsWith("/sales")) return ["ai.suggest.salesMonth", "ai.suggest.lastInvoices"];
-  if (pathname.startsWith("/accounting")) return interactive ? ["ai.suggest.newAccount", "ai.suggest.trend"] : ["ai.suggest.trend", "ai.suggest.findAccount"];
-  return interactive ? ["ai.suggest.newCustomer", "ai.suggest.newEmployee", "ai.suggest.overview"] : ["ai.suggest.overview", "ai.suggest.trend", "ai.suggest.salesMonth"];
+  if (pathname.startsWith("/sales")) return ["ai.suggest.salesMonth", "ai.suggest.whoOwes", "ai.suggest.lastInvoices"];
+  if (pathname.startsWith("/purchasing")) return ["ai.suggest.pendingPo", "ai.suggest.overview"];
+  if (pathname.startsWith("/accounting")) return interactive ? ["ai.suggest.newAccount", "ai.suggest.profit"] : ["ai.suggest.profit", "ai.suggest.trend", "ai.suggest.whoOwes"];
+  return interactive ? ["ai.suggest.newCustomer", "ai.suggest.newEmployee", "ai.suggest.overview"] : ["ai.suggest.overview", "ai.suggest.profit", "ai.suggest.lowStock"];
 }
 
 // What the assistant is doing right now, as a single shimmering line ("Searching customers…").

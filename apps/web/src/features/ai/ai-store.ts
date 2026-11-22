@@ -39,6 +39,10 @@ interface AiState {
   setIncludePage: (include: boolean) => void;
   sent: string[];
   remember: (text: string) => void;
+
+  // Full page: the conversation list column, open or collapsed (remembered on this device).
+  historyOpen: boolean;
+  toggleHistory: () => void;
 }
 
 let flashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -80,9 +84,11 @@ export const useAiStore = create<AiState>()(
       includePage: true,
       setIncludePage: (includePage) => set({ includePage }),
       sent: [],
+      historyOpen: true,
+      toggleHistory: () => set({ historyOpen: !get().historyOpen }),
       remember: (text) => set({ sent: [...get().sent.filter((x) => x !== text), text].slice(-20) }),
     }),
     // Only the mode is remembered: messages and drafts stay in memory, so no business text is left in browser storage.
-    { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode }) },
+    { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode, historyOpen: s.historyOpen }) },
   ),
 );

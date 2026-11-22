@@ -2,7 +2,15 @@ import { ScriptedChatModel, type ScriptedReply } from "@erp/ai";
 import {
   AccountMappingService,
   AgingService,
+  ApprovalService,
+  BalanceSheetService,
+  CashFlowService,
   ChartOfAccountsService,
+  GeneralLedgerService,
+  IncomeStatementService,
+  PartyStatementService,
+  PurchaseOrderService,
+  StockLevelService,
   DashboardService,
   EmployeeService,
   ItemService,
@@ -15,6 +23,7 @@ import { newId } from "@erp/shared";
 import { AiChatError, AiChatService, type ChatEvent } from "./ai-chat.service.js";
 import { AiSettingsService } from "./ai-settings.service.js";
 import { buildErpTools } from "./tools/erp-tools.js";
+import { buildReportTools } from "./tools/report-tools.js";
 
 // The whole assistant path against real PostgreSQL, with a scripted model instead of a provider:
 // permissions, proposals, approval, execution through the core services, the freeze trigger,
@@ -120,5 +129,28 @@ import { buildErpTools } from "./tools/erp-tools.js";
     const events = await run((emit) => chat.send(owner, { text: "create customer Blocked", mode: "review", locale: "en" }, emit));
     expect(events.some((e) => e.type === "proposed")).toBe(false);
     expect(lastModel?.boundToolNames).not.toContain("parties_createCustomer");
+  });
+
+  it("every report tool runs against the real schema for an empty company", async () => {
+    const aging = new AgingService(db, new AccountMappingService(db, audit));
+    const reports = buildReportTools({
+      prisma: db,
+      stock: new StockLevelService(db),
+      incomeStatement: new IncomeStatementService(db),
+      balanceSheet: new BalanceSheetService(db),
+      cashFlow: new CashFlowService(db),
+      aging,
+      partyStatements: new PartyStatementService(db),
+      ledger: new GeneralLedgerService(db),
+      purchaseOrders: new PurchaseOrderService(db, new ApprovalService(), audit),
+    });
+    const ctx = { actor: { userId: owner.id, companyId }, locale: "ar" as const, conversationId: "t", correlationId: "ai:t", can: () => Promise.resolve(true) };
+    const args: Record<string, unknown> = { parties_statement: { party: "QA Supplier Co", side: "SUPPLIER" }, accounts_statement: { code: "NOPE" } };
+    for (const tool of reports) {
+      if (tool.kind !== "read") continue;
+      const input = tool.input.parse(args[tool.name] ?? {});
+      const result = await tool.run(ctx, input);
+      expect(result.data).toBeDefined();
+    }
   });
 });

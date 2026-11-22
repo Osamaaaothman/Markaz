@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { formatCalendarDate } from "../../../shared/lib/format-date";
 import { formatMoney, groupThousands } from "../../../shared/lib/money";
 import { useCountUp } from "../../../shared/lib/use-count-up";
+import { exportReport } from "../../accounting/export-report";
 import { MonthlyChart } from "../../dashboard/MonthlyChart";
 import type { DisplayBlock } from "../ai-api";
 
@@ -102,6 +103,37 @@ export function AnswerBlocks({ blocks, currency, onChoose, disabled }: { blocks:
               <section key={i} className="ai-block">
                 <h4 className="ai-block__title">{t(b.titleKey)}</h4>
                 <div className="ai-links">{b.items.map((l) => <Link key={l.path + l.label} className="ai-suggestion" to={l.path}>{l.label}</Link>)}</div>
+              </section>
+            );
+          case "file":
+            return (
+              <section key={i} className="ai-block ai-file">
+                <div className="ai-file__icon" aria-hidden="true"><i className="pi pi-file-pdf" /><span>PDF</span></div>
+                <div className="ai-file__body">
+                  <span className="ai-file__kind">{t(b.titleKey)}</span>
+                  <strong className="ai-file__name">{b.label}</strong>
+                  {b.meta?.length ? (
+                    <dl className="ai-file__meta">
+                      {b.meta.map((m) => (
+                        <div key={m.labelKey}>
+                          <dt>{t(m.labelKey)}</dt>
+                          <dd dir={m.format === "money" ? "ltr" : undefined}>{cell(m.value, m.format, b.currency ?? currency, lang)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : null}
+                  <div className="ai-file__actions">
+                    <button type="button" className="ai-btn ai-btn--primary" onClick={() => void exportReport(b.apiPath, { lang }, b.filename, "pdf")}>
+                      <i className="pi pi-download" aria-hidden="true" /> {t("ai.file.download")}
+                    </button>
+                    <button type="button" className="ai-btn ai-btn--ghost" onClick={() => void exportReport(b.apiPath, { lang }, b.filename, "print")}>
+                      <i className="pi pi-print" aria-hidden="true" /> {t("ai.file.print")}
+                    </button>
+                    {b.openPath ? (
+                      <Link className="ai-btn ai-btn--ghost" to={b.openPath}><i className="pi pi-external-link" aria-hidden="true" /> {t("ai.file.open")}</Link>
+                    ) : null}
+                  </div>
+                </div>
               </section>
             );
           case "clarify":

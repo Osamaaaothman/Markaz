@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAiStore } from "./ai-store";
 import { useOrbState } from "./orb-state";
-import { AssistantOrb } from "./components/AssistantOrb";
 import { ChatView } from "./components/ChatView";
 import { ConversationList } from "./components/ConversationList";
 import "./ai.css";
@@ -12,6 +11,8 @@ export function AssistantPage(): React.JSX.Element {
   const { t } = useTranslation();
   const closePanel = useAiStore((s) => s.closePanel);
   const orb = useOrbState();
+  const historyOpen = useAiStore((s) => s.historyOpen);
+  const toggleHistory = useAiStore((s) => s.toggleHistory);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { closePanel(); }, [closePanel]);
 
@@ -41,18 +42,21 @@ export function AssistantPage(): React.JSX.Element {
   }, []);
 
   return (
-    <div ref={ref} className={`ai-page ai-surface ai-surface--${orb}`}>
-      <aside className="ai-page__side">
-        <div className="ai-page__brand">
-          <AssistantOrb size={38} state={orb} />
-          <div>
-            <h1>{t("ai.panel.title")}</h1>
-            <p>{t("ai.panel.subtitle")}</p>
-          </div>
-        </div>
+    <div ref={ref} className={`ai-page ai-surface ai-surface--${orb}${historyOpen ? "" : " is-collapsed"}`}>
+      <aside className="ai-page__side" aria-hidden={!historyOpen}>
         <ConversationList />
       </aside>
       <section className="ai-page__main">
+        <button
+          type="button"
+          className="ai-page__toggle"
+          onClick={toggleHistory}
+          aria-expanded={historyOpen}
+          aria-label={historyOpen ? t("ai.history.hide") : t("ai.history.show")}
+          title={historyOpen ? t("ai.history.hide") : t("ai.history.show")}
+        >
+          <i className={historyOpen ? "pi pi-angle-double-left" : "pi pi-history"} aria-hidden="true" />
+        </button>
         <ChatView variant="page" />
       </section>
     </div>

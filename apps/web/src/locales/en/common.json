@@ -3451,7 +3451,16 @@
       "hr_createEmployee": "Preparing a new employee",
       "inventory_createItem": "Preparing a new item",
       "accounting_createAccount": "Preparing a new account",
-      "clarify": "Asking you to choose"
+      "clarify": "Asking you to choose",
+      "inventory_stockLevels": "Reading stock levels",
+      "reports_incomeStatement": "Reading the income statement",
+      "reports_balanceSheet": "Reading the balance sheet",
+      "reports_cashFlow": "Reading the cash flow",
+      "reports_aging": "Reading the ageing report",
+      "parties_statement": "Reading the party statement",
+      "accounts_statement": "Reading the account statement",
+      "purchaseOrders_search": "Searching purchase orders",
+      "salesInvoices_get": "Opening the invoice"
     },
     "blocks": {
       "overview": "Company overview",
@@ -3462,7 +3471,18 @@
       "invoices": "Sales invoices",
       "accounts": "Accounts",
       "empty": "No matches found.",
-      "open": "Open"
+      "open": "Open",
+      "stock": "Stock levels",
+      "lowStock": "Items at or below reorder point",
+      "incomeStatement": "Income statement",
+      "balanceSheet": "Balance sheet",
+      "cashFlow": "Cash flow",
+      "agingCustomers": "Customer ageing",
+      "agingSuppliers": "Supplier ageing",
+      "partyStatement": "Statement of account",
+      "accountStatement": "Account statement — latest entries",
+      "purchaseOrders": "Purchase orders",
+      "invoiceFile": "Sales invoice"
     },
     "kpi": {
       "salesThisMonth": "Net sales this month",
@@ -3474,7 +3494,23 @@
       "belowReorder": "Items below reorder point",
       "pendingApprovals": "Purchases awaiting approval",
       "revenue": "Revenue",
-      "expense": "Expenses"
+      "expense": "Expenses",
+      "netIncome": "Net income",
+      "assets": "Assets",
+      "liabilities": "Liabilities",
+      "equity": "Equity",
+      "currentYearEarnings": "Current-year earnings",
+      "beginningCash": "Opening cash",
+      "operating": "Operating",
+      "investing": "Investing",
+      "financing": "Financing",
+      "endingCash": "Closing cash",
+      "openingBalance": "Opening balance",
+      "charges": "Invoices",
+      "settlements": "Payments",
+      "closingBalance": "Closing balance",
+      "net": "Net",
+      "vat": "VAT"
     },
     "col": {
       "ref": "Reference",
@@ -3497,7 +3533,23 @@
       "nationalId": "National ID / Iqama",
       "nationality": "Nationality",
       "iban": "IBAN",
-      "parent": "Parent account"
+      "parent": "Parent account",
+      "item": "Item",
+      "warehouse": "Warehouse",
+      "quantity": "Quantity",
+      "value": "Value",
+      "party": "Party",
+      "current": "Current",
+      "days1to30": "1–30",
+      "days31to60": "31–60",
+      "days61to90": "61–90",
+      "over90": "90+",
+      "description": "Description",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "supplier": "Supplier",
+      "status": "Status"
     },
     "arg": {
       "name": "Name",
@@ -3597,7 +3649,9 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "delete": "Delete",
-      "confirmDelete": "Delete this conversation? Records it created are not affected."
+      "confirmDelete": "Delete this conversation? Records it created are not affected.",
+      "hide": "Hide conversations",
+      "show": "Show conversations"
     },
     "suggest": {
       "newEmployee": "Create a new employee",
@@ -3613,7 +3667,10 @@
       "newAccount": "Add an account to the chart",
       "trend": "How did the last 6 months go?",
       "findAccount": "Find an account",
-      "overview": "How is the company doing today?"
+      "overview": "How is the company doing today?",
+      "profit": "What is our profit this month?",
+      "whoOwes": "Which customers owe us the most?",
+      "pendingPo": "Which purchase orders await approval?"
     },
     "palette": {
       "ask": "Ask the assistant: “{{q}}”"
@@ -3753,6 +3810,11 @@
       "copied": "Copied",
       "retry": "Ask again",
       "latest": "Jump to latest"
+    },
+    "file": {
+      "download": "Download PDF",
+      "print": "Print",
+      "open": "Open in Markaz"
     }
   }
 }

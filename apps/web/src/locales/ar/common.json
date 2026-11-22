@@ -3451,7 +3451,16 @@
       "hr_createEmployee": "تجهيز موظف جديد",
       "inventory_createItem": "تجهيز صنف جديد",
       "accounting_createAccount": "تجهيز حساب جديد",
-      "clarify": "طلب توضيح منك"
+      "clarify": "طلب توضيح منك",
+      "inventory_stockLevels": "قراءة أرصدة المخزون",
+      "reports_incomeStatement": "قراءة قائمة الدخل",
+      "reports_balanceSheet": "قراءة الميزانية العمومية",
+      "reports_cashFlow": "قراءة التدفق النقدي",
+      "reports_aging": "قراءة أعمار الديون",
+      "parties_statement": "قراءة كشف حساب العميل / المورد",
+      "accounts_statement": "قراءة كشف الحساب",
+      "purchaseOrders_search": "البحث في أوامر الشراء",
+      "salesInvoices_get": "فتح الفاتورة"
     },
     "blocks": {
       "overview": "ملخص الشركة",
@@ -3462,7 +3471,18 @@
       "invoices": "فواتير المبيعات",
       "accounts": "الحسابات",
       "empty": "لا توجد نتائج.",
-      "open": "فتح"
+      "open": "فتح",
+      "stock": "أرصدة المخزون",
+      "lowStock": "أصناف عند حد الطلب أو أقل",
+      "incomeStatement": "قائمة الدخل",
+      "balanceSheet": "الميزانية العمومية",
+      "cashFlow": "التدفق النقدي",
+      "agingCustomers": "أعمار ديون العملاء",
+      "agingSuppliers": "أعمار ديون الموردين",
+      "partyStatement": "كشف الحساب",
+      "accountStatement": "كشف الحساب — آخر القيود",
+      "purchaseOrders": "أوامر الشراء",
+      "invoiceFile": "فاتورة مبيعات"
     },
     "kpi": {
       "salesThisMonth": "صافي مبيعات الشهر",
@@ -3474,7 +3494,23 @@
       "belowReorder": "أصناف تحت حد الطلب",
       "pendingApprovals": "مشتريات بانتظار الاعتماد",
       "revenue": "الإيرادات",
-      "expense": "المصروفات"
+      "expense": "المصروفات",
+      "netIncome": "صافي الربح",
+      "assets": "الأصول",
+      "liabilities": "الالتزامات",
+      "equity": "حقوق الملكية",
+      "currentYearEarnings": "أرباح السنة الحالية",
+      "beginningCash": "النقد أول المدة",
+      "operating": "التشغيلية",
+      "investing": "الاستثمارية",
+      "financing": "التمويلية",
+      "endingCash": "النقد آخر المدة",
+      "openingBalance": "الرصيد الافتتاحي",
+      "charges": "الفواتير",
+      "settlements": "المدفوعات",
+      "closingBalance": "الرصيد الختامي",
+      "net": "الصافي",
+      "vat": "الضريبة"
     },
     "col": {
       "ref": "المرجع",
@@ -3497,7 +3533,23 @@
       "nationalId": "الهوية / الإقامة",
       "nationality": "الجنسية",
       "iban": "الآيبان",
-      "parent": "الحساب الرئيسي"
+      "parent": "الحساب الرئيسي",
+      "item": "الصنف",
+      "warehouse": "المستودع",
+      "quantity": "الكمية",
+      "value": "القيمة",
+      "party": "الطرف",
+      "current": "غير مستحق",
+      "days1to30": "1–30",
+      "days31to60": "31–60",
+      "days61to90": "61–90",
+      "over90": "+90",
+      "description": "البيان",
+      "debit": "مدين",
+      "credit": "دائن",
+      "balance": "الرصيد",
+      "supplier": "المورد",
+      "status": "الحالة"
     },
     "arg": {
       "name": "الاسم",
@@ -3597,7 +3649,9 @@
       "pin": "تثبيت",
       "unpin": "إلغاء التثبيت",
       "delete": "حذف",
-      "confirmDelete": "حذف هذه المحادثة؟ السجلات التي أنشأتها لن تتأثر."
+      "confirmDelete": "حذف هذه المحادثة؟ السجلات التي أنشأتها لن تتأثر.",
+      "hide": "إخفاء المحادثات",
+      "show": "إظهار المحادثات"
     },
     "suggest": {
       "newEmployee": "أنشئ موظفاً جديداً",
@@ -3613,7 +3667,10 @@
       "newAccount": "أضف حساباً إلى الدليل",
       "trend": "كيف كانت آخر 6 أشهر؟",
       "findAccount": "ابحث عن حساب",
-      "overview": "كيف وضع الشركة اليوم؟"
+      "overview": "كيف وضع الشركة اليوم؟",
+      "profit": "كم ربحنا هذا الشهر؟",
+      "whoOwes": "مين العملاء الأكثر ديناً علينا؟",
+      "pendingPo": "ما أوامر الشراء التي تنتظر الاعتماد؟"
     },
     "palette": {
       "ask": "اسأل المساعد: «{{q}}»"
@@ -3753,6 +3810,11 @@
       "copied": "تم النسخ",
       "retry": "اسأل مجدداً",
       "latest": "الانتقال إلى الأحدث"
+    },
+    "file": {
+      "download": "تنزيل PDF",
+      "print": "طباعة",
+      "open": "فتح في مركز"
     }
   }
 }

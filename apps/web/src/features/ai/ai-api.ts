@@ -12,7 +12,8 @@ export type DisplayBlock =
   | { kind: "table"; titleKey: string; columns: Array<{ key: string; labelKey: string; format?: "money" | "number" | "text" | "date" }>; rows: Array<Record<string, string>>; link?: string }
   | { kind: "chart"; titleKey: string; chartType: "bar" | "line"; labels: string[]; series: Array<{ labelKey: string; values: string[] }> }
   | { kind: "links"; titleKey: string; items: Array<{ label: string; path: string; hint?: string }> }
-  | { kind: "clarify"; question: string; options: string[] };
+  | { kind: "clarify"; question: string; options: string[] }
+  | { kind: "file"; titleKey: string; label: string; apiPath: string; filename: string; openPath?: string; meta?: Array<{ labelKey: string; value: string; format?: "money" | "date" | "text" }>; currency?: string };
 
 export interface ChangePreview {
   titleKey: string;

@@ -42,7 +42,10 @@ export type DisplayBlock =
   | { readonly kind: "kpis"; readonly titleKey: string; readonly items: ReadonlyArray<{ readonly labelKey: string; readonly value: string; readonly format: "money" | "number" | "text"; readonly currency?: string }> }
   | { readonly kind: "table"; readonly titleKey: string; readonly columns: ReadonlyArray<{ readonly key: string; readonly labelKey: string; readonly format?: "money" | "number" | "text" | "date" }>; readonly rows: ReadonlyArray<Readonly<Record<string, string>>>; readonly link?: string }
   | { readonly kind: "chart"; readonly titleKey: string; readonly chartType: "bar" | "line"; readonly labels: ReadonlyArray<string>; readonly series: ReadonlyArray<{ readonly labelKey: string; readonly values: ReadonlyArray<string> }> } // decimal strings, never floats
-  | { readonly kind: "links"; readonly titleKey: string; readonly items: ReadonlyArray<{ readonly label: string; readonly path: string; readonly hint?: string }> };
+  | { readonly kind: "links"; readonly titleKey: string; readonly items: ReadonlyArray<{ readonly label: string; readonly path: string; readonly hint?: string }> }
+  // A document the user can open, download or print. `apiPath` is an authenticated API route (never a
+  // public URL); the browser fetches it with the user's own session and permissions.
+  | { readonly kind: "file"; readonly titleKey: string; readonly label: string; readonly apiPath: string; readonly filename: string; readonly openPath?: string; readonly meta?: ReadonlyArray<{ readonly labelKey: string; readonly value: string; readonly format?: "money" | "date" | "text" }>; readonly currency?: string };
 
 export interface ReadResult {
   // Given to the model (wrapped as untrusted data). Keep it small: only fields the answer needs.
