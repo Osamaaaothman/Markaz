@@ -3430,7 +3430,9 @@
       "fileTooLarge": "The file is too large (10 MB at most).",
       "fileType": "Only PDF, PNG, JPEG and WebP files can be attached.",
       "fileHint": "The file is sent to the AI provider to be read.",
-      "fileOnly": "Read the attached file."
+      "fileOnly": "Read the attached file.",
+      "dictateCancel": "Cancel dictation",
+      "dictateDone": "Done"
     },
     "timeline": {
       "working": "Working…",

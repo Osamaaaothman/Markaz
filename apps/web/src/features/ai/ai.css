@@ -512,8 +512,8 @@ html[data-theme-mode="dark"] .ai-capsule { box-shadow: inset 0 1px 0 rgba(255, 2
 .ai-capsule.is-focused::after { opacity: 1; animation: ai-ring-turn 6s linear infinite; }
 @keyframes ai-ring-turn { to { --ai-ring: 360deg; } }
 .ai-chat--mode-auto .ai-capsule::after { background: conic-gradient(from var(--ai-ring), var(--mk-warning), var(--mk-brass-400), color-mix(in srgb, var(--mk-warning) 30%, transparent), var(--mk-warning)); }
-.ai-capsule.is-listening { border-color: var(--mk-danger); }
-.ai-capsule.is-listening::after { opacity: 1; background: var(--mk-danger); animation: none; }
+.ai-capsule.is-listening { border-color: color-mix(in srgb, var(--mk-danger) 45%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--mk-danger) 10%, transparent), 0 14px 34px -14px color-mix(in srgb, var(--mk-danger) 45%, transparent); }
+.ai-capsule.is-listening::after { opacity: 0; animation: none; }
 /* While the assistant works, a short brass segment runs back and forth along the top edge. */
 .ai-capsule.is-busy::before {
   content: "";
@@ -559,9 +559,22 @@ html[data-theme-mode="dark"] .ai-capsule { box-shadow: inset 0 1px 0 rgba(255, 2
 .ai-capsule__live { display: inline-flex; align-items: center; gap: 0.45rem; min-width: 0; max-width: 45%; font-size: 0.74rem; font-weight: 700; color: var(--mk-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: ai-fade-up 0.25s ease both; }
 .ai-meter { --p: 0; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: conic-gradient(var(--mk-warning) calc(var(--p) * 360deg), var(--mk-surface-2) 0); }
 .ai-meter.is-full { background: conic-gradient(var(--mk-danger) calc(var(--p) * 360deg), var(--mk-surface-2) 0); }
-.ai-wave { display: grid; grid-template-columns: repeat(24, 1fr); align-items: center; gap: 3px; height: 1.6rem; }
-.ai-wave i { height: 100%; max-width: 4px; border-radius: 2px; background: var(--mk-danger); animation: ai-wave 0.8s ease-in-out infinite alternate; }
-@keyframes ai-wave { from { transform: scaleY(0.15); opacity: 0.5; } to { transform: scaleY(1); opacity: 1; } }
+/* Dictation: one calm strip inside the box. */
+.ai-rec { display: flex; align-items: center; gap: 0.55rem; min-width: 0; padding: 0.3rem 0.35rem; border-radius: 14px; background: color-mix(in srgb, var(--mk-danger) 7%, transparent); animation: ai-fade-up 0.25s ease both; }
+.ai-rec__dot { position: relative; flex: none; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--mk-danger); }
+.ai-rec__dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--mk-danger); opacity: 0; animation: ai-rec-pulse 1.4s ease-out infinite; }
+@keyframes ai-rec-pulse { from { transform: scale(0.6); opacity: 0.7; } to { transform: scale(1.6); opacity: 0; } }
+.ai-rec__label { flex: none; font-size: 0.8rem; font-weight: 700; color: var(--mk-danger); }
+.ai-rec__bars { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 2px; height: 1.6rem; overflow: hidden; }
+.ai-rec__bars i { flex: 1; max-width: 3px; height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--mk-danger) 70%, var(--mk-text-muted)); transform-origin: center; transition: transform 0.09s linear; }
+[dir="rtl"] .ai-rec__bars { flex-direction: row-reverse; }
+.ai-rec__time { flex: none; font-size: 0.78rem; font-weight: 700; color: var(--mk-text-muted); font-variant-numeric: tabular-nums; }
+.ai-rec__btn { display: inline-grid; place-items: center; flex: none; width: 1.9rem; height: 1.9rem; border: 0; border-radius: 50%; background: var(--mk-surface); color: var(--mk-text-muted); cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); transition: transform 0.15s, background 0.15s, color 0.15s; }
+.ai-rec__btn:hover { color: var(--mk-text); transform: scale(1.06); }
+.ai-rec__btn--done { background: var(--mk-danger); color: #fff; }
+.ai-rec__btn--done:hover { color: #fff; }
+.ai-rec__btn .pi { font-size: 0.78rem; }
+@media (max-width: 640px) { .ai-rec__label { display: none; } }
 .ai-round { display: inline-grid; place-items: center; flex: none; width: 2.2rem; height: 2.2rem; border: 0; border-radius: 50%; font: inherit; cursor: pointer; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, color 0.2s, opacity 0.2s; }
 .ai-round:active:not(:disabled) { transform: scale(0.9); }
 .ai-round--ghost { background: transparent; color: var(--mk-text-muted); }
@@ -826,7 +839,7 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
 @keyframes ai-stamp { from { opacity: 0; transform: scale(1.5); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-loader i, .ai-wave i, .ai-live__text, .ai-live, .ai-capsule.is-busy::before, .ai-capsule.is-focused::after, .ai-capsule, .ai-composer::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
+  .ai-loader i, .ai-rec__dot::after, .ai-rec__bars i, .ai-live__text, .ai-live, .ai-capsule.is-busy::before, .ai-capsule.is-focused::after, .ai-capsule, .ai-composer::before, .ai-msg, .ai-bubble, .ai-block, .ai-kpi, .ai-ticket, .ai-dock,
   .ai-stamp, .ai-card, .ai-choice, .ai-step, .ai-suggestion, .ai-table tbody tr, .ai-fields__row, .ai-history li, .ai-dot, .ai-welcome__stage {
     animation: none !important;
     transition: none !important;

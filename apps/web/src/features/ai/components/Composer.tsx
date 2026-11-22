@@ -18,6 +18,7 @@ interface Recognition {
   onerror: (() => void) | null;
   start(): void;
   stop(): void;
+  abort(): void;
 }
 type RecognitionCtor = new () => Recognition;
 
@@ -102,6 +103,13 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
   };
   const recRef = useRef<Recognition | null>(null);
   const meterRef = useRef<AudioMeter | null>(null);
+  // The text as it was before dictation started, so "cancel" can put it back.
+  const beforeRef = useRef("");
+  const cancelDictation = (): void => {
+    const rec = recRef.current;
+    if (rec) { rec.onresult = null; rec.abort(); }
+    setText(beforeRef.current);
+  };
   const canDictate = recognitionCtor() !== null;
 
   useEffect(() => {
@@ -160,6 +168,7 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
     rec.interimResults = true;
     rec.continuous = false;
     const before = text ? `${text} ` : "";
+    beforeRef.current = text;
     rec.onresult = (e) => {
       let heard = "";
       for (let i = 0; i < e.results.length; i++) heard += e.results[i]?.[0]?.transcript ?? "";
@@ -260,9 +269,7 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
           </div>
         ) : null}
 
-        {listening ? (
-          <div className="ai-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, i) => <i key={i} style={{ animationDelay: `${(i % 6) * -0.12 - Math.floor(i / 6) * 0.05}s` }} />)}</div>
-        ) : null}
+        {listening ? <DictationBar onCancel={cancelDictation} onDone={() => recRef.current?.stop()} /> : null}
 
         <textarea
           ref={ref}
@@ -343,6 +350,41 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Shown inside the box while dictating: a pulsing dot, the elapsed time, bars that follow the
+// real microphone level, and cancel / done.
+const BARS = 28;
+function DictationBar({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  const [levels, setLevels] = useState<number[]>(() => Array.from({ length: BARS }, () => 0));
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const id = setInterval(() => {
+      const level = useAiStore.getState().audioLevel;
+      setLevels((l) => [...l.slice(1), level]);
+      setSeconds(Math.floor((Date.now() - started) / 1000));
+    }, 90);
+    return () => clearInterval(id);
+  }, []);
+  const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return (
+    <div className="ai-rec" role="status" aria-live="polite">
+      <button type="button" className="ai-rec__btn" onClick={(e) => { e.stopPropagation(); onCancel(); }} aria-label={t("ai.composer.dictateCancel")} title={t("ai.composer.dictateCancel")}>
+        <i className="pi pi-times" aria-hidden="true" />
+      </button>
+      <span className="ai-rec__dot" aria-hidden="true" />
+      <span className="ai-rec__label">{t("ai.composer.listening")}</span>
+      <span className="ai-rec__bars" aria-hidden="true">
+        {levels.map((l, i) => <i key={i} style={{ transform: `scaleY(${Math.max(0.12, Math.min(1, l * 1.6))})` }} />)}
+      </span>
+      <span className="ai-rec__time" dir="ltr">{time}</span>
+      <button type="button" className="ai-rec__btn ai-rec__btn--done" onClick={(e) => { e.stopPropagation(); onDone(); }} aria-label={t("ai.composer.dictateDone")} title={t("ai.composer.dictateDone")}>
+        <i className="pi pi-check" aria-hidden="true" />
+      </button>
     </div>
   );
 }

@@ -3430,7 +3430,9 @@
       "fileTooLarge": "الملف كبير جدًا (10 ميجابايت كحد أقصى).",
       "fileType": "يمكن إرفاق ملفات PDF وPNG وJPEG وWebP فقط.",
       "fileHint": "يُرسل الملف إلى مزوّد الذكاء الاصطناعي لقراءته.",
-      "fileOnly": "اقرأ الملف المرفق."
+      "fileOnly": "اقرأ الملف المرفق.",
+      "dictateCancel": "إلغاء الإملاء",
+      "dictateDone": "تم"
     },
     "timeline": {
       "working": "يعمل…",
