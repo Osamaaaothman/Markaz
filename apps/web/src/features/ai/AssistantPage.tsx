@@ -15,17 +15,29 @@ export function AssistantPage(): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { closePanel(); }, [closePanel]);
 
-  // The assistant fills everything under the top bar, edge to edge: its height is the viewport minus
-  // wherever the page starts (the top bar's height differs between design directions and screen sizes).
+  // The assistant fills everything under the top bar, edge to edge, and the document itself never
+  // scrolls while it is open: only the conversation list and the chat scroll, each inside its own column.
   useLayoutEffect(() => {
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     const fit = (): void => {
       const el = ref.current;
       if (!el) return;
-      el.style.height = `${Math.max(window.innerHeight - el.getBoundingClientRect().top - window.scrollY, 420)}px`;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      el.style.height = `${Math.max(window.innerHeight - top, 420)}px`;
     };
     fit();
+    const observer = new ResizeObserver(fit);
+    const topbar = document.querySelector(".erp-topbar");
+    if (topbar) observer.observe(topbar);
     window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    return () => {
+      root.style.overflow = previous;
+      observer.disconnect();
+      window.removeEventListener("resize", fit);
+    };
   }, []);
 
   return (

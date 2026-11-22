@@ -196,13 +196,19 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
   );
   useEffect(() => { if (!allowed[mode]) setMode("ask"); }, [allowed, mode, setMode]);
 
-  // Follow the newest content while it streams, unless the user scrolled up to read.
+  // Follow the newest content while it streams, unless the user scrolled up to read. Instant, not smooth:
+  // a smooth scroll per streamed token queues up and fights the user's own scrolling.
+  const stickRef = useRef(true);
+  const lastCount = useRef(messages.length);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (messages.length === 0) { el.scrollTo({ top: 0 }); return; }
-    if (atBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages, atBottom]);
+    if (messages.length === 0) { el.scrollTop = 0; stickRef.current = true; setAtBottom(true); return; }
+    // A new message (the user sent something, or a conversation was opened) always jumps to the end.
+    if (messages.length !== lastCount.current) stickRef.current = true;
+    lastCount.current = messages.length;
+    if (stickRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   if (me.data && !me.data.configured) {
     return (
@@ -233,7 +239,9 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
         ref={scrollRef}
         onScroll={(e) => {
           const el = e.currentTarget;
-          setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+          const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+          stickRef.current = bottom;
+          setAtBottom(bottom);
         }}
       >
         {messages.length === 0 ? (
@@ -248,7 +256,7 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
       </div>
 
       {!atBottom && messages.length > 0 ? (
-        <button type="button" className="ai-jump" onClick={() => { const el = scrollRef.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }); }} aria-label={t("ai.actions.latest")}>
+        <button type="button" className="ai-jump" onClick={() => { const el = scrollRef.current; if (el) { stickRef.current = true; el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }); } }} aria-label={t("ai.actions.latest")}>
           <i className="pi pi-arrow-down" aria-hidden="true" />
         </button>
       ) : null}

@@ -23,15 +23,15 @@ export function ConversationList({ onPicked }: { onPicked?: () => void }): React
         {list.data?.map((c) => (
           <li key={c.id} className={c.id === activeId ? "is-active" : undefined}>
             <button type="button" className="ai-history__item" onClick={() => { void chat.openConversation(c.id); onPicked?.(); }}>
-              <span className="ai-history__title">
+              <span className="ai-history__title" title={c.title}>
                 {c.pinned ? <i className="pi pi-thumbtack" aria-hidden="true" /> : null}
                 {c.status === "AWAITING_APPROVAL" ? <span className="ai-dot" title={t("ai.history.waiting")} /> : null}
-                {c.title}
+                <span>{c.title}</span>
               </span>
               <span className="ai-history__meta">{t(`ai.mode.${c.mode}`)} · {formatDateTime(c.updatedAt, i18n.language)}</span>
             </button>
             <span className="ai-history__actions">
-              <button type="button" className="ai-icon-btn" onClick={() => update.mutate({ id: c.id, pinned: !c.pinned })} aria-label={c.pinned ? t("ai.history.unpin") : t("ai.history.pin")} title={c.pinned ? t("ai.history.unpin") : t("ai.history.pin")}>
+              <button type="button" className={`ai-icon-btn${c.pinned ? " is-pinned" : ""}`} onClick={() => update.mutate({ id: c.id, pinned: !c.pinned })} aria-label={c.pinned ? t("ai.history.unpin") : t("ai.history.pin")} title={c.pinned ? t("ai.history.unpin") : t("ai.history.pin")}>
                 <i className="pi pi-thumbtack" aria-hidden="true" />
               </button>
               <button
