@@ -49,6 +49,9 @@ export interface RunOptions {
   readonly signal?: AbortSignal;
   // Tried in order when the model above is busy (503/429/timeout) before it has written anything.
   readonly fallbackModels?: readonly BaseChatModel[];
+  // A model that sends nothing for this long is treated as busy (default 25s), so a stalled
+  // provider never leaves the user watching "thinking" for a minute.
+  readonly stallMs?: number;
 }
 
 export interface RunResult {
@@ -92,6 +95,7 @@ function lastAi(messages: readonly BaseMessage[]): AIMessage | undefined {
 
 export async function runAssistant(opts: RunOptions): Promise<RunResult> {
   const maxSteps = opts.maxSteps ?? 8;
+  const stallMs = opts.stallMs ?? 25_000;
   const byName = new Map(opts.tools.map((t) => [t.name, t]));
   const llmTools = [
     ...opts.tools.map((t) => ({ name: t.name, description: t.description, schema: t.input })),
@@ -112,20 +116,35 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     let full: AIMessageChunk | undefined;
     for (;;) {
       let wrote = false;
+      const attempt = new AbortController();
+      const cancel = (): void => attempt.abort();
+      opts.signal?.addEventListener("abort", cancel, { once: true });
+      let stalled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const arm = (): void => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { stalled = true; attempt.abort(); }, stallMs);
+      };
       try {
-        const stream = await boundChain[current]!.stream([new SystemMessage(opts.system), ...state.messages], opts.signal ? { signal: opts.signal } : {});
+        arm();
+        const stream = await boundChain[current]!.stream([new SystemMessage(opts.system), ...state.messages], { signal: attempt.signal });
         for await (const chunk of stream) {
+          arm();
           const text = textOf(chunk.content);
           if (text) { wrote = true; opts.emit({ type: "token", text }); }
           full = full ? concat(full, chunk) : chunk;
         }
         break;
-      } catch (error) {
+      } catch (caught) {
+        const error = stalled && !opts.signal?.aborted ? Object.assign(new Error("The model is unavailable: it stopped responding (timed out)"), { status: 504 }) : caught;
         // Switch only if nothing reached the user yet, so an answer is never stitched from two models.
         if (wrote || opts.signal?.aborted || current >= boundChain.length - 1 || !isProviderBusy(error)) throw error;
         current += 1;
         full = undefined;
         opts.emit({ type: "provider_busy", next: current });
+      } finally {
+        clearTimeout(timer);
+        opts.signal?.removeEventListener("abort", cancel);
       }
     }
     const res = full;

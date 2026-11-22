@@ -185,6 +185,29 @@ describe("runAssistant", () => {
     expect(JSON.stringify(result.newMessages.map((m) => m.content))).toContain("answer from fallback");
   });
 
+  it("moves on when the main model stalls without answering", async () => {
+    class SilentModel extends ScriptedChatModel {
+      override _generate(...args: unknown[]): Promise<never> {
+        const signal = (args[1] as { signal?: AbortSignal } | undefined)?.signal;
+        return new Promise((_, reject) => { signal?.addEventListener("abort", () => reject(new Error("aborted"))); });
+      }
+    }
+    const fallback = new ScriptedChatModel([{ text: "answer after stall" }]);
+    const { result, events } = await run(new SilentModel([]), { fallbackModels: [fallback], stallMs: 50 });
+    expect(events).toContainEqual({ type: "provider_busy", next: 1 });
+    expect(JSON.stringify(result.newMessages.map((m) => m.content))).toContain("answer after stall");
+  });
+
+  it("reports a stalled model as timed out when there is no backup", async () => {
+    class SilentModel extends ScriptedChatModel {
+      override _generate(...args: unknown[]): Promise<never> {
+        const signal = (args[1] as { signal?: AbortSignal } | undefined)?.signal;
+        return new Promise((_, reject) => { signal?.addEventListener("abort", () => reject(new Error("aborted"))); });
+      }
+    }
+    await expect(run(new SilentModel([]), { stallMs: 50 })).rejects.toThrow("timed out");
+  });
+
   it("does not hide a real error behind a fallback", async () => {
     class BrokenModel extends ScriptedChatModel {
       override _generate(): Promise<never> { return Promise.reject(Object.assign(new Error("API key not valid"), { status: 400 })); }
