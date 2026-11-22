@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
-import { aiKeys, ChatHttpError, fetchConversation, stopConversation, streamChat, type ChatEvent, type ChatMessage } from "./ai-api";
+import { aiKeys, ChatHttpError, fetchConversation, stopConversation, streamChat, type ChatEvent, type ChatMessage, type DisplayBlock } from "./ai-api";
 import { applyEvent } from "./chat-events";
 import { useAiStore } from "./ai-store";
 import { looksLikeWrite } from "./write-intent";
@@ -23,14 +23,14 @@ export function useAssistantChat() {
   const locale = i18n.language === "ar" ? "ar" : "en";
 
   const run = useCallback(
-    async (path: string, body: Record<string, unknown>, userText: string | null) => {
+    async (path: string, body: Record<string, unknown> | FormData, userText: string | null, userBlocks: DisplayBlock[] = []) => {
       const s = store.getState();
       if (s.busy) return;
       const controller = new AbortController();
       abortRef.current = controller;
       const assistant: ChatMessage = { id: localId(), role: "assistant", text: "", blocks: [], timeline: [], errorCode: null, changes: [], streaming: true };
       s.setBusy(true);
-      s.setMessages((m) => [...m, ...(userText !== null ? [{ id: localId(), role: "user" as const, text: userText, blocks: [], timeline: [], errorCode: null, changes: [] }] : []), assistant]);
+      s.setMessages((m) => [...m, ...(userText !== null ? [{ id: localId(), role: "user" as const, text: userText, blocks: userBlocks, timeline: [], errorCode: null, changes: [] }] : []), assistant]);
       const update = (e: ChatEvent): void => {
         // The orb flashes green when something was really saved, red on an error.
         if (e.type === "error") store.getState().flashOnce("error");
@@ -77,12 +77,12 @@ export function useAssistantChat() {
   );
 
   const send = useCallback(
-    (text: string, opts: { force?: boolean } = {}) => {
+    (text: string, opts: { force?: boolean; file?: File } = {}) => {
       const s = store.getState();
       const trimmed = text.trim();
       if (!trimmed || s.busy) return;
       // Question mode cannot change data: offer the switch at once instead of a slow refusal.
-      if (s.mode === "ask" && !opts.force && looksLikeWrite(trimmed)) {
+      if (s.mode === "ask" && !opts.force && !opts.file && looksLikeWrite(trimmed)) {
         s.remember(trimmed);
         const base = { blocks: [], timeline: [], errorCode: null, changes: [] };
         s.setMessages((m) => [...m, { ...base, id: localId(), role: "user", text: trimmed }, { ...base, id: localId(), role: "assistant", text: null, blocks: [{ kind: "needsMode", text: trimmed }] }]);
@@ -95,11 +95,15 @@ export function useAssistantChat() {
       }
       s.remember(trimmed);
       const entityId = /\/([0-9a-f]{8}-[0-9a-f-]{27,})$/.exec(location.pathname)?.[1];
-      void run(
-        "/v1/ai/messages",
-        { text: trimmed, mode: s.mode, locale, ...(s.conversationId ? { conversationId: s.conversationId } : {}), ...(s.includePage ? { page: { route: location.pathname, ...(entityId ? { entityId } : {}) } } : {}) },
-        trimmed,
-      );
+      const payload = { text: trimmed, mode: s.mode, locale, ...(s.conversationId ? { conversationId: s.conversationId } : {}), ...(s.includePage ? { page: { route: location.pathname, ...(entityId ? { entityId } : {}) } } : {}) };
+      if (opts.file) {
+        const form = new FormData();
+        form.append("payload", JSON.stringify(payload));
+        form.append("file", opts.file, opts.file.name);
+        void run("/v1/ai/messages/file", form, trimmed, [{ kind: "upload", name: opts.file.name, contentType: opts.file.type, sizeBytes: opts.file.size }]);
+        return;
+      }
+      void run("/v1/ai/messages", payload, trimmed);
     },
     [locale, location.pathname, run, store],
   );

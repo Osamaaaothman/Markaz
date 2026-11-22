@@ -15,6 +15,8 @@ export type DisplayBlock =
   | { kind: "clarify"; question: string; options: string[] }
   // Question mode was asked to change data; `text` is the request to resend after switching.
   | { kind: "needsMode"; text?: string }
+  // A document the user attached to their own message.
+  | { kind: "upload"; name: string; contentType: string; sizeBytes: number }
   | { kind: "file"; titleKey: string; label: string; apiPath: string; filename: string; openPath?: string; meta?: Array<{ labelKey: string; value: string; format?: "money" | "date" | "text" }>; currency?: string };
 
 export interface ChangePreview {
@@ -195,11 +197,13 @@ export class ChatHttpError extends Error {
 // response body by hand. Axios is not used because it buffers the whole response.
 // A 401 refreshes the session once through the axios client (same refresh logic) and retries.
 export async function streamChat(path: string, body: unknown, onEvent: (e: ChatEvent) => void, signal: AbortSignal): Promise<void> {
+  // FormData (a message with a file) sets its own multipart content type.
+  const form = body instanceof FormData;
   const send = (): Promise<Response> =>
     fetch(`/api${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${useAuthStore.getState().accessToken ?? ""}` },
-      body: JSON.stringify(body),
+      headers: { ...(form ? {} : { "content-type": "application/json" }), authorization: `Bearer ${useAuthStore.getState().accessToken ?? ""}` },
+      body: form ? body : JSON.stringify(body),
       signal,
     });
   let res = await send();

@@ -80,5 +80,7 @@ import { AttachmentsModule } from "../attachments/attachments.module.js";
       inject: [PrismaService, PURCHASING_ENGINE, AUDIT_LOGGER],
     },
   ],
+  // The AI assistant enters supplier invoices through the same service.
+  exports: [SupplierInvoiceService],
 })
 export class PurchasingModule {}

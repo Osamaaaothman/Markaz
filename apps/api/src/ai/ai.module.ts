@@ -17,9 +17,13 @@ import {
   EmployeeService,
   ItemService,
   PartyService,
+  AttachmentService,
+  SupplierInvoiceService,
   type IAuditLogger,
   type IPermissionService,
 } from "@erp/core";
+import { AttachmentsModule } from "../attachments/attachments.module.js";
+import { PurchasingModule } from "../purchasing/purchasing.module.js";
 import { AUDIT_LOGGER, PERMISSION_SERVICE } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AiChatService } from "./ai-chat.service.js";
@@ -31,10 +35,12 @@ import { buildErpTools } from "./tools/erp-tools.js";
 import { buildReportTools } from "./tools/report-tools.js";
 import { buildDocumentTools } from "./tools/document-tools.js";
 import { buildSalesTools } from "./tools/sales-tools.js";
+import { buildPurchasingTools } from "./tools/purchasing-tools.js";
 
 // AI assistant (docs/Planning/ai-assistant-plan.md). The tools use the same core services the web
 // endpoints use, built here the same way their own modules build them.
 @Module({
+  imports: [AttachmentsModule, PurchasingModule],
   controllers: [AiController, AiMcpController],
   providers: [
     {
@@ -44,7 +50,7 @@ import { buildSalesTools } from "./tools/sales-tools.js";
     },
     {
       provide: AI_TOOLS,
-      useFactory: (prisma: PrismaService, audit: IAuditLogger) => {
+      useFactory: (prisma: PrismaService, audit: IAuditLogger, invoices: SupplierInvoiceService, attachments: AttachmentService) => {
         const aging = new AgingService(prisma, new AccountMappingService(prisma, audit));
         return [
           ...buildErpTools({
@@ -69,15 +75,16 @@ import { buildSalesTools } from "./tools/sales-tools.js";
           }),
           ...buildSalesTools({ prisma, quotations: new QuotationService(prisma, audit) }),
           ...buildDocumentTools({ prisma, trialBalance: new TrialBalanceService(prisma) }),
+          ...buildPurchasingTools({ prisma, invoices, attachments }),
         ];
       },
-      inject: [PrismaService, AUDIT_LOGGER],
+      inject: [PrismaService, AUDIT_LOGGER, SupplierInvoiceService, AttachmentService],
     },
     {
       provide: AiChatService,
-      useFactory: (prisma: PrismaService, permissions: IPermissionService, audit: IAuditLogger, settings: AiSettingsService, tools: ReturnType<typeof buildErpTools>) =>
-        new AiChatService(prisma, permissions, audit, settings, tools),
-      inject: [PrismaService, PERMISSION_SERVICE, AUDIT_LOGGER, AiSettingsService, AI_TOOLS],
+      useFactory: (prisma: PrismaService, permissions: IPermissionService, audit: IAuditLogger, settings: AiSettingsService, tools: ReturnType<typeof buildErpTools>, attachments: AttachmentService) =>
+        new AiChatService(prisma, permissions, audit, settings, tools, undefined, undefined, attachments),
+      inject: [PrismaService, PERMISSION_SERVICE, AUDIT_LOGGER, AiSettingsService, AI_TOOLS, AttachmentService],
     },
   ],
 })

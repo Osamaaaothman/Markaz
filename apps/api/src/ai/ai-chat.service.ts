@@ -25,14 +25,15 @@ import {
   type RunResult,
   type ToolContext,
 } from "@erp/ai";
-import type { IAuditLogger, IPermissionService } from "@erp/core";
+import type { AttachmentService, IAuditLogger, IPermissionService } from "@erp/core";
 import { Prisma, type PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
+import { humanWithFile, prepareFiles, type ChatFileRef } from "./ai-files.js";
 import { AiSettingsError, providerErrorCode, type AiSettingsService } from "./ai-settings.service.js";
 
 export class AiChatError extends Error {
-  constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF" | "TURN_RUNNING") {
+  constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF" | "TURN_RUNNING" | "FILES_UNAVAILABLE") {
     super(code);
     this.name = "AiChatError";
   }
@@ -63,6 +64,8 @@ export interface SendInput {
   readonly mode: AssistantMode;
   readonly locale: Locale;
   readonly page?: { readonly route: string; readonly entityId?: string | undefined } | undefined;
+  // One attached document (PDF or picture), read by the model and kept for attaching to a record later.
+  readonly file?: { readonly name: string; readonly bytes: Uint8Array } | undefined;
 }
 
 export interface DecideInput {
@@ -100,6 +103,7 @@ export class AiChatService {
     // Swappable so tests can run the whole flow with a scripted model and no network.
     private readonly modelFactory: typeof createChatModel = createChatModel,
     private readonly compaction: CompactionLimits = compactionFromEnv(),
+    private readonly files: Pick<AttachmentService, "stage" | "readStaged"> | null = null,
   ) {}
 
   // Turns in progress, by conversation. A turn belongs to the server, not to the browser tab: a
@@ -172,10 +176,18 @@ export class AiChatService {
 
       await this.compactIfNeeded(actor, conversation.id, config.provider, emit, ctrl.signal);
       const history = await this.history(conversation.id);
-      const human = new HumanMessage(text);
-      await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([human])[0], visible: true, uiText: text }]);
+      let human: BaseMessage = new HumanMessage(text);
+      let uiBlocks: unknown[] | undefined;
+      if (input.file) {
+        if (!this.files) throw new AiChatError("FILES_UNAVAILABLE");
+        const ref: ChatFileRef = { id: `f${newId().slice(0, 8)}`, ...(await this.files.stage(input.file.name, input.file.bytes)) };
+        human = humanWithFile(text, ref);
+        uiBlocks = [{ kind: "upload", name: ref.originalName, contentType: ref.contentType, sizeBytes: ref.sizeBytes }];
+      }
+      await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([human])[0], visible: true, uiText: text, ...(uiBlocks ? { uiBlocks } : {}) }]);
+      const messages = await prepareFiles([...history, human], this.readFile);
 
-      await this.runTurn(actor, conversation.id, conversation.nextItemNumber, input.mode, autoAllowed, input.locale, [...history, human], input.page, config.provider, emit, ctrl.signal);
+      await this.runTurn(actor, conversation.id, conversation.nextItemNumber, input.mode, autoAllowed, input.locale, messages, input.page, config.provider, emit, ctrl.signal);
     } finally {
       this.endTurn(conversation.id, ctrl);
     }
@@ -217,7 +229,7 @@ export class AiChatService {
     // Let the model tell the user, in plain words, what happened.
     const config = await this.settings.resolve(actor.companyId);
     const notice = outcomesMessage(outcomes);
-    const history = await this.history(conversation.id);
+    const history = await prepareFiles(await this.history(conversation.id), this.readFile);
     await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([notice])[0], visible: false }]);
     await this.runTurn(actor, conversation.id, conversation.nextItemNumber, conversation.mode as AssistantMode, false, input.locale, [...history, notice], undefined, config.provider, emit, signal);
   }
@@ -368,7 +380,7 @@ export class AiChatService {
   private async compactIfNeeded(actor: Actor, conversationId: string, provider: Awaited<ReturnType<AiSettingsService["resolve"]>>["provider"], emit: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
     const c = await this.prisma.aiConversation.findUniqueOrThrow({ where: { id: conversationId }, select: { summary: true, summaryThroughSeq: true, compactions: true } });
     const rows = await this.prisma.aiMessage.findMany({ where: { conversationId, role: { not: "notice" }, seq: { gt: c.summaryThroughSeq } }, orderBy: { seq: "asc" }, select: { seq: true, payload: true } });
-    const messages = fromStored(rows.map((r) => r.payload));
+    const messages = await prepareFiles(fromStored(rows.map((r) => r.payload)), null);
     const cut = compactionCut(messages, this.compaction);
     if (cut === null) return;
     try {
@@ -385,12 +397,21 @@ export class AiChatService {
     }
   }
 
-  private async appendRows(conversationId: string, companyId: string, rows: ReadonlyArray<{ role: string; payload: unknown; visible: boolean; uiText?: string }>): Promise<void> {
+  // The bytes of a staged chat file, or null if it can no longer be read (the model is then told so).
+  private readonly readFile = async (f: ChatFileRef): Promise<Uint8Array | null> => {
+    try {
+      return this.files ? await this.files.readStaged(f) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  private async appendRows(conversationId: string, companyId: string, rows: ReadonlyArray<{ role: string; payload: unknown; visible: boolean; uiText?: string; uiBlocks?: unknown[] }>): Promise<void> {
     if (rows.length === 0) return;
     const last = await this.prisma.aiMessage.findFirst({ where: { conversationId }, orderBy: { seq: "desc" }, select: { seq: true } });
     let seq = (last?.seq ?? 0) + 1;
     await this.prisma.aiMessage.createMany({
-      data: rows.map((r) => ({ id: newId(), conversationId, companyId, seq: seq++, role: r.role, payload: r.payload as Prisma.InputJsonValue, visible: r.visible, uiText: r.uiText ?? null })),
+      data: rows.map((r) => ({ id: newId(), conversationId, companyId, seq: seq++, role: r.role, payload: r.payload as Prisma.InputJsonValue, visible: r.visible, uiText: r.uiText ?? null, ...(r.uiBlocks ? { uiBlocks: r.uiBlocks as Prisma.InputJsonValue } : {}) })),
     });
   }
 

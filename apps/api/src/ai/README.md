@@ -8,7 +8,7 @@ Decisions: `docs/01-OPEN-DECISIONS.md` → "AI assistant". Lessons: `docs/Planni
 | Layer | Where | Knows about |
 |---|---|---|
 | Engine | `packages/ai` | LangChain / LangGraph, tool contracts, modes, approvals. No database, no Nest. |
-| Tools | `tools/erp-tools.ts`, `report-tools.ts`, `sales-tools.ts`, `document-tools.ts` | Master data and writes; report services; quotation creation; read-only lists of every document type (journal entries, quotations, orders, delivery notes, supplier invoices, payments, cash expenses, stock movements, warehouses, goods receipts, purchase requests, fixed assets, payroll, salary advances) plus the trial balance. Framework-free. |
+| Tools | `tools/erp-tools.ts`, `report-tools.ts`, `sales-tools.ts`, `document-tools.ts`, `purchasing-tools.ts` | Master data and writes; report services; quotation creation; read-only lists of every document type (journal entries, quotations, orders, delivery notes, supplier invoices, payments, cash expenses, stock movements, warehouses, goods receipts, purchase requests, fixed assets, payroll, salary advances) plus the trial balance; supplier invoices entered from an attached document (high risk: always approved). Framework-free. |
 | Orchestration | `ai-chat.service.ts` | Permissions, history, persistence, usage. Calls the engine. |
 | HTTP | `ai.controller.ts`, `mcp/ai-mcp.controller.ts` | SSE streaming, settings, MCP. |
 
@@ -31,6 +31,7 @@ Decisions: `docs/01-OPEN-DECISIONS.md` → "AI assistant". Lessons: `docs/Planni
 | Method | Path | Permission |
 |---|---|---|
 | POST | `/v1/ai/messages` (SSE) | `ai_assistant:use` (+ `interact` for review/auto) |
+| POST | `/v1/ai/messages/file` (SSE, multipart `payload` + `file`: PDF/PNG/JPEG/WebP ≤ 10 MB) | same as `/v1/ai/messages` |
 | POST | `/v1/ai/conversations/:id/decisions` (SSE) | `ai_assistant:interact` |
 | GET/PATCH/DELETE | `/v1/ai/conversations[/:id]` | `ai_assistant:use` (own conversations only) |
 | GET | `/v1/ai/me` | `ai_assistant:use` |
@@ -61,6 +62,11 @@ summary never blocks the message (the history is then trimmed to the last 40 mes
 until an admin saves one: `AI_PROVIDER`, `AI_MODEL`, `AI_BASE_URL`, `AI_API_KEY` / `GEMINI_API_KEY`.
 
 ## Known Gaps
+
+- **Attached files go to the AI provider.** The model reads the document's bytes, so the file leaves the server. On a free provider tier it may be used for training — tell customers before they enable it.
+- **Staged files are never cleaned up.** A file attached in chat but never turned into an invoice stays in the file store (not listed anywhere). A sweep job is not built yet.
+- **Only the latest file is sent to the model.** Older files in the same conversation become a one-line note, to keep each turn's cost bounded.
+- **Supplier invoices from a document support PO_LINE and EXPENSE lines only.** ASSET lines (fixed assets) still need the invoice form.
 
 - No high-risk tools yet (posting invoices, payments, payroll runs). The approval path supports them;
   each needs its own review before it is offered.

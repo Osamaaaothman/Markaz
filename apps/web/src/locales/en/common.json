@@ -3429,7 +3429,13 @@
       "keyLine": "new line",
       "keyCommands": "commands",
       "keyRecall": "previous message",
-      "keyToggle": "open / close"
+      "keyToggle": "open / close",
+      "attach": "Attach a file (PDF or picture)",
+      "removeFile": "Remove the file",
+      "fileTooLarge": "The file is too large (10 MB at most).",
+      "fileType": "Only PDF, PNG, JPEG and WebP files can be attached.",
+      "fileHint": "The file is sent to the AI provider to be read.",
+      "fileOnly": "Read the attached file."
     },
     "footnote": "Model: {{model}} · AI can make mistakes — check important figures.",
     "timeline": {
@@ -3479,7 +3485,9 @@
       "hr_payrollRuns": "Reading payroll runs",
       "hr_salaryAdvances": "Reading salary advances",
       "switch_to_interactive": "Checking the mode",
-      "provider_busy": "Main model busy — switched to a backup"
+      "provider_busy": "Main model busy — switched to a backup",
+      "purchasing_invoiceableLines": "Checking received, uninvoiced order lines",
+      "purchasing_createSupplierInvoice": "Preparing the supplier invoice"
     },
     "blocks": {
       "overview": "Company overview",
@@ -3607,7 +3615,10 @@
       "employees": "Employees",
       "gross": "Gross",
       "employee": "Employee",
-      "installment": "Installment"
+      "installment": "Installment",
+      "supplierInvoiceNumber": "Supplier's invoice no.",
+      "documentTotal": "Total on the document",
+      "attachment": "Attached file"
     },
     "arg": {
       "name": "Name",
@@ -3635,13 +3646,21 @@
       "createEmployee": "New employee",
       "createItem": "New item",
       "createAccount": "New ledger account",
-      "createQuotation": "New quotation"
+      "createQuotation": "New quotation",
+      "createSupplierInvoice": "Post supplier invoice"
     },
     "warn": {
       "parentNotFound": "No account has this parent code.",
       "parentNotGroup": "The parent is a postable account, not a group.",
       "customerNotFound": "No customer has this id.",
-      "linesInvalid": "A line could not be priced (item, tax code or description). Totals are not shown."
+      "linesInvalid": "A line could not be priced (item, tax code or description). Totals are not shown.",
+      "supplierNotFound": "No supplier has this id.",
+      "duplicateInvoice": "This supplier invoice number was already entered.",
+      "fileNotFound": "The attached file was not found in this conversation.",
+      "priceVariance": "The price differs from the purchase order price.",
+      "priceVarianceAccepted": "The price differs from the order price; the difference will be posted as a price variance.",
+      "qtyExceedsReceived": "A quantity is more than was received and not yet invoiced.",
+      "totalsMismatch": "The totals differ from the totals printed on the document. Check the lines before approving."
     },
     "risk": {
       "high": "Needs care"
@@ -3701,7 +3720,27 @@
       "MODEL_HAS_NO_TOOL_SUPPORT": "This model cannot use tools, so it cannot work with the ERP.",
       "NO_TOOL_SUPPORT": "This model cannot use tools, so it cannot work with the ERP.",
       "INTERNAL": "Something went wrong on the server.",
-      "TURN_RUNNING": "The assistant is still answering this conversation. Wait for it to finish or stop it."
+      "TURN_RUNNING": "The assistant is still answering this conversation. Wait for it to finish or stop it.",
+      "DUPLICATE_INVOICE": "This supplier invoice number was already entered.",
+      "NO_OPEN_PERIOD": "No open fiscal period covers the invoice date.",
+      "PRICE_VARIANCE_NOT_ACCEPTED": "The price differs from the order price and was not accepted.",
+      "QTY_EXCEEDS_RECEIVED": "A quantity is more than was received and not yet invoiced.",
+      "ZERO_INVOICE": "An invoice with nothing to pay cannot be posted.",
+      "EMPTY_INVOICE": "The invoice has no lines.",
+      "SUPPLIER_NOT_FOUND": "The supplier was not found.",
+      "SUPPLIER_MISMATCH": "An order line belongs to another supplier.",
+      "PO_LINE_NOT_FOUND": "The purchase order line was not found.",
+      "PO_LINE_REQUIRED": "An order line must be chosen.",
+      "ACCOUNT_REQUIRED": "Choose the account for the expense line.",
+      "ACCOUNT_NOT_FOUND": "The account was not found.",
+      "ACCOUNT_NOT_POSTABLE": "The account is a group; choose a postable account.",
+      "TAX_CODE_REQUIRED": "Choose the tax code.",
+      "TAX_CODE_NOT_FOUND": "The tax code was not found.",
+      "FILES_UNAVAILABLE": "Files cannot be attached on this server.",
+      "INVALID_PAYLOAD": "The message could not be read. Try again.",
+      "EMPTY_FILE": "The file is empty.",
+      "FILE_TOO_LARGE": "The file is too large (10 MB at most).",
+      "UNSUPPORTED_FILE_TYPE": "Only PDF, PNG, JPEG and WebP files can be attached."
     },
     "history": {
       "title": "Conversations",

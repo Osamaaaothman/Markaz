@@ -100,7 +100,18 @@ function Message({ m, last, currency, busy, onChoose, onSwitchMode, onAskAnyway,
   const { t } = useTranslation();
   const orb = useOrbState();
   if (m.role === "user") {
-    return <div className="ai-msg ai-msg--user"><div className="ai-bubble">{m.text}</div></div>;
+    const uploads = m.blocks.flatMap((b) => (b.kind === "upload" ? [b] : []));
+    return (
+      <div className="ai-msg ai-msg--user">
+        {uploads.map((u, i) => (
+          <div key={i} className="ai-upload">
+            <i className={u.contentType === "application/pdf" ? "pi pi-file-pdf" : "pi pi-image"} aria-hidden="true" />
+            <span dir="auto">{u.name}</span>
+          </div>
+        ))}
+        <div className="ai-bubble">{m.text}</div>
+      </div>
+    );
   }
   if (m.role === "divider") {
     return (

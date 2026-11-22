@@ -12,6 +12,7 @@ import {
   isOwnerType,
   newStorageKey,
   sanitizeFileName,
+  type AttachmentContentType,
   type AttachmentOwnerType,
   type AttachmentVisibility,
 } from "./attachment-rules.js";
@@ -69,6 +70,16 @@ export interface AttachmentListPage {
 export interface AttachmentContent {
   readonly bytes: Uint8Array;
   readonly contentType: string;
+  readonly originalName: string;
+}
+
+// A stored file not yet attached to a record. The caller keeps this (it is not secret: reading it needs the server).
+export interface StagedFile {
+  readonly storageProvider: string;
+  readonly storageKey: string;
+  readonly contentType: AttachmentContentType;
+  readonly sizeBytes: number;
+  readonly sha256: string;
   readonly originalName: string;
 }
 
@@ -201,42 +212,90 @@ export class AttachmentService {
   async upload(input: UploadInput, actor: AttachmentActor, correlationId: string): Promise<AttachmentSummary> {
     if (!isOwnerType(input.ownerType)) throw new AttachmentError("INVALID_OWNER_TYPE", "Unknown record type");
     const ownerType = input.ownerType;
-    if (input.bytes.length === 0) throw new AttachmentError("EMPTY_FILE", "The file is empty");
-    if (input.bytes.length > this.maxBytes) throw new AttachmentError("FILE_TOO_LARGE", `The file is larger than ${this.maxBytes} bytes`);
-    const contentType = detectContentType(input.bytes);
-    if (!contentType) throw new AttachmentError("UNSUPPORTED_FILE_TYPE", "Only PDF, PNG, JPEG and WebP files are accepted");
+    const contentType = this.checkFile(input.bytes);
     if (OWNER_RULES[ownerType].imageOnly && contentType === "application/pdf") {
       throw new AttachmentError("UNSUPPORTED_FILE_TYPE", "A picture must be a PNG, JPEG or WebP image");
     }
+    await this.checkOwner(actor, ownerType, input.ownerId);
+    const staged = await this.storeFile(input.bytes, contentType, OWNER_RULES[ownerType].visibility, input.fileName);
+    return this.record(actor, ownerType, input.ownerId, staged, correlationId);
+  }
 
+  // A file kept for later, before the record it belongs to exists (the assistant reads an uploaded invoice first and
+  // creates the invoice only after the user approves). Nothing is listed or audited yet: that happens in attachStaged.
+  async stage(fileName: string, bytes: Uint8Array): Promise<StagedFile> {
+    return this.storeFile(bytes, this.checkFile(bytes), "PRIVATE", fileName);
+  }
+
+  // The bytes of a staged file, refused if they no longer match the checksum taken when it was staged.
+  async readStaged(staged: StagedFile): Promise<Uint8Array> {
+    const storage = this.storages.get(staged.storageProvider);
+    if (!storage) throw new AttachmentError("NOT_FOUND", "The storage that holds this file is not configured");
+    const bytes = await storage.get(staged.storageKey, "PRIVATE", staged.contentType);
+    if (createHash("sha256").update(bytes).digest("hex") !== staged.sha256) {
+      throw new AttachmentError("INTEGRITY_FAILED", "The stored file does not match its recorded checksum");
+    }
+    return bytes;
+  }
+
+  // Turns a staged file into an attachment of a record, with the same checks and audit as a direct upload.
+  async attachStaged(staged: StagedFile, ownerType: string, ownerId: string, actor: AttachmentActor, correlationId: string): Promise<AttachmentSummary> {
+    if (!isOwnerType(ownerType) || OWNER_RULES[ownerType].visibility !== "PRIVATE") throw new AttachmentError("INVALID_OWNER_TYPE", "Unknown record type");
+    await this.checkOwner(actor, ownerType, ownerId);
+    await this.readStaged(staged);
+    return this.record(actor, ownerType, ownerId, staged, correlationId);
+  }
+
+  private checkFile(bytes: Uint8Array): AttachmentContentType {
+    if (bytes.length === 0) throw new AttachmentError("EMPTY_FILE", "The file is empty");
+    if (bytes.length > this.maxBytes) throw new AttachmentError("FILE_TOO_LARGE", `The file is larger than ${this.maxBytes} bytes`);
+    const contentType = detectContentType(bytes);
+    if (!contentType) throw new AttachmentError("UNSUPPORTED_FILE_TYPE", "Only PDF, PNG, JPEG and WebP files are accepted");
+    return contentType;
+  }
+
+  private async checkOwner(actor: AttachmentActor, ownerType: AttachmentOwnerType, ownerId: string): Promise<void> {
     if (!(await this.canRead(actor, ownerType)) || !(await this.canManage(actor, ownerType))) {
       throw new AttachmentError("FORBIDDEN_OWNER", "No access to this kind of record");
     }
-    const labels = await this.ownerLabels(actor.companyId, ownerType, [input.ownerId]);
-    if (!labels.has(input.ownerId)) throw new AttachmentError("OWNER_NOT_FOUND", "The record does not exist in this company");
+    const labels = await this.ownerLabels(actor.companyId, ownerType, [ownerId]);
+    if (!labels.has(ownerId)) throw new AttachmentError("OWNER_NOT_FOUND", "The record does not exist in this company");
+  }
 
-    const id = newId();
-    const visibility = OWNER_RULES[ownerType].visibility;
-    const key = newStorageKey(newId());
-    const sha256 = createHash("sha256").update(input.bytes).digest("hex");
-
+  private async storeFile(bytes: Uint8Array, contentType: AttachmentContentType, visibility: AttachmentVisibility, fileName: string): Promise<StagedFile & { publicUrl: string | null; visibility: AttachmentVisibility }> {
+    const storageKey = newStorageKey(newId());
     // The file first, then its row: a failed upload leaves no row pointing at nothing. The opposite failure
     // (row insert fails after the file is stored) leaves an unreferenced file, which is harmless and invisible.
-    const stored = await this.activeStorage.put({ key, bytes: input.bytes, contentType, visibility });
+    const stored = await this.activeStorage.put({ key: storageKey, bytes, contentType, visibility });
+    return {
+      storageProvider: this.activeStorage.provider,
+      storageKey,
+      contentType,
+      sizeBytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      originalName: sanitizeFileName(fileName, CONTENT_TYPE_EXTENSIONS[contentType]),
+      publicUrl: stored.publicUrl,
+      visibility,
+    };
+  }
+
+  private async record(actor: AttachmentActor, ownerType: AttachmentOwnerType, ownerId: string, file: StagedFile & { publicUrl?: string | null }, correlationId: string): Promise<AttachmentSummary> {
+    const id = newId();
+    const visibility = OWNER_RULES[ownerType].visibility;
     const row = await this.prisma.attachment.create({
       data: {
         id,
         companyId: actor.companyId,
         ownerType,
-        ownerId: input.ownerId,
+        ownerId,
         visibility,
-        originalName: sanitizeFileName(input.fileName, CONTENT_TYPE_EXTENSIONS[contentType]),
-        contentType,
-        sizeBytes: input.bytes.length,
-        sha256,
-        storageProvider: this.activeStorage.provider,
-        storageKey: key,
-        publicUrl: stored.publicUrl,
+        originalName: file.originalName,
+        contentType: file.contentType,
+        sizeBytes: file.sizeBytes,
+        sha256: file.sha256,
+        storageProvider: file.storageProvider,
+        storageKey: file.storageKey,
+        publicUrl: file.publicUrl ?? null,
         createdBy: actor.id,
       },
       select: ROW_SELECT,
@@ -247,7 +306,7 @@ export class AttachmentService {
       action: "attachment.uploaded",
       entityType: "Attachment",
       entityId: id,
-      after: { ownerType, ownerId: input.ownerId, originalName: row.originalName, contentType, sizeBytes: row.sizeBytes, sha256, visibility },
+      after: { ownerType, ownerId, originalName: row.originalName, contentType: file.contentType, sizeBytes: row.sizeBytes, sha256: file.sha256, visibility },
       correlationId,
     });
     return (await this.toSummaries(actor.companyId, [row]))[0] as AttachmentSummary;

@@ -18,8 +18,17 @@ import {
   ItemService,
   PartyService,
   PrismaAuditLogger,
+  AttachmentService,
+  LocalFileStorage,
+  PrismaAccountingEngine,
+  PrismaNumberingService,
+  SupplierInvoiceService,
   type IPermissionService,
 } from "@erp/core";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { buildPurchasingTools } from "./tools/purchasing-tools.js";
 import { PrismaClient } from "@erp/db";
 import { newId } from "@erp/shared";
 import { AiChatError, AiChatService, type ChatEvent } from "./ai-chat.service.js";
@@ -180,6 +189,72 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     const saved = await db.quotation.findFirstOrThrow({ where: { companyId, id: (done.data as { id: string }).id } });
     expect(saved.totalGross.toFixed(2)).toBe("230.00");
     expect(saved.status).toBe("OPEN");
+  });
+
+  it("reads an attached invoice, posts it after approval with server totals, and keeps the file with it", async () => {
+    const files = new AttachmentService(db, audit, permissions, new LocalFileStorage(mkdtempSync(join(tmpdir(), "ai-files-"))));
+    const withFiles = new AiChatService(db, permissions, audit, settings, tools, () => {
+      lastModel = new ScriptedChatModel(script);
+      return Promise.resolve(lastModel);
+    }, undefined, files);
+    // A tiny valid PNG: the store checks the bytes, not the name.
+    const png = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64"));
+    script = [{ text: "I read it." }];
+    const events = await run((emit) => withFiles.send(owner, { text: "enter this invoice", mode: "review", locale: "en", file: { name: "فاتورة.png", bytes: png } }, emit));
+    const id = conversationOf(events);
+
+    // The model received the picture's bytes; the database keeps only the reference.
+    const sent = JSON.stringify(lastModel?.seen[0]?.at(-1)?.content);
+    expect(sent).toContain(Buffer.from(png).toString("base64"));
+    const row = await db.aiMessage.findFirstOrThrow({ where: { conversationId: id, role: "human" } });
+    expect(JSON.stringify(row.payload)).not.toContain(Buffer.from(png).toString("base64"));
+    expect(row.uiBlocks).toEqual([{ kind: "upload", name: "فاتورة.png", contentType: "image/png", sizeBytes: png.length }]);
+    const fileId = /Attached file (f[0-9a-z]+)/.exec(sent)?.[1];
+    expect(fileId).toBeDefined();
+
+    // Books the invoice can post to.
+    const year = new Date().getUTCFullYear();
+    const fy = await db.fiscalYear.create({ data: { id: newId(), companyId, name: `FY${year}-ai`, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) } });
+    await db.fiscalPeriod.create({ data: { id: newId(), companyId, fiscalYearId: fy.id, periodNumber: 1, startDate: new Date(Date.UTC(year, 0, 1)), endDate: new Date(Date.UTC(year, 11, 31)) } });
+    const account = async (code: string, type: string, normalBalance: string): Promise<string> =>
+      (await db.account.create({ data: { id: newId(), ref: `AI-${code}-${companyId.slice(0, 6)}`, companyId, code, name: code, type, normalBalance, isPostable: true } })).id;
+    const mappings = new AccountMappingService(db, audit);
+    await mappings.set("ACCOUNTS_PAYABLE", await account("2100", "LIABILITY", "CREDIT"), owner, "t");
+    await mappings.set("VAT_INPUT", await account("1300", "ASSET", "DEBIT"), owner, "t");
+    await account("5200", "EXPENSE", "DEBIT");
+    if (!(await db.taxCode.findFirst({ where: { companyId, code: "VAT15" } }))) {
+      await db.taxCode.create({ data: { id: newId(), companyId, code: "VAT15", name: "Standard 15%", rate: "15", treatment: "STANDARD" } });
+    }
+    const supplier = await new PartyService(db, audit).create({ name: "Office Rent Co", kind: "SUPPLIER" }, owner, "t");
+
+    const invoices = new SupplierInvoiceService(db, new PrismaAccountingEngine(db, new PrismaNumberingService()), mappings, audit);
+    const [, createInvoice] = buildPurchasingTools({ prisma: db, invoices, attachments: files });
+    if (createInvoice?.kind !== "write") throw new Error("unexpected tool kind");
+    expect(createInvoice.risk).toBe("high");
+    const ctx = { actor: { userId: owner.id, companyId }, locale: "en" as const, conversationId: id, correlationId: `ai:${id}`, can: () => Promise.resolve(true) };
+    const args = {
+      supplierId: supplier.id, supplierInvoiceNumber: "R-77", invoiceDate: `${year}-03-01`, sourceFileId: fileId,
+      lines: [{ kind: "EXPENSE", accountCode: "5200", description: "March rent", quantity: "1", unitPrice: "1000" }],
+    };
+
+    // A misread total on the document is flagged; the card shows the server's figures.
+    const misread = await createInvoice.preview(ctx, createInvoice.input.parse({ ...args, documentTotals: { gross: "1100.00" } }));
+    expect(misread.warningKeys).toContain("ai.warn.totalsMismatch");
+    const input = createInvoice.input.parse({ ...args, documentTotals: { net: "1000", tax: "150", gross: "1150.00" } });
+    const preview = await createInvoice.preview(ctx, input);
+    expect(preview.warningKeys).toBeUndefined();
+    expect(preview.fields.find((f) => f.labelKey === "ai.col.total")?.value).toBe("1150.00");
+
+    const done = await createInvoice.execute(ctx, input);
+    const invoiceId = (done.data as { id: string; fileAttached: boolean }).id;
+    expect((done.data as { fileAttached: boolean }).fileAttached).toBe(true);
+    const saved = await db.supplierInvoice.findFirstOrThrow({ where: { companyId, id: invoiceId } });
+    expect(saved.totalGross.toFixed(2)).toBe("1150.00");
+    const attached = await db.attachment.findMany({ where: { companyId, ownerType: "SUPPLIER_INVOICE", ownerId: invoiceId } });
+    expect(attached.map((a) => a.originalName)).toEqual(["فاتورة.png"]);
+
+    // A file id from another conversation is not found.
+    expect((await createInvoice.preview({ ...ctx, conversationId: "other" }, input)).warningKeys).toContain("ai.warn.fileNotFound");
   });
 
   it("a turn belongs to the server: it is not running once saved, and only its owner can stop it", async () => {

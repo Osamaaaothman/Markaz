@@ -57,7 +57,7 @@ export interface ComposerProps {
   readonly allowed: Record<AssistantMode, boolean>;
   readonly suggestions: string[];
   readonly liveLabel: string | null;
-  readonly onSend: (text: string) => void;
+  readonly onSend: (text: string, opts?: { file?: File }) => void;
   readonly onStop: () => void;
   readonly onMode: (mode: AssistantMode) => void;
   readonly onNewChat: () => void;
@@ -70,6 +70,10 @@ export interface ComposerProps {
 //  - ArrowUp on an empty box recalls earlier messages; Enter sends, Shift+Enter new line, Esc stops
 //  - while the assistant works, what it is doing is shown inside the bar
 //  - the unsent text survives switching between the panel and the full page
+// What the server accepts (it checks the bytes again): PDF and the common picture types, 10 MB at most.
+const FILE_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
 export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, onStop, onMode, onNewChat }: ComposerProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const text = useAiStore((s) => s.draft);
@@ -86,6 +90,16 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
   const [menuOpen, setMenuOpen] = useState(false);
   const [recall, setRecall] = useState<number | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const takeFile = (f: File | undefined): void => {
+    if (!f) return;
+    if (!FILE_TYPES.includes(f.type)) { setFile(null); setFileError("ai.composer.fileType"); return; }
+    if (f.size > MAX_FILE_BYTES) { setFile(null); setFileError("ai.composer.fileTooLarge"); return; }
+    setFileError(null);
+    setFile(f);
+  };
   const recRef = useRef<Recognition | null>(null);
   const meterRef = useRef<AudioMeter | null>(null);
   const canDictate = recognitionCtor() !== null;
@@ -117,8 +131,11 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
   const pctUsed = text.length / 4000;
 
   const submit = (): void => {
-    if (busy || !text.trim()) return;
-    onSend(text);
+    if (busy || (!text.trim() && !file)) return;
+    if (file) onSend(text.trim() || t("ai.composer.fileOnly"), { file });
+    else onSend(text);
+    setFile(null);
+    setFileError(null);
     setText("");
     setRecall(null);
   };
@@ -204,9 +221,24 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
         </div>
       ) : null}
 
-      <div className={`ai-capsule${focused ? " is-focused" : ""}${busy ? " is-busy" : ""}${listening ? " is-listening" : ""}`} onClick={() => ref.current?.focus()}>
-        {(pageLabel || (lines >= 3 && mode !== "ask")) ? (
+      <div
+        className={`ai-capsule${focused ? " is-focused" : ""}${busy ? " is-busy" : ""}${listening ? " is-listening" : ""}`}
+        onClick={() => ref.current?.focus()}
+        onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+        onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); takeFile(e.dataTransfer.files[0]); } }}
+      >
+        {(pageLabel || file || fileError || (lines >= 3 && mode !== "ask")) ? (
           <div className="ai-capsule__top">
+            {file ? (
+              <span className="ai-ctx ai-ctx--file" title={t("ai.composer.fileHint")}>
+                <i className={file.type === "application/pdf" ? "pi pi-file-pdf" : "pi pi-image"} aria-hidden="true" />
+                <span dir="auto">{file.name}</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setFile(null); }} aria-label={t("ai.composer.removeFile")}>
+                  <i className="pi pi-times" aria-hidden="true" />
+                </button>
+              </span>
+            ) : null}
+            {fileError ? <span className="ai-ctx ai-ctx--error" role="alert"><i className="pi pi-exclamation-triangle" aria-hidden="true" /> {t(fileError)}</span> : null}
             {pageLabel ? (
               includePage ? (
                 <span className="ai-ctx" title={t("ai.composer.pageContextHint")}>
@@ -273,6 +305,17 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
           >
             <span aria-hidden="true">/</span>
           </button>
+          <button
+            type="button"
+            className={`ai-round ai-round--ghost${file ? " is-on" : ""}`}
+            onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+            disabled={busy}
+            aria-label={t("ai.composer.attach")}
+            title={t("ai.composer.attach")}
+          >
+            <i className="pi pi-paperclip" aria-hidden="true" />
+          </button>
+          <input ref={fileRef} type="file" hidden accept={FILE_TYPES.join(",")} onChange={(e) => { takeFile(e.target.files?.[0]); e.target.value = ""; }} />
           <span className="ai-capsule__spacer" />
           {busy && liveLabel ? (
             <span className="ai-capsule__live" aria-live="polite">
@@ -290,9 +333,9 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
           ) : null}
           <button
             type="button"
-            className={`ai-round ai-round--send${busy ? " is-stop" : ""}${text.trim() ? " is-ready" : ""}`}
+            className={`ai-round ai-round--send${busy ? " is-stop" : ""}${text.trim() || file ? " is-ready" : ""}`}
             onClick={(e) => { e.stopPropagation(); if (busy) onStop(); else submit(); }}
-            disabled={!busy && !text.trim()}
+            disabled={!busy && !text.trim() && !file}
             aria-label={busy ? t("ai.composer.stop") : t("ai.composer.send")}
             title={busy ? `${t("ai.composer.stop")} (Esc)` : `${t("ai.composer.send")} (Enter)`}
           >

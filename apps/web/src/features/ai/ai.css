@@ -487,6 +487,9 @@
 .ai-ctx--off { padding-inline: 0.55rem; border-style: dashed; background: transparent; color: var(--mk-text-muted); cursor: pointer; }
 .ai-ctx--off:hover { color: var(--mk-text); border-color: var(--mk-primary); }
 .ai-ctx--info { padding-inline: 0.55rem; background: var(--mk-info-soft, var(--mk-surface-2)); border-color: transparent; }
+.ai-ctx--file { padding-inline: 0.55rem; max-width: 100%; }
+.ai-ctx--file > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 18rem; }
+.ai-ctx--error { padding-inline: 0.55rem; color: var(--mk-danger); border-color: transparent; background: var(--mk-danger-soft, var(--mk-surface-2)); }
 .ai-capsule textarea { width: 100%; min-height: 1.6rem; max-height: 220px; padding: 0.1rem 0; border: 0; outline: 0; resize: none; background: transparent; color: var(--mk-text); font: inherit; font-size: 0.95rem; line-height: 1.55; }
 .ai-capsule textarea::placeholder { color: var(--mk-text-subtle, var(--mk-text-muted)); }
 .ai-capsule__bar { display: flex; align-items: center; gap: 0.35rem; }
@@ -726,3 +729,9 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
     transition: none !important;
   }
 }
+
+/* A document the user attached to a message, shown above their bubble. */
+.ai-msg--user:has(.ai-upload) { flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+.ai-upload { display: inline-flex; align-items: center; gap: 0.4rem; max-width: 80%; padding: 0.35rem 0.6rem; border: 1px solid var(--mk-border); border-radius: 0.6rem; background: var(--mk-surface); color: var(--mk-text); font-size: 0.8rem; }
+.ai-upload > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-upload .pi { color: var(--mk-primary); }

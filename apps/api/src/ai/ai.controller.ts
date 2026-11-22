@@ -16,7 +16,13 @@ import {
   Res,
   ServiceUnavailableException,
   UnprocessableEntityException,
+  UploadedFile,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { AttachmentError } from "@erp/core";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 import type { Decision } from "@erp/ai";
 import type { Request, Response } from "express";
 import { CurrentUser, type CurrentUserPayload } from "../auth/current-user.decorator.js";
@@ -25,6 +31,7 @@ import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { AiChatError, AiChatService, type ChatEvent } from "./ai-chat.service.js";
 import { AiSettingsError, AiSettingsService } from "./ai-settings.service.js";
 import { AiSettingsDto, DecideDto, SendMessageDto, UpdateConversationDto } from "./ai.dtos.js";
+import { MAX_CHAT_FILE_BYTES } from "./ai-files.js";
 
 export async function mapAiErrors<T>(work: Promise<T>): Promise<T> {
   try {
@@ -51,6 +58,8 @@ function toHttp(error: unknown): unknown {
       default: return new BadRequestException(body);
     }
   }
+  // A file the attachments store refused (type, size): the user can fix it, so it is a 400 with its code.
+  if (error instanceof AttachmentError) return new BadRequestException({ message: error.message, code: error.code });
   return error;
 }
 
@@ -109,6 +118,32 @@ export class AiController {
   async send(@Body() dto: SendMessageDto, @CurrentUser() actor: CurrentUserPayload, @Req() req: Request, @Res() res: Response): Promise<void> {
     await stream(req, res, (emit) =>
       this.chat.send(actor, { text: dto.text, mode: dto.mode, locale: dto.locale, conversationId: dto.conversationId, page: dto.page }, emit),
+    );
+  }
+
+  // The same as POST messages, with one document attached (multipart: "payload" = the JSON body, "file" = the file).
+  @Post("messages/file")
+  @RequirePermission("ai_assistant", "use")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: MAX_CHAT_FILE_BYTES, files: 1 } }))
+  async sendWithFile(
+    @Body("payload") payload: string | undefined,
+    @UploadedFile() file: { readonly originalname: string; readonly buffer: Buffer } | undefined,
+    @CurrentUser() actor: CurrentUserPayload,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload ?? "");
+    } catch {
+      throw new BadRequestException({ code: "INVALID_PAYLOAD" });
+    }
+    const dto = plainToInstance(SendMessageDto, parsed);
+    if (!file || (await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).length > 0) throw new BadRequestException({ code: "INVALID_PAYLOAD" });
+    // multer decodes the name as Latin-1; browsers send UTF-8 (an Arabic name would otherwise be garbled).
+    const name = Buffer.from(file.originalname, "latin1").toString("utf8");
+    await stream(req, res, (emit) =>
+      this.chat.send(actor, { text: dto.text, mode: dto.mode, locale: dto.locale, conversationId: dto.conversationId, page: dto.page, file: { name, bytes: new Uint8Array(file.buffer) } }, emit),
     );
   }
 
