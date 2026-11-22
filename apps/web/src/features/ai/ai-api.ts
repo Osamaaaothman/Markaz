@@ -67,10 +67,12 @@ export interface ConversationSummary {
   status: "IDLE" | "AWAITING_APPROVAL";
   pinned: boolean;
   updatedAt: string;
+  // A turn is still being worked on by the server (e.g. the page was refreshed mid-answer).
+  running?: boolean;
 }
 
 export interface ConversationDetail {
-  conversation: { id: string; title: string; mode: AssistantMode; status: "IDLE" | "AWAITING_APPROVAL"; pinned: boolean };
+  conversation: { id: string; title: string; mode: AssistantMode; status: "IDLE" | "AWAITING_APPROVAL"; pinned: boolean; running?: boolean };
   messages: ChatMessage[];
 }
 
@@ -138,6 +140,11 @@ export function useAiMe(enabled: boolean) {
 
 export function useConversations(enabled: boolean) {
   return useQuery({ queryKey: aiKeys.conversations, enabled, queryFn: async () => (await apiClient.get<ConversationSummary[]>("/v1/ai/conversations")).data });
+}
+
+// Only this stops a turn: closing the tab or refreshing leaves it running on the server.
+export async function stopConversation(id: string): Promise<void> {
+  await apiClient.post(`/v1/ai/conversations/${id}/stop`);
 }
 
 export async function fetchConversation(id: string): Promise<ConversationDetail> {

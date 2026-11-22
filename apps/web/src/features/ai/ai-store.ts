@@ -104,6 +104,6 @@ export const useAiStore = create<AiState>()(
       remember: (text) => set({ sent: [...get().sent.filter((x) => x !== text), text].slice(-20) }),
     }),
     // Only the mode is remembered: messages and drafts stay in memory, so no business text is left in browser storage.
-    { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode, historyOpen: s.historyOpen, orbStyle: s.orbStyle }) },
+    { name: "erp-ai-assistant", partialize: (s) => ({ mode: s.mode, historyOpen: s.historyOpen, orbStyle: s.orbStyle, conversationId: s.conversationId }) },
   ),
 );

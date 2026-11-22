@@ -2,12 +2,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
-import { aiKeys, ChatHttpError, fetchConversation, streamChat, type ChatEvent, type ChatMessage } from "./ai-api";
+import { aiKeys, ChatHttpError, fetchConversation, stopConversation, streamChat, type ChatEvent, type ChatMessage } from "./ai-api";
 import { applyEvent } from "./chat-events";
 import { useAiStore } from "./ai-store";
 import { looksLikeWrite } from "./write-intent";
 
 let tempId = 0;
+// Conversations whose running turn this tab is already waiting for (one poll loop each).
+const following = new Set<string>();
+const sleep = (ms: number): Promise<void> => new Promise((r) => { setTimeout(r, ms); });
 const localId = (): string => `local-${Date.now()}-${tempId++}`;
 
 export function useAssistantChat() {
@@ -111,7 +114,40 @@ export function useAssistantChat() {
     [locale, run, store],
   );
 
-  const stop = useCallback(() => abortRef.current?.abort(), []);
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    const id = store.getState().conversationId;
+    if (id) void stopConversation(id).catch(() => undefined);
+  }, [store]);
+
+  // The server is still answering (the page was refreshed or reopened mid-turn): show it as working
+  // and poll until the answer is saved, then show the saved conversation.
+  const follow = useCallback(
+    async (id: string) => {
+      if (following.has(id)) return;
+      following.add(id);
+      const s = store.getState();
+      s.setBusy(true);
+      s.setMessages((m) => [...m, { id: localId(), role: "assistant", text: "", blocks: [], timeline: [], errorCode: null, changes: [], streaming: true }]);
+      try {
+        for (;;) {
+          await sleep(1500);
+          if (store.getState().conversationId !== id) return;
+          const detail = await fetchConversation(id);
+          if (detail.conversation.running) continue;
+          if (store.getState().conversationId === id) store.getState().setConversation(id, detail.messages, detail.conversation.status);
+          return;
+        }
+      } catch {
+        // Network trouble: stop waiting; reopening the conversation resumes.
+      } finally {
+        following.delete(id);
+        store.getState().setBusy(false);
+        void qc.invalidateQueries({ queryKey: aiKeys.conversations });
+      }
+    },
+    [qc, store],
+  );
 
   const newChat = useCallback(() => {
     abortRef.current?.abort();
@@ -124,8 +160,9 @@ export function useAssistantChat() {
       const detail = await fetchConversation(id);
       store.getState().setConversation(id, detail.messages, detail.conversation.status);
       store.getState().setMode(detail.conversation.mode);
+      if (detail.conversation.running) void follow(id);
     },
-    [store],
+    [follow, store],
   );
 
   // Switch to interactive (review) mode and send the request again there.

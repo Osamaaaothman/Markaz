@@ -32,7 +32,7 @@ import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { AiSettingsError, providerErrorCode, type AiSettingsService } from "./ai-settings.service.js";
 
 export class AiChatError extends Error {
-  constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF") {
+  constructor(readonly code: "FORBIDDEN" | "CONVERSATION_NOT_FOUND" | "NOTHING_TO_DECIDE" | "LIMIT_REACHED" | "MESSAGE_TOO_LONG" | "AUTO_MODE_OFF" | "TURN_RUNNING") {
     super(code);
     this.name = "AiChatError";
   }
@@ -102,6 +102,34 @@ export class AiChatService {
     private readonly compaction: CompactionLimits = compactionFromEnv(),
   ) {}
 
+  // Turns in progress, by conversation. A turn belongs to the server, not to the browser tab: a
+  // refresh or a closed page does not stop it (only stop() does), and the result is saved as usual.
+  // REVIEW: in-memory, so it is per API process. With several API replicas, "running" and stop()
+  // only see turns on the same process — fine for the single-container deployment we ship.
+  private readonly running = new Map<string, AbortController>();
+
+  private beginTurn(conversationId: string): AbortController {
+    if (this.running.has(conversationId)) throw new AiChatError("TURN_RUNNING");
+    const ctrl = new AbortController();
+    this.running.set(conversationId, ctrl);
+    return ctrl;
+  }
+
+  private endTurn(conversationId: string, ctrl: AbortController): void {
+    if (this.running.get(conversationId) === ctrl) this.running.delete(conversationId);
+  }
+
+  isRunning(conversationId: string): boolean {
+    return this.running.has(conversationId);
+  }
+
+  async stop(actor: Actor, conversationId: string): Promise<{ stopped: boolean }> {
+    await this.ownConversation(actor, conversationId);
+    const ctrl = this.running.get(conversationId);
+    ctrl?.abort();
+    return { stopped: Boolean(ctrl) };
+  }
+
   private can(actor: Actor, resource: string, action: string): Promise<boolean> {
     return this.permissions.can(actor.id, action, resource, actor.companyId);
   }
@@ -123,7 +151,7 @@ export class AiChatService {
     };
   }
 
-  async send(actor: Actor, input: SendInput, emit: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
+  async send(actor: Actor, input: SendInput, emit: (e: ChatEvent) => void): Promise<void> {
     const text = input.text.trim();
     if (text.length === 0 || text.length > MAX_MESSAGE) throw new AiChatError("MESSAGE_TOO_LONG");
     await this.requireMode(actor, input.mode);
@@ -137,20 +165,34 @@ export class AiChatService {
       : await this.prisma.aiConversation.create({ data: { id: newId(), companyId: actor.companyId, userId: actor.id, title: text.slice(0, 80), mode: input.mode } });
     emit({ type: "conversation", id: conversation.id, title: conversation.title });
 
-    // Moving on while proposals wait = the user did not accept them.
-    if (conversation.status === "AWAITING_APPROVAL") await this.rejectPending(actor, conversation.id);
+    const ctrl = this.beginTurn(conversation.id);
+    try {
+      // Moving on while proposals wait = the user did not accept them.
+      if (conversation.status === "AWAITING_APPROVAL") await this.rejectPending(actor, conversation.id);
 
-    await this.compactIfNeeded(actor, conversation.id, config.provider, emit, signal);
-    const history = await this.history(conversation.id);
-    const human = new HumanMessage(text);
-    await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([human])[0], visible: true, uiText: text }]);
+      await this.compactIfNeeded(actor, conversation.id, config.provider, emit, ctrl.signal);
+      const history = await this.history(conversation.id);
+      const human = new HumanMessage(text);
+      await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([human])[0], visible: true, uiText: text }]);
 
-    await this.runTurn(actor, conversation.id, conversation.nextItemNumber, input.mode, autoAllowed, input.locale, [...history, human], input.page, config.provider, emit, signal);
+      await this.runTurn(actor, conversation.id, conversation.nextItemNumber, input.mode, autoAllowed, input.locale, [...history, human], input.page, config.provider, emit, ctrl.signal);
+    } finally {
+      this.endTurn(conversation.id, ctrl);
+    }
   }
 
-  async decide(actor: Actor, input: DecideInput, emit: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
+  async decide(actor: Actor, input: DecideInput, emit: (e: ChatEvent) => void): Promise<void> {
     const conversation = await this.ownConversation(actor, input.conversationId);
     await this.requireMode(actor, conversation.mode as AssistantMode);
+    const ctrl = this.beginTurn(conversation.id);
+    try {
+      await this.decideTurn(actor, conversation, input, emit, ctrl.signal);
+    } finally {
+      this.endTurn(conversation.id, ctrl);
+    }
+  }
+
+  private async decideTurn(actor: Actor, conversation: Awaited<ReturnType<AiChatService["ownConversation"]>>, input: DecideInput, emit: (e: ChatEvent) => void, signal: AbortSignal): Promise<void> {
     // Claim the decision atomically: a double click or a second tab cannot run the same items twice.
     const claimed = await this.prisma.aiConversation.updateMany({ where: { id: conversation.id, status: "AWAITING_APPROVAL" }, data: { status: "IDLE" } });
     if (claimed.count !== 1) throw new AiChatError("NOTHING_TO_DECIDE");
@@ -403,7 +445,7 @@ export class AiChatService {
       orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
       take: 100,
       select: { id: true, title: true, mode: true, status: true, pinned: true, updatedAt: true },
-    });
+    }).then((rows) => rows.map((r) => ({ ...r, running: this.running.has(r.id) })));
   }
 
   async get(actor: Actor, id: string) {
@@ -413,7 +455,7 @@ export class AiChatService {
       this.prisma.aiChangeItem.findMany({ where: { conversationId: id }, orderBy: { createdAt: "asc" } }),
     ]);
     return {
-      conversation: { id: c.id, title: c.title, mode: c.mode, status: c.status, pinned: c.pinned },
+      conversation: { id: c.id, title: c.title, mode: c.mode, status: c.status, pinned: c.pinned, running: this.running.has(c.id) },
       messages: rows.map((r) => ({
         id: r.id,
         role: r.role === "human" ? "user" : (r.payload as { compacted?: boolean } | null)?.compacted ? "divider" : "assistant",

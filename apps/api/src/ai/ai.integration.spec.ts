@@ -182,6 +182,16 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     expect(saved.status).toBe("OPEN");
   });
 
+  it("a turn belongs to the server: it is not running once saved, and only its owner can stop it", async () => {
+    script = [{ text: "done" }];
+    const events = await run((emit) => chat.send(owner, { text: "hello", mode: "ask", locale: "en" }, emit));
+    const id = conversationOf(events);
+    expect(chat.isRunning(id)).toBe(false);
+    expect((await chat.get(owner, id)).conversation.running).toBe(false);
+    await expect(chat.stop(owner, id)).resolves.toEqual({ stopped: false });
+    await expect(chat.stop(other, id)).rejects.toThrow(AiChatError);
+  });
+
   it("compacts a long conversation into a summary the model then receives as memory", async () => {
     // Small limits so three turns are enough. Each model creation takes the next script from the queue.
     const queue: ScriptedReply[][] = [];

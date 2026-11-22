@@ -41,6 +41,7 @@ function toHttp(error: unknown): unknown {
       case "FORBIDDEN": return new ForbiddenException(body);
       case "CONVERSATION_NOT_FOUND": return new NotFoundException(body);
       case "NOTHING_TO_DECIDE":
+      case "TURN_RUNNING":
       case "VERSION_CONFLICT": return new ConflictException(body);
       case "LIMIT_REACHED":
       case "AUTO_MODE_OFF":
@@ -55,8 +56,7 @@ function toHttp(error: unknown): unknown {
 
 // Server-Sent Events over a POST response: the browser reads it with fetch() + a stream reader.
 // Errors before the stream starts are normal HTTP errors; errors after it starts are an "error" event.
-async function stream(req: Request, res: Response, work: (emit: (e: ChatEvent) => void, signal: AbortSignal) => Promise<void>): Promise<void> {
-  const abort = new AbortController();
+async function stream(req: Request, res: Response, work: (emit: (e: ChatEvent) => void) => Promise<void>): Promise<void> {
   let started = false;
   const start = (): void => {
     if (started) return;
@@ -69,15 +69,18 @@ async function stream(req: Request, res: Response, work: (emit: (e: ChatEvent) =
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
   };
-  // "close" on the response fires when the client goes away before we finished.
-  res.on("close", () => { if (!res.writableEnded) abort.abort(); });
+  // The client may go away (refresh, closed tab) — the turn keeps running on the server and is saved
+  // as usual; we only stop writing to a dead socket. Stopping a turn is an explicit POST .../stop.
+  let gone = false;
+  res.on("close", () => { if (!res.writableEnded) gone = true; });
   const emit = (e: ChatEvent): void => {
+    if (gone) return;
     start();
     if (!res.writableEnded) res.write(`data: ${JSON.stringify(e)}\n\n`);
   };
   void req;
   try {
-    await work(emit, abort.signal);
+    await work(emit);
     start();
     res.end();
   } catch (error) {
@@ -104,8 +107,8 @@ export class AiController {
   @Post("messages")
   @RequirePermission("ai_assistant", "use")
   async send(@Body() dto: SendMessageDto, @CurrentUser() actor: CurrentUserPayload, @Req() req: Request, @Res() res: Response): Promise<void> {
-    await stream(req, res, (emit, signal) =>
-      this.chat.send(actor, { text: dto.text, mode: dto.mode, locale: dto.locale, conversationId: dto.conversationId, page: dto.page }, emit, signal),
+    await stream(req, res, (emit) =>
+      this.chat.send(actor, { text: dto.text, mode: dto.mode, locale: dto.locale, conversationId: dto.conversationId, page: dto.page }, emit),
     );
   }
 
@@ -117,7 +120,7 @@ export class AiController {
       if (!/^c\d{1,4}$/.test(key) || (value !== "approve" && value !== "reject")) throw new BadRequestException({ code: "INVALID_DECISION" });
       decisions[key] = value;
     }
-    await stream(req, res, (emit, signal) => this.chat.decide(actor, { conversationId: id, decisions, edits: dto.edits, locale: dto.locale }, emit, signal));
+    await stream(req, res, (emit) => this.chat.decide(actor, { conversationId: id, decisions, edits: dto.edits, locale: dto.locale }, emit));
   }
 
   @Get("conversations")
@@ -137,6 +140,14 @@ export class AiController {
   @HttpCode(204)
   update(@Param("id") id: string, @Body() dto: UpdateConversationDto, @CurrentUser() actor: CurrentUserPayload) {
     return mapAiErrors(this.chat.update(actor, id, dto));
+  }
+
+  // Stops a running turn. A closed tab does not stop one; only this does.
+  @Post("conversations/:id/stop")
+  @RequirePermission("ai_assistant", "use")
+  @HttpCode(200)
+  stop(@Param("id") id: string, @CurrentUser() actor: CurrentUserPayload) {
+    return mapAiErrors(this.chat.stop(actor, id));
   }
 
   @Delete("conversations/:id")

@@ -197,6 +197,12 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
   const chat = useAssistantChat();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
+  // After a refresh the last conversation id is remembered: load it (and keep waiting if the server
+  // is still answering it).
+  useEffect(() => {
+    const s = useAiStore.getState();
+    if (s.conversationId && s.messages.length === 0 && !s.busy) void chat.openConversation(s.conversationId).catch(() => s.setConversation(null, [], "IDLE"));
+  }, []);
   const currency = user?.companyDefaultCurrency ?? "SAR";
 
   const allowed = useMemo<Record<AssistantMode, boolean>>(

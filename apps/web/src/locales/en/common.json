@@ -3700,7 +3700,8 @@
       "VERSION_CONFLICT": "Someone else changed these settings. Reload the page.",
       "MODEL_HAS_NO_TOOL_SUPPORT": "This model cannot use tools, so it cannot work with the ERP.",
       "NO_TOOL_SUPPORT": "This model cannot use tools, so it cannot work with the ERP.",
-      "INTERNAL": "Something went wrong on the server."
+      "INTERNAL": "Something went wrong on the server.",
+      "TURN_RUNNING": "The assistant is still answering this conversation. Wait for it to finish or stop it."
     },
     "history": {
       "title": "Conversations",
