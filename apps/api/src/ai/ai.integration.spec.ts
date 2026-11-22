@@ -145,7 +145,7 @@ import { buildReportTools } from "./tools/report-tools.js";
       purchaseOrders: new PurchaseOrderService(db, new ApprovalService(), audit),
     });
     const ctx = { actor: { userId: owner.id, companyId }, locale: "ar" as const, conversationId: "t", correlationId: "ai:t", can: () => Promise.resolve(true) };
-    const args: Record<string, unknown> = { parties_statement: { party: "QA Supplier Co", side: "SUPPLIER" }, accounts_statement: { code: "NOPE" } };
+    const args: Record<string, unknown> = { parties_statement: { party: "QA Supplier Co", side: "SUPPLIER" }, accounts_statement: { code: "NOPE" }, salesInvoices_get: { number: "INV-NOPE" } };
     for (const tool of reports) {
       if (tool.kind !== "read") continue;
       const input = tool.input.parse(args[tool.name] ?? {});

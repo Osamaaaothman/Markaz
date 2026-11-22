@@ -671,7 +671,10 @@
 
 /* ─── Full page: fills the content area edge to edge (the height is set from AssistantPage) ─────── */
 /* The conversation list sits on the physical LEFT in both directions and can be collapsed. */
-.erp-shell__content:has(.ai-page) { padding: 0; }
+/* The shell caps content at 1320px, centres it and pads it (more in some design directions); the
+   assistant opts out of all of it so it runs edge to edge on any screen width and every direction. */
+html .erp-shell__content:has(.ai-page),
+html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max-width: none; width: 100%; }
 .ai-page {
   display: flex;
   height: calc(100dvh - 5rem);

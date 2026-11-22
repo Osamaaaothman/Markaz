@@ -31,12 +31,18 @@ export function AssistantPage(): React.JSX.Element {
     };
     fit();
     const observer = new ResizeObserver(fit);
-    const topbar = document.querySelector(".erp-topbar");
-    if (topbar) observer.observe(topbar);
+    // Anything above the page can change height (top bar, offline banner, design direction): refit on all of it.
+    for (const selector of [".erp-topbar", ".erp-shell__main"]) {
+      const el = document.querySelector(selector);
+      if (el) observer.observe(el);
+    }
+    const attrs = new MutationObserver(fit);
+    attrs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-design", "data-theme", "dir"] });
     window.addEventListener("resize", fit);
     return () => {
       root.style.overflow = previous;
       observer.disconnect();
+      attrs.disconnect();
       window.removeEventListener("resize", fit);
     };
   }, []);
