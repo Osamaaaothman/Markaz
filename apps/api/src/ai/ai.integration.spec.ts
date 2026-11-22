@@ -32,6 +32,9 @@ import { buildSalesTools } from "./tools/sales-tools.js";
 // The whole assistant path against real PostgreSQL, with a scripted model instead of a provider:
 // permissions, proposals, approval, execution through the core services, the freeze trigger,
 // and conversation ownership.
+// One scripted model per turn; backup models are covered by the graph tests.
+process.env["AI_FALLBACK_MODELS"] = "none";
+
 (process.env.DATABASE_URL ? describe : describe.skip)("AI assistant — real PostgreSQL", () => {
   const db = new PrismaClient();
   const companyId = newId();

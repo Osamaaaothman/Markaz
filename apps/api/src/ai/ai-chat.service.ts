@@ -76,6 +76,20 @@ const MAX_MESSAGE = 4000;
 
 // Orchestrates one chat turn: permissions → history → engine (packages/ai) → persistence.
 // The engine never touches the database; this class never decides what the model may do.
+type ProviderSettings = Parameters<typeof createChatModel>[0];
+// Backup models on the same provider and key, tried in order when the main one is busy (503/429).
+// AI_FALLBACK_MODELS overrides them (comma-separated; "none" turns this off). Gemini's free tier is
+// often overloaded, so it has defaults.
+const DEFAULT_FALLBACKS: Readonly<Partial<Record<ProviderSettings["provider"], readonly string[]>>> = {
+  google: ["gemini-flash-lite-latest", "gemini-2.5-flash-lite"],
+};
+export function fallbackModelNames(provider: ProviderSettings, env: NodeJS.ProcessEnv = process.env): string[] {
+  const raw = env["AI_FALLBACK_MODELS"]?.trim();
+  if (raw === "none") return [];
+  const names = raw ? raw.split(",").map((m) => m.trim()).filter(Boolean) : [...(DEFAULT_FALLBACKS[provider.provider] ?? [])];
+  return [...new Set(names)].filter((m) => m !== provider.model);
+}
+
 export class AiChatService {
   constructor(
     private readonly prisma: PrismaClient,
@@ -209,7 +223,10 @@ export class AiChatService {
 
     let result: RunResult;
     try {
-      const model = await this.modelFactory(provider);
+      const backups = fallbackModelNames(provider);
+      // With backups, fail fast on the main model instead of waiting out client retries.
+      const model = await this.modelFactory(backups.length ? { ...provider, retries: 0 } : provider);
+      const fallbackModels = await Promise.all(backups.map((m) => this.modelFactory({ ...provider, model: m })));
       const priorRows = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "EXECUTED" }, select: { itemKey: true, result: true } });
       result = await runAssistant({
         model,
@@ -222,6 +239,7 @@ export class AiChatService {
         firstItemNumber,
         priorResults: new Map(priorRows.map((r) => [r.itemKey, ((r.result as { data?: Record<string, unknown> } | null)?.data) ?? {}])),
         emit: relay,
+        fallbackModels,
         ...(signal ? { signal } : {}),
       });
     } catch (error) {

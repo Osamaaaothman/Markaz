@@ -16,6 +16,9 @@ export function applyEvent(message: ChatMessage, e: ChatEvent): ChatMessage {
       return { ...message, blocks: [...message.blocks, e.block] };
     case "clarify":
       return { ...message, blocks: [...message.blocks, { kind: "clarify", question: e.question, options: e.options }] };
+    case "provider_busy":
+      // Shown as a step: the main model was busy and a backup took over.
+      return { ...message, timeline: [...message.timeline, { tool: "provider_busy", ok: true, ms: 0, running: false }] };
     case "needs_mode":
       return { ...message, blocks: [...message.blocks, { kind: "needsMode" }] };
     case "proposed":

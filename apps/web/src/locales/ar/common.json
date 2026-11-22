@@ -3478,7 +3478,8 @@
       "fixedAssets_search": "البحث في الأصول الثابتة",
       "hr_payrollRuns": "قراءة مسيرات الرواتب",
       "hr_salaryAdvances": "قراءة سلف الرواتب",
-      "switch_to_interactive": "التحقق من الوضع"
+      "switch_to_interactive": "التحقق من الوضع",
+      "provider_busy": "النموذج الأساسي مشغول، تم التحويل لنموذج احتياطي"
     },
     "blocks": {
       "overview": "ملخص الشركة",

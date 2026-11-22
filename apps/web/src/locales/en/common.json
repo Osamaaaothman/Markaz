@@ -3478,7 +3478,8 @@
       "fixedAssets_search": "Searching fixed assets",
       "hr_payrollRuns": "Reading payroll runs",
       "hr_salaryAdvances": "Reading salary advances",
-      "switch_to_interactive": "Checking the mode"
+      "switch_to_interactive": "Checking the mode",
+      "provider_busy": "Main model busy — switched to a backup"
     },
     "blocks": {
       "overview": "Company overview",

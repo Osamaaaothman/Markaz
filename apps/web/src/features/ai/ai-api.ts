@@ -116,6 +116,7 @@ export type ChatEvent =
   | { type: "display"; block: DisplayBlock }
   | { type: "clarify"; question: string; options: string[] }
   | { type: "needs_mode" }
+  | { type: "provider_busy"; next: number }
   | { type: "proposed"; item: { id: string; tool: string; args: Record<string, unknown>; preview: ChangePreview; risk: "low" | "high"; dependsOn: string[] } }
   | { type: "executed"; item: { id: string; tool: string; args: Record<string, unknown>; result: { data: Record<string, unknown>; link?: { label: string; path: string } } } }
   | { type: "outcome"; outcome: { key: string; status: "EXECUTED" | "REJECTED" | "SKIPPED" | "FAILED"; link?: { label: string; path: string } | null; errorCode?: string } }

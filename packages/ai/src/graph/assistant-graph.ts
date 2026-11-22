@@ -3,6 +3,7 @@ import { AIMessage, type AIMessageChunk, type BaseMessage, SystemMessage, ToolMe
 import { concat } from "@langchain/core/utils/stream";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
+import { isProviderBusy } from "../providers/model-factory.js";
 import { needsApproval, refsIn, resolveRefs, UnresolvedRefError } from "../tools/policy.js";
 import type { AssistantMode, ErpTool, ToolContext, WriteResult } from "../tools/types.js";
 import { toolError, wrapUntrusted } from "../safety/untrusted.js";
@@ -46,6 +47,8 @@ export interface RunOptions {
   readonly emit: (event: AssistantEvent) => void;
   readonly maxSteps?: number;
   readonly signal?: AbortSignal;
+  // Tried in order when the model above is busy (503/429/timeout) before it has written anything.
+  readonly fallbackModels?: readonly BaseChatModel[];
 }
 
 export interface RunResult {
@@ -95,8 +98,11 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     { name: CLARIFY_TOOL, description: "Ask the user to choose between options when the request is ambiguous. Ends your turn.", schema: clarifySchema },
     ...(opts.mode === "ask" ? [{ name: MODE_TOOL, description: "Call this at once, alone, when the user asks to create, change or delete anything. Ends your turn.", schema: z.object({}) }] : []),
   ];
-  if (typeof opts.model.bindTools !== "function") throw new Error("MODEL_HAS_NO_TOOL_SUPPORT");
-  const bound = opts.model.bindTools(llmTools);
+  const chain = [opts.model, ...(opts.fallbackModels ?? [])];
+  for (const m of chain) if (typeof m.bindTools !== "function") throw new Error("MODEL_HAS_NO_TOOL_SUPPORT");
+  // bindTools exists on every model in the chain (checked above).
+  const boundChain = chain.map((m) => m.bindTools!(llmTools));
+  let current = 0; // once a fallback answered, stay on it for the rest of the turn
   const knownResults = new Map(opts.priorResults ?? []);
   const proposedIds = new Set<string>();
   let nextItem = opts.firstItemNumber;
@@ -104,11 +110,23 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
 
   const agent = async (state: S): Promise<Partial<S>> => {
     let full: AIMessageChunk | undefined;
-    const stream = await bound.stream([new SystemMessage(opts.system), ...state.messages], opts.signal ? { signal: opts.signal } : {});
-    for await (const chunk of stream) {
-      const text = textOf(chunk.content);
-      if (text) opts.emit({ type: "token", text });
-      full = full ? concat(full, chunk) : chunk;
+    for (;;) {
+      let wrote = false;
+      try {
+        const stream = await boundChain[current]!.stream([new SystemMessage(opts.system), ...state.messages], opts.signal ? { signal: opts.signal } : {});
+        for await (const chunk of stream) {
+          const text = textOf(chunk.content);
+          if (text) { wrote = true; opts.emit({ type: "token", text }); }
+          full = full ? concat(full, chunk) : chunk;
+        }
+        break;
+      } catch (error) {
+        // Switch only if nothing reached the user yet, so an answer is never stitched from two models.
+        if (wrote || opts.signal?.aborted || current >= boundChain.length - 1 || !isProviderBusy(error)) throw error;
+        current += 1;
+        full = undefined;
+        opts.emit({ type: "provider_busy", next: current });
+      }
     }
     const res = full;
     const message = new AIMessage({

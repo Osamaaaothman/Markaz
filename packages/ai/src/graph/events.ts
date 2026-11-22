@@ -31,6 +31,8 @@ export type AssistantEvent =
   | { readonly type: "clarify"; readonly question: string; readonly options: readonly string[] }
   // Question mode got a request to create or change data: the UI offers to switch mode and resend.
   | { readonly type: "needs_mode" }
+  // The main model was busy; the turn continues on the next fallback model.
+  | { readonly type: "provider_busy"; readonly next: number }
   | { readonly type: "step_limit" };
 
 export interface TokenUsage {

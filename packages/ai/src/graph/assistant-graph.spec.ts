@@ -175,6 +175,23 @@ describe("runAssistant", () => {
     expect(events).toContainEqual(expect.objectContaining({ type: "tool_end", ok: false, errorCode: "UNKNOWN_TOOL" }));
   });
 
+  it("moves to the fallback model when the main one is busy, and says so", async () => {
+    class BusyModel extends ScriptedChatModel {
+      override _generate(): Promise<never> { return Promise.reject(Object.assign(new Error("This model is currently experiencing high demand"), { status: 503 })); }
+    }
+    const fallback = new ScriptedChatModel([{ text: "answer from fallback" }]);
+    const { result, events } = await run(new BusyModel([]), { fallbackModels: [fallback] });
+    expect(events).toContainEqual({ type: "provider_busy", next: 1 });
+    expect(JSON.stringify(result.newMessages.map((m) => m.content))).toContain("answer from fallback");
+  });
+
+  it("does not hide a real error behind a fallback", async () => {
+    class BrokenModel extends ScriptedChatModel {
+      override _generate(): Promise<never> { return Promise.reject(Object.assign(new Error("API key not valid"), { status: 400 })); }
+    }
+    await expect(run(new BrokenModel([]), { fallbackModels: [new ScriptedChatModel([{ text: "x" }])] })).rejects.toThrow("API key not valid");
+  });
+
   it("stops at the step limit", async () => {
     const loop = Array.from({ length: 10 }, () => ({ toolCalls: [{ name: "parties_search", args: { query: "x" } }] }));
     const { result } = await run(new ScriptedChatModel(loop), { maxSteps: 3 });

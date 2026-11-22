@@ -79,8 +79,9 @@ export function buildSalesTools(s: AiSalesServices): ErpTool[] {
     name: "sales_createQuotation",
     description:
       "Create a sales quotation (price offer) for a customer. Find the customer id with parties_search first; if the customer " +
-      "does not exist, propose parties_createCustomer and reference its id with $ref. Use items_search for stock items; a line " +
-      "may also be free text (description only). unitPrice is per unit and EXCLUDES VAT. If the user gives one amount for " +
+      "does not exist, propose parties_createCustomer and reference its id with $ref. For each product the user names (even vaguely, " +
+      "e.g. 'chairs'), call items_search first: if several items match, call clarify with their names as the options; if exactly " +
+      "one matches, use it; if none match, ask whether to add it as a free-text line. Likewise, if several customers match, clarify. unitPrice is per unit and EXCLUDES VAT. If the user gives one amount for " +
       "several units, or it is unclear whether VAT is included, ask. Never compute totals yourself: the approval card shows them.",
     input: quotationInput,
     permission: { resource: "quotation", action: "create" },

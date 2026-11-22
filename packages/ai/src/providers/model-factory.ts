@@ -12,6 +12,8 @@ export interface ProviderConfig {
   readonly model: string;
   readonly apiKey?: string | undefined;
   readonly baseUrl?: string | undefined;
+  // Client-side retries on a failed call. 0 when a fallback model will be tried instead (faster).
+  readonly retries?: number | undefined;
 }
 
 // Ready-made base URLs for the free / cheap OpenAI-compatible providers listed in the plan §3.1.
@@ -42,21 +44,21 @@ export async function createChatModel(cfg: ProviderConfig): Promise<BaseChatMode
   switch (cfg.provider) {
     case "google": {
       const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
-      return new ChatGoogleGenerativeAI({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: 1 });
+      return new ChatGoogleGenerativeAI({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: cfg.retries ?? 1 });
     }
     case "anthropic": {
       const { ChatAnthropic } = await import("@langchain/anthropic");
-      return new ChatAnthropic({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: 1 });
+      return new ChatAnthropic({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: cfg.retries ?? 1 });
     }
     case "openai": {
       const { ChatOpenAI } = await import("@langchain/openai");
-      return new ChatOpenAI({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: 1 });
+      return new ChatOpenAI({ model: cfg.model, apiKey: key(), temperature: 0, maxRetries: cfg.retries ?? 1 });
     }
     case "openai-compatible": {
       if (!cfg.baseUrl) throw new ProviderConfigError("BASE_URL_REQUIRED");
       const { ChatOpenAI } = await import("@langchain/openai");
       // Local servers (LM Studio) accept any key; the client library insists on one.
-      return new ChatOpenAI({ model: cfg.model, apiKey: cfg.apiKey ?? "not-needed", temperature: 0, maxRetries: 1, configuration: { baseURL: cfg.baseUrl } });
+      return new ChatOpenAI({ model: cfg.model, apiKey: cfg.apiKey ?? "not-needed", temperature: 0, maxRetries: cfg.retries ?? 1, configuration: { baseURL: cfg.baseUrl } });
     }
     case "ollama": {
       if (!cfg.baseUrl) throw new ProviderConfigError("BASE_URL_REQUIRED");
@@ -64,4 +66,15 @@ export async function createChatModel(cfg: ProviderConfig): Promise<BaseChatMode
       return new ChatOllama({ model: cfg.model, baseUrl: cfg.baseUrl, temperature: 0 });
     }
   }
+}
+
+// The free tiers answer "503 high demand" or "429 quota" under load. Those are worth trying on
+// another model; a bad key or a bad request is not.
+export function isProviderBusy(error: unknown): boolean {
+  const e = error as { status?: unknown; code?: unknown; message?: unknown } | null;
+  const status = typeof e?.status === "number" ? e.status : undefined;
+  if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) return true;
+  const code = typeof e?.code === "string" || typeof e?.code === "number" ? String(e.code) : "";
+  const text = `${code} ${typeof e?.message === "string" ? e.message : ""}`;
+  return /(429|500|502|503|504)|overloaded|high demand|unavailable|resource.?exhausted|rate.?limit|timed? ?out|ETIMEDOUT|ECONNRESET/i.test(text);
 }
