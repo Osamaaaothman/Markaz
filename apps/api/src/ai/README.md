@@ -9,6 +9,7 @@ Decisions: `docs/01-OPEN-DECISIONS.md` → "AI assistant". Lessons: `docs/Planni
 |---|---|---|
 | Engine | `packages/ai` | LangChain / LangGraph, tool contracts, modes, approvals. No database, no Nest. |
 | Tools | `tools/erp-tools.ts`, `report-tools.ts`, `sales-tools.ts`, `document-tools.ts`, `purchasing-tools.ts` | Master data and writes; report services; quotation creation; read-only lists of every document type (journal entries, quotations, orders, delivery notes, supplier invoices, payments, cash expenses, stock movements, warehouses, goods receipts, purchase requests, fixed assets, payroll, salary advances) plus the trial balance; supplier invoices entered from an attached document (high risk: always approved). Framework-free. |
+| Actions | `tools/action-tools.ts` | 29 write actions (quotation cancel/reject/convert, sales order, delivery note, sales invoice, credit/debit notes, receipts and supplier payments and their reversal, purchase request/order/approval/cancel/receipt, supplier debit note, item/warehouse/party edits, stock issue, manual journal entry and reversal, salary advance, payroll run, fixed asset create/capitalize, depreciation run). Each calls the SAME controller method the web page calls (resolved through `ModuleRef`), with the same DTO validation, permission and error mapping; the tool only turns codes/numbers into ids and builds the approval card. Every money/stock/ledger action is high risk (always approved). `scripts/ai-actions-live.cjs` runs all of them against the local demo company. |
 | Orchestration | `ai-chat.service.ts` | Permissions, history, persistence, usage. Calls the engine. |
 | HTTP | `ai.controller.ts`, `mcp/ai-mcp.controller.ts` | SSE streaming, settings, MCP. |
 
@@ -62,6 +63,10 @@ summary never blocks the message (the history is then trimmed to the last 40 mes
 until an admin saves one: `AI_PROVIDER`, `AI_MODEL`, `AI_BASE_URL`, `AI_API_KEY` / `GEMINI_API_KEY`.
 
 ## Known Gaps
+
+- **Actions are checked live, not in CI.** `scripts/ai-actions-live.cjs` posts real documents into the local demo company; CI has no fully set-up company to run it on. Purchase-order approval was only seen failing correctly (the demo company has no approval rule), and payroll / depreciation runs were only previewed, never posted, in that check.
+- **About 70 tools are sent to the model on every call.** That costs input tokens on each request (~10k); grouping tools by page or intent would cut it.
+- **Retried approvals:** the idempotency key is conversation + decision + tool + input, so the same approval replayed posts once, while a separate request for an identical document creates a second one, as on the page.
 
 - **Attached files go to the AI provider.** The model reads the document's bytes, so the file leaves the server. On a free provider tier it may be used for training — tell customers before they enable it.
 - **Staged files are never cleaned up.** A file attached in chat but never turned into an invoice stays in the file store (not listed anywhere). A sweep job is not built yet.

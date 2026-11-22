@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import {
   AccountMappingService,
   AgingService,
@@ -36,6 +37,7 @@ import { buildReportTools } from "./tools/report-tools.js";
 import { buildDocumentTools } from "./tools/document-tools.js";
 import { buildSalesTools } from "./tools/sales-tools.js";
 import { buildPurchasingTools } from "./tools/purchasing-tools.js";
+import { buildActionTools } from "./tools/action-tools.js";
 
 // AI assistant (docs/Planning/ai-assistant-plan.md). The tools use the same core services the web
 // endpoints use, built here the same way their own modules build them.
@@ -50,7 +52,7 @@ import { buildPurchasingTools } from "./tools/purchasing-tools.js";
     },
     {
       provide: AI_TOOLS,
-      useFactory: (prisma: PrismaService, audit: IAuditLogger, invoices: SupplierInvoiceService, attachments: AttachmentService) => {
+      useFactory: (prisma: PrismaService, audit: IAuditLogger, invoices: SupplierInvoiceService, attachments: AttachmentService, moduleRef: ModuleRef) => {
         const aging = new AgingService(prisma, new AccountMappingService(prisma, audit));
         return [
           ...buildErpTools({
@@ -76,9 +78,11 @@ import { buildPurchasingTools } from "./tools/purchasing-tools.js";
           ...buildSalesTools({ prisma, quotations: new QuotationService(prisma, audit) }),
           ...buildDocumentTools({ prisma, trialBalance: new TrialBalanceService(prisma) }),
           ...buildPurchasingTools({ prisma, invoices, attachments }),
+          // Actions that run through the same controller methods as the web pages (resolved when used).
+          ...buildActionTools({ prisma, moduleRef }),
         ];
       },
-      inject: [PrismaService, AUDIT_LOGGER, SupplierInvoiceService, AttachmentService],
+      inject: [PrismaService, AUDIT_LOGGER, SupplierInvoiceService, AttachmentService, ModuleRef],
     },
     {
       provide: AiChatService,

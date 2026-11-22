@@ -184,6 +184,9 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
     recRef.current = rec;
     setListening(true);
     rec.start();
+    // Phones cannot open the microphone twice: a second capture for the level bars stops speech
+    // recognition at once. On touch screens the bars animate on their own instead.
+    if (touchScreen()) return;
     void startAudioMeter((level) => useAiStore.getState().setAudioLevel(level)).then((meter) => {
       // Dictation may already have ended while the microphone permission was being asked.
       if (!useAiStore.getState().listening) meter?.stop();
@@ -357,6 +360,7 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
 // Shown inside the box while dictating: a pulsing dot, the elapsed time, bars that follow the
 // real microphone level, and cancel / done.
 const BARS = 28;
+const touchScreen = (): boolean => typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true;
 function DictationBar({ onCancel, onDone }: { onCancel: () => void; onDone: () => void }): React.JSX.Element {
   const { t } = useTranslation();
   const [levels, setLevels] = useState<number[]>(() => Array.from({ length: BARS }, () => 0));
@@ -364,7 +368,8 @@ function DictationBar({ onCancel, onDone }: { onCancel: () => void; onDone: () =
   useEffect(() => {
     const started = Date.now();
     const id = setInterval(() => {
-      const level = useAiStore.getState().audioLevel;
+      // Without a level meter (touch screens) the bars move with a gentle random wave.
+      const level = touchScreen() ? 0.2 + Math.random() * 0.45 : useAiStore.getState().audioLevel;
       setLevels((l) => [...l.slice(1), level]);
       setSeconds(Math.floor((Date.now() - started) / 1000));
     }, 90);
