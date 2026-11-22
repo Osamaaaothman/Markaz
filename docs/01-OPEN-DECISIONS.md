@@ -202,6 +202,9 @@ challenged. Every one of them must be confirmed by Osama.
    daily pro-rata straight line, one journal line pair per asset, separate disposal-loss account,
    no asset sales until a tax-invoice path exists, net-only manual capitalisation, numbering per
    category). Outside official Tier 1 scope.
+   **AI assistant, 2026-11-22:** built at Osama's direct request on a separate branch
+   (`feat/ai-assistant`; plan `docs/Planning/ai-assistant-plan.md`, code `packages/ai`,
+   `apps/api/src/ai`, `apps/web/src/features/ai`). Outside official Tier 1 scope.
 6. Users belong to exactly one company deployment. Cross-deployment users (e.g. an
    accounting firm managing several clients' separate installs) are **not**
    supported in Tier 1 — if they are needed, say so now, because it changes the
@@ -1049,3 +1052,32 @@ Design: [BOTS-INTEGRATION-PLAN.md](BOTS-INTEGRATION-PLAN.md). Code: `packages/bo
   same Nest-wired PDF services), `BOTS_RUNTIME=off` disables them on an HTTP-only replica; Telegram
   group chats only answer `/chatid` and `/help`; purchase-order approvals need a confirmation tap and
   rejections need a reason.
+
+## AI assistant — 2026-11-22
+
+Design: [Planning/ai-assistant-plan.md](Planning/ai-assistant-plan.md). Code: `packages/ai`, `apps/api/src/ai`
+(README), `apps/web/src/features/ai`. Branch `feat/ai-assistant`.
+
+- **D-AI-1 where data goes — DECIDED by Osama (2026-11-22):** an external provider, starting on free
+  tiers for development. Each company configures its own provider and key in Settings → AI assistant;
+  an admin sees a data-sharing notice there. A local model (Ollama / LM Studio) stays available for
+  customers with GPU hardware.
+- Built with the recommended default; **Osama to confirm or change**:
+  - D-AI-2 LangChain + LangGraph (JS) for the model abstraction and the agent loop; MCP SDK for the
+    external read-only endpoint. New dependencies: `@langchain/core`, `@langchain/langgraph`,
+    `@langchain/google-genai`, `@langchain/openai`, `@langchain/anthropic`, `@langchain/ollama`,
+    `@modelcontextprotocol/sdk`.
+  - D-AI-3 tokens are paid with the company's own key; an optional monthly token limit per company,
+    usage shown in settings.
+  - D-AI-4 auto mode exists but is **off by default**: the company switch and the `ai_assistant:auto`
+    permission are both required. High-risk tools always need approval, in every mode.
+  - D-AI-5 multi-step changes run **in order, not in one transaction**: each core service owns its own
+    transaction (numbering + audit inside it) and the assistant does not reach around that. A failed
+    step leaves earlier steps done; a step whose dependency did not run is skipped. Acceptable only
+    while every write tool is low risk (master data the user can edit or deactivate).
+- Other choices made while building: approvals are persisted in `ai_change_items` (frozen by a trigger
+  once decided) instead of LangGraph's Postgres checkpointer + `interrupt()`, so no extra library
+  tables; every write made through the assistant carries correlation id `ai:<conversationId>` in the
+  audit log; the MCP endpoint is read-only and uses the normal API bearer token (no personal access
+  tokens yet).
+

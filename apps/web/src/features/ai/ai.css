@@ -421,7 +421,8 @@
 .ai-page {
   display: grid;
   grid-template-columns: 280px 1fr;
-  height: calc(100dvh - 5.5rem);
+  /* top bar (64px) + page paddings (24px top, 40px bottom) + gap, so the page never scrolls behind the sticky top bar */
+  height: calc(100dvh - 9rem);
   min-height: 480px;
   border: 1px solid var(--mk-border);
   border-radius: var(--mk-radius-xl, 18px);
