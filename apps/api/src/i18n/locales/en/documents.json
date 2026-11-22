@@ -431,7 +431,6 @@
     },
     "qr": "Invoice QR code",
     "qrUnavailable": "No usable QR is available yet. Standard invoices need a matching QR from the clearance response.",
-    "xmlNotice": "This PDF is a visual copy. Retain the original electronic XML from the invoice details.",
     "zatcaQrCaptionEn": "This QR code is encoded as per ZATCA e-invoicing requirements",
     "zatcaQrCaptionAr": "رمز الاستجابة السريعة مشفّر حسب متطلبات هيئة الزكاة والضريبة والجمارك للفوترة الإلكترونية"
   },

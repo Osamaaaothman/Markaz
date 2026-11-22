@@ -73,8 +73,10 @@ export async function salesInvoiceToPdfHtml(params: {
 
   const extraCss = `
   .compliance-notice { border: 2pt solid #92400e; padding: 8pt; color: #78350f; background: #fffbeb; font-weight: 700; margin-block-end: 12pt; }
-  .invoice-compliance { display: flex; align-items: center; gap: 16pt; margin-block-start: 16pt; break-inside: avoid; font-size: 9pt; }
-  .invoice-qr { width: 140pt; height: 140pt; object-fit: contain; image-rendering: pixelated; }
+  .invoice-compliance { display: flex; flex-direction: column; align-items: flex-start; max-width: 40%; break-inside: avoid; font-size: 8pt; }
+  .report-main .invoice-compliance { padding-block-start: 0; border: none; }
+  .report-main .invoice-qr, .doc-clean .invoice-qr { width: 88pt; height: 88pt; object-fit: contain; image-rendering: pixelated; }
+  .qr-missing { font-size: 8pt; color: #78350f; margin: 4pt 0 0; }
   .inv-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16pt; margin-block-end: 18pt; }
   .bill-to-block { flex: 1 1 auto; }
   .bill-to-label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-block-end: 4pt; font-weight: 600; }
@@ -88,7 +90,7 @@ export async function salesInvoiceToPdfHtml(params: {
   table.inv-lines th { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-size: 9pt; }
   table.inv-lines td { font-size: 9pt; }
   table.inv-lines tbody tr:nth-child(even) td { background: #f9f9fb; }
-  .totals-wrap { display: flex; justify-content: flex-end; margin-block-start: 8pt; }
+  .totals-wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 16pt; margin-block-start: 10pt; break-inside: avoid; }
   table.inv-totals { width: 42%; border: none; }
   table.inv-totals th, table.inv-totals td { border: none; border-block-end: 1px solid #e8e8e8; padding: 4pt 8pt; font-size: 9.5pt; background: none; }
   table.inv-totals .grand-total th, table.inv-totals .grand-total td { border-block-end: none; background: #1a1a1a; color: #fff; font-size: 11pt; font-weight: 700; padding: 6pt 8pt; }
@@ -121,6 +123,11 @@ ${params.compliance && params.compliance.environment !== "production" ? `<div cl
 <tbody>${lineRows}</tbody>
 </table>
 <div class="totals-wrap">
+  ${params.compliance ? `<div class="invoice-compliance">
+    ${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : `<p class="qr-missing">${escapeHtml(t("compliance.qrUnavailable"))}</p>`}
+    <p class="zatca-caption"><span class="en">${escapeHtml(t("compliance.zatcaQrCaptionEn"))}</span>${escapeHtml(t("compliance.zatcaQrCaptionAr"))}</p>
+    ${isDataPreview ? `<p class="qr-missing"><strong>${escapeHtml(t("compliance.dataPreviewNotice"))}</strong></p>` : ""}
+  </div>` : "<div></div>"}
   <table class="inv-totals">
     <tr><th>${escapeHtml(t("salesInvoice.net"))}</th><td class="amount">${money(invoice.totalNet)}</td></tr>
     <tr><th>${escapeHtml(t("salesInvoice.tax"))}</th><td class="amount">${money(invoice.totalTax)}</td></tr>
@@ -128,16 +135,7 @@ ${params.compliance && params.compliance.environment !== "production" ? `<div cl
   </table>
 </div>
 <p class="amount-words">${escapeHtml(t("salesInvoice.inWords"))}: ${escapeHtml(tafqeetAmount(invoice.totalGross, cur, params.language))}</p>
-${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}
-${params.compliance ? `<div class="invoice-compliance">
-<div>
-${qrImage?.startsWith("data:image/png;base64,") ? `<img class="invoice-qr" src="${escapeHtml(qrImage)}" alt="${escapeHtml(t("compliance.qr"))}"/>` : ""}
-<p class="zatca-caption"><span class="en">${escapeHtml(t("compliance.zatcaQrCaptionEn"))}</span>${escapeHtml(t("compliance.zatcaQrCaptionAr"))}</p>
-</div>
-<div><p>${escapeHtml(t("compliance.status"))}: ${escapeHtml(t(`compliance.statuses.${params.compliance.status}`))}</p>
-${isDataPreview ? `<p><strong>${escapeHtml(t("compliance.dataPreviewNotice"))}</strong></p>` : ""}
-${!qrImage ? `<p>${escapeHtml(t("compliance.qrUnavailable"))}</p>` : ""}
-<p>${escapeHtml(t("compliance.xmlNotice"))}</p></div></div>` : ""}`,
+${invoice.notes ? `<p class="inv-notes">${escapeHtml(invoice.notes)}</p>` : ""}`,
     footerHtml: issuedFooter(params, { issuedBy: t("document.issuedBy"), issuedAt: t("document.issuedAt"), notice: t("salesInvoice.computerGenerated") }),
   });
 }
