@@ -714,7 +714,7 @@ function SalesReturnDialog({
               <label htmlFor="srDate">{t("sales.invoices.creditDate")}</label>
               <Calendar
                 inputId="srDate"
-                value={date}
+                value={date} maxDate={new Date()}
                 onChange={(e) => e.value && setDate(e.value)}
                 dateFormat="yy-mm-dd"
               />
@@ -898,7 +898,7 @@ function DebitNoteDialog({
             <label htmlFor="dnDate">{t("sales.invoices.debitDate")}</label>
             <Calendar
               inputId="dnDate"
-              value={date}
+              value={date} maxDate={new Date()}
               onChange={(e) => e.value && setDate(e.value)}
               dateFormat="yy-mm-dd"
             />

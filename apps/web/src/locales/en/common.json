@@ -1038,6 +1038,7 @@
       "INSUFFICIENT_STOCK": "Not enough stock in that warehouse for this line.",
       "INSUFFICIENT_STOCK_WARN": "Quantity exceeds available stock or availability could not be checked. You can continue; shortages use provisional costs settled on receipt.",
       "BELOW_COST": "Selling price is below the known average cost. Increase it before saving.",
+      "FUTURE_DATE": "The date cannot be after today.",
       "OVER_INVOICED": "More than the quantity still to invoice on the order.",
       "CUSTOMER_MISMATCH": "An order line belongs to a different customer.",
       "WAREHOUSE_REQUIRED": "A line with an item needs a warehouse.",

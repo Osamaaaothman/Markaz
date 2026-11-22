@@ -853,6 +853,15 @@ html body .erp-table .p-datatable-emptymessage > td {
   animation: mk-rise var(--mk-dur) var(--mk-ease) both;
 }
 
+/* Labelled line rows align from the top, so a hint or warning under one field only makes the row
+   taller instead of pushing the other fields up and down. The delete button skips the label height. */
+.erp-lines__row:has(> .erp-line-field) { align-items: flex-start; }
+.erp-lines__row:has(> .erp-line-field) .erp-line-field__label { line-height: 1.6; }
+.erp-lines__row:has(> .erp-line-field) > .p-button { margin-block-start: calc(0.8rem * 1.6 + 0.35rem); }
+
+/* A form row whose fields carry hints: align from the top so a hint does not lift its own input. */
+.erp-form__row--top { align-items: start; }
+
 .erp-lines__row:hover {
   border-color: var(--mk-border-strong);
 }

@@ -28,6 +28,7 @@ import type { SalesActor } from "./quotation.service.js";
 import {
   SalesError,
   blankToNull,
+  assertNotFutureDate,
   dateOnly,
   lockCustomer,
   resolveEgsUnitId,
@@ -262,6 +263,7 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertNotFutureDate(tx, actor.companyId, input.invoiceDate);
       await lockCustomer(tx, actor.companyId, input.customerId);
       const previous = await tx.salesInvoice.findFirst({
         where: {
@@ -597,6 +599,7 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertNotFutureDate(tx, actor.companyId, input.creditDate);
       // Invoice tables are immutable for the runtime role; serialize returns without UPDATE privileges.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.companyId + ":sales-return:" + input.originalInvoiceId}, 0))::text`;
       const original = await tx.salesInvoice.findFirst({
@@ -982,6 +985,7 @@ export class SalesInvoiceService {
     idempotencyKey: string,
   ): Promise<SalesInvoiceResult> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await assertNotFutureDate(tx, actor.companyId, input.debitDate);
       const original = await tx.salesInvoice.findFirst({
         where: { id: input.originalInvoiceId, companyId: actor.companyId },
       });
