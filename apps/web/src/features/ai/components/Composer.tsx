@@ -343,13 +343,6 @@ export function Composer({ busy, mode, allowed, suggestions, liveLabel, onSend, 
           </button>
         </div>
       </div>
-      <p className="ai-composer__hint">
-        <span><kbd>Enter</kbd> {t("ai.composer.keySend")}</span>
-        <span><kbd>Shift</kbd>+<kbd>Enter</kbd> {t("ai.composer.keyLine")}</span>
-        <span><kbd>/</kbd> {t("ai.composer.keyCommands")}</span>
-        <span><kbd>↑</kbd> {t("ai.composer.keyRecall")}</span>
-        <span><kbd>Ctrl</kbd>+<kbd>J</kbd> {t("ai.composer.keyToggle")}</span>
-      </p>
     </div>
   );
 }

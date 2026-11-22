@@ -288,7 +288,6 @@ export function ChatView({ variant }: { variant: "panel" | "page" }): React.JSX.
       ) : null}
 
       <Composer busy={busy} mode={mode} allowed={allowed} suggestions={suggestions} liveLabel={liveLabel} onSend={chat.send} onStop={chat.stop} onMode={setMode} onNewChat={chat.newChat} />
-      {me.data?.model ? <p className="ai-footnote">{t("ai.footnote", { model: me.data.model })}</p> : null}
     </div>
   );
 }

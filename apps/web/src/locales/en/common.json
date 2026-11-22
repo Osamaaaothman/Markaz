@@ -3425,11 +3425,6 @@
       "removeContext": "Remove page context",
       "addContext": "Add page: {{page}}",
       "batchHint": "{{count}} lines — one record per line will be proposed",
-      "keySend": "send",
-      "keyLine": "new line",
-      "keyCommands": "commands",
-      "keyRecall": "previous message",
-      "keyToggle": "open / close",
       "attach": "Attach a file (PDF or picture)",
       "removeFile": "Remove the file",
       "fileTooLarge": "The file is too large (10 MB at most).",
@@ -3437,7 +3432,6 @@
       "fileHint": "The file is sent to the AI provider to be read.",
       "fileOnly": "Read the attached file."
     },
-    "footnote": "Model: {{model}} · AI can make mistakes — check important figures.",
     "timeline": {
       "working": "Working…",
       "steps": "{{count}} steps",

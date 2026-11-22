@@ -15,6 +15,8 @@ export function AssistantPage(): React.JSX.Element {
   const toggleHistory = useAiStore((s) => s.toggleHistory);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { closePanel(); }, [closePanel]);
+  // On a narrow screen the list covers the chat: close it once a conversation is picked.
+  const closeIfNarrow = (): void => { if (window.innerWidth <= 860 && useAiStore.getState().historyOpen) toggleHistory(); };
   // On a narrow screen the list overlays the chat, so it starts closed there.
   useEffect(() => {
     if (window.innerWidth <= 860 && useAiStore.getState().historyOpen) useAiStore.getState().toggleHistory();
@@ -31,7 +33,9 @@ export function AssistantPage(): React.JSX.Element {
       const el = ref.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
-      el.style.height = `${Math.max(window.innerHeight - top, 420)}px`;
+      // The visual viewport shrinks when a phone keyboard opens; follow it so the composer stays above the keys.
+      const visible = window.visualViewport?.height ?? window.innerHeight;
+      el.style.height = `${Math.max(visible - top, 320)}px`;
     };
     fit();
     const observer = new ResizeObserver(fit);
@@ -43,7 +47,9 @@ export function AssistantPage(): React.JSX.Element {
     const attrs = new MutationObserver(fit);
     attrs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-design", "data-theme", "dir"] });
     window.addEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
     return () => {
+      window.visualViewport?.removeEventListener("resize", fit);
       root.style.overflow = previous;
       observer.disconnect();
       attrs.disconnect();
@@ -54,8 +60,9 @@ export function AssistantPage(): React.JSX.Element {
   return (
     <div ref={ref} className={`ai-page ai-surface ai-surface--${orb}${historyOpen ? "" : " is-collapsed"}`}>
       <aside className="ai-page__side" aria-hidden={!historyOpen}>
-        <ConversationList />
+        <ConversationList onPicked={closeIfNarrow} />
       </aside>
+      {historyOpen && <div className="ai-page__scrim" onClick={toggleHistory} aria-hidden="true" />}
       <section className="ai-page__main">
         <button
           type="button"
