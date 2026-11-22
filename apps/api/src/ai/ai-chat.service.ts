@@ -78,6 +78,8 @@ export class AiChatService {
     private readonly audit: IAuditLogger,
     private readonly settings: AiSettingsService,
     private readonly tools: readonly ErpTool[],
+    // Swappable so tests can run the whole flow with a scripted model and no network.
+    private readonly modelFactory: typeof createChatModel = createChatModel,
   ) {}
 
   private can(actor: Actor, resource: string, action: string): Promise<boolean> {
@@ -116,7 +118,7 @@ export class AiChatService {
     emit({ type: "conversation", id: conversation.id, title: conversation.title });
 
     // Moving on while proposals wait = the user did not accept them.
-    if (conversation.status === "AWAITING_APPROVAL") await this.rejectPending(actor, conversation.id, "superseded");
+    if (conversation.status === "AWAITING_APPROVAL") await this.rejectPending(actor, conversation.id);
 
     const history = await this.history(conversation.id);
     const human = new HumanMessage(text);
@@ -197,7 +199,7 @@ export class AiChatService {
 
     let result: RunResult;
     try {
-      const model = await createChatModel(provider);
+      const model = await this.modelFactory(provider);
       const priorRows = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "EXECUTED" }, select: { itemKey: true, result: true } });
       result = await runAssistant({
         model,
@@ -272,11 +274,10 @@ export class AiChatService {
     }
   }
 
-  private async rejectPending(actor: Actor, conversationId: string, reason: string): Promise<void> {
+  private async rejectPending(actor: Actor, conversationId: string): Promise<void> {
     const pending = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: "PROPOSED" }, select: { id: true, itemKey: true, tool: true } });
     await this.recordOutcomes(actor, pending, pending.map((p) => ({ id: p.itemKey, status: "rejected" as const })));
     await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: "IDLE" } });
-    void reason;
   }
 
   private async ownConversation(actor: Actor, id: string) {
