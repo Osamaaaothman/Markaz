@@ -6,6 +6,7 @@ import { OverlayPanel } from "primereact/overlaypanel";
 import { Tag } from "primereact/tag";
 import { useThemeStore } from "../../shared/theme/theme-store";
 import { DirectionPicker } from "../../shared/theme/DirectionPicker";
+import { AssistantButton } from "../../features/ai/AssistantPanel";
 import { useAuthStore } from "../../shared/auth/auth-store";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { Logo } from "../../shared/ui/Logo";
@@ -111,6 +112,8 @@ export function Topbar(): React.JSX.Element {
       <div className="erp-topbar__spacer" />
 
       <DirectionPicker />
+
+      <AssistantButton />
 
       <button
         type="button"

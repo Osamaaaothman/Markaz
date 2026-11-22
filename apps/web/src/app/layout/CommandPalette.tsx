@@ -5,6 +5,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { useThemeStore } from "../../shared/theme/theme-store";
 import { CREATE_ACTIONS } from "./create-actions";
 import { NAV_ITEMS } from "./NavConfig";
+import { useAiStore } from "../../features/ai/ai-store";
 import { useLayoutStore } from "./layout-store";
 
 interface Command {
@@ -84,8 +85,12 @@ export function CommandPalette(): React.JSX.Element | null {
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q === "") return commands;
-    return commands.filter((c) => `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q));
-  }, [commands, query]);
+    const matches = commands.filter((c) => `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q));
+    // Anything typed can also go straight to the AI assistant (it lands in the chat box for review).
+    if (!can("ai_assistant:use")) return matches;
+    const ask: Command = { id: "ask-ai", label: t("ai.palette.ask", { q: query.trim() }), icon: "pi pi-sparkles", section: "create", run: () => useAiStore.getState().openPanel(query.trim()) };
+    return matches.length > 0 ? [...matches, ask] : [ask];
+  }, [commands, query, can, t]);
 
   useEffect(() => {
     setActive(0);

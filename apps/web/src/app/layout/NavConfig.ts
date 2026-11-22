@@ -34,6 +34,7 @@ export const DEFAULT_GROUP_ICON = "pi pi-folder";
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", labelKey: "nav.dashboard", icon: "pi pi-home" },
+  { to: "/assistant", labelKey: "nav.assistant", icon: "pi pi-sparkles", permissions: ["ai_assistant:use"] },
   { to: "/setup", labelKey: "nav.setup", icon: "pi pi-list-check", permissions: ["account_mapping:read"] },
   { to: "/accounting/chart-of-accounts", labelKey: "nav.chartOfAccounts", icon: "pi pi-sitemap", permissions: ["account:read"], groupKey: "nav.groups.accounting" },
   { to: "/accounting/journal-entries", labelKey: "nav.journalEntries", icon: "pi pi-book", permissions: ["journal_entry:read"], groupKey: "nav.groups.accounting" },
@@ -83,6 +84,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings/tax-codes", labelKey: "nav.taxCodes", icon: "pi pi-percentage", permissions: ["tax_code:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/zatca", labelKey: "nav.zatca", icon: "pi pi-shield", permissions: ["compliance:read"], groupKey: "nav.groups.settings" },
+  { to: "/settings/ai", labelKey: "nav.aiSettings", icon: "pi pi-sparkles", permissions: ["ai_settings:manage"], groupKey: "nav.groups.settings" },
   { to: "/settings/bots", labelKey: "nav.chatBots", icon: "pi pi-comments", permissions: ["bot_connection:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/my-bots", labelKey: "nav.myChatBots", icon: "pi pi-send", groupKey: "nav.groups.settings" },
   { to: "/settings/interface", labelKey: "nav.interface", icon: "pi pi-sliders-h", groupKey: "nav.groups.settings" },

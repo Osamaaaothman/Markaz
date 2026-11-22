@@ -41,7 +41,7 @@ export interface ChangePreview {
 export type DisplayBlock =
   | { readonly kind: "kpis"; readonly titleKey: string; readonly items: ReadonlyArray<{ readonly labelKey: string; readonly value: string; readonly format: "money" | "number" | "text"; readonly currency?: string }> }
   | { readonly kind: "table"; readonly titleKey: string; readonly columns: ReadonlyArray<{ readonly key: string; readonly labelKey: string; readonly format?: "money" | "number" | "text" | "date" }>; readonly rows: ReadonlyArray<Readonly<Record<string, string>>>; readonly link?: string }
-  | { readonly kind: "chart"; readonly titleKey: string; readonly chartType: "bar" | "line"; readonly labels: ReadonlyArray<string>; readonly series: ReadonlyArray<{ readonly labelKey: string; readonly values: ReadonlyArray<number> }> }
+  | { readonly kind: "chart"; readonly titleKey: string; readonly chartType: "bar" | "line"; readonly labels: ReadonlyArray<string>; readonly series: ReadonlyArray<{ readonly labelKey: string; readonly values: ReadonlyArray<string> }> } // decimal strings, never floats
   | { readonly kind: "links"; readonly titleKey: string; readonly items: ReadonlyArray<{ readonly label: string; readonly path: string; readonly hint?: string }> };
 
 export interface ReadResult {

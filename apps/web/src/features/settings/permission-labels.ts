@@ -38,6 +38,8 @@ const RESOURCE_ORDER = [
   "attachment",
   "company",
   "bot_connection",
+  "ai_assistant",
+  "ai_settings",
 ] as const;
 
 export function splitPermissionCode(code: string): { resource: string; action: string } {

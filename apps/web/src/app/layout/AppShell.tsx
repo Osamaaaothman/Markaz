@@ -3,6 +3,7 @@ import { PageSkeleton } from "../../shared/ui/PageSkeleton";
 import { Outlet, useLocation } from "react-router-dom";
 import { InstallPrompt } from "../../shared/pwa/InstallPrompt";
 import { OfflineBanner } from "../../shared/offline/OfflineBanner";
+import { AssistantPanel } from "../../features/ai/AssistantPanel";
 import { CommandPalette } from "./CommandPalette";
 import { ExportProgress } from "./ExportProgress";
 import { Sidebar } from "./Sidebar";
@@ -56,6 +57,7 @@ export function AppShell(): React.JSX.Element {
         </main>
       </div>
       <CommandPalette />
+      <AssistantPanel />
       <ExportProgress />
       <InstallPrompt />
     </div>

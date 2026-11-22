@@ -84,7 +84,9 @@
     "fixedAssets": "Fixed assets",
     "assetCategories": "Asset categories",
     "depreciationRuns": "Depreciation runs",
-    "fixedAssetReports": "Asset reports"
+    "fixedAssetReports": "Asset reports",
+    "assistant": "AI assistant",
+    "aiSettings": "AI assistant"
   },
   "actions": {
     "save": "Save",
@@ -555,7 +557,9 @@
         "party_statement": "Customer and supplier statements",
         "attachment": "Attached documents",
         "company": "Company settings",
-        "bot_connection": "Chat bots"
+        "bot_connection": "Chat bots",
+        "ai_assistant": "AI assistant",
+        "ai_settings": "AI settings"
       },
       "actions": {
         "create": "Create",
@@ -568,7 +572,10 @@
         "approve": "Approve",
         "cancel": "Cancel",
         "delete": "Delete",
-        "manage": "Manage"
+        "manage": "Manage",
+        "use": "Use (questions)",
+        "interact": "Propose changes",
+        "auto": "Auto mode"
       },
       "createUserSuccess": "User created.",
       "createUserError": "Couldn't create user.",
@@ -3368,6 +3375,280 @@
       "DISPOSAL_BEFORE_ACQUISITION": "The disposal date cannot be before the asset entered the ledger.",
       "NOTHING_CHANGED": "The transfer changes nothing.",
       "MAPPING_MISSING": "An account mapping this needs is not set. Set it in Settings > Account mapping."
+    }
+  },
+  "ai": {
+    "panel": {
+      "title": "AI assistant",
+      "subtitle": "Ask, or let it do the work",
+      "short": "Assistant",
+      "open": "Open the AI assistant",
+      "close": "Close",
+      "expand": "Open full page"
+    },
+    "mode": {
+      "label": "Mode",
+      "ask": "Ask",
+      "review": "Review",
+      "auto": "Auto",
+      "askHint": "Answers only — never changes anything",
+      "reviewHint": "Proposes changes; nothing is saved until you approve",
+      "autoHint": "Saves simple changes at once; risky ones still need your approval",
+      "notAllowed": "Not available for your account"
+    },
+    "welcome": {
+      "title": "How can I help?",
+      "ask": "Ask about sales, balances, customers, employees or stock. I only read — I never change anything in this mode.",
+      "review": "Tell me what to create. I will prepare each change as a card, and nothing is saved until you approve it.",
+      "auto": "Simple records are saved right away. Anything risky still waits for your approval."
+    },
+    "notConfigured": {
+      "title": "The assistant is not set up yet",
+      "body": "An administrator needs to choose an AI provider and model.",
+      "action": "Open AI settings"
+    },
+    "composer": {
+      "placeholder": "Message the assistant…",
+      "listening": "Listening…",
+      "dictate": "Dictate",
+      "send": "Send",
+      "stop": "Stop",
+      "hint": "Enter to send · Shift+Enter for a new line · Ctrl+J to open or close"
+    },
+    "footnote": "Model: {{model}} · AI can make mistakes — check important figures.",
+    "timeline": {
+      "working": "Working…",
+      "steps": "{{count}} steps"
+    },
+    "tool": {
+      "dashboard_overview": "Reading the company overview",
+      "reports_monthlyRevenueExpense": "Reading monthly revenue and expenses",
+      "parties_search": "Searching customers and suppliers",
+      "employees_search": "Searching employees",
+      "items_search": "Searching items",
+      "salesInvoices_search": "Searching sales invoices",
+      "accounts_search": "Searching the chart of accounts",
+      "parties_createCustomer": "Preparing a new customer",
+      "parties_createSupplier": "Preparing a new supplier",
+      "hr_createEmployee": "Preparing a new employee",
+      "inventory_createItem": "Preparing a new item",
+      "accounting_createAccount": "Preparing a new account",
+      "clarify": "Asking you to choose"
+    },
+    "blocks": {
+      "overview": "Company overview",
+      "revenueExpense": "Revenue and expenses by month",
+      "parties": "Customers and suppliers",
+      "employees": "Employees",
+      "items": "Items",
+      "invoices": "Sales invoices",
+      "accounts": "Accounts",
+      "empty": "No matches found.",
+      "open": "Open"
+    },
+    "kpi": {
+      "salesThisMonth": "Net sales this month",
+      "receivables": "Receivables",
+      "overdueReceivables": "Overdue receivables",
+      "payables": "Payables",
+      "cash": "Cash and bank",
+      "stockValue": "Stock value",
+      "belowReorder": "Items below reorder point",
+      "pendingApprovals": "Purchases awaiting approval",
+      "revenue": "Revenue",
+      "expense": "Expenses"
+    },
+    "col": {
+      "ref": "Reference",
+      "name": "Name",
+      "nameAr": "Arabic name",
+      "kind": "Type",
+      "phone": "Phone",
+      "email": "Email",
+      "vatNumber": "VAT number",
+      "hireDate": "Hire date",
+      "basicSalary": "Basic salary",
+      "code": "Code",
+      "unit": "Unit",
+      "reorderPoint": "Reorder point",
+      "number": "Number",
+      "customer": "Customer",
+      "date": "Date",
+      "total": "Total",
+      "type": "Account type",
+      "nationalId": "National ID / Iqama",
+      "nationality": "Nationality",
+      "iban": "IBAN",
+      "parent": "Parent account"
+    },
+    "arg": {
+      "name": "Name",
+      "nameAr": "Arabic name",
+      "phone": "Phone",
+      "email": "Email",
+      "vatNumber": "VAT number",
+      "nationalId": "National ID / Iqama",
+      "bankIban": "IBAN",
+      "bankName": "Bank",
+      "hireDate": "Hire date (YYYY-MM-DD)",
+      "basicSalary": "Basic salary",
+      "code": "Code",
+      "unit": "Unit",
+      "reorderPoint": "Reorder point",
+      "parentCode": "Parent account code"
+    },
+    "value": {
+      "saudi": "Saudi",
+      "nonSaudi": "Non-Saudi"
+    },
+    "preview": {
+      "createCustomer": "New customer",
+      "createSupplier": "New supplier",
+      "createEmployee": "New employee",
+      "createItem": "New item",
+      "createAccount": "New ledger account"
+    },
+    "warn": {
+      "parentNotFound": "No account has this parent code.",
+      "parentNotGroup": "The parent is a postable account, not a group."
+    },
+    "risk": {
+      "high": "Needs care"
+    },
+    "change": {
+      "auto": "Done automatically",
+      "approve": "Approve",
+      "edit": "Edit",
+      "reject": "Reject",
+      "doneEditing": "Done",
+      "edited": "Edited",
+      "blocked": "Will not run: it depends on {{key}}, which you rejected.",
+      "open": "Open {{label}}",
+      "rejectAll": "Reject all",
+      "submit": "Confirm my choices",
+      "approveAll": "Approve all",
+      "approveLow": "Approve the simple ones",
+      "status": {
+        "PROPOSED": "Waiting",
+        "EXECUTED": "Saved",
+        "REJECTED": "Rejected",
+        "SKIPPED": "Skipped",
+        "FAILED": "Failed"
+      },
+      "pending": "Changes to review: {{count}}"
+    },
+    "error": {
+      "PROVIDER_ERROR": "The AI provider returned an error. Try again in a moment.",
+      "AUTH_FAILED": "The AI provider rejected the API key. Check it in Settings → AI assistant.",
+      "MODEL_NOT_FOUND": "This model is not available from the provider. Choose another model.",
+      "RATE_LIMITED": "The provider's usage limit was reached. Wait a little and try again.",
+      "PROVIDER_BUSY": "The model is busy right now. Try again in a moment.",
+      "UNREACHABLE": "The AI provider could not be reached. Check the address and the connection.",
+      "ABORTED": "Stopped.",
+      "NETWORK": "The connection was interrupted. Try again.",
+      "STEP_LIMIT": "The assistant stopped after too many steps. Try a simpler request.",
+      "TOOL_FAILED": "The change could not be saved.",
+      "LIMIT_REACHED": "This month's AI usage limit has been reached. An administrator can raise it.",
+      "AUTO_MODE_OFF": "Auto mode is turned off for this company.",
+      "DISABLED": "The AI assistant is turned off.",
+      "NOT_CONFIGURED": "The AI assistant has not been set up yet.",
+      "ENCRYPTION_KEY_MISSING": "The server has no encryption key for AI credentials (AI_CREDENTIALS_ENCRYPTION_KEY).",
+      "FORBIDDEN": "You do not have permission for this.",
+      "CONVERSATION_NOT_FOUND": "This conversation no longer exists.",
+      "NOTHING_TO_DECIDE": "These changes were already decided.",
+      "MESSAGE_TOO_LONG": "The message is empty or too long.",
+      "INVALID_ARGUMENTS": "Some values are not valid. Edit them and try again.",
+      "UNKNOWN_REFERENCE": "This change depends on one that does not exist.",
+      "PARENT_NOT_FOUND": "The parent account was not found.",
+      "DUPLICATE_CODE": "This code is already used.",
+      "API_KEY_REQUIRED": "This provider needs an API key.",
+      "BASE_URL_REQUIRED": "This provider needs a server address.",
+      "MODEL_REQUIRED": "Enter a model name.",
+      "INVALID_PROVIDER": "Unknown provider.",
+      "VERSION_CONFLICT": "Someone else changed these settings. Reload the page.",
+      "MODEL_HAS_NO_TOOL_SUPPORT": "This model cannot use tools, so it cannot work with the ERP.",
+      "NO_TOOL_SUPPORT": "This model cannot use tools, so it cannot work with the ERP.",
+      "INTERNAL": "Something went wrong on the server."
+    },
+    "history": {
+      "title": "Conversations",
+      "new": "New conversation",
+      "empty": "No conversations yet.",
+      "waiting": "Changes waiting for your review",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "delete": "Delete",
+      "confirmDelete": "Delete this conversation? Records it created are not affected."
+    },
+    "suggest": {
+      "newEmployee": "Create a new employee",
+      "findEmployee": "Find an employee",
+      "newCustomer": "Create a new customer",
+      "newSupplier": "Create a new supplier",
+      "findCustomer": "Find a customer",
+      "newItem": "Create a new item",
+      "findItem": "Find an item",
+      "lowStock": "Which items are below reorder point?",
+      "salesMonth": "How much did we sell this month?",
+      "lastInvoices": "Show the latest sales invoices",
+      "newAccount": "Add an account to the chart",
+      "trend": "How did the last 6 months go?",
+      "findAccount": "Find an account",
+      "overview": "How is the company doing today?"
+    },
+    "palette": {
+      "ask": "Ask the assistant: “{{q}}”"
+    },
+    "settings": {
+      "title": "AI assistant",
+      "subtitle": "Choose the AI provider and model, and decide what the assistant may do.",
+      "fromEnv": "The assistant currently uses the server's default configuration. Saving here replaces it for this company.",
+      "privacy": "Questions and the data needed to answer them are sent to the provider you choose. Use a provider whose data terms suit your company; free tiers may use data to improve their models.",
+      "provider": "Provider and model",
+      "providers": {
+        "google": "Google Gemini",
+        "anthropic": "Anthropic Claude",
+        "openai": "OpenAI",
+        "openai-compatible": "OpenAI-compatible",
+        "ollama": "Ollama (local)"
+      },
+      "providerHints": {
+        "google": "Free tier available",
+        "anthropic": "Strong reasoning",
+        "openai": "GPT models",
+        "openai-compatible": "Groq, OpenRouter, Mistral…",
+        "ollama": "Runs on your own server"
+      },
+      "preset": {
+        "label": "Service",
+        "placeholder": "Choose a service to fill the address",
+        "groq": "Groq",
+        "openrouter": "OpenRouter",
+        "cerebras": "Cerebras",
+        "github": "GitHub Models",
+        "mistral": "Mistral",
+        "lmstudio": "LM Studio"
+      },
+      "baseUrl": "Server address",
+      "model": "Model",
+      "modelHint": "The model id exactly as the provider names it.",
+      "apiKey": "API key",
+      "apiKeyStored": "A key is stored — type to replace it",
+      "apiKeyPlaceholder": "Paste the key",
+      "apiKeyHint": "Stored encrypted. It is never shown again or sent back to the browser.",
+      "behaviour": "What the assistant may do",
+      "enabled": "Assistant enabled",
+      "enabledHint": "Off = nobody can use it.",
+      "auto": "Allow auto mode",
+      "autoHint": "Users with the auto permission can let simple changes save without review. Risky changes always need approval.",
+      "limit": "Monthly token limit (whole company)",
+      "noLimit": "No limit",
+      "usage": "Tokens used this month",
+      "usageDetail": "{{requests}} requests",
+      "test": "Test the model",
+      "testOk": "Works — answered and used a tool in {{ms}} ms.",
+      "testNoTools": "The model answered but did not use the tool. It may not work well with the ERP.",
+      "saved": "AI settings saved."
     }
   }
 }

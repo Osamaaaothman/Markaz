@@ -89,8 +89,8 @@ export function buildErpTools(s: AiToolServices): ErpTool[] {
           chartType: "bar",
           labels: monthly.map((m) => m.month),
           series: [
-            { labelKey: "ai.kpi.revenue", values: monthly.map((m) => Number(m.revenue)) },
-            { labelKey: "ai.kpi.expense", values: monthly.map((m) => Number(m.expense)) },
+            { labelKey: "ai.kpi.revenue", values: monthly.map((m) => m.revenue) },
+            { labelKey: "ai.kpi.expense", values: monthly.map((m) => m.expense) },
           ],
         },
       };
