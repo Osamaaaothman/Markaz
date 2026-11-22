@@ -71,3 +71,8 @@ until an admin saves one: `AI_PROVIDER`, `AI_MODEL`, `AI_BASE_URL`, `AI_API_KEY`
 - MCP uses the normal short-lived bearer token; personal access tokens for desktop AI clients are not built.
 - Multi-step changes are not atomic (D-AI-5).
 - Dictation uses the browser's Web Speech API (Chrome/Edge); other browsers hide the mic button.
+- Running turns are tracked in memory, per API process. With several API replicas, "running" and
+  stop only see turns on the same process; an API restart drops a running turn (its question is
+  saved, the answer is not).
+- Backup models (AI_FALLBACK_MODELS) share the main provider and key; a different provider as
+  backup is not supported yet.
