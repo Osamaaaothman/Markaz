@@ -4,7 +4,7 @@
 
 **The complete guide to Markaz — the Arabic-first ERP for Saudi & Gulf businesses.**
 
-[README](../../README.md) · [Getting started](Getting-Started.md) · [Architecture](Architecture.md)
+[README](../../README.md) · [Arabic README](../../README.ar.md) · [Getting started](Getting-Started.md) · [Architecture](Architecture.md)
 
 </div>
 
@@ -28,7 +28,7 @@
 
 | | Page | What's inside |
 |---|---|---|
-| 🇸🇦 | [**ZATCA e-invoicing**](ZATCA-E-Invoicing.md) | EGS onboarding, signed UBL XML, QR, clearance & reporting, submission history |
+| 📜 | [**ZATCA e-invoicing**](ZATCA-E-Invoicing.md) | EGS onboarding, signed UBL XML, QR, clearance & reporting, submission history |
 | ✨ | [**AI assistant & MCP**](AI-Assistant.md) | Natural-language questions, approval cards, Ask/Review/Auto, MCP tokens for Claude & co. |
 | 💬 | [**Chat bots**](Chat-Bots.md) | Telegram & Discord: approvals, lookups, documents and reports in chat |
 

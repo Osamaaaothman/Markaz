@@ -1,4 +1,4 @@
-# 🇸🇦 ZATCA E-Invoicing (Fatoora)
+# 📜 ZATCA E-Invoicing (Fatoora)
 
 > **Built for Phase 2 from the ground up.** Markaz generates, hashes, signs and submits UBL 2.1
 > e-invoices, prints the cryptographic QR on every invoice, and keeps the full submission history —

@@ -8,6 +8,7 @@
 
 **Accounting · Sales · Purchasing · Inventory · Payroll · Fixed assets · ZATCA e-invoicing · AI assistant**
 
+<a href="README.ar.md"><img src="https://img.shields.io/badge/Arabic%20version-Click%20here-1C5A40?style=for-the-badge&labelColor=A8842A" alt="Arabic version — click here"></a>
 <a href="docs/wiki/Home.md"><img src="https://img.shields.io/badge/Wiki-Full%20documentation-1C5A40?style=for-the-badge&logo=bookstack&logoColor=white" alt="Wiki"></a>
 
 ![CI](https://github.com/Osamaaaothman/Markaz/actions/workflows/ci.yml/badge.svg)
@@ -17,6 +18,8 @@
 ![React](https://img.shields.io/badge/React-PrimeReact-61DAFB?logo=react&logoColor=black)
 ![ZATCA](https://img.shields.io/badge/ZATCA-Phase%202-1C5A40)
 ![i18n](https://img.shields.io/badge/i18n-Arabic%20%7C%20English-A8842A)
+
+**🌐 Arabic version of this README — [click here](README.ar.md)**
 
 </div>
 
@@ -48,7 +51,7 @@ exact decimal — never floating point.
 </td>
 <td width="33%" valign="top">
 
-### 🇸🇦 ZATCA-ready
+### 📜 ZATCA-ready
 Signed UBL 2.1 XML, cryptographic QR, clearance and reporting, submission history — in an isolated
 compliance pack.
 
@@ -158,7 +161,7 @@ runs with preview and reversal, disposals, and reports reconciled to the ledger.
 
 **[Read the full guide →](docs/wiki/Fixed-Assets.md)**
 
-### 🇸🇦 ZATCA e-invoicing
+### 📜 ZATCA e-invoicing
 
 <img src="docs/wiki/images/zatca-en.webp" alt="ZATCA e-invoicing" width="100%">
 
