@@ -26,7 +26,7 @@ function errorKey(error: unknown): string {
   return `ai.accessTokens.errors.${code && KNOWN_ERRORS.has(code) ? code : "UNKNOWN"}`;
 }
 
-// Settings → MCP access tokens: the signed-in user's own tokens for Claude Desktop / Claude Code.
+// Settings → AI apps (MCP): the signed-in user's own tokens for any MCP client (Claude, Cursor, VS Code, ...).
 // A new token is held only in this component's state, shown once, and gone when the page is left.
 export function AiAccessTokensPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -43,7 +43,11 @@ export function AiAccessTokensPage(): React.JSX.Element {
   if (tokens.isError) return <div className="erp-page"><p className="erp-page__error">{t("status.error")}</p></div>;
 
   const mcpUrl = `${window.location.origin}/api/v1/ai/mcp`;
+  // Any MCP client that speaks Streamable HTTP with a bearer header can connect; these are the common forms.
   const command = created ? `claude mcp add --transport http markaz ${mcpUrl} --header "Authorization: Bearer ${created}"` : "";
+  const jsonConfig = created
+    ? JSON.stringify({ mcpServers: { markaz: { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${created}` } } } }, null, 2)
+    : "";
   const copy = async (text: string): Promise<void> => {
     if (await copyToClipboard(text)) notify({ severity: "success", key: "ai.accessTokens.copied" });
   };
@@ -93,13 +97,31 @@ export function AiAccessTokensPage(): React.JSX.Element {
               <code dir="ltr" className="ai-token-new__value">{created}</code>
               <Button type="button" size="small" outlined icon="pi pi-copy" label={t("ai.accessTokens.copy")} onClick={() => void copy(created)} />
             </div>
-            <span>{t("ai.accessTokens.command")}</span>
-            <div className="ai-token-new__row">
-              <code dir="ltr" className="ai-token-new__value">{command}</code>
-              <Button type="button" size="small" outlined icon="pi pi-copy" label={t("ai.accessTokens.copy")} onClick={() => void copy(command)} />
-            </div>
+            <span>{t("ai.accessTokens.howTo")}</span>
+            {[
+              { label: t("ai.accessTokens.serverUrl"), value: mcpUrl },
+              { label: t("ai.accessTokens.header"), value: `Authorization: Bearer ${created}` },
+              { label: t("ai.accessTokens.jsonConfig"), value: jsonConfig, block: true },
+              { label: t("ai.accessTokens.claudeCode"), value: command },
+            ].map((row) => (
+              <div key={row.label} className="ai-token-new__setup">
+                <small>{row.label}</small>
+                <div className="ai-token-new__row">
+                  {row.block ? <pre dir="ltr" className="ai-token-new__value">{row.value}</pre> : <code dir="ltr" className="ai-token-new__value">{row.value}</code>}
+                  <Button type="button" size="small" outlined icon="pi pi-copy" label={t("ai.accessTokens.copy")} onClick={() => void copy(row.value)} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
+
+        <div className="ai-token-server">
+          <small>{t("ai.accessTokens.serverUrl")}</small>
+          <div className="ai-token-new__row">
+            <code dir="ltr" className="ai-token-new__value">{mcpUrl}</code>
+            <Button type="button" size="small" outlined icon="pi pi-copy" label={t("ai.accessTokens.copy")} onClick={() => void copy(mcpUrl)} />
+          </div>
+        </div>
       </section>
 
       <section className="erp-card ai-settings__card">

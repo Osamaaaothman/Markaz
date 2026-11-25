@@ -107,3 +107,46 @@ html body .erp-topbar__search {
     block-size: 2.1rem;
   }
 }
+
+/* Search pill: gone on phones and small tablets (the label wrapped and broke the bar); with the sidebar
+   open it shrinks to its icon, and the label and shortcut come back when the sidebar is collapsed. */
+@media (max-width: 899px) {
+  html body .erp-topbar__search {
+    display: none;
+  }
+}
+
+html body .erp-shell:not(.erp-shell--collapsed) .erp-topbar__search {
+  min-width: 0;
+  flex-shrink: 0;
+  width: 2.5rem;
+  padding-inline: 0;
+  justify-content: center;
+}
+
+html body .erp-shell:not(.erp-shell--collapsed) .erp-topbar__search :is(span, kbd) {
+  display: none;
+}
+
+/* the label never wraps inside the pill: it is cut with an ellipsis if the bar is tight */
+html body .erp-topbar__search span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* phones: the design-style picker keeps only its icon and arrow, so the bar fits next to the bell */
+@media (max-width: 480px) {
+  html body .erp-topbar .mk-direction-select > .pi {
+    display: inline-block;
+  }
+
+  html body .erp-topbar .mk-direction-select .p-dropdown {
+    inline-size: 1.5rem;
+  }
+
+  html body .erp-topbar .mk-direction-select .p-dropdown .p-dropdown-label {
+    display: none;
+  }
+}

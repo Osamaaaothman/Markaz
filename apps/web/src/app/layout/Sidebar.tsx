@@ -6,6 +6,7 @@ import { usePermissions } from "../../shared/auth/use-permissions";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { useApiImageUrl } from "../../shared/ui/ApiImage";
 import { localizedName } from "../../shared/lib/localized-name";
+import { useAssistantVisible } from "../../features/ai/use-assistant-visible";
 import { DEFAULT_GROUP_ICON, GROUP_ICONS, NAV_ITEMS, sortGroups, type NavItem } from "./NavConfig";
 import {
   usePurchasingCounts,
@@ -44,7 +45,9 @@ export function Sidebar({ variant }: SidebarProps): React.JSX.Element {
   const { canAny } = usePermissions();
   const { url: companyLogo } = useApiImageUrl("/v1/company/logo", "current");
   const collapsed = variant === "desktop" && collapsedPref;
-  const permittedItems = NAV_ITEMS.filter((item) => canAny(item.permissions ?? []));
+  const assistantVisible = useAssistantVisible();
+  // The assistant page leaves the menu when an admin switched the assistant off.
+  const permittedItems = NAV_ITEMS.filter((item) => canAny(item.permissions ?? []) && (item.to !== "/assistant" || assistantVisible));
   const visibleItems = useMemo(
     () => orderByGroup(permittedItems, groupOrder),
     [permittedItems, groupOrder],

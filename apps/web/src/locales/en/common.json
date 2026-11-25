@@ -87,7 +87,7 @@
     "fixedAssetReports": "Asset reports",
     "assistant": "AI assistant",
     "aiSettings": "AI assistant",
-    "aiAccessTokens": "MCP access tokens"
+    "aiAccessTokens": "AI apps (MCP)"
   },
   "actions": {
     "save": "Save",
@@ -4017,8 +4017,8 @@
       "apiKeyPlaceholder": "Paste the key",
       "apiKeyHint": "Stored encrypted. It is never shown again or sent back to the browser.",
       "behaviour": "What the assistant may do",
-      "enabled": "Assistant enabled",
-      "enabledHint": "Off = nobody can use it.",
+      "enabled": "Show the assistant",
+      "enabledHint": "Off = the assistant is hidden for every account and nobody can use it. External AI apps (MCP) keep working.",
       "auto": "Allow auto mode",
       "autoHint": "Users with the auto permission can let simple changes save without review. Risky changes always need approval.",
       "limit": "Monthly token limit (whole company)",
@@ -4242,17 +4242,16 @@
       "SERVICE": "Service"
     },
     "accessTokens": {
-      "title": "MCP access tokens",
-      "subtitle": "A token lets Claude Desktop or Claude Code work with your company's data using your own permissions. Choose what it may do. It does not expire: revoke it if it leaks.",
+      "title": "AI apps (MCP)",
+      "subtitle": "Connect any AI app that supports MCP (Claude, Cursor, VS Code, Windsurf, n8n and others) to your company's data. It works with your own permissions, and you choose what it may do. A token does not expire: revoke it if it leaks.",
       "create": "Create a token",
       "name": "Token name",
-      "namePlaceholder": "e.g. Claude Desktop on my laptop",
+      "namePlaceholder": "e.g. Cursor on my laptop",
       "createButton": "Create",
       "newTitle": "Your new token",
       "newWarning": "Copy it now. It will not be shown again.",
       "copy": "Copy",
       "copied": "Copied.",
-      "command": "To add it to Claude Code, run:",
       "listTitle": "Active tokens",
       "empty": "You have no active tokens.",
       "colName": "Name",
@@ -4281,11 +4280,16 @@
         "read": "Reports, balances and searches. It can never change anything.",
         "review": "It can prepare any change, but nothing is saved until you approve its card in the assistant.",
         "write": "Like auto mode: low-risk changes are saved at once; high-risk ones (payments, posting) still wait for your approval. Needs auto mode to be on for the company."
-      }
+      },
+      "howTo": "Add it to your AI app using one of these:",
+      "serverUrl": "MCP server address",
+      "header": "Authorization header",
+      "jsonConfig": "JSON settings (Cursor, VS Code, Claude Desktop and most apps)",
+      "claudeCode": "Command for Claude Code"
     },
     "mcpBell": {
-      "title": "From Claude (MCP)",
-      "open": "Claude activity, {{count}} new",
+      "title": "From AI apps (MCP)",
+      "open": "AI apps activity, {{count}} new",
       "status": {
         "PROPOSED": "Waiting",
         "EXECUTED": "Saved",

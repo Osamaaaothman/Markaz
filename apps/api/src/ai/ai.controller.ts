@@ -219,7 +219,10 @@ export class AiController {
   async me(@CurrentUser() actor: CurrentUserPayload) {
     const view = await this.settings.view(actor.companyId);
     const usage = await this.chat.monthUsage(actor.companyId, actor.id);
-    return { configured: view.source !== "none" && view.enabled, autoModeEnabled: view.autoModeEnabled, provider: view.provider, model: view.model, usage };
+    // visible: false only when an admin switched the assistant off for the company (Settings → AI
+    // assistant); not yet configured still shows it, so the admin is pointed to the settings page.
+    const visible = !(view.source === "database" && !view.enabled);
+    return { configured: view.source !== "none" && view.enabled, visible, autoModeEnabled: view.autoModeEnabled, provider: view.provider, model: view.model, usage };
   }
 
   // ─── Settings (admin) ───
