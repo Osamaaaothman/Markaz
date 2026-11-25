@@ -24,6 +24,7 @@ import {
   type IPermissionService,
 } from "@erp/core";
 import { AttachmentsModule } from "../attachments/attachments.module.js";
+import { AuthModule } from "../auth/auth.module.js";
 import { PurchasingModule } from "../purchasing/purchasing.module.js";
 import { AUDIT_LOGGER, PERMISSION_SERVICE } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -31,7 +32,6 @@ import { AiChatService } from "./ai-chat.service.js";
 import { AiSettingsService } from "./ai-settings.service.js";
 import { AiController } from "./ai.controller.js";
 import { AiMcpController } from "./mcp/ai-mcp.controller.js";
-import { AccessTokenService } from "./mcp/access-tokens.js";
 import { AiAccessTokenController } from "./mcp/ai-access-token.controller.js";
 import { AI_TOOLS } from "./ai.tokens.js";
 import { buildErpTools } from "./tools/erp-tools.js";
@@ -44,16 +44,10 @@ import { buildActionTools } from "./tools/action-tools.js";
 // AI assistant (docs/Planning/ai-assistant-plan.md). The tools use the same core services the web
 // endpoints use, built here the same way their own modules build them.
 @Module({
-  imports: [AttachmentsModule, PurchasingModule],
+  // AuthModule provides AccessTokenService for the token routes.
+  imports: [AttachmentsModule, PurchasingModule, AuthModule],
   controllers: [AiController, AiMcpController, AiAccessTokenController],
-  // Exported for the global JwtAuthGuard, which accepts a personal token on @AllowAccessToken() routes.
-  exports: [AccessTokenService],
   providers: [
-    {
-      provide: AccessTokenService,
-      useFactory: (prisma: PrismaService, audit: IAuditLogger) => new AccessTokenService(prisma, audit),
-      inject: [PrismaService, AUDIT_LOGGER],
-    },
     {
       provide: AiSettingsService,
       useFactory: (prisma: PrismaService, audit: IAuditLogger) => new AiSettingsService(prisma, audit),
