@@ -882,18 +882,54 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
 .ai-token-scope small { color: var(--text-color-secondary, #6b7280); }
 .ai-token-scope.is-disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* Top-bar bell for MCP activity */
+/* Top-bar bell for Claude (MCP) activity */
 .ai-mcp-bell { position: relative; }
-.ai-mcp-bell__badge { position: absolute; top: 2px; right: 2px; min-width: 1.05rem; height: 1.05rem; padding: 0 0.25rem; border-radius: 999px; background: var(--red-500, #ef4444); color: #fff; font-size: 0.65rem; font-weight: 700; line-height: 1.05rem; text-align: center; }
-[dir="rtl"] .ai-mcp-bell__badge { right: auto; left: 2px; }
-.ai-mcp-bell__panel { width: min(22rem, 92vw); }
-.ai-mcp-bell__head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-.ai-mcp-bell__sound { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
-.ai-mcp-bell__list { list-style: none; margin: 0; padding: 0; max-height: 22rem; overflow-y: auto; }
-.ai-mcp-bell__item { width: 100%; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.5rem; padding: 0.5rem; border: 0; border-radius: 6px; background: none; color: inherit; text-align: start; cursor: pointer; font: inherit; }
-.ai-mcp-bell__item:hover { background: var(--surface-hover, #f3f4f6); }
-.ai-mcp-bell__item small { grid-column: 1 / -1; color: var(--text-color-secondary, #6b7280); }
-.ai-mcp-bell__status { font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.4rem; border-radius: 4px; background: var(--surface-ground, #eef0f3); }
-.ai-mcp-bell__status--proposed { background: #fef3c7; color: #92400e; }
-.ai-mcp-bell__status--executed { background: #dcfce7; color: #166534; }
-.ai-mcp-bell__status--failed, .ai-mcp-bell__status--rejected { background: #fee2e2; color: #991b1b; }
+.ai-mcp-bell__badge {
+  position: absolute; top: 1px; right: 1px; min-width: 1.1rem; height: 1.1rem; padding: 0 0.28rem;
+  border-radius: 999px; border: 2px solid var(--mk-surface); background: var(--mk-danger); color: #fff;
+  font-size: 0.62rem; font-weight: 800; line-height: 0.85rem; text-align: center; box-sizing: border-box;
+}
+[dir="rtl"] .ai-mcp-bell__badge { right: auto; left: 1px; }
+.ai-mcp-bell.is-ringing .pi-bell { animation: ai-mcp-ring 0.9s ease-in-out 2; transform-origin: 50% 0; }
+.ai-mcp-bell.is-ringing .ai-mcp-bell__badge { animation: ai-mcp-pulse 1.6s ease-out infinite; }
+@keyframes ai-mcp-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+@keyframes ai-mcp-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mk-danger) 55%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+@media (prefers-reduced-motion: reduce) { .ai-mcp-bell.is-ringing .pi-bell, .ai-mcp-bell.is-ringing .ai-mcp-bell__badge { animation: none; } }
+
+.ai-mcp-panel { width: min(23rem, 94vw); border-radius: 14px; border: 1px solid var(--mk-border); background: var(--mk-surface); box-shadow: var(--mk-shadow-xl); overflow: hidden; }
+.ai-mcp-panel .ai-mcp-panel__list { background: var(--mk-surface); }
+/* The design layer pads every overlay; this one draws its own sections edge to edge. */
+html body .p-overlaypanel.ai-mcp-panel .p-overlaypanel-content,
+html[data-design] body .p-overlaypanel.ai-mcp-panel .p-overlaypanel-content { padding: 0; }
+.ai-mcp-panel__head { display: flex; align-items: center; gap: 0.7rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--mk-border); background: var(--mk-surface-2); }
+.ai-mcp-panel__logo { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; flex: none; border-radius: 10px; background: var(--mk-primary); color: var(--mk-on-primary); }
+.ai-mcp-panel__heading { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ai-mcp-panel__heading strong { font-size: 0.95rem; color: var(--mk-text); }
+.ai-mcp-panel__heading small { font-size: 0.75rem; color: var(--mk-text-muted); }
+.ai-mcp-panel__sound { display: grid; place-items: center; width: 2rem; height: 2rem; flex: none; border: 1px solid var(--mk-border); border-radius: 999px; background: var(--mk-surface); color: var(--mk-text-muted); cursor: pointer; transition: background 0.15s, color 0.15s; }
+.ai-mcp-panel__sound.is-on { color: var(--mk-primary); border-color: var(--mk-primary); background: var(--mk-primary-soft); }
+.ai-mcp-panel__sound:focus-visible { outline: 2px solid var(--mk-primary); outline-offset: 2px; }
+
+.ai-mcp-panel__list { list-style: none; margin: 0; padding: 0.4rem; max-height: 23rem; overflow-y: auto; display: grid; gap: 0.2rem; }
+.ai-mcp-item { position: relative; display: flex; align-items: flex-start; gap: 0.7rem; width: 100%; padding: 0.65rem 0.7rem; border: 0; border-radius: 10px; background: transparent; color: var(--mk-text); font: inherit; text-align: start; cursor: pointer; transition: background 0.12s; }
+.ai-mcp-item:hover { background: var(--mk-surface-2); }
+.ai-mcp-item:focus-visible { outline: 2px solid var(--mk-primary); outline-offset: -2px; }
+.ai-mcp-item__icon { display: grid; place-items: center; width: 2rem; height: 2rem; flex: none; border-radius: 999px; font-size: 0.85rem; background: var(--mk-surface-2); color: var(--mk-text-muted); }
+.ai-mcp-item--proposed .ai-mcp-item__icon { background: var(--mk-warning-soft); color: var(--mk-warning); }
+.ai-mcp-item--executed .ai-mcp-item__icon { background: var(--mk-success-soft); color: var(--mk-success); }
+.ai-mcp-item--failed .ai-mcp-item__icon, .ai-mcp-item--rejected .ai-mcp-item__icon { background: var(--mk-danger-soft); color: var(--mk-danger); }
+.ai-mcp-item__body { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; flex: 1; }
+.ai-mcp-item__title { font-weight: 700; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-mcp-item__meta { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.5rem; min-width: 0; font-size: 0.72rem; color: var(--mk-text-muted); white-space: nowrap; }
+.ai-mcp-item__status { flex: none; padding: 0.05rem 0.45rem; border-radius: 999px; font-weight: 700; background: var(--mk-surface-2); }
+.ai-mcp-item__status--proposed { background: var(--mk-warning-soft); color: var(--mk-warning); }
+.ai-mcp-item__status--executed { background: var(--mk-success-soft); color: var(--mk-success); }
+.ai-mcp-item__status--failed, .ai-mcp-item__status--rejected { background: var(--mk-danger-soft); color: var(--mk-danger); }
+.ai-mcp-item__token { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.ai-mcp-item__time { flex: none; }
+.ai-mcp-item__sep { flex: none; opacity: 0.5; }
+.ai-mcp-item__dot { width: 0.5rem; height: 0.5rem; flex: none; margin-top: 0.4rem; border-radius: 999px; background: var(--mk-primary); }
+
+.ai-mcp-panel__foot { border-top: 1px solid var(--mk-border); padding: 0.4rem; }
+.ai-mcp-panel__foot button { display: flex; align-items: center; justify-content: center; gap: 0.45rem; width: 100%; padding: 0.55rem; border: 0; border-radius: 8px; background: transparent; color: var(--mk-primary); font: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+.ai-mcp-panel__foot button:hover { background: var(--mk-primary-soft); }
