@@ -306,7 +306,7 @@ export class AiChatService {
         model,
         tools,
         // Only the sections this conversation and page need are sent; the model loads others on demand.
-        initialSections: startingSections(history, page?.route),
+        initialSections: startingSections(history, page?.route, waiting.map((w) => w.tool)),
         mode,
         autoAllowed,
         ctx,
@@ -634,13 +634,28 @@ function compactionFromEnv(env: NodeJS.ProcessEnv = process.env): CompactionLimi
   return { maxTokens: at, keepRecentTokens: Math.max(1000, Math.round(at / 4)) };
 }
 
-// Sections to send from the first model call: the page's own, every section the conversation already
-// used (so a follow-up keeps its tools), and purchasing when a document is attached (supplier invoice).
-export function startingSections(history: readonly BaseMessage[], route: string | undefined): string[] {
+// How many of the latest user messages keep their sections' tools loaded. Each loaded section is sent
+// with every model call (sales alone is ~3,400 tokens), so a section the conversation stopped using is
+// dropped; the model reloads it with load_tools when needed, and a tool it calls directly still runs.
+export const RECENT_SECTION_MESSAGES = 3;
+
+// Sections to send from the first model call: the page's own, the sections used in the last few user
+// messages (so a follow-up keeps its tools), the sections of cards still waiting (so they can be
+// withdrawn and corrected), and purchasing when a document is attached (supplier invoice).
+export function startingSections(history: readonly BaseMessage[], route: string | undefined, waitingTools: readonly string[] = []): string[] {
   const out = new Set<string>();
   const page = sectionOfRoute(route);
   if (page) out.add(page);
-  for (const m of history) {
+  for (const tool of waitingTools) {
+    const s = sectionOf(tool);
+    if (s !== "core") out.add(s);
+  }
+  let from = history.length;
+  for (let seen = 0; from > 0 && seen < RECENT_SECTION_MESSAGES; ) {
+    from -= 1;
+    if (history[from]?.getType() === "human") seen += 1;
+  }
+  for (const m of history.slice(from)) {
     const calls = (m as { tool_calls?: Array<{ name: string; args?: Record<string, unknown> }> }).tool_calls ?? [];
     for (const c of calls) {
       if (c.name === LOAD_TOOLS && typeof c.args?.["section"] === "string") out.add(c.args["section"]);
