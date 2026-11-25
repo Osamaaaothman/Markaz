@@ -4,6 +4,7 @@ import type { IPermissionService } from "@erp/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Request, Response } from "express";
+import { AllowAccessToken } from "../../auth/allow-access-token.decorator.js";
 import { CurrentUser, type CurrentUserPayload } from "../../auth/current-user.decorator.js";
 import { PERMISSION_SERVICE } from "../../identity/identity.tokens.js";
 import { RequirePermission } from "../../identity/require-permission.decorator.js";
@@ -13,8 +14,9 @@ import { AI_TOOLS } from "../ai.tokens.js";
 // Context Protocol — Streamable HTTP, stateless (a new server per request).
 //
 // Read tools only: an external client does not go through our approval cards, so it must never be
-// able to change anything. Authentication is the normal API bearer token, and every tool is filtered
-// and re-checked against the caller's own permissions.
+// able to change anything. Authentication is the normal API bearer token or a personal access token
+// (Settings → MCP access tokens), and every tool is filtered and re-checked against the caller's own
+// permissions.
 @Controller("v1/ai/mcp")
 export class AiMcpController {
   constructor(
@@ -23,6 +25,7 @@ export class AiMcpController {
   ) {}
 
   @Post()
+  @AllowAccessToken()
   @RequirePermission("ai_assistant", "use")
   async handle(@CurrentUser() actor: CurrentUserPayload, @Req() req: Request, @Res() res: Response): Promise<void> {
     const ctx: ToolContext = {

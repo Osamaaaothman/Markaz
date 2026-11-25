@@ -108,3 +108,11 @@ export class AiSettingsDto {
   @Min(0)
   version!: number;
 }
+
+export class CreateAccessTokenDto {
+  // A label so the user can tell their tokens apart ("Claude Desktop on my laptop").
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  name!: string;
+}
