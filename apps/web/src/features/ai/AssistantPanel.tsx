@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { usePermissions } from "../../shared/auth/use-permissions";
 import { useAiStore } from "./ai-store";
+import { useAssistantVisible } from "./use-assistant-visible";
 import { useOrbState } from "./orb-state";
 import { AssistantOrb } from "./components/AssistantOrb";
 import { ChatView } from "./components/ChatView";
@@ -21,9 +22,12 @@ export function AssistantPanel(): React.JSX.Element | null {
   const orb = useOrbState();
   const [history, setHistory] = useState(false);
   const allowed = perms.can("ai_assistant:use");
+  const visible = useAssistantVisible();
 
+  // Ctrl+J only while the assistant is shown; the panel itself still opens from the Claude/MCP bell
+  // so cards sent by an external app can be approved even when the assistant is switched off.
   useEffect(() => {
-    if (!allowed) return;
+    if (!visible) return;
     const onKey = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
         e.preventDefault();
@@ -32,7 +36,7 @@ export function AssistantPanel(): React.JSX.Element | null {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [allowed]);
+  }, [visible]);
 
   if (!allowed) return null;
 
@@ -79,8 +83,9 @@ export function AssistantButton(): React.JSX.Element | null {
   const { t } = useTranslation();
   const perms = usePermissions();
   const toggle = useAiStore((s) => s.togglePanel);
+  const visible = useAssistantVisible();
   const orb = useOrbState();
-  if (!perms.can("ai_assistant:use")) return null;
+  if (!perms.can("ai_assistant:use") || !visible) return null;
   return (
     <button type="button" className={`ai-topbar-btn ai-topbar-btn--${orb}`} onClick={toggle} aria-label={t("ai.panel.open")} title={`${t("ai.panel.open")} (Ctrl J)`}>
       <AssistantOrb size={22} state={orb} interactive />

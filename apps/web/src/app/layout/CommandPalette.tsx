@@ -6,6 +6,7 @@ import { useThemeStore } from "../../shared/theme/theme-store";
 import { CREATE_ACTIONS } from "./create-actions";
 import { NAV_ITEMS } from "./NavConfig";
 import { useAiStore } from "../../features/ai/ai-store";
+import { useAssistantVisible } from "../../features/ai/use-assistant-visible";
 import { useLayoutStore } from "./layout-store";
 
 interface Command {
@@ -23,6 +24,7 @@ export function CommandPalette(): React.JSX.Element | null {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { can, canAny } = usePermissions();
+  const assistantVisible = useAssistantVisible();
   const open = useLayoutStore((s) => s.paletteOpen);
   const openPalette = useLayoutStore((s) => s.openPalette);
   const closePalette = useLayoutStore((s) => s.closePalette);
@@ -87,10 +89,10 @@ export function CommandPalette(): React.JSX.Element | null {
     if (q === "") return commands;
     const matches = commands.filter((c) => `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q));
     // Anything typed can also go straight to the AI assistant (it lands in the chat box for review).
-    if (!can("ai_assistant:use")) return matches;
+    if (!assistantVisible) return matches;
     const ask: Command = { id: "ask-ai", label: t("ai.palette.ask", { q: query.trim() }), icon: "pi pi-sparkles", section: "create", run: () => useAiStore.getState().openPanel(query.trim()) };
     return matches.length > 0 ? [...matches, ask] : [ask];
-  }, [commands, query, can, t]);
+  }, [commands, query, assistantVisible, t]);
 
   useEffect(() => {
     setActive(0);

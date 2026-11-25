@@ -933,3 +933,7 @@ html[data-design] body .p-overlaypanel.ai-mcp-panel .p-overlaypanel-content { pa
 .ai-mcp-panel__foot { border-top: 1px solid var(--mk-border); padding: 0.4rem; }
 .ai-mcp-panel__foot button { display: flex; align-items: center; justify-content: center; gap: 0.45rem; width: 100%; padding: 0.55rem; border: 0; border-radius: 8px; background: transparent; color: var(--mk-primary); font: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
 .ai-mcp-panel__foot button:hover { background: var(--mk-primary-soft); }
+.ai-token-new__setup { display: flex; flex-direction: column; gap: 0.25rem; }
+.ai-token-new__setup small, .ai-token-server small { color: var(--mk-text-muted); font-weight: 600; }
+pre.ai-token-new__value { margin: 0; white-space: pre-wrap; font-family: var(--mk-font-mono, monospace); }
+.ai-token-server { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 1rem; }

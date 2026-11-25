@@ -28,7 +28,7 @@ function relativeTime(iso: string, locale: string): string {
   return formatDateTime(iso, locale);
 }
 
-// Top-bar bell for what Claude (an external MCP client) sent: cards waiting for approval and changes it
+// Top-bar bell for what an external AI app (any MCP client) sent: cards waiting for approval and changes it
 // saved. It polls, shows a count of unseen items, and chimes when a new one arrives while the app is open.
 export function McpBell(): React.JSX.Element | null {
   const { t, i18n } = useTranslation();

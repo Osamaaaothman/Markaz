@@ -80,6 +80,8 @@ export interface ConversationDetail {
 
 export interface AiMe {
   configured: boolean;
+  // False when an admin switched the assistant off for everyone.
+  visible: boolean;
   autoModeEnabled: boolean;
   provider: ProviderKind | null;
   model: string | null;
