@@ -134,6 +134,7 @@ export const aiKeys = {
   conversations: ["ai", "conversations"] as const,
   conversation: (id: string) => ["ai", "conversations", id] as const,
   settings: ["ai", "settings"] as const,
+  accessTokens: ["ai", "access-tokens"] as const,
 };
 
 export function useAiMe(enabled: boolean) {
@@ -258,4 +259,33 @@ export async function fetchItemForm(conversationId: string, key: string): Promis
 
 export async function reviseItem(conversationId: string, key: string, args: Record<string, unknown>, locale: string): Promise<{ args: Record<string, unknown>; preview: ChangePreview }> {
   return (await apiClient.put<{ args: Record<string, unknown>; preview: ChangePreview }>(`/v1/ai/conversations/${conversationId}/items/${key}`, { args, locale: locale === "ar" ? "ar" : "en" })).data;
+}
+
+// Personal tokens for the read-only MCP endpoint. `token` exists only in the create response.
+export interface AccessToken {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export function useAccessTokens() {
+  return useQuery({ queryKey: aiKeys.accessTokens, queryFn: async () => (await apiClient.get<AccessToken[]>("/v1/ai/access-tokens")).data });
+}
+
+export function useCreateAccessToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => (await apiClient.post<AccessToken & { token: string }>("/v1/ai/access-tokens", { name })).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: aiKeys.accessTokens }),
+  });
+}
+
+export function useRevokeAccessToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => { await apiClient.delete(`/v1/ai/access-tokens/${encodeURIComponent(id)}`); },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: aiKeys.accessTokens }),
+  });
 }

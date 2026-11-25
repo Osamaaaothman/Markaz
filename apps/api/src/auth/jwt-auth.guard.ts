@@ -2,6 +2,8 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import type { Request } from "express";
+import { AccessTokenService, looksLikeAccessToken } from "../ai/mcp/access-tokens.js";
+import { ALLOW_ACCESS_TOKEN_KEY } from "./allow-access-token.decorator.js";
 import { IS_PUBLIC_KEY } from "./public.decorator.js";
 
 interface AuthenticatedRequest extends Request {
@@ -21,6 +23,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly reflector: Reflector,
+    private readonly accessTokens: AccessTokenService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -35,10 +38,20 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
+    const bearer = header.slice("Bearer ".length);
+    // A personal MCP token works only on the routes marked @AllowAccessToken(), never anywhere else.
+    if (looksLikeAccessToken(bearer)) {
+      if (!this.reflector.get<boolean | undefined>(ALLOW_ACCESS_TOKEN_KEY, context.getHandler())) {
+        throw new UnauthorizedException();
+      }
+      const user = await this.accessTokens.verify(bearer);
+      if (!user) throw new UnauthorizedException();
+      request.user = user;
+      return true;
+    }
+
     try {
-      const payload = await this.jwt.verifyAsync<AccessTokenPayload>(
-        header.slice("Bearer ".length),
-      );
+      const payload = await this.jwt.verifyAsync<AccessTokenPayload>(bearer);
       request.user = { id: payload.sub, companyId: payload.companyId };
       return true;
     } catch {

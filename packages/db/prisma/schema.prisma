@@ -41,6 +41,7 @@ model DocumentDraft {
 model Company {
   aiProviderConfig       AiProviderConfig?
   aiConversations        AiConversation[]
+  aiAccessTokens         AiAccessToken[]
   botConnections         BotConnection[]
   quotationEmailAttempts QuotationEmailAttempt[]
   id                     String                  @id
@@ -141,6 +142,7 @@ model Company {
 
 model User {
   aiConversations     AiConversation[]
+  aiAccessTokens      AiAccessToken[]
   botIdentityLinks    BotIdentityLink[]
   documentDrafts      DocumentDraft[]
   id                  String            @id
@@ -2798,6 +2800,28 @@ model AiProviderConfig {
   company Company @relation(fields: [companyId], references: [id])
 
   @@map("ai_provider_configs")
+}
+
+// A personal token for the read-only MCP endpoint (Claude Desktop, Claude Code, ...). It never expires
+// on its own; the user revokes it. Only the SHA-256 of the token is stored; the token is shown once.
+// It authenticates nothing but POST /v1/ai/mcp, and acts with its user's own permissions.
+model AiAccessToken {
+  id          String    @id
+  companyId   String    @map("company_id")
+  userId      String    @map("user_id")
+  name        String
+  tokenHash   String    @unique @map("token_hash")
+  // The first characters, so the user can tell tokens apart; never enough to use.
+  tokenPrefix String    @map("token_prefix")
+  lastUsedAt  DateTime? @map("last_used_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([companyId, userId])
+  @@map("ai_access_tokens")
 }
 
 model AiConversation {

@@ -31,6 +31,8 @@ import { AiChatService } from "./ai-chat.service.js";
 import { AiSettingsService } from "./ai-settings.service.js";
 import { AiController } from "./ai.controller.js";
 import { AiMcpController } from "./mcp/ai-mcp.controller.js";
+import { AccessTokenService } from "./mcp/access-tokens.js";
+import { AiAccessTokenController } from "./mcp/ai-access-token.controller.js";
 import { AI_TOOLS } from "./ai.tokens.js";
 import { buildErpTools } from "./tools/erp-tools.js";
 import { buildReportTools } from "./tools/report-tools.js";
@@ -43,8 +45,15 @@ import { buildActionTools } from "./tools/action-tools.js";
 // endpoints use, built here the same way their own modules build them.
 @Module({
   imports: [AttachmentsModule, PurchasingModule],
-  controllers: [AiController, AiMcpController],
+  controllers: [AiController, AiMcpController, AiAccessTokenController],
+  // Exported for the global JwtAuthGuard, which accepts a personal token on @AllowAccessToken() routes.
+  exports: [AccessTokenService],
   providers: [
+    {
+      provide: AccessTokenService,
+      useFactory: (prisma: PrismaService, audit: IAuditLogger) => new AccessTokenService(prisma, audit),
+      inject: [PrismaService, AUDIT_LOGGER],
+    },
     {
       provide: AiSettingsService,
       useFactory: (prisma: PrismaService, audit: IAuditLogger) => new AiSettingsService(prisma, audit),
