@@ -86,6 +86,17 @@ export interface ExternalWriteResult {
   readonly warnings: readonly string[];
 }
 
+export interface McpActivityItem {
+  readonly id: string;
+  readonly key: string;
+  readonly conversationId: string;
+  readonly tokenName: string;
+  readonly tool: string;
+  readonly status: string;
+  readonly titleKey: string | null;
+  readonly createdAt: Date;
+}
+
 export interface DecideInput {
   readonly conversationId: string;
   readonly decisions: Readonly<Record<string, Decision>>;
@@ -597,6 +608,29 @@ export class AiChatService {
     await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: "AWAITING_APPROVAL" } });
     await this.audit.log({ actorId: actor.id, action: "ai_change.proposed", entityType: "AiConversation", entityId: conversationId, after: { item: key, tool: tool.name, via: "mcp", token: token.id }, correlationId: `ai:${conversationId}` });
     return { status: "PROPOSED", id: key, conversationId, data: null, link: null, warnings: preview.warningKeys ?? [] };
+  }
+
+  // The latest cards and changes that came in through the user's MCP tokens, for the notification bell.
+  async mcpActivity(actor: Actor): Promise<McpActivityItem[]> {
+    const tokens = await this.prisma.aiAccessToken.findMany({ where: { companyId: actor.companyId, userId: actor.id, conversationId: { not: null } }, select: { conversationId: true, name: true } });
+    const byConversation = new Map(tokens.map((t) => [t.conversationId ?? "", t.name]));
+    if (byConversation.size === 0) return [];
+    const items = await this.prisma.aiChangeItem.findMany({
+      where: { companyId: actor.companyId, conversationId: { in: [...byConversation.keys()] }, conversation: { userId: actor.id } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, itemKey: true, conversationId: true, tool: true, status: true, preview: true, createdAt: true },
+    });
+    return items.map((i) => ({
+      id: i.id,
+      key: i.itemKey,
+      conversationId: i.conversationId,
+      tokenName: byConversation.get(i.conversationId) ?? "",
+      tool: i.tool,
+      status: i.status,
+      titleKey: (i.preview as { titleKey?: string } | null)?.titleKey ?? null,
+      createdAt: i.createdAt,
+    }));
   }
 
   // The token's conversation, created on its first write (and again if the user deleted it).

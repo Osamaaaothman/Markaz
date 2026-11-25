@@ -411,6 +411,10 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     // The next write lands in the same conversation with the next card number.
     const r2 = await chat.externalWrite(owner, token, "parties_createCustomer", { name: "MCP Customer" });
     expect([r2.conversationId, r2.id]).toEqual([r.conversationId, "c2"]);
+    // The notification bell sees both, newest first; another user sees none of them.
+    const activity = await chat.mcpActivity(owner);
+    expect(activity.slice(0, 2).map((x) => [x.key, x.status, x.tokenName])).toEqual([["c2", "PROPOSED", "Claude Desktop"], ["c1", "PROPOSED", "Claude Desktop"]]);
+    expect(await chat.mcpActivity(other)).toEqual([]);
 
     script = [{ text: "Done." }];
     const decided = await run((emit) => chat.decide(owner, { conversationId: r.conversationId, decisions: { [r.id]: "approve" }, locale: "en" }, emit));

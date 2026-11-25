@@ -4243,7 +4243,7 @@
     },
     "accessTokens": {
       "title": "MCP access tokens",
-      "subtitle": "A token lets Claude Desktop or Claude Code read your company's data with your permissions. It can never change anything. It does not expire: revoke it if it leaks.",
+      "subtitle": "A token lets Claude Desktop or Claude Code work with your company's data using your own permissions. Choose what it may do. It does not expire: revoke it if it leaks.",
       "create": "Create a token",
       "name": "Token name",
       "namePlaceholder": "e.g. Claude Desktop on my laptop",
@@ -4267,7 +4267,32 @@
         "NAME_REQUIRED": "Enter a name for the token.",
         "TOO_MANY_TOKENS": "You have reached the limit of 10 active tokens. Revoke one first.",
         "TOKEN_NOT_FOUND": "This token no longer exists.",
-        "UNKNOWN": "Something went wrong. Try again."
+        "UNKNOWN": "Something went wrong. Try again.",
+        "FORBIDDEN": "You do not have the permission this token type needs."
+      },
+      "scope": "What may it do?",
+      "colScope": "Type",
+      "scopes": {
+        "read": "Read only",
+        "review": "Prepare for approval",
+        "write": "Save directly"
+      },
+      "scopeHints": {
+        "read": "Reports, balances and searches. It can never change anything.",
+        "review": "It can prepare any change, but nothing is saved until you approve its card in the assistant.",
+        "write": "Like auto mode: low-risk changes are saved at once; high-risk ones (payments, posting) still wait for your approval. Needs auto mode to be on for the company."
+      }
+    },
+    "mcpBell": {
+      "title": "From Claude (MCP)",
+      "open": "Claude activity, {{count}} new",
+      "sound": "Sound",
+      "status": {
+        "PROPOSED": "Waiting",
+        "EXECUTED": "Saved",
+        "REJECTED": "Rejected",
+        "SKIPPED": "Skipped",
+        "FAILED": "Failed"
       }
     }
   }
