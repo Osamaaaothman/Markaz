@@ -86,7 +86,8 @@
     "depreciationRuns": "Depreciation runs",
     "fixedAssetReports": "Asset reports",
     "assistant": "AI assistant",
-    "aiSettings": "AI assistant"
+    "aiSettings": "AI assistant",
+    "aiAccessTokens": "MCP access tokens"
   },
   "actions": {
     "save": "Save",
@@ -4239,6 +4240,35 @@
       "DAY": "Day",
       "MONTH": "Month",
       "SERVICE": "Service"
+    },
+    "accessTokens": {
+      "title": "MCP access tokens",
+      "subtitle": "A token lets Claude Desktop or Claude Code read your company's data with your permissions. It can never change anything. It does not expire: revoke it if it leaks.",
+      "create": "Create a token",
+      "name": "Token name",
+      "namePlaceholder": "e.g. Claude Desktop on my laptop",
+      "createButton": "Create",
+      "newTitle": "Your new token",
+      "newWarning": "Copy it now. It will not be shown again.",
+      "copy": "Copy",
+      "copied": "Copied.",
+      "command": "To add it to Claude Code, run:",
+      "listTitle": "Active tokens",
+      "empty": "You have no active tokens.",
+      "colName": "Name",
+      "colPrefix": "Starts with",
+      "colCreated": "Created",
+      "colLastUsed": "Last used",
+      "never": "Never",
+      "revoke": "Revoke",
+      "confirmRevoke": "Revoke this token? Any app using it stops working at once.",
+      "revoked": "Token revoked.",
+      "errors": {
+        "NAME_REQUIRED": "Enter a name for the token.",
+        "TOO_MANY_TOKENS": "You have reached the limit of 10 active tokens. Revoke one first.",
+        "TOKEN_NOT_FOUND": "This token no longer exists.",
+        "UNKNOWN": "Something went wrong. Try again."
+      }
     }
   }
 }

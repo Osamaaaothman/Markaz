@@ -864,3 +864,13 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
 .ai-upload { display: inline-flex; align-items: center; gap: 0.4rem; max-width: 80%; padding: 0.35rem 0.6rem; border: 1px solid var(--mk-border); border-radius: 0.6rem; background: var(--mk-surface); color: var(--mk-text); font-size: 0.8rem; }
 .ai-upload > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ai-upload .pi { color: var(--mk-primary); }
+
+/* Settings → MCP access tokens */
+.ai-token-form { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+.ai-token-form .ai-field { flex: 1 1 18rem; margin: 0; }
+.ai-token-new { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+.ai-token-new__row { display: flex; gap: 0.5rem; align-items: center; }
+.ai-token-new__value { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 0.5rem 0.75rem; border-radius: 6px; background: var(--surface-ground, #f4f5f7); font-size: 0.85rem; text-align: left; }
+.ai-token-table { width: 100%; border-collapse: collapse; }
+.ai-token-table th, .ai-token-table td { padding: 0.5rem; border-bottom: 1px solid var(--surface-border, #e5e7eb); text-align: start; vertical-align: middle; }
+.ai-token-table th { font-weight: 600; font-size: 0.85rem; }

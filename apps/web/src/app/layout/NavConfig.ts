@@ -85,6 +85,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/settings/approvals", labelKey: "nav.approvalLimits", icon: "pi pi-verified", permissions: ["approval_policy:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/zatca", labelKey: "nav.zatca", icon: "pi pi-shield", permissions: ["compliance:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/ai", labelKey: "nav.aiSettings", icon: "pi pi-sparkles", permissions: ["ai_settings:manage"], groupKey: "nav.groups.settings" },
+  { to: "/settings/ai-tokens", labelKey: "nav.aiAccessTokens", icon: "pi pi-key", permissions: ["ai_assistant:use"], groupKey: "nav.groups.settings" },
   { to: "/settings/bots", labelKey: "nav.chatBots", icon: "pi pi-comments", permissions: ["bot_connection:read"], groupKey: "nav.groups.settings" },
   { to: "/settings/my-bots", labelKey: "nav.myChatBots", icon: "pi pi-send", groupKey: "nav.groups.settings" },
   { to: "/settings/interface", labelKey: "nav.interface", icon: "pi pi-sliders-h", groupKey: "nav.groups.settings" },

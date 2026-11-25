@@ -86,7 +86,8 @@
     "depreciationRuns": "تشغيلات الإهلاك",
     "fixedAssetReports": "تقارير الأصول",
     "assistant": "المساعد الذكي",
-    "aiSettings": "المساعد الذكي"
+    "aiSettings": "المساعد الذكي",
+    "aiAccessTokens": "رموز الوصول (MCP)"
   },
   "actions": {
     "save": "حفظ",
@@ -4239,6 +4240,35 @@
       "DAY": "يوم",
       "MONTH": "شهر",
       "SERVICE": "خدمة"
+    },
+    "accessTokens": {
+      "title": "رموز الوصول (MCP)",
+      "subtitle": "يتيح الرمز لتطبيق Claude Desktop أو Claude Code قراءة بيانات شركتك بصلاحياتك، ولا يستطيع تعديل أي شيء. لا تنتهي صلاحيته؛ ألغِه فوراً إذا تسرّب.",
+      "create": "إنشاء رمز",
+      "name": "اسم الرمز",
+      "namePlaceholder": "مثلاً: Claude Desktop على حاسوبي",
+      "createButton": "إنشاء",
+      "newTitle": "رمزك الجديد",
+      "newWarning": "انسخه الآن، فلن يُعرض مرة أخرى.",
+      "copy": "نسخ",
+      "copied": "تم النسخ.",
+      "command": "لإضافته إلى Claude Code، نفّذ الأمر:",
+      "listTitle": "الرموز الفعّالة",
+      "empty": "لا توجد لديك رموز فعّالة.",
+      "colName": "الاسم",
+      "colPrefix": "يبدأ بـ",
+      "colCreated": "تاريخ الإنشاء",
+      "colLastUsed": "آخر استخدام",
+      "never": "لم يُستخدم",
+      "revoke": "إلغاء",
+      "confirmRevoke": "هل تريد إلغاء هذا الرمز؟ سيتوقف أي تطبيق يستخدمه فوراً.",
+      "revoked": "تم إلغاء الرمز.",
+      "errors": {
+        "NAME_REQUIRED": "أدخل اسماً للرمز.",
+        "TOO_MANY_TOKENS": "وصلت إلى الحد الأقصى (10 رموز فعّالة). ألغِ أحدها أولاً.",
+        "TOKEN_NOT_FOUND": "هذا الرمز لم يعد موجوداً.",
+        "UNKNOWN": "حدث خطأ. حاول مرة أخرى."
+      }
     }
   }
 }

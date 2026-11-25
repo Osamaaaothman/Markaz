@@ -90,6 +90,7 @@ const CompanyPage = lazy(() => import("../features/settings/CompanyPage").then((
 const BotsSettingsPage = lazy(() => import("../features/bots/BotsSettingsPage").then((module) => ({ default: module.BotsSettingsPage })));
 const AssistantPage = lazy(() => import("../features/ai/AssistantPage").then((module) => ({ default: module.AssistantPage })));
 const AiSettingsPage = lazy(() => import("../features/ai/AiSettingsPage").then((module) => ({ default: module.AiSettingsPage })));
+const AiAccessTokensPage = lazy(() => import("../features/ai/AiAccessTokensPage").then((module) => ({ default: module.AiAccessTokensPage })));
 const MyBotsPage = lazy(() => import("../features/bots/MyBotsPage").then((module) => ({ default: module.MyBotsPage })));
 const InterfaceSettingsPage = lazy(() => import("../features/settings/InterfaceSettingsPage").then((module) => ({ default: module.InterfaceSettingsPage })));
 
@@ -310,6 +311,9 @@ export function AppRoutes(): React.JSX.Element {
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/ai")} />}>
             <Route path="/settings/ai" element={<AiSettingsPage />} />
+          </Route>
+          <Route element={<RequirePermission anyOf={permissionsFor("/settings/ai-tokens")} />}>
+            <Route path="/settings/ai-tokens" element={<AiAccessTokensPage />} />
           </Route>
           <Route element={<RequirePermission anyOf={permissionsFor("/settings/bots")} />}>
             <Route path="/settings/bots" element={<BotsSettingsPage />} />
