@@ -865,23 +865,6 @@ html[data-design] .erp-shell__content:has(.ai-page) { padding: 0; margin: 0; max
 .ai-upload > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ai-upload .pi { color: var(--mk-primary); }
 
-/* Settings → MCP access tokens */
-.ai-token-form { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
-.ai-token-form .ai-field { flex: 1 1 18rem; margin: 0; }
-.ai-token-new { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
-.ai-token-new__row { display: flex; gap: 0.5rem; align-items: center; }
-.ai-token-new__value { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 0.5rem 0.75rem; border-radius: 6px; background: var(--surface-ground, #f4f5f7); font-size: 0.85rem; text-align: left; }
-.ai-token-table { width: 100%; border-collapse: collapse; }
-.ai-token-table th, .ai-token-table td { padding: 0.5rem; border-bottom: 1px solid var(--surface-border, #e5e7eb); text-align: start; vertical-align: middle; }
-.ai-token-table th { font-weight: 600; font-size: 0.85rem; }
-
-.ai-token-scopes { flex: 1 1 100%; border: 0; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
-.ai-token-scopes legend { font-weight: 600; margin-bottom: 0.25rem; padding: 0; }
-.ai-token-scope { display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer; }
-.ai-token-scope span { display: flex; flex-direction: column; gap: 0.1rem; }
-.ai-token-scope small { color: var(--text-color-secondary, #6b7280); }
-.ai-token-scope.is-disabled { opacity: 0.5; cursor: not-allowed; }
-
 /* Top-bar bell for Claude (MCP) activity */
 .ai-mcp-bell { position: relative; }
 .ai-mcp-bell__badge {
@@ -933,7 +916,83 @@ html[data-design] body .p-overlaypanel.ai-mcp-panel .p-overlaypanel-content { pa
 .ai-mcp-panel__foot { border-top: 1px solid var(--mk-border); padding: 0.4rem; }
 .ai-mcp-panel__foot button { display: flex; align-items: center; justify-content: center; gap: 0.45rem; width: 100%; padding: 0.55rem; border: 0; border-radius: 8px; background: transparent; color: var(--mk-primary); font: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
 .ai-mcp-panel__foot button:hover { background: var(--mk-primary-soft); }
-.ai-token-new__setup { display: flex; flex-direction: column; gap: 0.25rem; }
-.ai-token-new__setup small, .ai-token-server small { color: var(--mk-text-muted); font-weight: 600; }
-pre.ai-token-new__value { margin: 0; white-space: pre-wrap; font-family: var(--mk-font-mono, monospace); }
-.ai-token-server { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 1rem; }
+
+/* Settings → AI apps (MCP) */
+.ai-tokens { display: grid; gap: 1.1rem; }
+.ai-tokens__hero { display: flex; align-items: center; gap: 1rem; }
+.ai-tokens__hero-icon { display: grid; place-items: center; width: 3rem; height: 3rem; flex: none; border-radius: 14px; background: linear-gradient(135deg, var(--mk-primary), color-mix(in srgb, var(--mk-primary) 70%, #000)); color: var(--mk-on-primary); font-size: 1.25rem; box-shadow: var(--mk-shadow-md); }
+.ai-tokens__hero .erp-page__subtitle { max-width: 62ch; }
+.ai-tokens__grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr); gap: 1.1rem; align-items: start; }
+@media (max-width: 960px) { .ai-tokens__grid { grid-template-columns: 1fr; } }
+.ai-tokens__card { display: grid; gap: 1rem; padding: 1.25rem; border-radius: 16px; }
+.ai-tokens__card-title { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem; font-weight: 800; color: var(--mk-text); }
+.ai-tokens__card-title .pi { color: var(--mk-primary); }
+.ai-tokens__count { margin-inline-start: auto; min-width: 1.6rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--mk-surface-2); color: var(--mk-text-muted); font-size: 0.78rem; text-align: center; }
+.ai-tokens__form { display: grid; gap: 1rem; }
+.ai-tokens__actions { display: flex; justify-content: flex-end; }
+.ai-tokens__note { margin: 0; font-size: 0.8rem; color: var(--mk-text-muted); line-height: 1.6; }
+
+.ai-scope-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.6rem; }
+.ai-scope { position: relative; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; gap: 0.2rem 0.65rem; align-items: start; padding: 0.85rem; border: 1px solid var(--mk-border); border-radius: 12px; background: var(--mk-surface); color: var(--mk-text); font: inherit; text-align: start; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; }
+.ai-scope:hover:not(:disabled) { border-color: var(--mk-border-strong, var(--mk-border)); background: var(--mk-surface-2); }
+.ai-scope:focus-visible { outline: 2px solid var(--mk-primary); outline-offset: 2px; }
+.ai-scope.is-active { border-color: var(--mk-primary); background: var(--mk-primary-soft); box-shadow: 0 0 0 3px var(--mk-primary-ring, rgba(0, 0, 0, 0.06)); }
+.ai-scope.is-active::after { content: "\e909"; font-family: primeicons; position: absolute; top: 0.6rem; inset-inline-end: 0.65rem; color: var(--mk-primary); font-size: 0.85rem; }
+.ai-scope:disabled { opacity: 0.5; cursor: not-allowed; }
+.ai-scope__icon { grid-row: 1 / 3; display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: 10px; }
+.ai-scope strong { font-size: 0.9rem; padding-inline-end: 1.2rem; }
+.ai-scope small { grid-column: 2; font-size: 0.74rem; line-height: 1.55; color: var(--mk-text-muted); }
+.ai-scope--read .ai-scope__icon, .ai-token-row__icon.ai-scope--read { background: var(--mk-info-soft, var(--mk-surface-2)); color: var(--mk-info, var(--mk-primary)); }
+.ai-scope--review .ai-scope__icon, .ai-token-row__icon.ai-scope--review { background: var(--mk-warning-soft); color: var(--mk-warning); }
+.ai-scope--write .ai-scope__icon, .ai-token-row__icon.ai-scope--write { background: var(--mk-danger-soft); color: var(--mk-danger); }
+
+.ai-copy { display: flex; align-items: stretch; min-width: 0; border: 1px solid var(--mk-border); border-radius: 10px; background: var(--mk-surface-2); overflow: hidden; }
+.ai-copy code, .ai-copy pre { flex: 1; min-width: 0; margin: 0; padding: 0.6rem 0.75rem; font-family: var(--mk-font-mono, monospace); font-size: 0.8rem; color: var(--mk-text); text-align: left; overflow-wrap: anywhere; }
+.ai-copy pre { white-space: pre-wrap; max-height: 16rem; overflow: auto; }
+.ai-copy__btn { display: grid; place-items: center; width: 2.6rem; flex: none; border: 0; border-inline-start: 1px solid var(--mk-border); background: var(--mk-surface); color: var(--mk-text-muted); cursor: pointer; transition: color 0.15s, background 0.15s; }
+.ai-copy__btn:hover { color: var(--mk-primary); background: var(--mk-primary-soft); }
+.ai-copy__btn:focus-visible { outline: 2px solid var(--mk-primary); outline-offset: -2px; }
+.ai-copy--block { align-items: flex-start; }
+.ai-copy--block .ai-copy__btn { align-self: stretch; }
+
+.ai-tokens__empty { display: grid; justify-items: center; gap: 0.5rem; padding: 2rem 1rem; border: 1px dashed var(--mk-border); border-radius: 12px; color: var(--mk-text-muted); text-align: center; }
+.ai-tokens__empty .pi { font-size: 1.6rem; opacity: 0.6; }
+.ai-tokens__empty p { margin: 0; }
+
+.ai-token-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.ai-token-row { display: flex; align-items: center; gap: 0.85rem; padding: 0.8rem 0.9rem; border: 1px solid var(--mk-border); border-radius: 12px; background: var(--mk-surface); transition: border-color 0.15s; }
+.ai-token-row:hover { border-color: var(--mk-border-strong, var(--mk-border)); }
+.ai-token-row__icon { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; flex: none; border-radius: 12px; }
+.ai-token-row__main { display: grid; gap: 0.35rem; min-width: 0; flex: 1; }
+.ai-token-row__top { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.ai-token-row__top strong { font-size: 0.95rem; }
+.ai-token-row__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1rem; font-size: 0.76rem; color: var(--mk-text-muted); }
+.ai-token-row__meta code { padding: 0.05rem 0.4rem; border-radius: 6px; background: var(--mk-surface-2); font-family: var(--mk-font-mono, monospace); color: var(--mk-text); }
+.ai-token-chip { padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+.ai-token-chip--read { background: var(--mk-info-soft, var(--mk-surface-2)); color: var(--mk-info, var(--mk-primary)); }
+.ai-token-chip--review { background: var(--mk-warning-soft); color: var(--mk-warning); }
+.ai-token-chip--write { background: var(--mk-danger-soft); color: var(--mk-danger); }
+@media (max-width: 600px) {
+  .ai-token-row { flex-wrap: wrap; }
+  .ai-token-row > .p-button { margin-inline-start: auto; }
+}
+
+.ai-token-dialog__body { display: grid; gap: 1rem; }
+.ai-token-dialog__warn { display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--mk-warning-soft); color: var(--mk-warning); font-weight: 700; font-size: 0.85rem; }
+.ai-token-dialog__manual { display: grid; gap: 0.9rem; }
+.ai-token-tabs .p-tabview-panels { padding: 0.9rem 0 0; background: transparent; }
+.ai-token-tabs .p-tabview-panels > .p-tabview-panel { display: grid; gap: 0.6rem; }
+
+/* A card from an external AI app, decided in a dialog from the notification bell */
+.ai-mcp-dialog__body { display: grid; gap: 0.9rem; }
+.ai-mcp-dialog__head { display: flex; align-items: center; gap: 0.75rem; }
+.ai-mcp-dialog__icon { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; flex: none; border-radius: 12px; background: var(--mk-primary-soft); color: var(--mk-primary); font-size: 1.05rem; }
+.ai-mcp-dialog__titles { display: grid; gap: 0.25rem; min-width: 0; flex: 1; }
+.ai-mcp-dialog__from { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--mk-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-mcp-dialog__pills { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.ai-mcp-dialog__fields { margin: 0; border: 1px solid var(--mk-border); border-radius: 12px; padding: 0.35rem 0.75rem; background: var(--mk-surface-2); }
+.ai-mcp-dialog__actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.25rem; border-top: 1px solid var(--mk-border); }
+.ai-mcp-dialog__spacer { flex: 1; }
+/* The app makes every dialog 80vw; these two hold one short card or one token, so they stay compact. */
+html body .p-dialog.ai-mcp-dialog { width: min(34rem, 94vw) !important; inline-size: min(34rem, 94vw) !important; }
+html body .p-dialog.ai-token-dialog { width: min(42rem, 94vw) !important; inline-size: min(42rem, 94vw) !important; }

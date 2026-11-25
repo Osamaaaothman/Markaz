@@ -1,33 +1,47 @@
 import { isAxiosError } from "axios";
 import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
-import { RadioButton } from "primereact/radiobutton";
+import { TabPanel, TabView } from "primereact/tabview";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { usePermissions } from "../../shared/auth/use-permissions";
 import { copyToClipboard } from "../../shared/lib/copy-to-clipboard";
 import { useFeedbackStore } from "../../shared/lib/feedback-store";
 import { formatDateTime } from "../../shared/lib/format-date";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
-import { usePermissions } from "../../shared/auth/use-permissions";
 import { useAccessTokens, useCreateAccessToken, useRevokeAccessToken, type AccessTokenScope } from "./ai-api";
 import "./ai.css";
 
 const KNOWN_ERRORS = new Set(["NAME_REQUIRED", "TOO_MANY_TOKENS", "TOKEN_NOT_FOUND", "FORBIDDEN"]);
-// The chat permission each token type needs (the same as the matching chat mode).
-const SCOPES: ReadonlyArray<{ scope: AccessTokenScope; permission: string }> = [
-  { scope: "read", permission: "ai_assistant:use" },
-  { scope: "review", permission: "ai_assistant:interact" },
-  { scope: "write", permission: "ai_assistant:auto" },
+// Each token type, its icon, and the chat permission it needs (the same as the matching chat mode).
+const SCOPES: ReadonlyArray<{ scope: AccessTokenScope; permission: string; icon: string }> = [
+  { scope: "read", permission: "ai_assistant:use", icon: "pi pi-eye" },
+  { scope: "review", permission: "ai_assistant:interact", icon: "pi pi-check-square" },
+  { scope: "write", permission: "ai_assistant:auto", icon: "pi pi-bolt" },
 ];
+const SCOPE_ICON: Record<AccessTokenScope, string> = { read: "pi pi-eye", review: "pi pi-check-square", write: "pi pi-bolt" };
 
 function errorKey(error: unknown): string {
   const code = isAxiosError(error) ? (error.response?.data as { code?: string } | undefined)?.code : undefined;
   return `ai.accessTokens.errors.${code && KNOWN_ERRORS.has(code) ? code : "UNKNOWN"}`;
 }
 
+// A value the user copies into another app: shown as-is (left to right), with a copy button.
+function CopyField({ value, block, onCopy, copyLabel }: { value: string; block?: boolean; onCopy: (v: string) => void; copyLabel: string }): React.JSX.Element {
+  return (
+    <div className={`ai-copy${block ? " ai-copy--block" : ""}`}>
+      {block ? <pre dir="ltr">{value}</pre> : <code dir="ltr">{value}</code>}
+      <button type="button" className="ai-copy__btn" onClick={() => onCopy(value)} aria-label={copyLabel} title={copyLabel}>
+        <i className="pi pi-copy" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 // Settings → AI apps (MCP): the signed-in user's own tokens for any MCP client (Claude, Cursor, VS Code, ...).
-// A new token is held only in this component's state, shown once, and gone when the page is left.
+// A new token lives only in this component's state, is shown once in a dialog, and is gone when it closes.
 export function AiAccessTokensPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const tokens = useAccessTokens();
@@ -37,150 +51,177 @@ export function AiAccessTokensPage(): React.JSX.Element {
   const perms = usePermissions();
   const [name, setName] = useState("");
   const [scope, setScope] = useState<AccessTokenScope>("read");
-  const [created, setCreated] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ token: string; name: string } | null>(null);
 
   if (tokens.isPending) return <PageSkeleton />;
   if (tokens.isError) return <div className="erp-page"><p className="erp-page__error">{t("status.error")}</p></div>;
 
   const mcpUrl = `${window.location.origin}/api/v1/ai/mcp`;
-  // Any MCP client that speaks Streamable HTTP with a bearer header can connect; these are the common forms.
-  const command = created ? `claude mcp add --transport http markaz ${mcpUrl} --header "Authorization: Bearer ${created}"` : "";
-  const jsonConfig = created
-    ? JSON.stringify({ mcpServers: { markaz: { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${created}` } } } }, null, 2)
-    : "";
   const copy = async (text: string): Promise<void> => {
     if (await copyToClipboard(text)) notify({ severity: "success", key: "ai.accessTokens.copied" });
   };
   const submit = (): void => {
     create.mutate({ name, scope }, {
-      onSuccess: (row) => { setCreated(row.token); setName(""); },
+      onSuccess: (row) => { setCreated({ token: row.token, name: row.name }); setName(""); },
       onError: (error) => notify({ severity: "error", key: errorKey(error) }),
     });
   };
+  // Any MCP client that speaks Streamable HTTP with a bearer header can connect; these are the common forms.
+  const token = created?.token ?? "";
+  const jsonConfig = JSON.stringify({ mcpServers: { markaz: { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${token}` } } } }, null, 2);
+  const command = `claude mcp add --transport http markaz ${mcpUrl} --header "Authorization: Bearer ${token}"`;
+  const copyLabel = t("ai.accessTokens.copy");
 
   return (
-    <div className="erp-page ai-settings">
-      <div className="erp-page__header">
+    <div className="erp-page ai-tokens">
+      <header className="ai-tokens__hero">
+        <span className="ai-tokens__hero-icon" aria-hidden="true"><i className="pi pi-link" /></span>
         <div>
           <h1 className="erp-page__title">{t("ai.accessTokens.title")}</h1>
           <p className="erp-page__subtitle">{t("ai.accessTokens.subtitle")}</p>
         </div>
+      </header>
+
+      <div className="ai-tokens__grid">
+        <section className="erp-card ai-tokens__card">
+          <h2 className="ai-tokens__card-title"><i className="pi pi-plus-circle" aria-hidden="true" /> {t("ai.accessTokens.create")}</h2>
+          <form className="ai-tokens__form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+            <label className="ai-field">
+              <span>{t("ai.accessTokens.name")}</span>
+              <InputText value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder={t("ai.accessTokens.namePlaceholder")} />
+            </label>
+            <div className="ai-field">
+              <span>{t("ai.accessTokens.scope")}</span>
+              <div className="ai-scope-grid" role="radiogroup" aria-label={t("ai.accessTokens.scope")}>
+                {SCOPES.map((s) => {
+                  const allowed = perms.can(s.permission);
+                  return (
+                    <button
+                      key={s.scope}
+                      type="button"
+                      role="radio"
+                      aria-checked={scope === s.scope}
+                      disabled={!allowed}
+                      className={`ai-scope ai-scope--${s.scope}${scope === s.scope ? " is-active" : ""}`}
+                      onClick={() => setScope(s.scope)}
+                    >
+                      <span className="ai-scope__icon" aria-hidden="true"><i className={s.icon} /></span>
+                      <strong>{t(`ai.accessTokens.scopes.${s.scope}`)}</strong>
+                      <small>{allowed ? t(`ai.accessTokens.scopeHints.${s.scope}`) : t("ai.accessTokens.errors.FORBIDDEN")}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="ai-tokens__actions">
+              <Button type="submit" icon="pi pi-key" label={t("ai.accessTokens.createButton")} loading={create.isPending} disabled={!name.trim()} />
+            </div>
+          </form>
+        </section>
+
+        <aside className="erp-card ai-tokens__card ai-tokens__server">
+          <h2 className="ai-tokens__card-title"><i className="pi pi-server" aria-hidden="true" /> {t("ai.accessTokens.serverUrl")}</h2>
+          <CopyField value={mcpUrl} onCopy={(v) => void copy(v)} copyLabel={copyLabel} />
+          <p className="ai-tokens__note">{t("ai.accessTokens.serverHint")}</p>
+        </aside>
       </div>
 
-      <section className="erp-card ai-settings__card">
-        <h2 className="erp-card__title">{t("ai.accessTokens.create")}</h2>
-        <form className="ai-token-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-          <label className="ai-field">
-            <span>{t("ai.accessTokens.name")}</span>
-            <InputText value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder={t("ai.accessTokens.namePlaceholder")} />
-          </label>
-          <fieldset className="ai-token-scopes">
-            <legend>{t("ai.accessTokens.scope")}</legend>
-            {SCOPES.map((s) => (
-              <label key={s.scope} className={`ai-token-scope${perms.can(s.permission) ? "" : " is-disabled"}`}>
-                <RadioButton name="scope" value={s.scope} checked={scope === s.scope} disabled={!perms.can(s.permission)} onChange={() => setScope(s.scope)} />
-                <span>
-                  <strong>{t(`ai.accessTokens.scopes.${s.scope}`)}</strong>
-                  <small>{t(`ai.accessTokens.scopeHints.${s.scope}`)}</small>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <Button type="submit" icon="pi pi-key" label={t("ai.accessTokens.createButton")} loading={create.isPending} disabled={!name.trim()} />
-        </form>
-
-        {created ? (
-          <div className="ai-notice ai-notice--warn ai-token-new" role="status">
-            <strong>{t("ai.accessTokens.newTitle")}</strong>
-            <span>{t("ai.accessTokens.newWarning")}</span>
-            <div className="ai-token-new__row">
-              <code dir="ltr" className="ai-token-new__value">{created}</code>
-              <Button type="button" size="small" outlined icon="pi pi-copy" label={t("ai.accessTokens.copy")} onClick={() => void copy(created)} />
-            </div>
-            <span>{t("ai.accessTokens.howTo")}</span>
-            {[
-              { label: t("ai.accessTokens.serverUrl"), value: mcpUrl },
-              { label: t("ai.accessTokens.header"), value: `Authorization: Bearer ${created}` },
-              { label: t("ai.accessTokens.jsonConfig"), value: jsonConfig, block: true },
-              { label: t("ai.accessTokens.claudeCode"), value: command },
-            ].map((row) => (
-              <div key={row.label} className="ai-token-new__setup">
-                <small>{row.label}</small>
-                <div className="ai-token-new__row">
-                  {row.block ? <pre dir="ltr" className="ai-token-new__value">{row.value}</pre> : <code dir="ltr" className="ai-token-new__value">{row.value}</code>}
-                  <Button type="button" size="small" outlined icon="pi pi-copy" label={t("ai.accessTokens.copy")} onClick={() => void copy(row.value)} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="ai-token-server">
-          <small>{t("ai.accessTokens.serverUrl")}</small>
-          <div className="ai-token-new__row">
-            <code dir="ltr" className="ai-token-new__value">{mcpUrl}</code>
-            <Button type="button" size="small" outlined icon="pi pi-copy" label={t("ai.accessTokens.copy")} onClick={() => void copy(mcpUrl)} />
-          </div>
-        </div>
-      </section>
-
-      <section className="erp-card ai-settings__card">
-        <h2 className="erp-card__title">{t("ai.accessTokens.listTitle")}</h2>
+      <section className="erp-card ai-tokens__card">
+        <h2 className="ai-tokens__card-title">
+          <i className="pi pi-key" aria-hidden="true" /> {t("ai.accessTokens.listTitle")}
+          <span className="ai-tokens__count">{tokens.data.length}</span>
+        </h2>
         {tokens.data.length === 0 ? (
-          <p className="erp-page__subtitle">{t("ai.accessTokens.empty")}</p>
+          <div className="ai-tokens__empty">
+            <i className="pi pi-key" aria-hidden="true" />
+            <p>{t("ai.accessTokens.empty")}</p>
+          </div>
         ) : (
-          <table className="ai-token-table">
-            <thead>
-              <tr>
-                <th>{t("ai.accessTokens.colName")}</th>
-                <th>{t("ai.accessTokens.colScope")}</th>
-                <th>{t("ai.accessTokens.colPrefix")}</th>
-                <th>{t("ai.accessTokens.colCreated")}</th>
-                <th>{t("ai.accessTokens.colLastUsed")}</th>
-                <th aria-label={t("ai.accessTokens.revoke")} />
-              </tr>
-            </thead>
-            <tbody>
-              {tokens.data.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.name}</td>
-                  <td>{t(`ai.accessTokens.scopes.${row.scope}`)}</td>
-                  <td><code dir="ltr">{row.tokenPrefix}…</code></td>
-                  <td>{formatDateTime(row.createdAt, i18n.language)}</td>
-                  <td>{row.lastUsedAt ? formatDateTime(row.lastUsedAt, i18n.language) : t("ai.accessTokens.never")}</td>
-                  <td>
-                    <Button
-                      type="button"
-                      size="small"
-                      text
-                      severity="danger"
-                      icon="pi pi-ban"
-                      label={t("ai.accessTokens.revoke")}
-                      onClick={() =>
-                        confirmDialog({
-                          group: "ai-tokens",
-                          header: t("ai.accessTokens.revoke"),
-                          message: t("ai.accessTokens.confirmRevoke"),
-                          icon: "pi pi-exclamation-triangle",
-                          acceptLabel: t("ai.accessTokens.revoke"),
-                          rejectLabel: t("actions.cancel"),
-                          acceptClassName: "p-button-danger",
-                          defaultFocus: "reject",
-                          accept: () =>
-                            revoke.mutate(row.id, {
-                              onSuccess: () => notify({ severity: "success", key: "ai.accessTokens.revoked" }),
-                              onError: (error) => notify({ severity: "error", key: errorKey(error) }),
-                            }),
-                        })
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="ai-token-list">
+            {tokens.data.map((row) => (
+              <li key={row.id} className="ai-token-row">
+                <span className={`ai-token-row__icon ai-scope--${row.scope}`} aria-hidden="true"><i className={SCOPE_ICON[row.scope]} /></span>
+                <div className="ai-token-row__main">
+                  <div className="ai-token-row__top">
+                    <strong>{row.name}</strong>
+                    <span className={`ai-token-chip ai-token-chip--${row.scope}`}>{t(`ai.accessTokens.scopes.${row.scope}`)}</span>
+                  </div>
+                  <div className="ai-token-row__meta">
+                    <code dir="ltr">{row.tokenPrefix}…</code>
+                    <span>{t("ai.accessTokens.colCreated")}: <bdi>{formatDateTime(row.createdAt, i18n.language)}</bdi></span>
+                    <span>{t("ai.accessTokens.colLastUsed")}: <bdi>{row.lastUsedAt ? formatDateTime(row.lastUsedAt, i18n.language) : t("ai.accessTokens.never")}</bdi></span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="small"
+                  text
+                  severity="danger"
+                  icon="pi pi-ban"
+                  label={t("ai.accessTokens.revoke")}
+                  onClick={() =>
+                    confirmDialog({
+                      group: "ai-tokens",
+                      header: t("ai.accessTokens.revoke"),
+                      message: t("ai.accessTokens.confirmRevoke"),
+                      icon: "pi pi-exclamation-triangle",
+                      acceptLabel: t("ai.accessTokens.revoke"),
+                      rejectLabel: t("actions.cancel"),
+                      acceptClassName: "p-button-danger",
+                      defaultFocus: "reject",
+                      accept: () =>
+                        revoke.mutate(row.id, {
+                          onSuccess: () => notify({ severity: "success", key: "ai.accessTokens.revoked" }),
+                          onError: (error) => notify({ severity: "error", key: errorKey(error) }),
+                        }),
+                    })
+                  }
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
+
+      <Dialog
+        visible={created !== null}
+        onHide={() => setCreated(null)}
+        header={t("ai.accessTokens.newTitle")}
+        className="ai-token-dialog"
+        style={{ width: "min(40rem, 94vw)" }}
+        dismissableMask={false}
+        draggable={false}
+      >
+        {created ? (
+          <div className="ai-token-dialog__body">
+            <div className="ai-token-dialog__warn"><i className="pi pi-exclamation-triangle" aria-hidden="true" /> {t("ai.accessTokens.newWarning")}</div>
+            <label className="ai-field">
+              <span>{t("ai.accessTokens.tokenFor", { name: created.name })}</span>
+              <CopyField value={created.token} onCopy={(v) => void copy(v)} copyLabel={copyLabel} />
+            </label>
+            <p className="ai-tokens__note">{t("ai.accessTokens.howTo")}</p>
+            <TabView className="ai-token-tabs">
+              <TabPanel header={t("ai.accessTokens.tabJson")}>
+                <p className="ai-tokens__note">{t("ai.accessTokens.jsonConfig")}</p>
+                <CopyField value={jsonConfig} block onCopy={(v) => void copy(v)} copyLabel={copyLabel} />
+              </TabPanel>
+              <TabPanel header={t("ai.accessTokens.tabClaudeCode")}>
+                <p className="ai-tokens__note">{t("ai.accessTokens.claudeCode")}</p>
+                <CopyField value={command} block onCopy={(v) => void copy(v)} copyLabel={copyLabel} />
+              </TabPanel>
+              <TabPanel header={t("ai.accessTokens.tabManual")}>
+                <div className="ai-token-dialog__manual">
+                  <label className="ai-field"><span>{t("ai.accessTokens.serverUrl")}</span><CopyField value={mcpUrl} onCopy={(v) => void copy(v)} copyLabel={copyLabel} /></label>
+                  <label className="ai-field"><span>{t("ai.accessTokens.header")}</span><CopyField value={`Authorization: Bearer ${created.token}`} onCopy={(v) => void copy(v)} copyLabel={copyLabel} /></label>
+                </div>
+              </TabPanel>
+            </TabView>
+            <div className="ai-tokens__actions">
+              <Button type="button" label={t("ai.accessTokens.done")} icon="pi pi-check" onClick={() => setCreated(null)} />
+            </div>
+          </div>
+        ) : null}
+      </Dialog>
       {/* Grouped so it never answers another page's dialog. */}
       <ConfirmDialog group="ai-tokens" className="ai-confirm" />
     </div>
