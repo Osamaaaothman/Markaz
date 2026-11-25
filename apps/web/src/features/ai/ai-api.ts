@@ -135,6 +135,7 @@ export const aiKeys = {
   conversation: (id: string) => ["ai", "conversations", id] as const,
   settings: ["ai", "settings"] as const,
   accessTokens: ["ai", "access-tokens"] as const,
+  mcpActivity: ["ai", "mcp-activity"] as const,
 };
 
 export function useAiMe(enabled: boolean) {
@@ -262,9 +263,13 @@ export async function reviseItem(conversationId: string, key: string, args: Reco
 }
 
 // Personal tokens for the read-only MCP endpoint. `token` exists only in the create response.
+// read: read only. review: changes become cards to approve. write: low-risk changes are saved at once.
+export type AccessTokenScope = "read" | "review" | "write";
+
 export interface AccessToken {
   id: string;
   name: string;
+  scope: AccessTokenScope;
   tokenPrefix: string;
   createdAt: string;
   lastUsedAt: string | null;
@@ -277,7 +282,7 @@ export function useAccessTokens() {
 export function useCreateAccessToken() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => (await apiClient.post<AccessToken & { token: string }>("/v1/ai/access-tokens", { name })).data,
+    mutationFn: async (input: { name: string; scope: AccessTokenScope }) => (await apiClient.post<AccessToken & { token: string }>("/v1/ai/access-tokens", input)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: aiKeys.accessTokens }),
   });
 }
@@ -287,5 +292,28 @@ export function useRevokeAccessToken() {
   return useMutation({
     mutationFn: async (id: string) => { await apiClient.delete(`/v1/ai/access-tokens/${encodeURIComponent(id)}`); },
     onSuccess: () => void qc.invalidateQueries({ queryKey: aiKeys.accessTokens }),
+  });
+}
+
+// A card or change that came in through one of the user's MCP tokens.
+export interface McpActivityItem {
+  id: string;
+  key: string;
+  conversationId: string;
+  tokenName: string;
+  tool: string;
+  status: ChangeStatus;
+  titleKey: string | null;
+  createdAt: string;
+}
+
+// Polled while the app is open so the bell can ring when Claude sends something new.
+export function useMcpActivity(enabled: boolean) {
+  return useQuery({
+    queryKey: aiKeys.mcpActivity,
+    enabled,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+    queryFn: async () => (await apiClient.get<McpActivityItem[]>("/v1/ai/mcp-activity")).data,
   });
 }

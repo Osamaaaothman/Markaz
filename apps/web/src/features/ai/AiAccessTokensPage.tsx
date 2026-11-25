@@ -2,16 +2,24 @@ import { isAxiosError } from "axios";
 import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { InputText } from "primereact/inputtext";
+import { RadioButton } from "primereact/radiobutton";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "../../shared/lib/copy-to-clipboard";
 import { useFeedbackStore } from "../../shared/lib/feedback-store";
 import { formatDateTime } from "../../shared/lib/format-date";
 import { PageSkeleton } from "../../shared/ui/PageSkeleton";
-import { useAccessTokens, useCreateAccessToken, useRevokeAccessToken } from "./ai-api";
+import { usePermissions } from "../../shared/auth/use-permissions";
+import { useAccessTokens, useCreateAccessToken, useRevokeAccessToken, type AccessTokenScope } from "./ai-api";
 import "./ai.css";
 
-const KNOWN_ERRORS = new Set(["NAME_REQUIRED", "TOO_MANY_TOKENS", "TOKEN_NOT_FOUND"]);
+const KNOWN_ERRORS = new Set(["NAME_REQUIRED", "TOO_MANY_TOKENS", "TOKEN_NOT_FOUND", "FORBIDDEN"]);
+// The chat permission each token type needs (the same as the matching chat mode).
+const SCOPES: ReadonlyArray<{ scope: AccessTokenScope; permission: string }> = [
+  { scope: "read", permission: "ai_assistant:use" },
+  { scope: "review", permission: "ai_assistant:interact" },
+  { scope: "write", permission: "ai_assistant:auto" },
+];
 
 function errorKey(error: unknown): string {
   const code = isAxiosError(error) ? (error.response?.data as { code?: string } | undefined)?.code : undefined;
@@ -26,7 +34,9 @@ export function AiAccessTokensPage(): React.JSX.Element {
   const create = useCreateAccessToken();
   const revoke = useRevokeAccessToken();
   const notify = useFeedbackStore((s) => s.notify);
+  const perms = usePermissions();
   const [name, setName] = useState("");
+  const [scope, setScope] = useState<AccessTokenScope>("read");
   const [created, setCreated] = useState<string | null>(null);
 
   if (tokens.isPending) return <PageSkeleton />;
@@ -38,7 +48,7 @@ export function AiAccessTokensPage(): React.JSX.Element {
     if (await copyToClipboard(text)) notify({ severity: "success", key: "ai.accessTokens.copied" });
   };
   const submit = (): void => {
-    create.mutate(name, {
+    create.mutate({ name, scope }, {
       onSuccess: (row) => { setCreated(row.token); setName(""); },
       onError: (error) => notify({ severity: "error", key: errorKey(error) }),
     });
@@ -60,6 +70,18 @@ export function AiAccessTokensPage(): React.JSX.Element {
             <span>{t("ai.accessTokens.name")}</span>
             <InputText value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder={t("ai.accessTokens.namePlaceholder")} />
           </label>
+          <fieldset className="ai-token-scopes">
+            <legend>{t("ai.accessTokens.scope")}</legend>
+            {SCOPES.map((s) => (
+              <label key={s.scope} className={`ai-token-scope${perms.can(s.permission) ? "" : " is-disabled"}`}>
+                <RadioButton name="scope" value={s.scope} checked={scope === s.scope} disabled={!perms.can(s.permission)} onChange={() => setScope(s.scope)} />
+                <span>
+                  <strong>{t(`ai.accessTokens.scopes.${s.scope}`)}</strong>
+                  <small>{t(`ai.accessTokens.scopeHints.${s.scope}`)}</small>
+                </span>
+              </label>
+            ))}
+          </fieldset>
           <Button type="submit" icon="pi pi-key" label={t("ai.accessTokens.createButton")} loading={create.isPending} disabled={!name.trim()} />
         </form>
 
@@ -89,6 +111,7 @@ export function AiAccessTokensPage(): React.JSX.Element {
             <thead>
               <tr>
                 <th>{t("ai.accessTokens.colName")}</th>
+                <th>{t("ai.accessTokens.colScope")}</th>
                 <th>{t("ai.accessTokens.colPrefix")}</th>
                 <th>{t("ai.accessTokens.colCreated")}</th>
                 <th>{t("ai.accessTokens.colLastUsed")}</th>
@@ -99,6 +122,7 @@ export function AiAccessTokensPage(): React.JSX.Element {
               {tokens.data.map((row) => (
                 <tr key={row.id}>
                   <td>{row.name}</td>
+                  <td>{t(`ai.accessTokens.scopes.${row.scope}`)}</td>
                   <td><code dir="ltr">{row.tokenPrefix}…</code></td>
                   <td>{formatDateTime(row.createdAt, i18n.language)}</td>
                   <td>{row.lastUsedAt ? formatDateTime(row.lastUsedAt, i18n.language) : t("ai.accessTokens.never")}</td>

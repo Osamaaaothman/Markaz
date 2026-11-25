@@ -16,6 +16,7 @@ import {
   textOf,
   toolsForMode,
   LOAD_TOOLS,
+  needsApproval,
   sectionOf,
   sectionOfRoute,
   toStored,
@@ -74,6 +75,26 @@ export interface SendInput {
   readonly page?: { readonly route: string; readonly entityId?: string | undefined } | undefined;
   // One attached document (PDF or picture), read by the model and kept for attaching to a record later.
   readonly file?: { readonly name: string; readonly bytes: Uint8Array } | undefined;
+}
+
+export interface ExternalWriteResult {
+  readonly status: "EXECUTED" | "PROPOSED";
+  readonly id: string;
+  readonly conversationId: string;
+  readonly data: Record<string, unknown> | null;
+  readonly link: { label: string; path: string } | null;
+  readonly warnings: readonly string[];
+}
+
+export interface McpActivityItem {
+  readonly id: string;
+  readonly key: string;
+  readonly conversationId: string;
+  readonly tokenName: string;
+  readonly tool: string;
+  readonly status: string;
+  readonly titleKey: string | null;
+  readonly createdAt: Date;
 }
 
 export interface DecideInput {
@@ -526,6 +547,105 @@ export class AiChatService {
       take: 100,
       select: { id: true, title: true, mode: true, status: true, pinned: true, updatedAt: true },
     }).then((rows) => rows.map((r) => ({ ...r, running: this.running.has(r.id) })));
+  }
+
+  // ─── Writes from an external MCP client (Claude Desktop / Claude Code) ──────────────────────
+  // The client calls a write tool directly; nothing runs through our model. The change is a card in
+  // the token's own conversation ("MCP · <token name>"), decided in the app exactly like a chat card.
+  // A "write" token follows the app's auto-mode rules instead: a low-risk change runs at once (when the
+  // company allows auto mode and the user has ai_assistant:auto); a high-risk one still waits.
+  async externalWrite(
+    actor: Actor,
+    token: { id: string; name: string; scope: "review" | "write" },
+    toolName: string,
+    args: Record<string, unknown>,
+  ): Promise<ExternalWriteResult> {
+    const tool = this.tools.find((t) => t.name === toolName);
+    if (!tool || tool.kind !== "write") throw new AiChatError("CHANGE_NOT_FOUND");
+    await this.requireMode(actor, token.scope === "write" ? "auto" : "review");
+    const conversationId = await this.tokenConversation(actor, token);
+    if (this.running.has(conversationId)) throw new AiChatError("TURN_RUNNING");
+    const ctx = this.toolContext(actor, conversationId, "en");
+    if (!(await ctx.can(tool.permission.resource, tool.permission.action))) throw new AiChatError("FORBIDDEN");
+
+    // "$ref:c1.id" may point at an earlier card of this conversation, as in the chat.
+    const items = await this.prisma.aiChangeItem.findMany({ where: { conversationId, status: { in: ["PROPOSED", "EXECUTED"] } }, select: { itemKey: true, status: true, result: true } });
+    const known = new Map(items.filter((i) => i.status === "EXECUTED").map((i) => [i.itemKey, ((i.result as { data?: Record<string, unknown> } | null)?.data) ?? {}]));
+    const waiting = new Set(items.filter((i) => i.status === "PROPOSED").map((i) => i.itemKey));
+    const refs = refsIn(args);
+    const unknown = refs.find((r) => !known.has(r) && !waiting.has(r));
+    if (unknown) throw new AiChatError("INVALID_ARGUMENTS", `UNKNOWN_REFERENCE ${unknown}`);
+    const pendingRef = refs.some((r) => !known.has(r));
+    const parsed = tool.input.safeParse(pendingRef ? args : resolveRefs(args, known));
+    if (!parsed.success && !pendingRef) throw new AiChatError("INVALID_ARGUMENTS", parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ").slice(0, 500));
+    const checked = parsed.success && !pendingRef ? (parsed.data as Record<string, unknown>) : args;
+    const preview = await tool.preview(ctx, checked);
+
+    // Auto mode is a company switch in the AI settings; a review token never needs it.
+    const autoAllowed = token.scope === "write"
+      && (await this.settings.resolve(actor.companyId).then((c) => c.autoModeEnabled, () => false))
+      && (await this.can(actor, "ai_assistant", "auto"));
+    const runNow = token.scope === "write" && !pendingRef && !needsApproval(tool, "auto", autoAllowed);
+    // Atomic: two calls at once never get the same card number.
+    const numbered = await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { nextItemNumber: { increment: 1 } }, select: { nextItemNumber: true } });
+    const key = `c${numbered.nextItemNumber - 1}`;
+    const messageId = await this.appendNotice(conversationId, actor.companyId, null, [], [], { provider: "mcp", model: token.name }, { input: 0, output: 0 }, null);
+
+    if (runNow) {
+      const result = await tool.execute(ctx, checked);
+      await this.prisma.aiChangeItem.create({
+        data: {
+          id: newId(), companyId: actor.companyId, conversationId, messageId, itemKey: key, tool: tool.name, args: checked as Prisma.InputJsonValue, preview: preview as unknown as Prisma.InputJsonValue, risk: tool.risk,
+          dependsOn: [], status: "EXECUTED", auto: true, result: { data: result.data } as Prisma.InputJsonValue, link: (result.link ?? Prisma.JsonNull) as Prisma.InputJsonValue, decidedBy: actor.id, decidedAt: new Date(),
+        },
+      });
+      await this.audit.log({ actorId: actor.id, action: "ai_change.auto_executed", entityType: "AiConversation", entityId: conversationId, after: { item: key, tool: tool.name, via: "mcp", token: token.id }, correlationId: `ai:${conversationId}` });
+      return { status: "EXECUTED", id: key, conversationId, data: result.data, link: result.link ?? null, warnings: preview.warningKeys ?? [] };
+    }
+    await this.prisma.aiChangeItem.create({
+      data: { id: newId(), companyId: actor.companyId, conversationId, messageId, itemKey: key, tool: tool.name, args: checked as Prisma.InputJsonValue, preview: preview as unknown as Prisma.InputJsonValue, risk: tool.risk, dependsOn: refs },
+    });
+    await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: "AWAITING_APPROVAL" } });
+    await this.audit.log({ actorId: actor.id, action: "ai_change.proposed", entityType: "AiConversation", entityId: conversationId, after: { item: key, tool: tool.name, via: "mcp", token: token.id }, correlationId: `ai:${conversationId}` });
+    return { status: "PROPOSED", id: key, conversationId, data: null, link: null, warnings: preview.warningKeys ?? [] };
+  }
+
+  // The latest cards and changes that came in through the user's MCP tokens, for the notification bell.
+  async mcpActivity(actor: Actor): Promise<McpActivityItem[]> {
+    const tokens = await this.prisma.aiAccessToken.findMany({ where: { companyId: actor.companyId, userId: actor.id, conversationId: { not: null } }, select: { conversationId: true, name: true } });
+    const byConversation = new Map(tokens.map((t) => [t.conversationId ?? "", t.name]));
+    if (byConversation.size === 0) return [];
+    const items = await this.prisma.aiChangeItem.findMany({
+      where: { companyId: actor.companyId, conversationId: { in: [...byConversation.keys()] }, conversation: { userId: actor.id } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, itemKey: true, conversationId: true, tool: true, status: true, preview: true, createdAt: true },
+    });
+    return items.map((i) => ({
+      id: i.id,
+      key: i.itemKey,
+      conversationId: i.conversationId,
+      tokenName: byConversation.get(i.conversationId) ?? "",
+      tool: i.tool,
+      status: i.status,
+      titleKey: (i.preview as { titleKey?: string } | null)?.titleKey ?? null,
+      createdAt: i.createdAt,
+    }));
+  }
+
+  // The token's conversation, created on its first write (and again if the user deleted it).
+  private async tokenConversation(actor: Actor, token: { id: string; name: string; scope: string }): Promise<string> {
+    const row = await this.prisma.aiAccessToken.findUniqueOrThrow({ where: { id: token.id }, select: { conversationId: true } });
+    if (row.conversationId) {
+      const exists = await this.prisma.aiConversation.findFirst({ where: { id: row.conversationId, companyId: actor.companyId, userId: actor.id }, select: { id: true } });
+      if (exists) return exists.id;
+    }
+    const created = await this.prisma.aiConversation.create({ data: { id: newId(), companyId: actor.companyId, userId: actor.id, title: `MCP · ${token.name}`.slice(0, 120), mode: token.scope === "write" ? "auto" : "review" } });
+    // Two first calls at once: only one link wins; the other conversation is removed again.
+    const linked = await this.prisma.aiAccessToken.updateMany({ where: { id: token.id, conversationId: row.conversationId }, data: { conversationId: created.id } });
+    if (linked.count === 1) return created.id;
+    await this.prisma.aiConversation.delete({ where: { id: created.id } });
+    return (await this.prisma.aiAccessToken.findUniqueOrThrow({ where: { id: token.id }, select: { conversationId: true } })).conversationId ?? created.id;
   }
 
   // The edit form of a waiting card: the tool's input as JSON Schema plus the card's current values.

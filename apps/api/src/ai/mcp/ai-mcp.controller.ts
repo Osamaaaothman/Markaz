@@ -9,12 +9,15 @@ import { CurrentUser, type CurrentUserPayload } from "../../auth/current-user.de
 import { PERMISSION_SERVICE } from "../../identity/identity.tokens.js";
 import { RequirePermission } from "../../identity/require-permission.decorator.js";
 import { AI_TOOLS } from "../ai.tokens.js";
+import { AiChatError, AiChatService } from "../ai-chat.service.js";
+import type { RequestAccessToken } from "./access-tokens.js";
 
 // The same tools, offered to an external AI client (Claude Desktop, Cursor, ...) over the Model
 // Context Protocol — Streamable HTTP, stateless (a new server per request).
 //
-// Read tools only: an external client does not go through our approval cards, so it must never be
-// able to change anything. Authentication is the normal API bearer token or a personal access token
+// Read tools for everyone. Write tools only for a personal token of scope "review" (every change becomes
+// a card the user approves in the app) or "write" (the app's auto-mode rules: low-risk changes run at
+// once, high-risk ones still wait). A login token never gets write tools here. Authentication is the normal API bearer token or a personal access token
 // (Settings → MCP access tokens), and every tool is filtered and re-checked against the caller's own
 // permissions.
 @Controller("v1/ai/mcp")
@@ -22,6 +25,7 @@ export class AiMcpController {
   constructor(
     @Inject(AI_TOOLS) private readonly tools: readonly ErpTool[],
     @Inject(PERMISSION_SERVICE) private readonly permissions: IPermissionService,
+    @Inject(AiChatService) private readonly chat: AiChatService,
   ) {}
 
   @Post()
@@ -46,6 +50,29 @@ export class AiMcpController {
         const result = await tool.run(ctx, parsed.data);
         return { content: [{ type: "text" as const, text: wrapUntrusted(result.data) }] };
       });
+    }
+    const token = (req as Request & { accessToken?: RequestAccessToken }).accessToken;
+    if (token && token.scope !== "read") {
+      const scope = token.scope;
+      const writes = await permittedTools(this.tools.filter((t) => t.kind === "write"), ctx);
+      const note = scope === "review"
+        ? " Nothing is saved by this call: it becomes a card the user approves in the app's assistant."
+        : " Low-risk changes are saved at once; high-risk ones become a card the user approves in the app's assistant.";
+      for (const tool of writes) {
+        server.registerTool(tool.name, { description: tool.description + note + ' A later call may use "$ref:<id>.id" to point at an earlier card.', inputSchema: tool.input }, async (args: unknown) => {
+          try {
+            const r = await this.chat.externalWrite(actor, { id: token.id, name: token.name, scope }, tool.name, (args ?? {}) as Record<string, unknown>);
+            return { content: [{ type: "text" as const, text: JSON.stringify(r.status === "EXECUTED"
+              ? { status: "EXECUTED", id: r.id, result: wrapUntrusted(r.data), link: r.link?.path ?? null, warnings: r.warnings }
+              : { status: "PROPOSED", id: r.id, note: "Waiting for the user's approval on the card in the app (assistant).", warnings: r.warnings }) }] };
+          } catch (error) {
+            if (error instanceof AiChatError) return { isError: true, content: [{ type: "text" as const, text: error.detail ? `${error.code}: ${error.detail}` : error.code }] };
+            const code = (error as { code?: unknown }).code;
+            const message = typeof code === "string" && error instanceof Error ? `${code}: ${error.message.slice(0, 300)}` : "TOOL_FAILED";
+            return { isError: true, content: [{ type: "text" as const, text: message }] };
+          }
+        });
+      }
     }
     const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true }); // no sessionIdGenerator = stateless
     res.on("close", () => { void transport.close(); void server.close(); });

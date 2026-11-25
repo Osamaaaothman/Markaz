@@ -2,12 +2,13 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import type { Request } from "express";
-import { AccessTokenService, looksLikeAccessToken } from "../ai/mcp/access-tokens.js";
+import { AccessTokenService, looksLikeAccessToken, type RequestAccessToken } from "../ai/mcp/access-tokens.js";
 import { ALLOW_ACCESS_TOKEN_KEY } from "./allow-access-token.decorator.js";
 import { IS_PUBLIC_KEY } from "./public.decorator.js";
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string; companyId: string };
+  accessToken?: RequestAccessToken;
 }
 
 interface AccessTokenPayload {
@@ -44,9 +45,10 @@ export class JwtAuthGuard implements CanActivate {
       if (!this.reflector.get<boolean | undefined>(ALLOW_ACCESS_TOKEN_KEY, context.getHandler())) {
         throw new UnauthorizedException();
       }
-      const user = await this.accessTokens.verify(bearer);
-      if (!user) throw new UnauthorizedException();
-      request.user = user;
+      const verified = await this.accessTokens.verify(bearer);
+      if (!verified) throw new UnauthorizedException();
+      request.user = { id: verified.id, companyId: verified.companyId };
+      request.accessToken = verified.token;
       return true;
     }
 

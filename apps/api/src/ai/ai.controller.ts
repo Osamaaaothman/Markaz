@@ -207,6 +207,13 @@ export class AiController {
   }
 
   // What the current user may do — the UI shows only the modes that will work.
+  // Cards and changes that came in through the user's MCP tokens (polled by the notification bell).
+  @Get("mcp-activity")
+  @RequirePermission("ai_assistant", "use")
+  mcpActivity(@CurrentUser() actor: CurrentUserPayload) {
+    return this.chat.mcpActivity(actor);
+  }
+
   @Get("me")
   @RequirePermission("ai_assistant", "use")
   async me(@CurrentUser() actor: CurrentUserPayload) {

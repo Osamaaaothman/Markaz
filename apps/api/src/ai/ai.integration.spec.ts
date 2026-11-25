@@ -398,4 +398,49 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     expect(outcome?.outcome).toMatchObject({ key: "c1", status: "EXECUTED" });
     expect(await db.party.count({ where: { companyId, name: "QA Partial Supplier" } })).toBe(1);
   });
+
+  it("an MCP review token turns a write into a waiting card the user approves in the app", async () => {
+    const token = { id: newId(), name: "Claude Desktop", scope: "review" as const };
+    await db.aiAccessToken.create({ data: { id: token.id, companyId, userId: owner.id, name: token.name, scope: "review", tokenHash: newId(), tokenPrefix: "mkz_mcp_test" } });
+    const r = await chat.externalWrite(owner, token, "parties_createSupplier", { name: "MCP Supplier" });
+    expect(r.status).toBe("PROPOSED");
+    expect(await db.party.count({ where: { companyId, name: "MCP Supplier" } })).toBe(0);
+    const conv = await db.aiConversation.findUniqueOrThrow({ where: { id: r.conversationId } });
+    expect(conv.title).toBe("MCP · Claude Desktop");
+    expect(conv.status).toBe("AWAITING_APPROVAL");
+    // The next write lands in the same conversation with the next card number.
+    const r2 = await chat.externalWrite(owner, token, "parties_createCustomer", { name: "MCP Customer" });
+    expect([r2.conversationId, r2.id]).toEqual([r.conversationId, "c2"]);
+    // The notification bell sees both, newest first; another user sees none of them.
+    const activity = await chat.mcpActivity(owner);
+    expect(activity.slice(0, 2).map((x) => [x.key, x.status, x.tokenName])).toEqual([["c2", "PROPOSED", "Claude Desktop"], ["c1", "PROPOSED", "Claude Desktop"]]);
+    expect(await chat.mcpActivity(other)).toEqual([]);
+
+    script = [{ text: "Done." }];
+    const decided = await run((emit) => chat.decide(owner, { conversationId: r.conversationId, decisions: { [r.id]: "approve" }, locale: "en" }, emit));
+    expect(decided.some((e) => e.type === "outcome")).toBe(true);
+    expect(await db.party.count({ where: { companyId, name: "MCP Supplier" } })).toBe(1);
+    await expect(chat.externalWrite(owner, token, "parties_createSupplier", { name: "" })).rejects.toThrow(AiChatError);
+  });
+
+  it("an MCP write token saves a low-risk change at once only when auto mode is allowed", async () => {
+    const token = { id: newId(), name: "Claude Code", scope: "write" as const };
+    await db.aiAccessToken.create({ data: { id: token.id, companyId, userId: owner.id, name: token.name, scope: "write", tokenHash: newId(), tokenPrefix: "mkz_mcp_test" } });
+    // Auto mode off for the company: the change waits like a review card.
+    const waiting = await chat.externalWrite(owner, token, "parties_createSupplier", { name: "MCP Auto Off" });
+    expect(waiting.status).toBe("PROPOSED");
+
+    await db.aiProviderConfig.create({ data: { id: newId(), companyId, provider: "google", model: "scripted", enabled: true, autoModeEnabled: true, createdBy: owner.id, updatedBy: owner.id } });
+    try {
+      const done = await chat.externalWrite(owner, token, "parties_createSupplier", { name: "MCP Auto On" });
+      expect(done.status).toBe("EXECUTED");
+      expect(await db.party.count({ where: { companyId, name: "MCP Auto On" } })).toBe(1);
+      // Without the user's own auto permission it waits again.
+      denied.add(`${owner.id}:ai_assistant:auto`);
+      expect((await chat.externalWrite(owner, token, "parties_createSupplier", { name: "No auto perm" })).status).toBe("PROPOSED");
+      expect(await db.party.count({ where: { companyId, name: "No auto perm" } })).toBe(0);
+    } finally {
+      await db.aiProviderConfig.deleteMany({ where: { companyId } });
+    }
+  });
 });

@@ -7,6 +7,7 @@ import { Tag } from "primereact/tag";
 import { useThemeStore } from "../../shared/theme/theme-store";
 import { DirectionPicker } from "../../shared/theme/DirectionPicker";
 import { AssistantButton } from "../../features/ai/AssistantPanel";
+import { McpBell } from "../../features/ai/McpBell";
 import { useAuthStore } from "../../shared/auth/auth-store";
 import { useCurrentUser } from "../../shared/auth/use-current-user";
 import { Logo } from "../../shared/ui/Logo";
@@ -114,6 +115,8 @@ export function Topbar(): React.JSX.Element {
       <DirectionPicker />
 
       <AssistantButton />
+
+      <McpBell />
 
       <button
         type="button"
