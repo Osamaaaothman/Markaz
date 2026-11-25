@@ -8,6 +8,7 @@ import { AllowAccessToken } from "../../auth/allow-access-token.decorator.js";
 import { CurrentUser, type CurrentUserPayload } from "../../auth/current-user.decorator.js";
 import { PERMISSION_SERVICE } from "../../identity/identity.tokens.js";
 import { RequirePermission } from "../../identity/require-permission.decorator.js";
+import { SalesInvoicePdfService } from "../../sales/sales-invoice-pdf.service.js";
 import { AI_TOOLS } from "../ai.tokens.js";
 import { AiChatError, AiChatService } from "../ai-chat.service.js";
 import type { RequestAccessToken } from "./access-tokens.js";
@@ -26,7 +27,17 @@ export class AiMcpController {
     @Inject(AI_TOOLS) private readonly tools: readonly ErpTool[],
     @Inject(PERMISSION_SERVICE) private readonly permissions: IPermissionService,
     @Inject(AiChatService) private readonly chat: AiChatService,
+    @Inject(SalesInvoicePdfService) private readonly invoicePdfs: SalesInvoicePdfService,
   ) {}
+
+  // In the app a "file" result is a card the browser downloads. An MCP client has no such card, so the
+  // document itself goes back as an embedded PDF resource. Only paths with a known renderer are served.
+  private async fileContent(companyId: string, apiPath: string): Promise<{ type: "resource"; resource: { uri: string; mimeType: string; blob: string } } | null> {
+    const match = /^\/v1\/sales-invoices\/([0-9a-f-]{36})\/pdf$/.exec(apiPath);
+    if (!match?.[1]) return null;
+    const pdf = await this.invoicePdfs.render(companyId, match[1], "en");
+    return { type: "resource", resource: { uri: `erp://sales-invoices/${match[1]}/${pdf.fileName}`, mimeType: "application/pdf", blob: pdf.bytes.toString("base64") } };
+  }
 
   @Post()
   @AllowAccessToken()
@@ -48,7 +59,9 @@ export class AiMcpController {
         if (!parsed.success) return { isError: true, content: [{ type: "text" as const, text: "INVALID_ARGUMENTS" }] };
         if (!(await ctx.can(tool.permission.resource, tool.permission.action))) return { isError: true, content: [{ type: "text" as const, text: "FORBIDDEN" }] };
         const result = await tool.run(ctx, parsed.data);
-        return { content: [{ type: "text" as const, text: wrapUntrusted(result.data) }] };
+        const text = { type: "text" as const, text: wrapUntrusted(result.data) };
+        const file = result.display?.kind === "file" ? await this.fileContent(actor.companyId, result.display.apiPath).catch(() => null) : null;
+        return { content: file ? [text, file] : [text] };
       });
     }
     const token = (req as Request & { accessToken?: RequestAccessToken }).accessToken;

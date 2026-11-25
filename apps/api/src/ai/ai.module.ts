@@ -26,6 +26,7 @@ import {
 import { AttachmentsModule } from "../attachments/attachments.module.js";
 import { AuthModule } from "../auth/auth.module.js";
 import { PurchasingModule } from "../purchasing/purchasing.module.js";
+import { SalesModule } from "../sales/sales.module.js";
 import { AUDIT_LOGGER, PERMISSION_SERVICE } from "../identity/identity.tokens.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { AiChatService } from "./ai-chat.service.js";
@@ -45,7 +46,7 @@ import { buildActionTools } from "./tools/action-tools.js";
 // endpoints use, built here the same way their own modules build them.
 @Module({
   // AuthModule provides AccessTokenService for the token routes.
-  imports: [AttachmentsModule, PurchasingModule, AuthModule],
+  imports: [AttachmentsModule, PurchasingModule, SalesModule, AuthModule],
   controllers: [AiController, AiMcpController, AiAccessTokenController],
   providers: [
     {
