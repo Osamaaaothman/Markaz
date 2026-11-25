@@ -168,6 +168,7 @@ export function useUpdateConversation() {
 export function useDeleteConversation() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successKey: "feedback.deleted" },
     mutationFn: async (id: string) => { await apiClient.delete(`/v1/ai/conversations/${id}`); },
     onSuccess: () => qc.invalidateQueries({ queryKey: aiKeys.conversations }),
   });
@@ -180,6 +181,8 @@ export function useAiSettings(enabled: boolean) {
 export function useSaveAiSettings() {
   const qc = useQueryClient();
   return useMutation({
+    // The settings page shows its own success / specific error toast.
+    meta: { feedback: "silent" },
     mutationFn: async (input: AiSettingsInput) => (await apiClient.put<AiSettings>("/v1/ai/settings", input)).data,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: aiKeys.settings }); void qc.invalidateQueries({ queryKey: aiKeys.me }); },
   });
@@ -187,6 +190,8 @@ export function useSaveAiSettings() {
 
 export function useTestAiSettings() {
   return useMutation({
+    // The test result is shown on the page; a toast would repeat it (and call a failed test a failed save).
+    meta: { feedback: "silent" },
     mutationFn: async (input: AiSettingsInput) => (await apiClient.post<{ ok: boolean; ms: number; toolCalling: boolean; errorCode?: string }>("/v1/ai/settings/test", input)).data,
   });
 }
@@ -284,6 +289,8 @@ export function useAccessTokens() {
 export function useCreateAccessToken() {
   const qc = useQueryClient();
   return useMutation({
+    // The new token opens in its own dialog; errors get a specific toast from the page.
+    meta: { feedback: "silent" },
     mutationFn: async (input: { name: string; scope: AccessTokenScope }) => (await apiClient.post<AccessToken & { token: string }>("/v1/ai/access-tokens", input)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: aiKeys.accessTokens }),
   });
@@ -292,6 +299,8 @@ export function useCreateAccessToken() {
 export function useRevokeAccessToken() {
   const qc = useQueryClient();
   return useMutation({
+    // The page says "token revoked" (or the specific error) itself.
+    meta: { feedback: "silent" },
     mutationFn: async (id: string) => { await apiClient.delete(`/v1/ai/access-tokens/${encodeURIComponent(id)}`); },
     onSuccess: () => void qc.invalidateQueries({ queryKey: aiKeys.accessTokens }),
   });
