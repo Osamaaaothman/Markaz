@@ -80,14 +80,17 @@ export class AiMcpController {
     await transport.handleRequest(req, res, req.body);
   }
 
-  // Stateless server: no session stream to open or close.
+  // Stateless server: no session stream to open or close. Both routes accept the MCP token so a client
+  // gets the 405 it expects, not a 401 that looks like a bad token.
   @Get()
+  @AllowAccessToken()
   @RequirePermission("ai_assistant", "use")
   sse(@Res() res: Response): void {
     res.status(405).json({ code: "METHOD_NOT_ALLOWED" });
   }
 
   @Delete()
+  @AllowAccessToken()
   @RequirePermission("ai_assistant", "use")
   end(@Res() res: Response): void {
     res.status(405).json({ code: "METHOD_NOT_ALLOWED" });
