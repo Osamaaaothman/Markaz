@@ -1,5 +1,9 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
+import type { IAuditLogger } from "@erp/core";
+import { AccessTokenService } from "../ai/mcp/access-tokens.js";
+import { AUDIT_LOGGER } from "../identity/identity.tokens.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import { JwtAuthGuard } from "./jwt-auth.guard.js";
@@ -21,7 +25,17 @@ import { JwtAuthGuard } from "./jwt-auth.guard.js";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard],
-  exports: [JwtAuthGuard],
+  providers: [
+    AuthService,
+    JwtAuthGuard,
+    // JwtAuthGuard accepts a personal MCP token on @AllowAccessToken() routes; AiModule's token
+    // routes use the same service (Prisma and the audit logger come from global modules).
+    {
+      provide: AccessTokenService,
+      useFactory: (prisma: PrismaService, audit: IAuditLogger) => new AccessTokenService(prisma, audit),
+      inject: [PrismaService, AUDIT_LOGGER],
+    },
+  ],
+  exports: [JwtAuthGuard, AccessTokenService],
 })
 export class AuthModule {}
