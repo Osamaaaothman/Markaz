@@ -8,6 +8,7 @@ import {
   executeDecisions,
   fromStored,
   outcomesMessage,
+  PartialRunError,
   permittedTools,
   refsIn,
   resolveRefs,
@@ -319,21 +320,46 @@ export class AiChatService {
         ...(signal ? { signal } : {}),
       });
     } catch (error) {
-      const code = error instanceof AiSettingsError ? error.code : providerErrorCode(error);
+      const cause = error instanceof PartialRunError ? error.cause : error;
+      const code = cause instanceof AiSettingsError ? cause.code : providerErrorCode(cause);
       // Plain console: this file stays free of Nest imports so its specs run under the plain Jest config.
-      console.warn(JSON.stringify({ level: "warn", event: "ai.turn_failed", code, conversationId, provider: provider.provider, model: provider.model, steps: timeline.length, ...providerErrorLogDetail(error) }));
+      console.warn(JSON.stringify({ level: "warn", event: "ai.turn_failed", code, conversationId, provider: provider.provider, model: provider.model, steps: timeline.length, partial: error instanceof PartialRunError, ...providerErrorLogDetail(cause) }));
+      if (error instanceof PartialRunError) {
+        // Cards were already shown (and auto changes already ran) before the model failed: save them,
+        // so the cards on screen are real and can be approved, and the error shows under them.
+        emit({ type: "error", code });
+        await this.finishTurn(actor, conversationId, firstItemNumber, mode, error.partial, blocks, timeline, provider, code, emit);
+        return;
+      }
       const id = await this.appendNotice(conversationId, actor.companyId, null, blocks, timeline, provider, { input: 0, output: 0 }, code);
+      // Cards from earlier messages may still wait; the status must say so.
+      const status = await this.refreshStatus(conversationId);
       emit({ type: "error", code });
-      emit({ type: "done", messageId: id, status: "IDLE", usage: { input: 0, output: 0 } });
+      emit({ type: "done", messageId: id, status, usage: { input: 0, output: 0 } });
       return;
     }
+    await this.finishTurn(actor, conversationId, firstItemNumber, mode, result, blocks, timeline, provider, result.hitStepLimit ? "STEP_LIMIT" : null, emit);
+  }
 
+  // Saves a turn's result: hidden history rows, the visible notice, its cards, and the status.
+  private async finishTurn(
+    actor: Actor,
+    conversationId: string,
+    firstItemNumber: number,
+    mode: AssistantMode,
+    result: RunResult,
+    blocks: readonly unknown[],
+    timeline: readonly unknown[],
+    provider: { provider: string; model: string },
+    errorCode: string | null,
+    emit: (e: ChatEvent) => void,
+  ): Promise<void> {
     // Hidden plumbing rows (AI tool calls, tool results, the final AI message) keep the exact
     // LangChain history; one visible "notice" row carries what the user sees.
     await this.appendRows(conversationId, actor.companyId, result.newMessages.map((m) => ({ role: m.getType() === "ai" ? "ai" : m.getType() === "tool" ? "tool" : "human", payload: toStored([m])[0], visible: false })));
     const finalAi = [...result.newMessages].reverse().find((m) => m.getType() === "ai" && !((m as { tool_calls?: unknown[] }).tool_calls?.length));
     const answer = finalAi ? textOf(finalAi.content) : null;
-    const messageId = await this.appendNotice(conversationId, actor.companyId, answer, blocks, timeline, provider, result.usage, result.hitStepLimit ? "STEP_LIMIT" : null);
+    const messageId = await this.appendNotice(conversationId, actor.companyId, answer, blocks, timeline, provider, result.usage, errorCode);
 
     // Cards the model replaced with a corrected version are closed (skipped), never run.
     if (result.withdrawn.length > 0) {
@@ -388,9 +414,11 @@ export class AiChatService {
   }
 
   // AWAITING_APPROVAL exactly while any card in the conversation still waits.
-  private async refreshStatus(conversationId: string): Promise<void> {
+  private async refreshStatus(conversationId: string): Promise<"IDLE" | "AWAITING_APPROVAL"> {
     const waiting = await this.prisma.aiChangeItem.count({ where: { conversationId, status: "PROPOSED" } });
-    await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status: waiting > 0 ? "AWAITING_APPROVAL" : "IDLE" } });
+    const status = waiting > 0 ? "AWAITING_APPROVAL" : "IDLE";
+    await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { status } });
+    return status;
   }
 
   private async ownConversation(actor: Actor, id: string) {

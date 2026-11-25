@@ -1,9 +1,10 @@
-import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages";
+import type { ChatResult } from "@langchain/core/outputs";
 import { z } from "zod";
 import { ScriptedChatModel } from "../testing/scripted-model.js";
 import { toolsForMode } from "../tools/policy.js";
 import { defineReadTool, defineWriteTool, type ErpTool, type ToolContext } from "../tools/types.js";
-import { runAssistant, type RunOptions } from "./assistant-graph.js";
+import { PartialRunError, runAssistant, type RunOptions } from "./assistant-graph.js";
 import { executeDecisions } from "./change-set.js";
 import { compactionCut, estimateTokens, summarizeForCompaction } from "./compaction.js";
 import type { AssistantEvent } from "./events.js";
@@ -250,6 +251,45 @@ describe("runAssistant", () => {
       }
     }
     await expect(run(new SilentModel([]), { stallMs: 50 })).rejects.toThrow("timed out");
+  });
+
+  it("keeps the cards proposed before the model failed", async () => {
+    class StallsAfterFirstModel extends ScriptedChatModel {
+      private calls = 0;
+      override _generate(messages: BaseMessage[], options: { signal?: AbortSignal | undefined } = {}): Promise<ChatResult> {
+        this.calls += 1;
+        if (this.calls === 1) return super._generate(messages);
+        return new Promise((_, reject) => { options.signal?.addEventListener("abort", () => reject(new Error("aborted"))); });
+      }
+    }
+    const model = new StallsAfterFirstModel([{ toolCalls: [{ name: "parties_createSupplier", args: { name: "Al Noor" } }] }]);
+    let caught: unknown;
+    try { await run(model, { stallMs: 50 }); } catch (error) { caught = error; }
+    expect(caught).toBeInstanceOf(PartialRunError);
+    const error = caught as PartialRunError;
+    expect(error.partial.proposals.map((p) => p.id)).toEqual(["c1"]);
+    expect(error.partial.newMessages).toHaveLength(2);
+    const [ai, tool] = error.partial.newMessages;
+    expect(ai).toBeInstanceOf(AIMessage);
+    expect((ai as AIMessage).tool_calls).toHaveLength(1);
+    expect(tool).toBeInstanceOf(ToolMessage);
+    expect(error.cause).toBeInstanceOf(Error);
+    expect((error.cause as Error).message).toContain("timed out");
+    expect(error.partial.usage.input).toBe(10);
+  });
+
+  it("throws the plain error when nothing was proposed before the failure", async () => {
+    class SilentModel extends ScriptedChatModel {
+      override _generate(...args: unknown[]): Promise<never> {
+        const signal = (args[1] as { signal?: AbortSignal } | undefined)?.signal;
+        return new Promise((_, reject) => { signal?.addEventListener("abort", () => reject(new Error("aborted"))); });
+      }
+    }
+    let caught: unknown;
+    try { await run(new SilentModel([]), { stallMs: 50 }); } catch (error) { caught = error; }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).not.toBeInstanceOf(PartialRunError);
+    expect((caught as Error).message).toContain("timed out");
   });
 
   it("skips a backup that cannot read the attached file, and says so when none can", async () => {
