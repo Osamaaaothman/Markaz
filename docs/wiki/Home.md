@@ -4,7 +4,7 @@
 
 **The complete guide to Markaz — the Arabic-first ERP for Saudi & Gulf businesses.**
 
-[README](../../README.md) · [العربية](../../README.ar.md) · [Getting started](Getting-Started.md) · [Architecture](Architecture.md)
+[README](../../README.md) · [Getting started](Getting-Started.md) · [Architecture](Architecture.md)
 
 </div>
 

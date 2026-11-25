@@ -8,7 +8,6 @@
 
 **Accounting · Sales · Purchasing · Inventory · Payroll · Fixed assets · ZATCA e-invoicing · AI assistant**
 
-<a href="README.ar.md"><img src="https://img.shields.io/badge/%D8%A7%D9%84%D9%86%D8%B3%D8%AE%D8%A9%20%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A9-%D8%A7%D8%B6%D8%BA%D8%B7%20%D9%87%D9%86%D8%A7-1C5A40?style=for-the-badge&labelColor=A8842A" alt="Arabic version — click here"></a>
 <a href="docs/wiki/Home.md"><img src="https://img.shields.io/badge/Wiki-Full%20documentation-1C5A40?style=for-the-badge&logo=bookstack&logoColor=white" alt="Wiki"></a>
 
 ![CI](https://github.com/Osamaaaothman/Markaz/actions/workflows/ci.yml/badge.svg)
@@ -18,8 +17,6 @@
 ![React](https://img.shields.io/badge/React-PrimeReact-61DAFB?logo=react&logoColor=black)
 ![ZATCA](https://img.shields.io/badge/ZATCA-Phase%202-1C5A40)
 ![i18n](https://img.shields.io/badge/i18n-Arabic%20%7C%20English-A8842A)
-
-**🇸🇦 النسخة العربية من هذا الملف — [اضغط هنا](README.ar.md)**
 
 </div>
 
