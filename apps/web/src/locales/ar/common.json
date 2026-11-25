@@ -4286,14 +4286,24 @@
     "mcpBell": {
       "title": "من Claude (MCP)",
       "open": "نشاط Claude، {{count}} جديد",
-      "sound": "الصوت",
       "status": {
         "PROPOSED": "بانتظار الموافقة",
         "EXECUTED": "تم الحفظ",
         "REJECTED": "مرفوض",
         "SKIPPED": "متجاوز",
         "FAILED": "فشل"
-      }
+      },
+      "soundOn": "تشغيل الصوت",
+      "soundOff": "إيقاف الصوت",
+      "new": "جديد",
+      "waiting_one": "بطاقة واحدة بانتظار موافقتك",
+      "waiting_other": "{{count}} بطاقات بانتظار موافقتك",
+      "waiting_zero": "لا شيء بانتظار موافقتك",
+      "waiting_two": "بطاقتان بانتظار موافقتك",
+      "waiting_few": "{{count}} بطاقات بانتظار موافقتك",
+      "waiting_many": "{{count}} بطاقة بانتظار موافقتك",
+      "allDone": "لا شيء بانتظار موافقتك",
+      "openAssistant": "فتح المساعد"
     }
   }
 }

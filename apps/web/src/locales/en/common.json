@@ -4286,14 +4286,20 @@
     "mcpBell": {
       "title": "From Claude (MCP)",
       "open": "Claude activity, {{count}} new",
-      "sound": "Sound",
       "status": {
         "PROPOSED": "Waiting",
         "EXECUTED": "Saved",
         "REJECTED": "Rejected",
         "SKIPPED": "Skipped",
         "FAILED": "Failed"
-      }
+      },
+      "soundOn": "Turn sound on",
+      "soundOff": "Turn sound off",
+      "new": "New",
+      "waiting_one": "{{count}} card waiting for your approval",
+      "waiting_other": "{{count}} cards waiting for your approval",
+      "allDone": "Nothing waiting for your approval",
+      "openAssistant": "Open the assistant"
     }
   }
 }
