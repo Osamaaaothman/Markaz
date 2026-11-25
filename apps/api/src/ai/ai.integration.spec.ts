@@ -64,8 +64,18 @@ process.env["AI_FALLBACK_MODELS"] = "none";
   const settings = new AiSettingsService(db, audit, { AI_PROVIDER: "google", AI_MODEL: "scripted", GEMINI_API_KEY: "unused" });
   let script: ScriptedReply[] = [];
   let lastModel: ScriptedChatModel | null = null;
+  // When set, the model answers this many calls from the script, then fails like an overloaded provider.
+  let failAfter: number | null = null;
+  class FailingModel extends ScriptedChatModel {
+    private calls = 0;
+    override _generate(...args: Parameters<ScriptedChatModel["_generate"]>): ReturnType<ScriptedChatModel["_generate"]> {
+      this.calls += 1;
+      if (failAfter !== null && this.calls > failAfter) return Promise.reject(Object.assign(new Error("This model is currently experiencing high demand"), { status: 503 }));
+      return super._generate(...args);
+    }
+  }
   const chat = new AiChatService(db, permissions, audit, settings, tools, () => {
-    lastModel = new ScriptedChatModel(script);
+    lastModel = new FailingModel(script);
     return Promise.resolve(lastModel);
   });
   const run = async (fn: (emit: (e: ChatEvent) => void) => Promise<void>): Promise<ChatEvent[]> => {
@@ -87,7 +97,7 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     await db.$disconnect();
   });
 
-  beforeEach(() => denied.clear());
+  beforeEach(() => { denied.clear(); failAfter = null; });
 
   it("ask mode never offers a write tool to the model", async () => {
     script = [{ text: "Switch to interactive mode to create things." }];
@@ -370,5 +380,22 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     const detail = await compacting.get(owner, id);
     expect(detail.messages.some((m) => m.role === "divider")).toBe(true);
     expect(detail.messages.filter((m) => m.role === "user")).toHaveLength(3);
+  });
+
+  it("keeps the cards shown before the model failed, so they can still be approved", async () => {
+    script = [{ toolCalls: [{ name: "parties_createSupplier", args: { name: "QA Partial Supplier" } }] }];
+    failAfter = 1;
+    const first = await run((emit) => chat.send(owner, { text: "create a supplier", mode: "review", locale: "en" }, emit));
+    const id = conversationOf(first);
+    expect(first).toContainEqual(expect.objectContaining({ type: "error", code: "PROVIDER_BUSY" }));
+    expect(first).toContainEqual(expect.objectContaining({ type: "done", status: "AWAITING_APPROVAL" }));
+    expect(await db.aiChangeItem.count({ where: { conversationId: id, status: "PROPOSED" } })).toBe(1);
+
+    failAfter = null;
+    script = [{ text: "The supplier was created." }];
+    const second = await run((emit) => chat.decide(owner, { conversationId: id, decisions: { c1: "approve" }, locale: "en" }, emit));
+    const outcome = second.find((e) => e.type === "outcome") as { outcome: { key: string; status: string } } | undefined;
+    expect(outcome?.outcome).toMatchObject({ key: "c1", status: "EXECUTED" });
+    expect(await db.party.count({ where: { companyId, name: "QA Partial Supplier" } })).toBe(1);
   });
 });

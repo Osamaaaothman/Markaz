@@ -65,6 +65,13 @@ export function useAssistantChat() {
         const aborted = controller.signal.aborted;
         const code = aborted ? "ABORTED" : error instanceof ChatHttpError ? error.code : "NETWORK";
         store.getState().setMessages((list) => list.map((msg) => (msg.streaming ? { ...msg, streaming: false, errorCode: aborted && msg.text ? null : code } : msg)));
+        // The cards on screen no longer match the server (already decided, or never saved): show the saved state.
+        const id = store.getState().conversationId;
+        if (id && (code === "NOTHING_TO_DECIDE" || code === "CHANGE_NOT_FOUND")) {
+          void fetchConversation(id)
+            .then((detail) => { if (store.getState().conversationId === id) store.getState().setConversation(id, detail.messages, detail.conversation.status); })
+            .catch(() => undefined);
+        }
       } finally {
         store.getState().setMessages((list) => list.map((msg) => (msg.streaming ? { ...msg, streaming: false } : msg)));
         store.getState().setBusy(false);

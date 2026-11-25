@@ -75,6 +75,16 @@ export interface RunResult {
   readonly withdrawn: string[];
 }
 
+// The model failed (timeout, provider error, stop) after earlier steps already proposed cards or ran
+// changes. Those were shown to the user live, so the caller must save them; `partial` holds every
+// completed step (each AI tool call with its tool replies), never the step that failed.
+export class PartialRunError extends Error {
+  constructor(override readonly cause: unknown, readonly partial: RunResult) {
+    super(cause instanceof Error ? cause.message : "PARTIAL_RUN");
+    this.name = "PartialRunError";
+  }
+}
+
 const State = Annotation.Root({
   messages: Annotation<BaseMessage[]>({ reducer: (a, b) => a.concat(b), default: () => [] }),
   proposals: Annotation<ProposedItem[]>({ reducer: (a, b) => a.concat(b), default: () => [] }),
@@ -157,6 +167,16 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
   const proposedIds = new Set<string>(opts.pendingIds ?? []);
   let nextItem = opts.firstItemNumber;
   const startLength = opts.messages.length;
+  // What the completed steps produced so far, kept outside the graph so a failure can still report it.
+  const progress = {
+    messages: [] as BaseMessage[],
+    pendingAi: undefined as AIMessage | undefined,
+    proposals: [] as ProposedItem[],
+    executed: [] as ExecutedItem[],
+    withdrawn: [] as string[],
+    input: 0,
+    output: 0,
+  };
 
   const agent = async (state: S): Promise<Partial<S>> => {
     let full: AIMessageChunk | undefined;
@@ -206,6 +226,9 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
       response_metadata: res?.response_metadata ?? {},
       ...(res?.id ? { id: res.id } : {}),
     });
+    progress.pendingAi = message;
+    progress.input += usageOf(res).input;
+    progress.output += usageOf(res).output;
     return {
       messages: [message],
       steps: 1,
@@ -344,6 +367,12 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
         end(false, code);
       }
     }
+    // A step is complete once its tool replies exist: only then is it safe history to keep.
+    if (progress.pendingAi) progress.messages.push(progress.pendingAi, ...out);
+    progress.pendingAi = undefined;
+    progress.proposals.push(...proposals);
+    progress.executed.push(...executed);
+    progress.withdrawn.push(...withdrawn);
     return { messages: out, proposals, executed, clarified, withdrawn };
   };
 
@@ -355,7 +384,21 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     .addConditionalEdges("tools", (s: S) => (s.clarified || s.steps >= maxSteps ? END : "agent"))
     .compile();
 
-  const final = (await graph.invoke({ messages: [...opts.messages] }, { recursionLimit: maxSteps * 2 + 4, ...(opts.signal ? { signal: opts.signal } : {}) }));
+  let final: S;
+  try {
+    final = await graph.invoke({ messages: [...opts.messages] }, { recursionLimit: maxSteps * 2 + 4, ...(opts.signal ? { signal: opts.signal } : {}) });
+  } catch (error) {
+    if (progress.proposals.length === 0 && progress.executed.length === 0 && progress.withdrawn.length === 0) throw error;
+    throw new PartialRunError(error, {
+      newMessages: progress.messages,
+      proposals: progress.proposals,
+      executed: progress.executed,
+      usage: { input: progress.input, output: progress.output },
+      stoppedForClarify: false,
+      hitStepLimit: false,
+      withdrawn: progress.withdrawn,
+    });
+  }
   // The run ended without a final plain-text answer from the model (and not because it asked a question).
   const last = final.messages[final.messages.length - 1];
   const hitStepLimit = !final.clarified && !(last instanceof AIMessage && (last.tool_calls?.length ?? 0) === 0);
