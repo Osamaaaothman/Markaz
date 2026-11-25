@@ -4253,7 +4253,7 @@
       "copy": "نسخ",
       "copied": "تم النسخ.",
       "listTitle": "الرموز الفعّالة",
-      "empty": "لا توجد لديك رموز فعّالة.",
+      "empty": "لا توجد رموز فعّالة بعد. أنشئ رمزاً بالأعلى لربط أول تطبيق ذكاء اصطناعي.",
       "colName": "الاسم",
       "colPrefix": "يبدأ بـ",
       "colCreated": "تاريخ الإنشاء",
@@ -4284,8 +4284,14 @@
       "howTo": "أضِفه إلى تطبيق الذكاء الاصطناعي بإحدى هذه الطرق:",
       "serverUrl": "عنوان خادم MCP",
       "header": "ترويسة التفويض (Authorization)",
-      "jsonConfig": "إعدادات JSON (Cursor وVS Code وClaude Desktop ومعظم التطبيقات)",
-      "claudeCode": "أمر لـ Claude Code"
+      "jsonConfig": "الصقه في إعدادات MCP لدى Cursor وVS Code وClaude Desktop وWindsurf ومعظم التطبيقات:",
+      "claudeCode": "نفّذ هذا الأمر في الطرفية:",
+      "serverHint": "كل تطبيق ذكاء اصطناعي يتصل بهذا العنوان برمزه الخاص. أنشئ رمزاً لكل تطبيق، لتتمكن من إلغاء أحدها دون المساس بالبقية.",
+      "tokenFor": "رمز {{name}}",
+      "tabJson": "إعدادات JSON",
+      "tabClaudeCode": "Claude Code",
+      "tabManual": "يدوي",
+      "done": "تم النسخ"
     },
     "mcpBell": {
       "title": "من تطبيقات الذكاء الاصطناعي (MCP)",
@@ -4307,7 +4313,8 @@
       "waiting_few": "{{count}} بطاقات بانتظار موافقتك",
       "waiting_many": "{{count}} بطاقة بانتظار موافقتك",
       "allDone": "لا شيء بانتظار موافقتك",
-      "openAssistant": "فتح المساعد"
+      "openAssistant": "فتح المساعد",
+      "noDecidePermission": "يمكنك رؤية هذه البطاقة، لكن البتّ فيها يتطلب صلاحية المساعد التفاعلي."
     }
   }
 }

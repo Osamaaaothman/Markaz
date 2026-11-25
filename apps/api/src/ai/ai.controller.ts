@@ -30,7 +30,7 @@ import { CorrelationId } from "../common/correlation-id.decorator.js";
 import { RequirePermission } from "../identity/require-permission.decorator.js";
 import { AiChatError, AiChatService, type ChatEvent } from "./ai-chat.service.js";
 import { AiSettingsError, AiSettingsService } from "./ai-settings.service.js";
-import { AiSettingsDto, DecideDto, ReviseItemDto, SendMessageDto, UpdateConversationDto } from "./ai.dtos.js";
+import { AiSettingsDto, DecideDto, DecideItemDto, ReviseItemDto, SendMessageDto, UpdateConversationDto } from "./ai.dtos.js";
 import { MAX_CHAT_FILE_BYTES } from "./ai-files.js";
 
 export async function mapAiErrors<T>(work: Promise<T>): Promise<T> {
@@ -164,6 +164,13 @@ export class AiController {
   @RequirePermission("ai_assistant", "interact")
   itemForm(@Param("id") id: string, @Param("key") key: string, @CurrentUser() actor: CurrentUserPayload) {
     return mapAiErrors(this.chat.itemForm(actor, id, key));
+  }
+
+  // One card decided from the notification dialog: a plain JSON answer, no streamed model reply.
+  @Post("conversations/:id/items/:key/decision")
+  @RequirePermission("ai_assistant", "interact")
+  decideItem(@Param("id") id: string, @Param("key") key: string, @Body() dto: DecideItemDto, @CurrentUser() actor: CurrentUserPayload) {
+    return mapAiErrors(this.chat.decideOne(actor, { conversationId: id, key, decision: dto.decision, locale: dto.locale }));
   }
 
   @Put("conversations/:id/items/:key")

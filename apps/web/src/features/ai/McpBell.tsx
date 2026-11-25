@@ -7,7 +7,7 @@ import { formatDateTime } from "../../shared/lib/format-date";
 import { useMcpActivity, type McpActivityItem } from "./ai-api";
 import { useAiStore } from "./ai-store";
 import { playChime, readChimePreference, readLastSeen, writeChimePreference, writeLastSeen } from "./mcp-chime";
-import { useAssistantChat } from "./use-assistant-chat";
+import { McpCardDialog } from "./McpCardDialog";
 
 const STATUS_ICON: Record<string, string> = {
   PROPOSED: "pi pi-hourglass",
@@ -38,7 +38,7 @@ export function McpBell(): React.JSX.Element | null {
   const activity = useMcpActivity(enabled);
   const panelRef = useRef<OverlayPanel>(null);
   const openPanel = useAiStore((s) => s.openPanel);
-  const chat = useAssistantChat();
+  const [card, setCard] = useState<{ conversationId: string; key: string } | null>(null);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
   // What was unseen when the panel was opened, so those rows keep their dot while it stays open.
   const [highlightAfter, setHighlightAfter] = useState<string | null>(null);
@@ -77,10 +77,10 @@ export function McpBell(): React.JSX.Element | null {
     setLastSeen(newest);
     setRinging(false);
   };
-  const open = (conversationId: string): void => {
+  // A notification opens its card in a dialog (approve / edit / reject) without leaving the page.
+  const open = (item: McpActivityItem): void => {
     panelRef.current?.hide();
-    openPanel();
-    void chat.openConversation(conversationId);
+    setCard({ conversationId: item.conversationId, key: item.key });
   };
 
   return (
@@ -118,7 +118,7 @@ export function McpBell(): React.JSX.Element | null {
             const status = item.status.toLowerCase();
             return (
               <li key={item.id}>
-                <button type="button" className={`ai-mcp-item ai-mcp-item--${status}`} onClick={() => open(item.conversationId)}>
+                <button type="button" className={`ai-mcp-item ai-mcp-item--${status}`} onClick={() => open(item)}>
                   <span className="ai-mcp-item__icon" aria-hidden="true"><i className={STATUS_ICON[item.status] ?? "pi pi-circle"} /></span>
                   <span className="ai-mcp-item__body">
                     <span className="ai-mcp-item__title">{item.titleKey ? t(item.titleKey, { defaultValue: item.tool }) : item.tool}</span>
@@ -142,6 +142,7 @@ export function McpBell(): React.JSX.Element | null {
           </button>
         </footer>
       </OverlayPanel>
+      <McpCardDialog target={card} onClose={() => setCard(null)} />
     </>
   );
 }

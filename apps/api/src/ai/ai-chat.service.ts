@@ -270,6 +270,31 @@ export class AiChatService {
     await this.runTurn(actor, conversation.id, conversation.nextItemNumber, conversation.mode as AssistantMode, false, input.locale, [...history, notice], undefined, config.provider, emit, signal);
   }
 
+  // One card decided outside the chat (the notification dialog): it runs exactly like an approval in the
+  // chat, but no model reply is written, so it costs no tokens and works with the assistant switched off.
+  // A hidden notice records the outcome, so the model knows about it if the conversation continues.
+  async decideOne(actor: Actor, input: { conversationId: string; key: string; decision: Decision; locale: Locale }): Promise<ItemOutcomeView> {
+    const conversation = await this.ownConversation(actor, input.conversationId);
+    await this.requireMode(actor, conversation.mode === "ask" ? "review" : (conversation.mode as AssistantMode));
+    const ctrl = this.beginTurn(conversation.id);
+    try {
+      const rows = await this.prisma.aiChangeItem.findMany({ where: { conversationId: conversation.id }, orderBy: { createdAt: "asc" } });
+      const row = rows.find((r) => r.itemKey === input.key && r.status === "PROPOSED");
+      if (!row) throw new AiChatError("NOTHING_TO_DECIDE");
+      const prior = new Map(rows.filter((r) => r.status === "EXECUTED" && r.result).map((r) => [r.itemKey, (r.result as { data?: Record<string, unknown> }).data ?? {}]));
+      const item: ProposedItem = { id: row.itemKey, toolCallId: "", tool: row.tool, args: row.args as Record<string, unknown>, preview: row.preview as unknown as ProposedItem["preview"], risk: row.risk as "low" | "high", dependsOn: row.dependsOn };
+      const outcomes = await executeDecisions({ items: [item], decisions: { [row.itemKey]: input.decision }, tools: this.tools, ctx: this.toolContext(actor, conversation.id, input.locale), priorResults: prior });
+      await this.recordOutcomes(actor, [row], outcomes);
+      await this.appendRows(conversation.id, actor.companyId, [{ role: "human", payload: toStored([outcomesMessage(outcomes)])[0], visible: false }]);
+      await this.refreshStatus(conversation.id);
+      const outcome = outcomes[0];
+      if (!outcome) throw new AiChatError("NOTHING_TO_DECIDE");
+      return outcomeView(outcome);
+    } finally {
+      this.endTurn(conversation.id, ctrl);
+    }
+  }
+
   private async runTurn(
     actor: Actor,
     conversationId: string,

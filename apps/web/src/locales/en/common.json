@@ -4253,7 +4253,7 @@
       "copy": "Copy",
       "copied": "Copied.",
       "listTitle": "Active tokens",
-      "empty": "You have no active tokens.",
+      "empty": "No active tokens yet. Create one above to connect your first AI app.",
       "colName": "Name",
       "colPrefix": "Starts with",
       "colCreated": "Created",
@@ -4284,8 +4284,14 @@
       "howTo": "Add it to your AI app using one of these:",
       "serverUrl": "MCP server address",
       "header": "Authorization header",
-      "jsonConfig": "JSON settings (Cursor, VS Code, Claude Desktop and most apps)",
-      "claudeCode": "Command for Claude Code"
+      "jsonConfig": "Paste into the MCP settings of Cursor, VS Code, Claude Desktop, Windsurf and most apps:",
+      "claudeCode": "Run this command in your terminal:",
+      "serverHint": "Every AI app connects to this address with its own token. Create one token per app, so you can revoke one without touching the others.",
+      "tokenFor": "Token for {{name}}",
+      "tabJson": "JSON settings",
+      "tabClaudeCode": "Claude Code",
+      "tabManual": "Manual",
+      "done": "I copied it"
     },
     "mcpBell": {
       "title": "From AI apps (MCP)",
@@ -4303,7 +4309,8 @@
       "waiting_one": "{{count}} card waiting for your approval",
       "waiting_other": "{{count}} cards waiting for your approval",
       "allDone": "Nothing waiting for your approval",
-      "openAssistant": "Open the assistant"
+      "openAssistant": "Open the assistant",
+      "noDecidePermission": "You can see this card, but deciding it needs the interactive assistant permission."
     }
   }
 }

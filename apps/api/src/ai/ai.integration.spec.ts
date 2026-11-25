@@ -421,6 +421,16 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     expect(decided.some((e) => e.type === "outcome")).toBe(true);
     expect(await db.party.count({ where: { companyId, name: "MCP Supplier" } })).toBe(1);
     await expect(chat.externalWrite(owner, token, "parties_createSupplier", { name: "" })).rejects.toThrow(AiChatError);
+
+    // The notification dialog decides one card on its own, with no model reply; a second click is refused.
+    const one = await chat.decideOne(owner, { conversationId: r.conversationId, key: r2.id, decision: "approve", locale: "en" });
+    expect(one.status).toBe("EXECUTED");
+    expect(await db.party.count({ where: { companyId, name: "MCP Customer" } })).toBe(1);
+    await expect(chat.decideOne(owner, { conversationId: r.conversationId, key: r2.id, decision: "approve", locale: "en" })).rejects.toThrow("NOTHING_TO_DECIDE");
+    expect(await db.party.count({ where: { companyId, name: "MCP Customer" } })).toBe(1);
+    const third = await chat.externalWrite(owner, token, "parties_createSupplier", { name: "MCP Rejected" });
+    expect((await chat.decideOne(owner, { conversationId: r.conversationId, key: third.id, decision: "reject", locale: "en" })).status).toBe("REJECTED");
+    expect(await db.party.count({ where: { companyId, name: "MCP Rejected" } })).toBe(0);
   });
 
   it("an MCP write token saves a low-risk change at once only when auto mode is allowed", async () => {
