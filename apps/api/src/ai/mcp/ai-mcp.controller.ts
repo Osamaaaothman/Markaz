@@ -16,8 +16,8 @@ import type { RequestAccessToken } from "./access-tokens.js";
 // Context Protocol — Streamable HTTP, stateless (a new server per request).
 //
 // Read tools for everyone. Write tools only for a personal token of scope "review" (every change becomes
-// a card the user approves in the app) or "write" (the app's auto-mode rules: low-risk changes run at
-// once, high-risk ones still wait). A login token never gets write tools here. Authentication is the normal API bearer token or a personal access token
+// a card the user approves in the app) or "write" (full access: every change runs at once; the MCP
+// client is the one that asks its user before each call). A login token never gets write tools here. Authentication is the normal API bearer token or a personal access token
 // (Settings → MCP access tokens), and every tool is filtered and re-checked against the caller's own
 // permissions.
 @Controller("v1/ai/mcp")
@@ -57,9 +57,11 @@ export class AiMcpController {
       const writes = await permittedTools(this.tools.filter((t) => t.kind === "write"), ctx);
       const note = scope === "review"
         ? " Nothing is saved by this call: it becomes a card the user approves in the app's assistant."
-        : " Low-risk changes are saved at once; high-risk ones become a card the user approves in the app's assistant.";
+        : " The change is saved at once.";
       for (const tool of writes) {
-        server.registerTool(tool.name, { description: tool.description + note + ' A later call may use "$ref:<id>.id" to point at an earlier card.', inputSchema: tool.input }, async (args: unknown) => {
+        // Hints for the client's own approval prompt: nothing here is read-only, high-risk tools post or pay.
+        const annotations = { readOnlyHint: false, destructiveHint: tool.kind === "write" && tool.risk === "high", openWorldHint: false };
+        server.registerTool(tool.name, { description: tool.description + note + ' A later call may use "$ref:<id>.id" to point at an earlier result.', inputSchema: tool.input, annotations }, async (args: unknown) => {
           try {
             const r = await this.chat.externalWrite(actor, { id: token.id, name: token.name, scope }, tool.name, (args ?? {}) as Record<string, unknown>);
             return { content: [{ type: "text" as const, text: JSON.stringify(r.status === "EXECUTED"

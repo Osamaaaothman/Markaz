@@ -16,7 +16,6 @@ import {
   textOf,
   toolsForMode,
   LOAD_TOOLS,
-  needsApproval,
   sectionOf,
   sectionOfRoute,
   toStored,
@@ -577,8 +576,9 @@ export class AiChatService {
   // ─── Writes from an external MCP client (Claude Desktop / Claude Code) ──────────────────────
   // The client calls a write tool directly; nothing runs through our model. The change is a card in
   // the token's own conversation ("MCP · <token name>"), decided in the app exactly like a chat card.
-  // A "write" token follows the app's auto-mode rules instead: a low-risk change runs at once (when the
-  // company allows auto mode and the user has ai_assistant:auto); a high-risk one still waits.
+  // A "write" token is full access: every change, high-risk included, runs at once and is recorded as an
+  // executed card. The approval step belongs to the MCP client (it asks its user before each tool call),
+  // not to the app. Only the user's own ai_assistant:auto permission and the tool's permission apply.
   async externalWrite(
     actor: Actor,
     token: { id: string; name: string; scope: "review" | "write" },
@@ -606,11 +606,9 @@ export class AiChatService {
     const checked = parsed.success && !pendingRef ? (parsed.data as Record<string, unknown>) : args;
     const preview = await tool.preview(ctx, checked);
 
-    // Auto mode is a company switch in the AI settings; a review token never needs it.
-    const autoAllowed = token.scope === "write"
-      && (await this.settings.resolve(actor.companyId).then((c) => c.autoModeEnabled, () => false))
-      && (await this.can(actor, "ai_assistant", "auto"));
-    const runNow = token.scope === "write" && !pendingRef && !needsApproval(tool, "auto", autoAllowed);
+    if (token.scope === "write" && !(await this.can(actor, "ai_assistant", "auto"))) throw new AiChatError("FORBIDDEN");
+    // A reference to a card still waiting (from an earlier review token) cannot run yet: that one becomes a card too.
+    const runNow = token.scope === "write" && !pendingRef;
     // Atomic: two calls at once never get the same card number.
     const numbered = await this.prisma.aiConversation.update({ where: { id: conversationId }, data: { nextItemNumber: { increment: 1 } }, select: { nextItemNumber: true } });
     const key = `c${numbered.nextItemNumber - 1}`;

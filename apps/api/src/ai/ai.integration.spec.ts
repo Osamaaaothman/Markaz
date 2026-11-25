@@ -433,24 +433,20 @@ process.env["AI_FALLBACK_MODELS"] = "none";
     expect(await db.party.count({ where: { companyId, name: "MCP Rejected" } })).toBe(0);
   });
 
-  it("an MCP write token saves a low-risk change at once only when auto mode is allowed", async () => {
+  it("an MCP write token saves every change at once, high-risk included, but needs the user's auto permission", async () => {
     const token = { id: newId(), name: "Claude Code", scope: "write" as const };
     await db.aiAccessToken.create({ data: { id: token.id, companyId, userId: owner.id, name: token.name, scope: "write", tokenHash: newId(), tokenPrefix: "mkz_mcp_test" } });
-    // Auto mode off for the company: the change waits like a review card.
-    const waiting = await chat.externalWrite(owner, token, "parties_createSupplier", { name: "MCP Auto Off" });
-    expect(waiting.status).toBe("PROPOSED");
-
-    await db.aiProviderConfig.create({ data: { id: newId(), companyId, provider: "google", model: "scripted", enabled: true, autoModeEnabled: true, createdBy: owner.id, updatedBy: owner.id } });
-    try {
-      const done = await chat.externalWrite(owner, token, "parties_createSupplier", { name: "MCP Auto On" });
-      expect(done.status).toBe("EXECUTED");
-      expect(await db.party.count({ where: { companyId, name: "MCP Auto On" } })).toBe(1);
-      // Without the user's own auto permission it waits again.
-      denied.add(`${owner.id}:ai_assistant:auto`);
-      expect((await chat.externalWrite(owner, token, "parties_createSupplier", { name: "No auto perm" })).status).toBe("PROPOSED");
-      expect(await db.party.count({ where: { companyId, name: "No auto perm" } })).toBe(0);
-    } finally {
-      await db.aiProviderConfig.deleteMany({ where: { companyId } });
-    }
+    // No company auto-mode switch needed: the client asks its own user before the call.
+    const done = await chat.externalWrite(owner, token, "parties_createSupplier", { name: "MCP Direct" });
+    expect(done.status).toBe("EXECUTED");
+    expect(await db.party.count({ where: { companyId, name: "MCP Direct" } })).toBe(1);
+    // A later call resolves "$ref" against the executed result.
+    const ref = await chat.externalWrite(owner, token, "parties_createCustomer", { name: "MCP Direct Customer" });
+    expect(ref.status).toBe("EXECUTED");
+    // Without the user's own auto permission the token cannot write at all.
+    denied.add(`${owner.id}:ai_assistant:auto`);
+    await expect(chat.externalWrite(owner, token, "parties_createSupplier", { name: "No auto perm" })).rejects.toThrow("FORBIDDEN");
+    expect(await db.party.count({ where: { companyId, name: "No auto perm" } })).toBe(0);
+    denied.delete(`${owner.id}:ai_assistant:auto`);
   });
 });

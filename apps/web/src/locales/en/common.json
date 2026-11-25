@@ -4279,7 +4279,7 @@
       "scopeHints": {
         "read": "Reports, balances and searches. It can never change anything.",
         "review": "It can prepare any change, but nothing is saved until you approve its card in the assistant.",
-        "write": "Like auto mode: low-risk changes are saved at once; high-risk ones (payments, posting) still wait for your approval. Needs auto mode to be on for the company."
+        "write": "Full access: every change, payments and posting included, is saved at once. Your AI client asks you before each call, not this app."
       },
       "howTo": "Add it to your AI app using one of these:",
       "serverUrl": "MCP server address",
