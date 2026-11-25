@@ -2804,18 +2804,23 @@ model AiProviderConfig {
 
 // A personal token for the read-only MCP endpoint (Claude Desktop, Claude Code, ...). It never expires
 // on its own; the user revokes it. Only the SHA-256 of the token is stored; the token is shown once.
-// It authenticates nothing but POST /v1/ai/mcp, and acts with its user's own permissions.
+// It authenticates nothing but POST /v1/ai/mcp, and acts with its user's own permissions and its scope.
 model AiAccessToken {
-  id          String    @id
-  companyId   String    @map("company_id")
-  userId      String    @map("user_id")
-  name        String
-  tokenHash   String    @unique @map("token_hash")
+  id             String    @id
+  companyId      String    @map("company_id")
+  userId         String    @map("user_id")
+  name           String
+  tokenHash      String    @unique @map("token_hash")
   // The first characters, so the user can tell tokens apart; never enough to use.
-  tokenPrefix String    @map("token_prefix")
-  lastUsedAt  DateTime? @map("last_used_at")
-  revokedAt   DateTime? @map("revoked_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  tokenPrefix    String    @map("token_prefix")
+  // read: read tools only. review: writes become cards waiting for approval in the app.
+  // write: like the app's auto mode — low-risk writes run at once, high-risk ones still wait.
+  scope          String    @default("read")
+  // The conversation where this token's cards and changes are shown, created on first write.
+  conversationId String?   @map("conversation_id")
+  lastUsedAt     DateTime? @map("last_used_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id])
   user    User    @relation(fields: [userId], references: [id])

@@ -115,4 +115,9 @@ export class CreateAccessTokenDto {
   @IsNotEmpty()
   @MaxLength(80)
   name!: string;
+
+  // read (default) | review | write — see ACCESS_TOKEN_SCOPES.
+  @IsOptional()
+  @IsIn(["read", "review", "write"])
+  scope?: "read" | "review" | "write";
 }

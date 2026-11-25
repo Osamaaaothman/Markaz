@@ -14,15 +14,34 @@ const MAX_TOKENS_PER_USER = 10;
 const LAST_USED_GRANULARITY_MS = 60_000;
 
 export class AccessTokenError extends Error {
-  constructor(readonly code: "NAME_REQUIRED" | "TOO_MANY_TOKENS" | "TOKEN_NOT_FOUND") {
+  constructor(readonly code: "NAME_REQUIRED" | "TOO_MANY_TOKENS" | "TOKEN_NOT_FOUND" | "INVALID_SCOPE" | "FORBIDDEN") {
     super(code);
     this.name = "AccessTokenError";
   }
 }
 
+// read: read tools only. review: every write becomes a card waiting for approval in the app.
+// write: the app's auto-mode rules — low-risk writes run at once, high-risk ones still wait for approval.
+export const ACCESS_TOKEN_SCOPES = ["read", "review", "write"] as const;
+export type AccessTokenScope = (typeof ACCESS_TOKEN_SCOPES)[number];
+// The permission a user needs to create a token of each scope (the same as the matching chat mode).
+const SCOPE_PERMISSION: Readonly<Record<AccessTokenScope, string>> = { read: "use", review: "interact", write: "auto" };
+
+// The token a request was authenticated with (set by JwtAuthGuard on @AllowAccessToken() routes).
+export interface RequestAccessToken {
+  readonly id: string;
+  readonly name: string;
+  readonly scope: AccessTokenScope;
+}
+
+function asScope(value: string): AccessTokenScope {
+  return (ACCESS_TOKEN_SCOPES as readonly string[]).includes(value) ? (value as AccessTokenScope) : "read";
+}
+
 export interface AccessTokenView {
   readonly id: string;
   readonly name: string;
+  readonly scope: AccessTokenScope;
   readonly tokenPrefix: string;
   readonly createdAt: Date;
   readonly lastUsedAt: Date | null;
@@ -43,26 +62,36 @@ export class AccessTokenService {
   ) {}
 
   async list(actor: { id: string; companyId: string }): Promise<AccessTokenView[]> {
-    return this.prisma.aiAccessToken.findMany({
+    const rows = await this.prisma.aiAccessToken.findMany({
       where: { companyId: actor.companyId, userId: actor.id, revokedAt: null },
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, tokenPrefix: true, createdAt: true, lastUsedAt: true },
+      select: { id: true, name: true, scope: true, tokenPrefix: true, createdAt: true, lastUsedAt: true },
     });
+    return rows.map((r) => ({ ...r, scope: asScope(r.scope) }));
   }
 
-  async create(actor: { id: string; companyId: string }, rawName: string): Promise<AccessTokenView & { token: string }> {
+  // `can` checks the creator's own permission (ai_assistant:<action>) for the scope asked for.
+  async create(
+    actor: { id: string; companyId: string },
+    rawName: string,
+    rawScope: string,
+    can: (resource: string, action: string) => Promise<boolean>,
+  ): Promise<AccessTokenView & { token: string }> {
     const name = rawName.trim().slice(0, 80);
     if (!name) throw new AccessTokenError("NAME_REQUIRED");
+    if (!(ACCESS_TOKEN_SCOPES as readonly string[]).includes(rawScope)) throw new AccessTokenError("INVALID_SCOPE");
+    const scope = rawScope as AccessTokenScope;
+    if (!(await can("ai_assistant", SCOPE_PERMISSION[scope]))) throw new AccessTokenError("FORBIDDEN");
     const active = await this.prisma.aiAccessToken.count({ where: { companyId: actor.companyId, userId: actor.id, revokedAt: null } });
     if (active >= MAX_TOKENS_PER_USER) throw new AccessTokenError("TOO_MANY_TOKENS");
     const token = ACCESS_TOKEN_PREFIX + randomBytes(32).toString("base64url");
     const row = await this.prisma.aiAccessToken.create({
-      data: { id: newId(), companyId: actor.companyId, userId: actor.id, name, tokenHash: hashAccessToken(token), tokenPrefix: token.slice(0, PREFIX_SHOWN) },
+      data: { id: newId(), companyId: actor.companyId, userId: actor.id, name, scope, tokenHash: hashAccessToken(token), tokenPrefix: token.slice(0, PREFIX_SHOWN) },
       select: { id: true, name: true, tokenPrefix: true, createdAt: true, lastUsedAt: true },
     });
     // Never the token or its hash in the audit log.
-    await this.audit.log({ actorId: actor.id, action: "ai_access_token.created", entityType: "AiAccessToken", entityId: row.id, after: { name, tokenPrefix: row.tokenPrefix }, correlationId: `ai-token:${row.id}` });
-    return { ...row, token };
+    await this.audit.log({ actorId: actor.id, action: "ai_access_token.created", entityType: "AiAccessToken", entityId: row.id, after: { name, scope, tokenPrefix: row.tokenPrefix }, correlationId: `ai-token:${row.id}` });
+    return { ...row, scope, token };
   }
 
   async revoke(actor: { id: string; companyId: string }, id: string): Promise<void> {
@@ -72,16 +101,16 @@ export class AccessTokenService {
   }
 
   // The user a bearer token acts for, or null. A revoked token, or one whose user was deactivated, is refused.
-  async verify(token: string): Promise<{ id: string; companyId: string } | null> {
+  async verify(token: string): Promise<{ id: string; companyId: string; token: RequestAccessToken } | null> {
     if (!looksLikeAccessToken(token)) return null;
     const row = await this.prisma.aiAccessToken.findUnique({
       where: { tokenHash: hashAccessToken(token) },
-      select: { id: true, companyId: true, userId: true, revokedAt: true, lastUsedAt: true, user: { select: { isActive: true } } },
+      select: { id: true, companyId: true, userId: true, name: true, scope: true, revokedAt: true, lastUsedAt: true, user: { select: { isActive: true } } },
     });
     if (!row || row.revokedAt || !row.user.isActive) return null;
     if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > LAST_USED_GRANULARITY_MS) {
       await this.prisma.aiAccessToken.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } });
     }
-    return { id: row.userId, companyId: row.companyId };
+    return { id: row.userId, companyId: row.companyId, token: { id: row.id, name: row.name, scope: asScope(row.scope) } };
   }
 }
